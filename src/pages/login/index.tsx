@@ -88,8 +88,19 @@ export default function LoginHome({ navigation }: Props) {
           </TouchableOpacity>
           <Text style={styles.agreementText}>
             我已阅读并同意
-            <Text style={styles.agreementLink}>《用户协议》</Text>
-            和<Text style={styles.agreementLink}>《隐私政策》</Text>
+            <Text
+              style={styles.agreementLink}
+              onPress={() => navigation.navigate('agreement', { type: 'userSure' })}
+            >
+              《用户协议》
+            </Text>
+            和
+            <Text
+              style={styles.agreementLink}
+              onPress={() => navigation.navigate('agreement', { type: 'privates' })}
+            >
+              《隐私政策》
+            </Text>
           </Text>
         </View>
       </View>
