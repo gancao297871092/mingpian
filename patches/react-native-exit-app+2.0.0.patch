@@ -1,0 +1,126 @@
+diff --git a/node_modules/react-native-exit-app/RNExitApp.podspec b/node_modules/react-native-exit-app/RNExitApp.podspec
+index 7290b50..99f33ca 100644
+--- a/node_modules/react-native-exit-app/RNExitApp.podspec
++++ b/node_modules/react-native-exit-app/RNExitApp.podspec
+@@ -7,7 +7,6 @@ homepage = packageJson["homepage"]
+ license = packageJson["license"]
+ author = packageJson["author"]
+ repository = packageJson["repository"]["url"]
+-iqVersion = version.split('-').first
+ 
+ Pod::Spec.new do |s|
+ 	s.name           = "RNExitApp"
+@@ -18,26 +17,13 @@ Pod::Spec.new do |s|
+ 	s.license        = license
+ 	s.authors        = author
+ 	s.source         = { :git => repository, :tag => version }
+-	s.platforms      = { :ios => "9.0", :tvos => "11.0" }
++	s.platforms      = { :ios => "13.0", :tvos => "11.0" }
+ 	s.preserve_paths = 'README.md', 'package.json', '*.js'
+ 	s.source_files   = 'ios/RNExitApp/**/*.{h,m,mm}'
+ 
+-	s.dependency 'React-Core'
+-  
+-	# Don't install the dependencies when we run `pod install` in the old architecture.
+-	if ENV["RCT_NEW_ARCH_ENABLED"] == "1"
+-	  s.compiler_flags = folly_flags + " -DRCT_NEW_ARCH_ENABLED=1"
+-	  s.pod_target_xcconfig    = {
+-		"HEADER_SEARCH_PATHS" => "\"$(PODS_ROOT)/boost\"",
+-		"OTHER_CPLUSPLUSFLAGS" => "-DFOLLY_NO_CONFIG -DFOLLY_MOBILE=1 -DFOLLY_USE_LIBCPP=1",
+-		"CLANG_CXX_LANGUAGE_STANDARD" => "c++17"
+-	  }
+-  
+-	  s.dependency "React-Codegen"
+-	  s.dependency "React-RCTFabric"
+-	  s.dependency "RCT-Folly"
+-	  s.dependency "RCTRequired"
+-	  s.dependency "RCTTypeSafety"
+-	  s.dependency "ReactCommon/turbomodule/core"
++	if defined?(install_modules_dependencies) != nil
++		install_modules_dependencies(s)
++	else
++		s.dependency 'React-Core'
+ 	end
+ end
+diff --git a/node_modules/react-native-exit-app/android/build.gradle b/node_modules/react-native-exit-app/android/build.gradle
+index 18b6bf4..f4f86f5 100644
+--- a/node_modules/react-native-exit-app/android/build.gradle
++++ b/node_modules/react-native-exit-app/android/build.gradle
+@@ -1,20 +1,3 @@
+-buildscript {
+-    // The Android Gradle plugin is only required when opening the android folder stand-alone.
+-    // This avoids unnecessary downloads and potential conflicts when the library is included as a
+-    // module dependency in an application project.
+-    if (project == rootProject) {
+-        repositories {
+-            google()
+-            mavenCentral()
+-        }
+-
+-        dependencies {
+-            //noinspection GradleDependency
+-            classpath("com.android.tools.build:gradle:3.5.2")
+-        }
+-    }
+-}
+-
+ def safeExtGet(prop, fallback) {
+     rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
+ }
+@@ -29,19 +12,14 @@ if (isNewArchitectureEnabled()) {
+ }
+ 
+ android {
+-    compileSdkVersion safeExtGet('compileSdkVersion', 23)
+-    buildToolsVersion safeExtGet('buildToolsVersion', "25.0.0")
++    namespace "com.github.wumke.RNExitApp"
++
++    compileSdk safeExtGet('compileSdkVersion', 35)
+ 
+     defaultConfig {
+-        minSdkVersion safeExtGet('minSdkVersion',16)
+-        targetSdkVersion safeExtGet('targetSdkVersion',22)
++        minSdk safeExtGet('minSdkVersion', 24)
++        targetSdk safeExtGet('targetSdkVersion', 35)
+         buildConfigField "boolean", "IS_NEW_ARCHITECTURE_ENABLED", isNewArchitectureEnabled().toString()
+-        ndk {
+-            abiFilters "armeabi-v7a", "x86"
+-        }
+-    }
+-    lintOptions {
+-       warning 'InvalidPackage'
+     }
+ 
+     sourceSets {
+@@ -53,8 +31,17 @@ android {
+             }
+         }
+     }
++
++    lint {
++        abortOnError false
++    }
++}
++
++repositories {
++    mavenCentral()
++    google()
+ }
+ 
+ dependencies {
+-    implementation 'com.facebook.react:react-native:+'
++    implementation 'com.facebook.react:react-android:+'
+ }
+diff --git a/node_modules/react-native-exit-app/ios/RNExitApp/RNExitApp.h b/node_modules/react-native-exit-app/ios/RNExitApp/RNExitApp.h
+index 50a2135..4a598a3 100644
+--- a/node_modules/react-native-exit-app/ios/RNExitApp/RNExitApp.h
++++ b/node_modules/react-native-exit-app/ios/RNExitApp/RNExitApp.h
+@@ -7,7 +7,7 @@
+ #endif
+ 
+ #if RCT_NEW_ARCH_ENABLED
+-#import <React-Codegen/RNExitAppSpec/RNExitAppSpec.h>
++#import <ReactCodegen/RNExitAppSpec/RNExitAppSpec.h>
+ #endif
+ 
+ @interface RNExitApp : NSObject <RCTBridgeModule>

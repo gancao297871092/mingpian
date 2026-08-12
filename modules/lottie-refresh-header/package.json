@@ -1,0 +1,21 @@
+{
+  "name": "react-native-lottie-refresh-header",
+  "version": "1.0.0",
+  "description": "Fabric custom pull-to-refresh view with Lottie (iOS)",
+  "main": "src/index.tsx",
+  "license": "MIT",
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*"
+  },
+  "codegenConfig": {
+    "name": "LottieRefreshHeaderSpec",
+    "type": "components",
+    "jsSrcsDir": "src",
+    "ios": {
+      "componentProvider": {
+        "LottieRefreshHeader": "LottieRefreshHeaderComponentView"
+      }
+    }
+  }
+}

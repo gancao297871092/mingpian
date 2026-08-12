@@ -1,0 +1,76 @@
+# Resolve react_native_pods.rb with node to allow for hoisting
+require Pod::Executable.execute_command('node', ['-p',
+  'require.resolve(
+    "react-native/scripts/react_native_pods.rb",
+    {paths: [process.argv[1]]},
+  )', __dir__]).strip
+
+require_relative '../node_modules/expo/scripts/autolinking.rb'
+
+platform :ios, '16.4'
+prepare_react_native_project!
+
+linkage = ENV['USE_FRAMEWORKS']
+if linkage != nil
+  Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
+  use_frameworks! :linkage => linkage.to_sym
+end
+
+target 'RnBaseTemplate' do
+  use_expo_modules!
+  config = use_native_modules!
+
+  use_react_native!(
+    :path => config[:reactNativePath],
+    # An absolute path to your application root.
+    :app_path => "#{Pod::Config.instance.installation_root}/.."
+  )
+
+  pod 'LiquidGlassView', :path => "#{Pod::Config.instance.installation_root}/LiquidGlassView"
+
+  post_install do |installer|
+    react_native_post_install(
+      installer,
+      config[:reactNativePath],
+      :mac_catalyst_enabled => false,
+      # :ccache_enabled => true
+    )
+
+    # react-native-config：按构建配置选择 .env 文件（Debug→.env，Release→.env.prod）
+    # 自定义环境可用 ENVFILE 环境变量覆盖，如：ENVFILE=.env.staging xcodebuild ...
+    ENVFILES = {
+      'Debug' => '$(PODS_ROOT)/../../.env',
+      'Release' => '$(PODS_ROOT)/../../.env.prod',
+    }
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        if target.name == 'react-native-config'
+          config.build_settings['ENVFILE'] = ENVFILES[config.name]
+        end
+      end
+    end
+
+    # SVGAPlayer 2.5.7 的 protobuf 生成代码使用了已被新 SDK 移除的
+    # OSAtomicCompareAndSwapPtrBarrier，替换为等价的编译器内置函数。
+    svga_file = File.join(
+      installer.sandbox.root, 'SVGAPlayer/Source/pbobjc/Svga.pbobjc.m'
+    )
+    if File.exist?(svga_file)
+      content = File.read(svga_file)
+      # 撤销可能存在的旧补丁（保留已替换结果）
+      content = content.gsub(
+        '__sync_bool_compare_and_swap(nil, worker, (void * volatile *)&descriptor)',
+        'OSAtomicCompareAndSwapPtrBarrier(nil, worker, (void * volatile *)&descriptor)'
+      )
+      # 原子内置函数不接受 void**，改用带类型的 &descriptor
+      content = content.gsub(
+        'OSAtomicCompareAndSwapPtrBarrier(nil, worker, (void * volatile *)&descriptor)',
+        '__sync_bool_compare_and_swap(&descriptor, nil, worker)'
+      )
+      # pod install 后 Pods 内文件只读，写入前先放开权限
+      File.chmod(0o644, svga_file)
+      File.write(svga_file, content)
+      Pod::UI.puts 'Patched SVGAPlayer Svga.pbobjc.m (OSAtomic -> __sync)'.green
+    end
+  end
+end
