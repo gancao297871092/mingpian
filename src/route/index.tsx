@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import i18n from '@/language';
 import { useTheme } from '@/theme';
+import LiquidGlassTabBar from '@/components/LiquidGlassTabBar';
 import type { RootStackParamList, MainTabParamList } from './map';
 
 import Home from '@/pages/home';
@@ -133,6 +134,7 @@ function MainTabs() {
   const theme = useTheme();
   return (
     <Tab.Navigator
+      tabBar={props => <LiquidGlassTabBar {...props} />}
       screenOptions={{
         // headerShown: false,
         tabBarActiveTintColor: theme.primary,

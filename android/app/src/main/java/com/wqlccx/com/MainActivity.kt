@@ -1,4 +1,4 @@
-package com.rnbasetemplate
+package com.wqlccx.com
 
 import android.os.Bundle
 import com.facebook.react.ReactActivity

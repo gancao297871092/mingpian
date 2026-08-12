@@ -1,4 +1,4 @@
-package com.rnbasetemplate
+package com.wqlccx.com
 
 import android.app.Application
 import android.content.res.Configuration

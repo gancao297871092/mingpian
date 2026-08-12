@@ -1,12 +1,12 @@
-package com.rnbasetemplate.wxapi;
+package com.wqlccx.com.wxapi;
 
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 
-public class WXEntryActivity extends Activity {
+public class WXPayEntryActivity extends Activity {
   @Override
-  public void onCreate(Bundle savedInstanceState) {
+  protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
 
     try {
