@@ -1,0 +1,313 @@
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Alert,
+  Keyboard,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
+} from 'react-native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { API } from '@/api';
+import { CheckIcon } from '@/assets/login/icons';
+import { useTheme } from '@/theme';
+import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
+import { storageUtils } from '@/utils/storage';
+import { useUserStore } from '@/store/user';
+import type { RootStackParamList } from '@/route/map';
+
+const COUNTDOWN_SECONDS = 60;
+
+type Props = NativeStackScreenProps<RootStackParamList, 'otherLogin'>;
+
+export default function OtherNumberLogin({ navigation }: Props) {
+  const theme = useTheme();
+  const { setToken } = useUserStore();
+  const [phone, setPhone] = useState('');
+  const [code, setCode] = useState('');
+  const [authCode, setAuthCode] = useState('');
+  const [agreed, setAgreed] = useState(true);
+  const [countdown, setCountdown] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const isPhoneValid = /^1\d{10}$/.test(phone);
+  const canLogin = isPhoneValid && code.length >= 4 && agreed;
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
+
+  const startCountdown = () => {
+    setCountdown(COUNTDOWN_SECONDS);
+    timerRef.current = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          if (timerRef.current) clearInterval(timerRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const onGetCode = async () => {
+    if (countdown > 0) return;
+    if (!isPhoneValid) {
+      Alert.alert('提示', '请输入正确的11位手机号码');
+      return;
+    }
+    try {
+      const res = await API.auth.smsSend({ phone });
+      const { code: respCode, msg, data } = res.data;
+      if (respCode === '200' && data?.authCode) {
+        setAuthCode(data.authCode);
+        startCountdown();
+        Alert.alert('提示', '验证码已发送，请注意查收');
+      } else {
+        Alert.alert('提示', msg || '验证码发送失败');
+      }
+    } catch (e: any) {
+      Alert.alert('提示', e?.message || '网络错误，请稍后重试');
+    }
+  };
+
+  const onLogin = async () => {
+    if (!isPhoneValid) {
+      Alert.alert('提示', '请输入正确的11位手机号码');
+      return;
+    }
+    if (code.length < 4) {
+      Alert.alert('提示', '请输入验证码');
+      return;
+    }
+    if (!agreed) {
+      Alert.alert('提示', '请先阅读并同意《用户协议》和《隐私政策》');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await API.auth.login({ phone, authCode, code });
+      const { code: respCode, msg, data } = res.data;
+      if (respCode === '200' && data?.token) {
+        storageUtils.set('token', data.token);
+        setToken(data.token);
+        Alert.alert('登录成功', '手机号登录成功', [
+          { text: '确定', onPress: () => navigation.goBack() },
+        ]);
+      } else {
+        Alert.alert('提示', msg || '登录失败');
+      }
+    } catch (e: any) {
+      Alert.alert('提示', e?.message || '网络错误，请稍后重试');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={styles.header}>
+        <Text style={styles.title}>其他号码登录</Text>
+        <Text style={styles.subtitle}>未注册的手机号登录成功后将自动注册</Text>
+      </View>
+
+      <View style={styles.form}>
+        <View style={styles.fieldRow}>
+          <Text style={styles.fieldLabel}>手机号</Text>
+          <TextInput
+            style={styles.fieldInput}
+            value={phone}
+            onChangeText={setPhone}
+            placeholder="请输入11位手机号码"
+            placeholderTextColor="#BABABA"
+            keyboardType="number-pad"
+            maxLength={11}
+          />
+        </View>
+        <View style={styles.divider} />
+
+        <View style={styles.fieldRow}>
+          <Text style={styles.fieldLabel}>验证码</Text>
+          <TextInput
+            style={styles.fieldInput}
+            value={code}
+            onChangeText={setCode}
+            placeholder="请输入验证码"
+            placeholderTextColor="#BABABA"
+            keyboardType="number-pad"
+            maxLength={6}
+          />
+          <TouchableOpacity
+            style={[styles.getCodeBtn, !isPhoneValid && countdown === 0 && styles.getCodeBtnDisabled]}
+            activeOpacity={0.7}
+            disabled={!isPhoneValid || countdown > 0}
+            onPress={onGetCode}
+          >
+            <Text style={[styles.getCodeText, !isPhoneValid && countdown === 0 && styles.getCodeTextDisabled]}>
+              {countdown > 0 ? `${countdown}s` : '获取验证码'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.divider} />
+
+        <Text style={styles.hint}>验证码 5 分钟内有效，60 秒后可重新发送</Text>
+
+        <TouchableOpacity
+          style={[styles.loginBtn, canLogin && styles.loginBtnActive]}
+          activeOpacity={0.85}
+          disabled={!canLogin || loading}
+          onPress={onLogin}
+        >
+          <Text style={[styles.loginBtnText, canLogin && styles.loginBtnTextActive]}>
+            {loading ? '登录中…' : '登录'}
+          </Text>
+        </TouchableOpacity>
+
+        <View style={styles.agreement}>
+          <TouchableOpacity
+            style={[styles.checkbox, agreed && styles.checkboxActive]}
+            onPress={() => setAgreed(!agreed)}
+            activeOpacity={0.7}
+          >
+            {agreed ? <CheckIcon size={scaleSizeW(12)} /> : null}
+          </TouchableOpacity>
+          <Text style={styles.agreementText}>
+            我已阅读并同意
+            <Text
+              style={styles.agreementLink}
+              onPress={() => navigation.navigate('agreement', { type: 'userSure' })}
+            >
+              《用户协议》
+            </Text>
+            和
+            <Text
+              style={styles.agreementLink}
+              onPress={() => navigation.navigate('agreement', { type: 'privates' })}
+            >
+              《隐私政策》
+            </Text>
+          </Text>
+        </View>
+      </View>
+      </View>
+    </TouchableWithoutFeedback>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  header: {
+    marginTop: scaleSizeH(60),
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: setSpText(24),
+    fontWeight: '500',
+    color: '#000000',
+  },
+  subtitle: {
+    marginTop: scaleSizeH(8),
+    fontSize: setSpText(12),
+    color: '#B9B9B9',
+  },
+  form: {
+    marginTop: scaleSizeH(24),
+    paddingHorizontal: scaleSizeW(40),
+  },
+  fieldRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: scaleSizeH(37),
+  },
+  fieldLabel: {
+    fontSize: setSpText(16),
+    color: '#000000',
+  },
+  fieldInput: {
+    flex: 1,
+    marginLeft: scaleSizeW(21),
+    fontSize: setSpText(16),
+    color: '#000000',
+    paddingVertical: 0,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#E6E6E6',
+    marginTop: scaleSizeH(16),
+    marginBottom: scaleSizeH(14),
+  },
+  getCodeBtn: {
+    paddingLeft: scaleSizeW(12),
+  },
+  getCodeBtnDisabled: {
+    opacity: 0.5,
+  },
+  getCodeText: {
+    fontSize: setSpText(16),
+    color: '#2962D4',
+  },
+  getCodeTextDisabled: {
+    color: '#999999',
+  },
+  hint: {
+    marginTop: scaleSizeH(10),
+    fontSize: setSpText(12),
+    color: '#999999',
+  },
+  loginBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: scaleSizeH(46),
+    height: scaleSizeH(48),
+    borderRadius: scaleSizeH(24),
+    backgroundColor: '#F5F5F5',
+  },
+  loginBtnActive: {
+    backgroundColor: '#2962D4',
+  },
+  loginBtnText: {
+    fontSize: setSpText(15),
+    fontWeight: '500',
+    color: '#999999',
+  },
+  loginBtnTextActive: {
+    color: '#FFFFFF',
+  },
+  agreement: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: scaleSizeH(30),
+    justifyContent: 'center',
+  },
+  checkbox: {
+    width: scaleSizeW(14),
+    height: scaleSizeW(14),
+    borderRadius: scaleSizeW(3),
+    borderWidth: 1,
+    borderColor: '#D6D6D6',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: scaleSizeW(5),
+  },
+  checkboxActive: {
+    backgroundColor: '#2962D4',
+    borderColor: '#2962D4',
+  },
+  agreementText: {
+    fontSize: setSpText(12),
+    color: '#000000',
+  },
+  agreementLink: {
+    color: '#2962D4',
+  },
+});

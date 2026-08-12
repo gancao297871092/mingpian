@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import BootSplash from 'react-native-bootsplash';
 import { ThemeProvider, useTheme } from '@/theme';
 import RootNavigator from '@/route';
+import { initWechat } from '@/utils/wechat';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,6 +21,7 @@ function Root() {
   const theme = useTheme();
 
   useEffect(() => {
+    initWechat();
     BootSplash.hide({ fade: true });
   }, []);
 

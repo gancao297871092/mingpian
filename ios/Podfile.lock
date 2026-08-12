@@ -2890,6 +2890,29 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - RTNWechat (1.0.23):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - WechatOpenSDK-XCFramework
+    - Yoga
   - SDWebImage (5.21.7):
     - SDWebImage/Core (= 5.21.7)
   - SDWebImage/Core (5.21.7)
@@ -2918,6 +2941,7 @@ PODS:
   - VisionCamera/Core (4.7.3)
   - VisionCamera/React (4.7.3):
     - React-Core
+  - WechatOpenSDK-XCFramework (2.0.7)
   - Yoga (0.0.0)
 
 DEPENDENCIES:
@@ -2939,7 +2963,7 @@ DEPENDENCIES:
   - "ExpoSvgaPlayer (from `../node_modules/@jayming/expo-svga-player/ios`)"
   - FBLazyVector (from `../node_modules/react-native/Libraries/FBLazyVector`)
   - hermes-engine (from `../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)
-  - LiquidGlassView (from `/Users/admin/Desktop/RnBaseTemplate/ios/LiquidGlassView`)
+  - LiquidGlassView (from `/Users/admin/Desktop/mai/mingpian-app/ios/LiquidGlassView`)
   - lottie-react-native (from `../node_modules/lottie-react-native`)
   - NitroBackgroundTimer (from `../node_modules/react-native-nitro-bg-timer`)
   - NitroMmkv (from `../node_modules/react-native-mmkv`)
@@ -3043,6 +3067,7 @@ DEPENDENCIES:
   - RNSVG (from `../node_modules/react-native-svg`)
   - RNVectorIcons (from `../node_modules/react-native-vector-icons`)
   - RNWorklets (from `../node_modules/react-native-worklets`)
+  - RTNWechat (from `../node_modules/native-wechat`)
   - VisionCamera (from `../node_modules/react-native-vision-camera`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
@@ -3066,6 +3091,7 @@ SPEC REPOS:
     - SVGAPlayer
     - SwiftUIIntrospect
     - TOCropViewController
+    - WechatOpenSDK-XCFramework
 
 EXTERNAL SOURCES:
   BVLinearGradient:
@@ -3106,7 +3132,7 @@ EXTERNAL SOURCES:
     :podspec: "../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec"
     :tag: hermes-v250829098.0.14
   LiquidGlassView:
-    :path: "/Users/admin/Desktop/RnBaseTemplate/ios/LiquidGlassView"
+    :path: "/Users/admin/Desktop/mai/mingpian-app/ios/LiquidGlassView"
   lottie-react-native:
     :path: "../node_modules/lottie-react-native"
   NitroBackgroundTimer:
@@ -3311,6 +3337,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-vector-icons"
   RNWorklets:
     :path: "../node_modules/react-native-worklets"
+  RTNWechat:
+    :path: "../node_modules/native-wechat"
   VisionCamera:
     :path: "../node_modules/react-native-vision-camera"
   Yoga:
@@ -3448,6 +3476,7 @@ SPEC CHECKSUMS:
   RNSVG: 6cae8d4082913be2eb43eaec2a456222c42195ed
   RNVectorIcons: 97f26211c07d69e45b189f9dd0dbbe5e2d2b0b92
   RNWorklets: 9052122d7f98de547d247e775ea2069839236d38
+  RTNWechat: ea10b90eac0246f394774d6aa20828e693d8fbd4
   SDWebImage: e9fc87c1aab89a8ab1bbd74eba378c6f53be8abf
   SDWebImageAVIFCoder: afe194a084e851f70228e4be35ef651df0fc5c57
   SDWebImageSVGCoder: 15a300a97ec1c8ac958f009c02220ac0402e936c
@@ -3457,6 +3486,7 @@ SPEC CHECKSUMS:
   SwiftUIIntrospect: fee9aa07293ee280373a591e1824e8ddc869ba5d
   TOCropViewController: 797deaf39c90e6e9ddd848d88817f6b9a8a09888
   VisionCamera: 7187b3dac1ff3071234ead959ce311875748e14f
+  WechatOpenSDK-XCFramework: 5df9b250e9839dcc306ad8b00f46822eead1ed47
   Yoga: fe50ab299e578f397fef753cf309c6703a4db29b
 
 PODFILE CHECKSUM: d4776c872df45bb280853554ac96b29a1cbe6c7b

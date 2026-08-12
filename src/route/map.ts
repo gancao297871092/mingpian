@@ -2,6 +2,8 @@ export type RootStackParamList = {
   MainTabs: undefined;
   detail: { id: number | string };
   login: undefined;
+  otherLogin: undefined;
+  agreement: { type: 'userSure' | 'privates' };
   Demos: undefined;
   CameraDemo: undefined;
   GalleryDemo: undefined;

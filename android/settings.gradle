@@ -1,6 +1,13 @@
 pluginManagement {
     includeBuild("../node_modules/@react-native/gradle-plugin")
     includeBuild("../node_modules/expo-modules-autolinking/android/expo-gradle-plugin")
+    repositories {
+        maven { url 'https://maven.aliyun.com/repository/public' }
+        maven { url 'https://maven.aliyun.com/repository/google' }
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
 }
 plugins {
     id("com.facebook.react.settings")

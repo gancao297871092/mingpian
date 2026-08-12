@@ -2,8 +2,8 @@ import { Dimensions, PixelRatio, Platform, StatusBar } from 'react-native';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-const DESIGN_WIDTH = 375;
-const DESIGN_HEIGHT = 812;
+const DESIGN_WIDTH = 402;
+const DESIGN_HEIGHT = 874;
 
 export const scaleSizeW = (size: number): number => {
   const scale = SCREEN_WIDTH / DESIGN_WIDTH;
@@ -32,7 +32,7 @@ export const getStatusBarHeight = (): number => {
 };
 
 export const getBottomSpaces = (): number => {
-  return isIOS && SCREEN_HEIGHT >= 812 ? 34 : 0;
+  return isIOS && SCREEN_HEIGHT >= 874 ? 34 : 0;
 };
 
 export { SCREEN_WIDTH, SCREEN_HEIGHT };

@@ -1,9 +1,12 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import i18n, { setLocale, currentLocale, LocaleKey } from '@/language';
 import { useUserStore } from '@/store/user';
 import { useTheme, useThemeMode, type ThemeMode } from '@/theme';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
+import type { RootStackParamList } from '@/route/map';
 
 const LOCALES: { key: LocaleKey; label: string }[] = [
   { key: 'zh_CN', label: '简体中文' },
@@ -18,6 +21,7 @@ const THEME_MODES: { key: ThemeMode; label: string }[] = [
 ];
 
 export default function My() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { token, userInfo, logout } = useUserStore();
   const locale = currentLocale();
   const theme = useTheme();
@@ -64,7 +68,14 @@ export default function My() {
           <TouchableOpacity style={[styles.btn, { backgroundColor: theme.primary }]} onPress={logout}>
             <Text style={styles.btnText}>{i18n.t('退出登录')}</Text>
           </TouchableOpacity>
-        ) : null}
+        ) : (
+          <TouchableOpacity
+            style={[styles.btn, { backgroundColor: theme.primary }]}
+            onPress={() => navigation.navigate('login')}
+          >
+            <Text style={styles.btnText}>{i18n.t('登录')}</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.section}>

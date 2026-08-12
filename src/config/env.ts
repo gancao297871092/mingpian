@@ -6,6 +6,7 @@ export interface EnvConfig {
   envName: EnvName;
   apiUrl: string;
   apiTimeout: number;
+  wechatAppId: string;
 }
 
 const toEnvName = (value?: string): EnvName => {
@@ -17,4 +18,5 @@ export const env: EnvConfig = {
   envName: toEnvName(Config.APP_ENV),
   apiUrl: Config.API_URL ?? '',
   apiTimeout: Number(Config.API_TIMEOUT ?? 15000),
+  wechatAppId: Config.WECHAT_APPID ?? '',
 };

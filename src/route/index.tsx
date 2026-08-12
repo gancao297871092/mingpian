@@ -8,6 +8,9 @@ import type { RootStackParamList, MainTabParamList } from './map';
 
 import Home from '@/pages/home';
 import My from '@/pages/my';
+import LoginHome from '@/pages/login';
+import OtherNumberLogin from '@/pages/login/OtherNumberLogin';
+import AgreementPage from '@/pages/login/AgreementPage';
 import Detail from '@/pages/detail';
 import DemosPage from '@/pages/demos';
 import CameraDemo from '@/pages/demos/CameraDemo';
@@ -170,6 +173,30 @@ export default function RootNavigator() {
           name="MainTabs"
           component={MainTabs}
           options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="login"
+          component={LoginHome}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="otherLogin"
+          component={OtherNumberLogin}
+          options={{
+            headerTitle: '',
+            headerShadowVisible: false,
+            headerStyle: { backgroundColor: '#FFFFFF' },
+            headerTitleStyle: { color: '#000000' },
+          }}
+        />
+        <Stack.Screen
+          name="agreement"
+          component={AgreementPage}
+          options={{
+            headerShadowVisible: false,
+            headerStyle: { backgroundColor: '#FFFFFF' },
+            headerTitleStyle: { color: '#000000' },
+          }}
         />
         <Stack.Screen
           name="detail"
