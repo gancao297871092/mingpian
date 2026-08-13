@@ -1,5 +1,5 @@
 import React from 'react';
-import { Dimensions, Image, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { numTokw } from '@/utils/format';
 import { scaleSizeW } from '@/utils/screenUtils';
 
@@ -21,9 +21,11 @@ export default function CpCard({ cardInfo, onShare }: CpCardProps) {
       <Image source={{ uri: cardInfo.cardPoster }} style={styles.poster} resizeMode="cover" />
 
       {onShare && (
-        <View style={styles.shareBtn}>
+        <TouchableOpacity style={styles.shareBtn}
+          onPress={onShare}
+        >
           <Image source={require('@/assets/ming/share_new.png')} style={styles.shareIcon} />
-        </View>
+        </TouchableOpacity>
       )}
 
       <View style={styles.footer}>
