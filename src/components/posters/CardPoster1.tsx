@@ -53,19 +53,32 @@ export default function CardPoster1({ data }: CardPoster1Props) {
             </Text>
           </View>
         ) : null}
-
-        {/* 底部提示 */}
-        <Text style={styles.tip}>您好，这是我的名片，请扫码查看详情~</Text>
-
         {/* 企业 Logo */}
         {data.cpLogo ? (
           <Image source={{ uri: data.cpLogo }} style={styles.logo} />
         ) : null}
 
-        {/* 太阳码 */}
-        {data.sunCode ? (
-          <Image source={{ uri: data.sunCode }} style={styles.sunCode} />
-        ) : null}
+        <View style={{
+          backgroundColor: 'rgba(0,0,0,1)',
+          position: 'absolute',
+          left: 0,
+          bottom: 0,
+          width: 320,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: 16,
+          paddingVertical: 8
+        }}>
+          {/* 底部提示 */}
+          <Text style={styles.tip}>您好，这是我的名片，请扫码查看详情~</Text>
+
+          {/* 太阳码 */}
+          {data.sunCode ? (
+            <Image source={{ uri: data.sunCode }} style={styles.sunCode} />
+          ) : null}
+        </View>
+
       </View>
     </View>
   );
@@ -77,6 +90,7 @@ const styles = StyleSheet.create({
     height: 246,
     position: 'relative',
     overflow: 'hidden',
+    borderRadius: 10
   },
   bg: {
     width: 320,
@@ -128,9 +142,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tip: {
-    position: 'absolute',
-    left: 21,
-    bottom: 16,
+    // position: 'absolute',
+    // left: 21,
+    // bottom: 16,
     fontSize: 11,
     color: '#ffffff',
   },
@@ -143,10 +157,11 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   sunCode: {
-    position: 'absolute',
-    right: 20,
-    top: 196,
+    // position: 'absolute',
+    // right: 20,
+    // top: 196,
     width: 40,
     height: 40,
+    backgroundColor: 'red'
   },
 });

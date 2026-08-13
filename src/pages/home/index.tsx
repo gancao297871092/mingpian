@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Dimensions,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -77,6 +78,17 @@ export default function Home() {
         setSwiperList((prev) =>
           prev.map((o) => cardsList.find((p: any) => p.id === o.id) || o),
         );
+        setNavList((prev) =>
+          prev.map((o) => {
+            if ((o.id + '').includes('_cp')) {
+              const item = cardsList.find((p: any) => `${p.cpId}` === (o.id + '').split('_')[0]);
+              return { name: item?.cpName || o.name, id: item ? `${item.cpId}_cp` : o.id };
+            } else {
+              const item = cardsList.find((p: any) => p.id === o.id);
+              return { name: item?.alias || o.name, id: item ? item.id : o.id };
+            }
+          }),
+        );
       } else {
         setSwiperList(cardsList);
         if (cardsList[0]) {
@@ -140,14 +152,6 @@ export default function Home() {
     }
   };
 
-  const onPageChange = (e: any) => {
-    const idx = e.nativeEvent.position;
-    setCurrentIndex(idx);
-    if (navList[idx]) {
-      setSelectId(navList[idx].id);
-    }
-  };
-
   const onCreateCard = () => {
     navigation.navigate('editCard', {});
   };
@@ -195,26 +199,48 @@ export default function Home() {
     }
   };
 
+  const pagerItems = useMemo(() => {
+    if (swiperList.length === 0) return [];
+    const hasPersonal = swiperList.some((o) => !o.isCp);
+    if (!hasPersonal) {
+      return [{ isEmpty: true, id: 'empty' }, ...swiperList];
+    }
+    return swiperList;
+  }, [swiperList]);
+
   const getPagerHeight = () => {
-    const item = swiperList[currentIndex];
-    if (!item) return scaleSizeW(375);
+    const item = pagerItems[currentIndex];
+    if (!item || item.isEmpty) return scaleSizeW(375);
     if (item.isCp) {
       return SCREEN_WIDTH - scaleSizeW(31);
     }
     if (item.styleCode === 'FASHION') {
-      // 卡片高度 + 创建按钮 + 间距
       return SCREEN_WIDTH - scaleSizeW(31) + scaleSizeW(25) + scaleSizeW(42);
     }
-    // NORMAL / TRADITIONAL: 卡片 + 操作栏 + 创建按钮
     return scaleSizeW(375);
+  };
+
+  const onPageChange = (e: any) => {
+    const idx = e.nativeEvent.position;
+    setCurrentIndex(idx);
+    if (navList[idx]) {
+      setSelectId(navList[idx].id);
+    }
   };
 
   const renderShareModal = () => {
     if (!shareVisible || !shareItem) return null;
     const item = shareItem;
     return (
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
+      <TouchableOpacity
+        activeOpacity={1}
+        onPress={() => {
+          setShareVisible(false)
+        }}
+        style={styles.modalOverlay}>
+        <View
+          style={styles.modalContent}
+        >
           <ViewShot ref={shareShotRef} options={{ format: 'png', quality: 1 }}>
             {item.isCp ? (
               <CpPoster data={item} />
@@ -229,10 +255,10 @@ export default function Home() {
           <View style={styles.modalActions}>
             <PermissionButton
               mode="direct"
-              style={styles.modalBtn}
-              onPress={() => setShareVisible(false)}
+              style={[styles.modalBtn, styles.modalBtnPrimary]}
+              onPress={onSavePoster}
             >
-              <Text style={styles.modalBtnText}>关闭</Text>
+              <Text style={[styles.modalBtnText, styles.modalBtnTextPrimary]}>分享到微信</Text>
             </PermissionButton>
             <PermissionButton
               mode="direct"
@@ -243,7 +269,7 @@ export default function Home() {
             </PermissionButton>
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -354,7 +380,7 @@ export default function Home() {
     <SafeView backgroundColor="#fff">
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <View style={[styles.header, { paddingHorizontal: scaleSizeW(24) }]}>
+        <View style={[styles.header, { paddingHorizontal: scaleSizeW(18) }]}>
           <View style={styles.logoRow}>
             <Image source={require('@/assets/ming/wanqi_logo.png')} style={styles.logo} />
             <Text style={styles.logoText}>联诚采信</Text>
@@ -367,7 +393,7 @@ export default function Home() {
               </View>
               <View style={styles.greetingRow}>
                 <Text style={styles.greetingText}>
-                  {isLogin ? wqUser.username || '' : '请点击登录'}
+                  {isLogin ? wqUser.username || '' : '请点击登录'}-{swiperList.length}
                 </Text>
                 <Image source={require('@/assets/ming/hands.png')} style={styles.handsImg} />
               </View>
@@ -407,18 +433,23 @@ export default function Home() {
             pageMargin={scaleSizeW(12)}
             onPageSelected={onPageChange}
           >
-            {navList.map((nav, idx) => {
-              const item = swiperList[idx];
-              if (!item) return <View key={`page-${nav.id}`} />;
+            {pagerItems.map((item: any, idx: number) => {
+              if (item.isEmpty) {
+                return (
+                  <View key="page-empty" style={styles.page}>
+                    {renderEmpty()}
+                  </View>
+                );
+              }
               if (item.isCp) {
                 return (
-                  <View key={`page-${nav.id}`} style={styles.page}>
+                  <View key={`page-${item.id}`} style={styles.page}>
                     {renderCpCard(item, idx)}
                   </View>
                 );
               }
               return (
-                <View key={`page-${nav.id}`} style={styles.page}>
+                <View key={`page-${item.id}`} style={styles.page}>
                   {renderPersonalCard(item, idx)}
                 </View>
               );
@@ -602,11 +633,10 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   emptyContainer: {
-    paddingHorizontal: scaleSizeW(15),
+    paddingHorizontal: scaleSizeW(18),
     marginTop: scaleSizeW(8),
   },
   emptyCard: {
-    height: scaleSizeW(214),
     backgroundColor: '#f6f6f6',
     borderRadius: scaleSizeW(11),
     justifyContent: 'center',
@@ -629,7 +659,7 @@ const styles = StyleSheet.create({
     zIndex: 999,
   },
   modalContent: {
-    backgroundColor: '#ffffff',
+    // backgroundColor: '#ffffff',
     borderRadius: scaleSizeW(16),
     padding: scaleSizeW(20),
     alignItems: 'center',

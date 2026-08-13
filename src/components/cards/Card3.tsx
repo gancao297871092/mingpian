@@ -1,5 +1,5 @@
 import React from 'react';
-import { Dimensions, Image, ImageBackground, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, Image, ImageBackground, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { numTokw } from '@/utils/format';
 import { scaleSizeW } from '@/utils/screenUtils';
 
@@ -22,7 +22,7 @@ export default function Card3({ cardInfo, from = 'show', onShare, onDel, onEdit 
       ? cardInfo?.cardPoster || ''
       : cardInfo?.mediaLinkList?.length > 0
         ? (cardInfo.mediaLinkList.find((o: any) => o.isIndex)?.media?.mdUrl ||
-           cardInfo.mediaLinkList[0]?.media?.mdUrl)
+          cardInfo.mediaLinkList[0]?.media?.mdUrl)
         : '';
 
   // 小程序：height: calc(100vw - 58rpx)
@@ -38,13 +38,19 @@ export default function Card3({ cardInfo, from = 'show', onShare, onDel, onEdit 
         {!isEdit && (
           <View style={styles.actions}>
             {onDel && (
-              <Image source={require('@/assets/ming/del_3.png')} style={styles.actionIcon} />
+              <TouchableOpacity onPress={onDel}>
+                <Image source={require('@/assets/ming/del_3.png')} style={styles.actionIcon} />
+              </TouchableOpacity>
             )}
             {onShare && (
-              <Image source={require('@/assets/ming/share_new.png')} style={styles.actionIcon} />
+              <TouchableOpacity onPress={onShare}>
+                <Image source={require('@/assets/ming/share_new.png')} style={styles.actionIcon} />
+              </TouchableOpacity>
             )}
             {onEdit && (
-              <Image source={require('@/assets/ming/10.png')} style={styles.actionIcon} />
+              <TouchableOpacity onPress={onEdit}>
+                <Image source={require('@/assets/ming/10.png')} style={styles.actionIcon} />
+              </TouchableOpacity>
             )}
           </View>
         )}
