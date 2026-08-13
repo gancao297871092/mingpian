@@ -72,12 +72,11 @@ export default function LoginHome({ navigation }: Props) {
           disabled={wechatLoading}
           onPress={onWechatLogin}
         >
-          <WechatIcon size={scaleSizeW(20)} />
+          <WechatIcon size={scaleSizeW(20)} /> 
           <Text style={styles.btnSecondaryText}>
             {wechatLoading ? '拉起微信中…' : '微信登录'}
           </Text>
         </TouchableOpacity>
-
         <View style={styles.agreement}>
           <TouchableOpacity
             style={[styles.checkbox, agreed && styles.checkboxActive]}
