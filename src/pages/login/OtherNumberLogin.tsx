@@ -14,7 +14,6 @@ import { API } from '@/api';
 import { CheckIcon } from '@/assets/login/icons';
 import { useTheme } from '@/theme';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
-import { storageUtils } from '@/utils/storage';
 import { useUserStore } from '@/store/user';
 import type { RootStackParamList } from '@/route/map';
 
@@ -24,7 +23,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'otherLogin'>;
 
 export default function OtherNumberLogin({ navigation }: Props) {
   const theme = useTheme();
-  const { setToken } = useUserStore();
+  const { setToken, setUserInfo } = useUserStore();
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [authCode, setAuthCode] = useState('');
@@ -93,12 +92,19 @@ export default function OtherNumberLogin({ navigation }: Props) {
     try {
       const res = await API.auth.login({ phone, authCode, code });
       const { code: respCode, msg, data } = res.data;
+      console.log(res, 'resresres')
       if (respCode === '200' && data?.token) {
-        storageUtils.set('token', data.token);
         setToken(data.token);
-        Alert.alert('登录成功', '手机号登录成功', [
-          { text: '确定', onPress: () => navigation.goBack() },
-        ]);
+        // 获取用户信息（同步小程序逻辑）
+        try {
+          const infoRes = await API.user.info();
+          if (infoRes.data.code === '200') {
+            setUserInfo(infoRes.data.data);
+          }
+        } catch {
+          // ignore
+        }
+        navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
       } else {
         Alert.alert('提示', msg || '登录失败');
       }

@@ -62,7 +62,7 @@ export default function My() {
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>{i18n.t('我的')}</Text>
         <Text style={[styles.info, { color: theme.subText }]}>
-          {token ? `已登录：${userInfo?.nickname ?? '-'}` : '未登录'}
+          {token ? `已登录：${(userInfo as any)?.wqUser?.username ?? (userInfo as any)?.nickname ?? '-'}` : '未登录'}
         </Text>
         {token ? (
           <TouchableOpacity style={[styles.btn, { backgroundColor: theme.primary }]} onPress={logout}>

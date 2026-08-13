@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { storage } from '@/utils/storage';
+import { storage, storageUtils } from '@/utils/storage';
 
 const mmkvStorage = {
   getItem: (name: string) => storage.getString(name) ?? null,
@@ -8,10 +8,37 @@ const mmkvStorage = {
   removeItem: (name: string) => storage.remove(name),
 };
 
-interface UserInfo {
+export interface WqUser {
   id?: number;
-  nickname?: string;
+  username?: string;
   avatar?: string;
+  des?: string;
+  authRealCard?: boolean;
+  authCompany?: boolean;
+  authPosition?: boolean;
+  userType?: number;
+  province?: string;
+  city?: string;
+  district?: string;
+  address?: string;
+  email?: string;
+  phone?: string;
+  position?: string;
+  nameZh?: string;
+  nameEn?: string;
+  cpId?: number;
+  cpName?: string;
+}
+
+export interface UserInfo {
+  wqUser?: WqUser;
+  followCount?: number;
+  fansCount?: number;
+  bbsCount?: number;
+  likeCount?: number;
+  favoriteCount?: number;
+  cpId?: number;
+  cpName?: string;
 }
 
 interface UserState {
@@ -27,9 +54,26 @@ export const useUserStore = create<UserState>()(
     set => ({
       token: null,
       userInfo: null,
-      setToken: token => set({ token }),
-      setUserInfo: userInfo => set({ userInfo }),
-      logout: () => set({ token: null, userInfo: null }),
+      setToken: token => {
+        if (token) {
+          storageUtils.set('token', token);
+        } else {
+          storageUtils.remove('token');
+        }
+        set({ token });
+      },
+      setUserInfo: userInfo => {
+        if (userInfo) {
+          storageUtils.set('userInfo', JSON.stringify(userInfo));
+        } else {
+          storageUtils.remove('userInfo');
+        }
+        set({ userInfo });
+      },
+      logout: () => {
+        storageUtils.remove('token');
+        set({ token: null, userInfo: null });
+      },
     }),
     {
       name: 'user-storage',

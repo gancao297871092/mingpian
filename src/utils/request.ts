@@ -33,23 +33,38 @@ class Request {
 
   constructor() {
     this.instance = axios.create({
-      baseURL: BASE_URL,
+      baseURL: `${BASE_URL}/v1`,
       timeout: env.apiTimeout,
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        Accept: 'application/json',
+      },
     });
 
     this.instance.interceptors.request.use(config => {
       const token = storageUtils.getString('token');
+      console.log(token, 'token')
       if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+        if (!config.headers) {
+          config.headers = {} as any;
+        }
+        (config.headers as any).token = token;
       }
       return config;
     });
 
     this.instance.interceptors.response.use(
-      response => response,
+      response => {
+        const data = response.data as ResponseResult<any>;
+        if (data.code !== '200') {
+          return Promise.reject(data);
+        }
+        return response;
+      },
       error => {
-        if (error.response?.status === 401) {
+        if (error.response?.status === 401 || error.code === '401' || error.code === '10001' || error.code === '10002' || error.code === '10003') {
           storageUtils.remove('token');
+          storageUtils.remove('userInfo');
         }
         return Promise.reject(error);
       },
