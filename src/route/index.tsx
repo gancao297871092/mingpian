@@ -47,7 +47,7 @@ function MainTabs() {
       <Tab.Screen
         name="home"
         component={Home}
-        options={{ title: i18n.t('首页'), headerShown: false}}
+        options={{ title: i18n.t('首页'), headerShown: false }}
       />
       <Tab.Screen
         name="my"
@@ -100,7 +100,7 @@ export default function RootNavigator() {
         <Stack.Screen
           name="editCard"
           component={EditCard}
-          options={{ title: '' }}
+          options={{ title: '', headerStyle: { backgroundColor: '#FFFFFF' }, headerShadowVisible: false, }}
         />
       </Stack.Navigator>
     </NavigationContainer>
