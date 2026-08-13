@@ -59,7 +59,7 @@ class Request {
         if (data.code !== '200') {
           return Promise.reject(data);
         }
-        return response;
+        return data as any;
       },
       error => {
         if (error.response?.status === 401 || error.code === '401' || error.code === '10001' || error.code === '10002' || error.code === '10003') {
@@ -71,20 +71,20 @@ class Request {
     );
   }
 
-  get<T>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
-    return this.instance.get(url, config);
+  get<T>(url: string, config?: AxiosRequestConfig): Promise<ResponseResult<T>> {
+    return this.instance.get(url, config) as any;
   }
 
-  post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
-    return this.instance.post(url, data, config);
+  post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ResponseResult<T>> {
+    return this.instance.post(url, data, config) as any;
   }
 
-  put<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
-    return this.instance.put(url, data, config);
+  put<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ResponseResult<T>> {
+    return this.instance.put(url, data, config) as any;
   }
 
-  delete<T>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
-    return this.instance.delete(url, config);
+  delete<T>(url: string, config?: AxiosRequestConfig): Promise<ResponseResult<T>> {
+    return this.instance.delete(url, config) as any;
   }
 }
 

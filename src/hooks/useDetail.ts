@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AxiosResponse } from 'axios';
 import { ResponseResult } from '@/utils/request';
 
-type DetailFn<R, P> = (params: P) => Promise<AxiosResponse<ResponseResult<R>>>;
+type DetailFn<R, P> = (params: P) => Promise<ResponseResult<R>>;
 
 export function useDetail<T, P>(
   fn: DetailFn<T, P>,
@@ -17,8 +16,8 @@ export function useDetail<T, P>(
     setFetching(true);
     fn(params)
       .then(res => {
-        if (res.data.code === '200') {
-          setDetail(res.data.data);
+        if (res.code === '200') {
+          setDetail(res.data);
         }
       })
       .finally(() => {

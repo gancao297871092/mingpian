@@ -28,8 +28,7 @@ export default function AgreementPage({ route, navigation }: Props) {
     const fetcher = type === 'userSure' ? API.common.userSure : API.common.privates;
     fetcher()
       .then(res => {
-        console.log(res, '111');
-        const { code, data } = res.data;
+        const { code, data } = res;
         if (code === '200' && data?.htmls) {
           setHtml(data.htmls);
         } else {

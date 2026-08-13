@@ -42,9 +42,9 @@ function Root() {
     // 如果有 token，刷新用户信息（对齐小程序 onShow）
     if (token) {
       API.user.info().then(res => {
-        if (res.data.code === '200') {
-          setUserInfo(res.data.data);
-          storageUtils.set('userInfo', JSON.stringify(res.data.data));
+        if (res.code === '200') {
+          setUserInfo(res.data);
+          storageUtils.set('userInfo', JSON.stringify(res.data));
         }
       }).catch(() => {
         // ignore

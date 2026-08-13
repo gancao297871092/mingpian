@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AxiosResponse } from 'axios';
 import { PageList, FetchPageParams } from '@/utils/request';
 
-type PagesListFn<R, P> = (params: P) => Promise<AxiosResponse<PageList<R>>>;
+type PagesListFn<R, P> = (params: P) => Promise<PageList<R>>;
 
 export function usePageList<T, P extends FetchPageParams>(
   fn: PagesListFn<T, P>,
@@ -33,14 +32,14 @@ export function usePageList<T, P extends FetchPageParams>(
       setFetching(true);
       fn(requestParams as P)
         .then(res => {
-          const { data } = res.data;
+          const pageData = res.data;
           if (refresh || requestParams.pageNum === 1) {
-            setList(data.list || []);
+            setList(pageData.list || []);
           } else {
-            setList(prev => [...prev, ...(data.list || [])]);
+            setList(prev => [...prev, ...(pageData.list || [])]);
           }
-          setTotal(data.total);
-          setIsLastPage(data.isLastPage);
+          setTotal(pageData.total);
+          setIsLastPage(pageData.isLastPage);
         })
         .catch(() => {
           setIsLastPage(false);

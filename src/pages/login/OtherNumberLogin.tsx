@@ -62,7 +62,7 @@ export default function OtherNumberLogin({ navigation }: Props) {
     }
     try {
       const res = await API.auth.smsSend({ phone });
-      const { code: respCode, msg, data } = res.data;
+      const { code: respCode, msg, data } = res;
       if (respCode === '200' && data?.authCode) {
         setAuthCode(data.authCode);
         startCountdown();
@@ -91,15 +91,14 @@ export default function OtherNumberLogin({ navigation }: Props) {
     setLoading(true);
     try {
       const res = await API.auth.login({ phone, authCode, code });
-      const { code: respCode, msg, data } = res.data;
-      console.log(res, 'resresres')
+      const { code: respCode, msg, data } = res;
       if (respCode === '200' && data?.token) {
         setToken(data.token);
         // 获取用户信息（同步小程序逻辑）
         try {
           const infoRes = await API.user.info();
-          if (infoRes.data.code === '200') {
-            setUserInfo(infoRes.data.data);
+          if (infoRes.code === '200') {
+            setUserInfo(infoRes.data);
           }
         } catch {
           // ignore

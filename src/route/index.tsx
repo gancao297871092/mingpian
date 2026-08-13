@@ -12,6 +12,7 @@ import My from '@/pages/my';
 import LoginHome from '@/pages/login';
 import OtherNumberLogin from '@/pages/login/OtherNumberLogin';
 import AgreementPage from '@/pages/login/AgreementPage';
+import EditCard from '@/pages/editCard';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -95,6 +96,11 @@ export default function RootNavigator() {
             headerStyle: { backgroundColor: '#FFFFFF' },
             headerTitleStyle: { color: '#000000' },
           }}
+        />
+        <Stack.Screen
+          name="editCard"
+          component={EditCard}
+          options={{ title: '' }}
         />
       </Stack.Navigator>
     </NavigationContainer>

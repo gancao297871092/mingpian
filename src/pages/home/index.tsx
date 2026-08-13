@@ -1,5 +1,7 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
+  Alert,
+  Dimensions,
   Image,
   ScrollView,
   StyleSheet,
@@ -9,12 +11,24 @@ import {
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import PagerView from 'react-native-pager-view';
+import ViewShot from 'react-native-view-shot';
 import SafeView from '@/components/SafeView';
 import PermissionButton from '@/components/PermissionButton';
+import Card1 from '@/components/cards/Card1';
+import Card2 from '@/components/cards/Card2';
+import Card3 from '@/components/cards/Card3';
+import CpCard from '@/components/cards/CpCard';
+import CardPoster1 from '@/components/posters/CardPoster1';
+import CardPoster2 from '@/components/posters/CardPoster2';
+import CardPoster3 from '@/components/posters/CardPoster3';
+import CpPoster from '@/components/posters/CpPoster';
 import { API } from '@/api';
 import { useUserStore } from '@/store/user';
 import { scaleSizeH, scaleSizeW } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
+import { saveToGallery } from '@/components/capabilities/Gallery';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const AUTH_ITEMS = [
   { key: 'authRealCard', label: '实名认证', iconOn: require('@/assets/ming/5.png'), iconOff: require('@/assets/ming/11.png'), openIndex: 1 },
@@ -33,19 +47,29 @@ export default function Home() {
   const [selectId, setSelectId] = useState<string | number>('');
   const [isFirst, setIsFirst] = useState(true);
 
-  const wqUser = (userInfo?.wqUser || {}) as Record<string, any>;
+  // 分享海报弹窗
+  const [shareVisible, setShareVisible] = useState(false);
+  const [shareItem, setShareItem] = useState<any>(null);
+  const shareShotRef = useRef<any>(null);
 
-  console.log(userInfo, 'userInfo')
+  const swiperListRef = useRef(swiperList);
+  const isFirstRef = useRef(isFirst);
+  const pagerRef = useRef<PagerView>(null);
+  swiperListRef.current = swiperList;
+  isFirstRef.current = isFirst;
+
+  const wqUser = (userInfo?.wqUser || {}) as Record<string, any>;
 
   const getList = useCallback(async () => {
     if (!isLogin) return;
     try {
-      const res = await API.card.list();
-      if (res.data.code !== '200') return;
-      const cardsList = res.data.data?.cardsList || [];
+      const res = await API.card.list(!isFirstRef.current ? { t: Date.now() } : undefined);
+      if (res.code !== '200') return;
+      const cardsList = res.data?.cardsList || [];
+
       setIsFirst(false);
 
-      const ids = swiperList.map((o) => o.id);
+      const ids = swiperListRef.current.map((o) => o.id);
       const allSame =
         cardsList.length === ids.length && cardsList.every((p: any) => ids.includes(p.id));
 
@@ -86,19 +110,19 @@ export default function Home() {
     } catch (e) {
       // ignore
     }
-  }, [isLogin, swiperList]);
+  }, [isLogin]);
 
   const getUserInfo = useCallback(async () => {
     if (!isLogin) return;
     try {
       const res = await API.user.info();
-      if (res.data.code === '200') {
-        setUserInfo(res.data.data);
+      if (res.code === '200') {
+        setUserInfo(res.data);
       }
     } catch (e) {
       // ignore
     }
-  }, [isLogin, setUserInfo]);
+  }, [isLogin]);
 
   useFocusEffect(
     useCallback(() => {
@@ -112,6 +136,7 @@ export default function Home() {
     const idx = navList.findIndex((o) => o.id === id);
     if (idx >= 0) {
       setCurrentIndex(idx);
+      pagerRef.current?.setPage(idx);
     }
   };
 
@@ -128,14 +153,98 @@ export default function Home() {
   };
 
   const onDelCard = async (item: any) => {
+    Alert.alert('提示', '确认删除名片吗？', [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '删除',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const res = await API.card.del({ cardId: item.cardId || item.id });
+            if (res.code === '200') {
+              getList();
+            }
+          } catch (e) {
+            // ignore
+          }
+        },
+      },
+    ]);
+  };
+
+  const onShareCard = (item: any) => {
+    setShareItem(item);
+    setShareVisible(true);
+  };
+
+  const onSavePoster = async () => {
+    const ref = shareShotRef.current;
+    if (!ref) return;
     try {
-      const res = await API.card.del({ cardId: item.cardId || item.id });
-      if (res.data.code === '200') {
-        getList();
+      const uri = await (ref as any).capture?.({ format: 'png', quality: 1 });
+      if (!uri) return;
+      const saved = await saveToGallery(uri, 'photo');
+      if (saved) {
+        Alert.alert('保存成功', '名片海报已保存到相册');
+        setShareVisible(false);
+      } else {
+        Alert.alert('保存失败', '请检查相册权限');
       }
-    } catch (e) {
-      // ignore
+    } catch {
+      Alert.alert('保存失败');
     }
+  };
+
+  const getPagerHeight = () => {
+    const item = swiperList[currentIndex];
+    if (!item) return scaleSizeW(375);
+    if (item.isCp) {
+      return SCREEN_WIDTH - scaleSizeW(31);
+    }
+    if (item.styleCode === 'FASHION') {
+      // 卡片高度 + 创建按钮 + 间距
+      return SCREEN_WIDTH - scaleSizeW(31) + scaleSizeW(25) + scaleSizeW(42);
+    }
+    // NORMAL / TRADITIONAL: 卡片 + 操作栏 + 创建按钮
+    return scaleSizeW(375);
+  };
+
+  const renderShareModal = () => {
+    if (!shareVisible || !shareItem) return null;
+    const item = shareItem;
+    return (
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <ViewShot ref={shareShotRef} options={{ format: 'png', quality: 1 }}>
+            {item.isCp ? (
+              <CpPoster data={item} />
+            ) : (
+              <>
+                {item.styleCode === 'NORMAL' && <CardPoster1 data={item} />}
+                {item.styleCode === 'TRADITIONAL' && <CardPoster2 data={item} />}
+                {item.styleCode === 'FASHION' && <CardPoster3 data={item} />}
+              </>
+            )}
+          </ViewShot>
+          <View style={styles.modalActions}>
+            <PermissionButton
+              mode="direct"
+              style={styles.modalBtn}
+              onPress={() => setShareVisible(false)}
+            >
+              <Text style={styles.modalBtnText}>关闭</Text>
+            </PermissionButton>
+            <PermissionButton
+              mode="direct"
+              style={[styles.modalBtn, styles.modalBtnPrimary]}
+              onPress={onSavePoster}
+            >
+              <Text style={[styles.modalBtnText, styles.modalBtnTextPrimary]}>保存到相册</Text>
+            </PermissionButton>
+          </View>
+        </View>
+      </View>
+    );
   };
 
   const renderAuthItem = (auth: typeof AUTH_ITEMS[0]) => {
@@ -164,9 +273,9 @@ export default function Home() {
     </ScrollView>
   );
 
-  const renderCardActions = (item: any) => (
+  const renderCardActions = (item: any, idx: number) => (
     <View style={styles.actionsRow}>
-      <PermissionButton mode="direct" style={styles.actionBtn} onPress={() => {}}>
+      <PermissionButton mode="direct" style={styles.actionBtn} onPress={() => onShareCard(item)}>
         <Image source={require('@/assets/ming/share_new1.png')} style={styles.actionIcon} />
         <Text style={styles.actionLabel}>分享</Text>
       </PermissionButton>
@@ -196,7 +305,8 @@ export default function Home() {
     </View>
   );
 
-  const renderPersonalCard = (item: any) => {
+  const renderPersonalCard = (item: any, idx: number) => {
+    const isFashion = item.styleCode === 'FASHION';
     return (
       <View style={styles.pageContainer}>
         <PermissionButton
@@ -205,16 +315,21 @@ export default function Home() {
           onPress={() => navigation.navigate('cardDetail', { id: item.cardId || item.id })}
           style={styles.cardWrapper}
         >
-          <View style={[styles.cardPlaceholder, { backgroundColor: '#f6f6f6' }]}>
-            <Image source={{ uri: item.cardPoster }} style={styles.cardPoster} resizeMode="cover" />
-            <View style={styles.cardInfo}>
-              <Text style={styles.cardName}>{item.nameZh || item.alias || '名片'}</Text>
-              <Text style={styles.cardPosition}>{item.position || ''}</Text>
-              <Text style={styles.cardCompany}>{item.cpName || ''}</Text>
-            </View>
-          </View>
+          {item.styleCode === 'NORMAL' && <Card1 cardInfo={item} from="show" />}
+          {item.styleCode === 'TRADITIONAL' && (
+            <Card2 cardInfo={item} colorConfig={item} from="show" />
+          )}
+          {item.styleCode === 'FASHION' && (
+            <Card3
+              cardInfo={item}
+              from="show"
+              onShare={() => onShareCard(item)}
+              onDel={() => onDelCard(item)}
+              onEdit={() => navigation.navigate('editCard', { id: item.cardId || item.id })}
+            />
+          )}
         </PermissionButton>
-        {renderCardActions(item)}
+        {!isFashion && renderCardActions(item, idx)}
         <PermissionButton mode="direct" style={styles.createBtn} onPress={onCreateCard}>
           <Text style={styles.createBtnText}>创建新名片</Text>
         </PermissionButton>
@@ -222,7 +337,7 @@ export default function Home() {
     );
   };
 
-  const renderCpCard = (item: any) => (
+  const renderCpCard = (item: any, idx: number) => (
     <View style={styles.pageContainer}>
       <PermissionButton
         mode="direct"
@@ -230,23 +345,7 @@ export default function Home() {
         onPress={() => navigation.navigate('companyPage', { id: item.cpId, userId: item.userId })}
         style={styles.cpCardWrapper}
       >
-        <Image source={{ uri: item.cardPoster }} style={styles.cpPoster} resizeMode="cover" />
-        <PermissionButton mode="direct" style={styles.cpShareBtn} onPress={() => {}}>
-          <Image source={require('@/assets/ming/share_new.png')} style={styles.cpShareIcon} />
-        </PermissionButton>
-        <View style={styles.cpFooter}>
-          <View style={styles.cpFooterBlur} />
-          <View style={styles.cpFooterContent}>
-            <View>
-              <Text style={styles.cpLabel}>企业名片</Text>
-              <Text style={styles.cpName}>{item.posterTitle || item.cpName}</Text>
-            </View>
-            <View style={styles.cpStats}>
-              <Image source={require('@/assets/ming/17.png')} style={styles.cpStatIcon} />
-              <Text style={styles.cpStatText}>{item.countBrowse || 0}</Text>
-            </View>
-          </View>
-        </View>
+        <CpCard cardInfo={item} onShare={() => onShareCard(item)} />
       </PermissionButton>
     </View>
   );
@@ -262,7 +361,7 @@ export default function Home() {
           </View>
 
           <View style={styles.userRow}>
-            <PermissionButton mode="tip" style={styles.userLeft} onPress={() => {}}>
+            <PermissionButton mode="tip" style={styles.userLeft} onPress={() => { }}>
               <View style={{ overflow: 'hidden', height: scaleSizeH(65) }}>
                 <Image source={require('@/assets/ming/hello.png')} style={styles.helloImg} />
               </View>
@@ -302,8 +401,9 @@ export default function Home() {
           renderEmpty()
         ) : (
           <PagerView
-            style={styles.pager}
-            initialPage={0}
+            ref={pagerRef}
+            style={[styles.pager, { height: getPagerHeight() }]}
+            initialPage={currentIndex}
             pageMargin={scaleSizeW(12)}
             onPageSelected={onPageChange}
           >
@@ -313,19 +413,20 @@ export default function Home() {
               if (item.isCp) {
                 return (
                   <View key={`page-${nav.id}`} style={styles.page}>
-                    {renderCpCard(item)}
+                    {renderCpCard(item, idx)}
                   </View>
                 );
               }
               return (
                 <View key={`page-${nav.id}`} style={styles.page}>
-                  {renderPersonalCard(item)}
+                  {renderPersonalCard(item, idx)}
                 </View>
               );
             })}
           </PagerView>
         )}
       </ScrollView>
+      {renderShareModal()}
     </SafeView>
   );
 }
@@ -447,181 +548,114 @@ const styles = StyleSheet.create({
     borderRadius: scaleSizeH(1.5),
   },
   pager: {
-    height: scaleSizeH(520),
-    marginTop: scaleSizeH(8),
+    marginTop: scaleSizeW(4),
   },
   page: {
     flex: 1,
-    paddingHorizontal: scaleSizeW(24),
+    paddingHorizontal: scaleSizeW(15),
   },
   pageContainer: {
     flex: 1,
   },
   cardWrapper: {
-    borderRadius: scaleSizeW(10),
+    borderRadius: scaleSizeW(11),
     overflow: 'hidden',
-  },
-  cardPlaceholder: {
-    height: scaleSizeH(300),
-    borderRadius: scaleSizeW(10),
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  cardPoster: {
-    width: '100%',
-    height: '100%',
-  },
-  cardInfo: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: scaleSizeW(16),
-    backgroundColor: 'rgba(0,0,0,0.3)',
-  },
-  cardName: {
-    fontSize: scaleSizeW(18),
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  cardPosition: {
-    fontSize: scaleSizeW(12),
-    color: 'rgba(255,255,255,0.8)',
-    marginTop: scaleSizeH(4),
-  },
-  cardCompany: {
-    fontSize: scaleSizeW(12),
-    color: 'rgba(255,255,255,0.8)',
-    marginTop: scaleSizeH(2),
+    alignItems: 'center',
   },
   actionsRow: {
     flexDirection: 'row',
-    marginTop: scaleSizeH(15),
-    gap: scaleSizeW(10),
+    marginTop: scaleSizeW(16),
+    gap: scaleSizeW(11),
   },
   actionBtn: {
     flex: 1,
-    height: scaleSizeH(75),
+    height: scaleSizeW(80),
     backgroundColor: '#ffffff',
-    borderRadius: scaleSizeW(10),
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: scaleSizeW(11),
+    borderWidth: 1,
     borderColor: '#eeeeee',
-    padding: scaleSizeW(12),
+    padding: scaleSizeW(13),
     justifyContent: 'space-between',
   },
   actionIcon: {
-    width: scaleSizeW(20),
-    height: scaleSizeW(20),
+    width: scaleSizeW(21),
+    height: scaleSizeW(21),
   },
   actionLabel: {
     fontWeight: 'bold',
-    fontSize: scaleSizeW(12),
+    fontSize: scaleSizeW(13),
     color: '#000000',
   },
   createBtn: {
-    width: scaleSizeW(182),
-    height: scaleSizeH(39),
+    width: scaleSizeW(195),
+    height: scaleSizeW(42),
     backgroundColor: '#000000',
-    borderRadius: scaleSizeW(20),
+    borderRadius: scaleSizeW(21),
     alignSelf: 'center',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: scaleSizeH(23),
+    marginTop: scaleSizeW(25),
   },
   createBtnText: {
-    fontSize: scaleSizeW(14),
+    fontSize: scaleSizeW(15),
     fontWeight: 'bold',
     color: '#ffffff',
   },
   emptyContainer: {
-    paddingHorizontal: scaleSizeW(24),
-    marginTop: scaleSizeH(15),
+    paddingHorizontal: scaleSizeW(15),
+    marginTop: scaleSizeW(8),
   },
   emptyCard: {
-    height: scaleSizeH(200),
+    height: scaleSizeW(214),
     backgroundColor: '#f6f6f6',
-    borderRadius: scaleSizeW(10),
+    borderRadius: scaleSizeW(11),
     justifyContent: 'center',
     alignItems: 'center',
   },
   emptyImg: {
-    width: scaleSizeW(176),
-    height: scaleSizeW(176),
+    width: scaleSizeW(235),
+    height: scaleSizeW(235),
   },
   cpCardWrapper: {
-    borderRadius: scaleSizeW(10),
+    borderRadius: scaleSizeW(11),
     overflow: 'hidden',
     position: 'relative',
-    height: scaleSizeH(350),
   },
-  cpPoster: {
-    width: '100%',
-    height: '100%',
-  },
-  cpShareBtn: {
-    position: 'absolute',
-    right: scaleSizeW(18),
-    top: scaleSizeH(12),
-    width: scaleSizeW(30),
-    height: scaleSizeW(30),
-    borderRadius: scaleSizeW(15),
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  cpShareIcon: {
-    width: scaleSizeW(18),
-    height: scaleSizeW(18),
-  },
-  cpFooter: {
-    position: 'absolute',
-    bottom: scaleSizeH(20),
-    left: scaleSizeW(15),
-    right: scaleSizeW(15),
-    height: scaleSizeH(70),
-    borderRadius: scaleSizeW(10),
-    overflow: 'hidden',
-    justifyContent: 'center',
-  },
-  cpFooterBlur: {
+  modalOverlay: {
     ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: scaleSizeW(16),
+    padding: scaleSizeW(20),
+    alignItems: 'center',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    marginTop: scaleSizeH(20),
+    gap: scaleSizeW(12),
+  },
+  modalBtn: {
+    paddingHorizontal: scaleSizeW(24),
+    paddingVertical: scaleSizeH(10),
+    borderRadius: scaleSizeW(20),
+    borderWidth: 1,
+    borderColor: '#dcdcdc',
+  },
+  modalBtnPrimary: {
     backgroundColor: '#000000',
-    opacity: 0.38,
+    borderColor: '#000000',
   },
-  cpFooterContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: scaleSizeW(14),
+  modalBtnText: {
+    fontSize: scaleSizeW(14),
+    fontWeight: 'bold',
+    color: '#000000',
   },
-  cpLabel: {
-    fontSize: scaleSizeW(11),
-    fontWeight: '500',
+  modalBtnTextPrimary: {
     color: '#ffffff',
-  },
-  cpName: {
-    fontSize: scaleSizeW(17),
-    fontWeight: '600',
-    color: '#ffffff',
-    marginTop: scaleSizeH(6),
-  },
-  cpStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  cpStatIcon: {
-    width: scaleSizeW(20),
-    height: scaleSizeW(20),
-  },
-  cpStatText: {
-    fontSize: scaleSizeW(12),
-    fontWeight: '500',
-    color: '#ffffff',
-    marginLeft: scaleSizeW(4),
   },
 });
