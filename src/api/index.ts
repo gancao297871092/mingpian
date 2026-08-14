@@ -82,9 +82,26 @@ export namespace API {
     export function projectItemDel(params: { itemId: string | number }) {
       return request.get<any>('/card/create/project/itemDel', { params });
     }
+    /** 项目子集详情 */
+    export function projectItemDetail(params: { itemId: string | number }) {
+      return request.get<any>('/card/create/project/itemDetail', { params });
+    }
+    /** 项目子集更新 */
+    export function projectItemUpdate(data: any) {
+      return request.post<any>('/card/create/project/itemUpdate', data);
+    }
     /** 保存样式 */
     export function styleCodeSave(data: any) {
       return request.post<any>('/card/create/styleCode/save', data);
+    }
+  }
+
+  export namespace file {
+    /** 图片上传 */
+    export function upload(data: FormData) {
+      return request.post<{ id: number; url: string; width: string; height: string }>('/file/upload', data, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
     }
   }
 }

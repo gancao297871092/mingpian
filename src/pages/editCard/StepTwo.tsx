@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import ImagePicker from 'react-native-image-crop-picker';
 import { API } from '@/api';
 import { scaleSizeW } from '@/utils/screenUtils';
 
@@ -21,14 +22,77 @@ export default function StepTwo({ cardId, data, onNext }: StepTwoProps) {
   const [indexId, setIndexId] = useState<number | null>(
     data.mediaLinkList?.find((o: any) => o.isIndex)?.mdId || null
   );
+  const [uploading, setUploading] = useState(false);
 
   const uploadImg = async () => {
     if (mediaList.length >= 9) {
       Alert.alert('提示', '最多上传9张图片');
       return;
     }
-    // TODO: 接入图片选择器（react-native-image-picker）
-    Alert.alert('提示', '图片上传功能需要安装 react-native-image-picker');
+    if (!cardId) {
+      Alert.alert('提示', '请先完成第一步');
+      return;
+    }
+
+    try {
+      const image = await ImagePicker.openPicker({
+        width: 800,
+        height: 800,
+        cropping: true,
+        cropperCircleOverlay: false,
+        compressImageQuality: 0.8,
+      });
+
+      setUploading(true);
+      const formData = new FormData();
+      formData.append('file', {
+        uri: image.path,
+        type: image.mime || 'image/jpeg',
+        name: image.filename || 'image.jpg',
+      } as any);
+
+      const res = await API.file.upload(formData);
+      if (res.code === '200' && res.data) {
+        const mediaData = res.data;
+        const newLink = {
+          userId: data.userId,
+          type: 1,
+          mdId: mediaData.id,
+          targetId: cardId,
+          isIndex: 0,
+          media: {
+            id: mediaData.id,
+            mdUrl: mediaData.url,
+            width: mediaData.width,
+            height: mediaData.height,
+          },
+        };
+
+        // 保存素材关系
+        await API.common.mediaLinkSave([newLink]);
+
+        const newList = [...mediaList, newLink];
+        setMediaList(newList);
+      }
+    } catch (e: any) {
+      if (e?.code !== 'E_PICKER_CANCELLED') {
+        Alert.alert('上传失败', e?.msg || '请稍后重试');
+      }
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const onSetIndex = async (item: any) => {
+    try {
+      if (indexId && indexId !== item.mdId) {
+        await API.common.mediaLinkUpdate({ mdId: indexId, isIndex: 0 });
+      }
+      await API.common.mediaLinkUpdate({ mdId: item.mdId, isIndex: 1 });
+      setIndexId(item.mdId);
+    } catch (e) {
+      Alert.alert('设置失败');
+    }
   };
 
   const onDelete = async (item: any, index: number) => {
@@ -47,25 +111,12 @@ export default function StepTwo({ cardId, data, onNext }: StepTwoProps) {
     }
   };
 
-  const onSetIndex = async (item: any) => {
-    try {
-      if (indexId && indexId !== item.mdId) {
-        await API.common.mediaLinkUpdate({ mdId: indexId, isIndex: 0 });
-      }
-      await API.common.mediaLinkUpdate({ mdId: item.mdId, isIndex: 1 });
-      setIndexId(item.mdId);
-    } catch (e) {
-      Alert.alert('设置失败');
-    }
-  };
-
   const onSubmit = async (nextStep: number) => {
     if (nextStep === 3 && mediaList.length <= 0) {
       Alert.alert('提示', '请上传名片照片');
       return;
     }
     if (nextStep === 3 && !indexId && mediaList[0]) {
-      // 自动设置第一张为封面
       try {
         await API.common.mediaLinkUpdate({ mdId: mediaList[0].mdId, isIndex: 1 });
         setIndexId(mediaList[0].mdId);
@@ -80,10 +131,12 @@ export default function StepTwo({ cardId, data, onNext }: StepTwoProps) {
           mediaLinkList: mediaList,
           itemsList: res.data?.[0]?.itemsList || [],
         });
+        return;
       }
     } catch (e) {
-      onNext(nextStep, { mediaLinkList: mediaList });
+      // ignore
     }
+    onNext(nextStep, { mediaLinkList: mediaList });
   };
 
   return (
@@ -91,7 +144,7 @@ export default function StepTwo({ cardId, data, onNext }: StepTwoProps) {
       <Text style={styles.tip}>*图片建议尺寸(w-1;h-1)</Text>
       <View style={styles.grid}>
         {mediaList.map((item, index) => (
-          <View key={item.mdId || index} style={styles.imgBox}>
+          <View key={item.mdId || index} style={[styles.imgBox, index % 2 === 1 && styles.imgBoxEven]}>
             {item.mdId === indexId && (
               <View style={styles.coverBadge}>
                 <Text style={styles.coverText}>封面</Text>
@@ -115,7 +168,7 @@ export default function StepTwo({ cardId, data, onNext }: StepTwoProps) {
           </View>
         ))}
         {mediaList.length < 9 && (
-          <TouchableOpacity style={styles.uploadBox} onPress={uploadImg}>
+          <TouchableOpacity style={[styles.uploadBox, mediaList.length % 2 === 1 && styles.imgBoxEven, uploading && { opacity: 0.6 }]} onPress={uploadImg} disabled={uploading}>
             <Image source={require('@/assets/ming/upload.png')} style={styles.uploadIcon} />
             <Text style={styles.uploadText}>上传图片（{mediaList.length}/9）</Text>
           </TouchableOpacity>
@@ -155,10 +208,12 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: scaleSizeW(18),
     overflow: 'hidden',
-    marginRight: '4%',
     marginBottom: scaleSizeW(10),
     position: 'relative',
     backgroundColor: '#f9f9f9',
+  },
+  imgBoxEven: {
+    marginLeft: '4%',
   },
   img: {
     width: '100%',

@@ -36,14 +36,24 @@ export default function StepFour({ cardId, data, onNext, onPublish }: StepFourPr
     try {
       const res = await API.common.cardStyle();
       if (res.code === '200') {
-        setStyleList(res.data?.styleList || []);
-        setColorList(res.data?.colorList || []);
-        if (!styleCode && res.data?.styleList?.[0]) {
-          setStyleCode(res.data.styleList[0].styleCode);
+        const list = res.data?.styleList || [];
+        const colors = res.data?.colorList || [];
+        setStyleList(list);
+        setColorList(colors);
+
+        // 如果当前 styleCode 不在列表中，默认选中第一个
+        const hasMatch = list.some((s: any) => s.styleCode === styleCode);
+        if (list[0] && !hasMatch) {
+          setStyleCode(list[0].styleCode);
         }
-        if (!fontColor && !backColor && res.data?.colorList?.[0]) {
-          setFontColor(res.data.colorList[0].fontColor || '#ffffff');
-          setBackColor(res.data.colorList[0].backColor || 'transparent');
+
+        // 如果当前颜色不在列表中，默认选中第一个配色
+        const hasColorMatch = colors.some(
+          (c: any) => c.fontColor === fontColor && c.backColor === backColor
+        );
+        if (colors[0] && !hasColorMatch) {
+          setFontColor(colors[0].fontColor || '#ffffff');
+          setBackColor(colors[0].backColor || 'transparent');
         }
       }
     } catch (e) {

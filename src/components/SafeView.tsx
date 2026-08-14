@@ -9,7 +9,7 @@ interface SafeViewProps {
   disableTop?: boolean;
 }
 
-export default function SafeView({ children, backgroundColor = '#fff', style, disableTop }: SafeViewProps) {
+export default function SafeView({ children, backgroundColor = '#fff', style, disableTop = true }: SafeViewProps) {
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.container, { backgroundColor }, style]}>

@@ -13,6 +13,8 @@ import LoginHome from '@/pages/login';
 import OtherNumberLogin from '@/pages/login/OtherNumberLogin';
 import AgreementPage from '@/pages/login/AgreementPage';
 import EditCard from '@/pages/editCard';
+import AddItem from '@/pages/editCard/AddItem';
+import RichTextEdit from '@/pages/common/RichTextEdit';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -100,6 +102,16 @@ export default function RootNavigator() {
         <Stack.Screen
           name="editCard"
           component={EditCard}
+          options={{ title: '', headerStyle: { backgroundColor: '#FFFFFF' }, headerShadowVisible: false, }}
+        />
+        <Stack.Screen
+          name="addItem"
+          component={AddItem}
+          options={{ title: '', headerStyle: { backgroundColor: '#FFFFFF' }, headerShadowVisible: false, }}
+        />
+        <Stack.Screen
+          name="richTextEdit"
+          component={RichTextEdit}
           options={{ title: '', headerStyle: { backgroundColor: '#FFFFFF' }, headerShadowVisible: false, }}
         />
       </Stack.Navigator>

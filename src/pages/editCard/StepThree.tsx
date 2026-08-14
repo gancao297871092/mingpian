@@ -1,13 +1,13 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   Image,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { API } from '@/api';
 import { scaleSizeW } from '@/utils/screenUtils';
 
@@ -18,8 +18,37 @@ interface StepThreeProps {
 }
 
 export default function StepThree({ cardId, data, onNext }: StepThreeProps) {
+  const navigation = useNavigation<any>();
   const [itemsList, setItemsList] = useState<any[]>(data.itemsList || []);
   const [pjId, setPjId] = useState<number | null>(data.pjId || null);
+
+  useEffect(() => {
+    if (cardId && !itemsList.length) {
+      loadProjectPre();
+    }
+  }, [cardId]);
+
+  // 从编辑页面返回后自动刷新
+  useFocusEffect(
+    useCallback(() => {
+      if (cardId) {
+        loadProjectPre();
+      }
+    }, [cardId])
+  );
+
+  const loadProjectPre = async () => {
+    if (!cardId) return;
+    try {
+      const res = await API.card.projectPre({ cardId });
+      if (res.code === '200' && res.data?.[0]) {
+        setItemsList(res.data[0].itemsList || []);
+        setPjId(res.data[0].id);
+      }
+    } catch (e) {
+      // ignore
+    }
+  };
 
   const onAdd = async () => {
     if (!cardId) return;
@@ -38,7 +67,7 @@ export default function StepThree({ cardId, data, onNext }: StepThreeProps) {
     }
   };
 
-  const onRemove = async (item: any, index: number) => {
+  const onRemove = async (item: any) => {
     try {
       const res = await API.card.projectItemDel({ itemId: item.id });
       if (res.code === '200') {
@@ -47,6 +76,15 @@ export default function StepThree({ cardId, data, onNext }: StepThreeProps) {
     } catch (e) {
       Alert.alert('删除失败');
     }
+  };
+
+  const goEdit = (item: any) => {
+    navigation.navigate('addItem', {
+      itemId: item.id,
+      cardId,
+      userId: data.userId,
+      pjId,
+    });
   };
 
   const onSubmit = async (nextStep: number) => {
@@ -61,33 +99,35 @@ export default function StepThree({ cardId, data, onNext }: StepThreeProps) {
           id: pjId,
         });
         if (res.code === '200') {
-          onNext(nextStep, { pjId: res.data?.id || pjId });
+          onNext(nextStep, { pjId: res.data?.id || pjId, itemsList });
           return;
         }
       } catch (e) {
         // ignore
       }
     }
-    onNext(nextStep);
+    onNext(nextStep, { pjId, itemsList });
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.panelHeader}>自由设计您想展示的内容</Text>
+
       {itemsList.map((item, index) => (
         <View key={item.id || index} style={styles.itemBox}>
           <Text style={styles.itemLabel}>板块</Text>
-          <View style={styles.itemContent}>
+          <TouchableOpacity style={styles.itemContent} onPress={() => goEdit(item)}>
             <Text style={item.itTitle ? styles.itemTitle : styles.itemPlaceholder}>
               {item.itTitle || '请填写板块名称和内容'}
             </Text>
             <Image source={require('@/assets/ming/right.png')} style={styles.arrow} />
-          </View>
-          <TouchableOpacity style={styles.delBtn} onPress={() => onRemove(item, index)}>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.delBtn} onPress={() => onRemove(item)}>
             <Image source={require('@/assets/ming/remove.png')} style={styles.delIcon} />
           </TouchableOpacity>
         </View>
       ))}
+
       <TouchableOpacity style={styles.addBox} onPress={onAdd}>
         <Text style={styles.addText}>+ 新增板块</Text>
       </TouchableOpacity>
