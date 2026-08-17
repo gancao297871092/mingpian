@@ -377,7 +377,7 @@ export default function Home() {
   );
 
   return (
-    <SafeView backgroundColor="#fff">
+    <SafeView backgroundColor="#fff" disableTop={false}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={[styles.header, { paddingHorizontal: scaleSizeW(18) }]}>

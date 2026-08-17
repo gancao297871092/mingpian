@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Image,
@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { API } from '@/api';
 import { scaleSizeW } from '@/utils/screenUtils';
+import AreaPicker from '@/components/AreaPicker';
 
 interface StepOneProps {
   cardId: number | null;
@@ -58,8 +59,18 @@ export default function StepOne({ cardId, data, onNext }: StepOneProps) {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [positionModalVisible, setPositionModalVisible] = useState(false);
+  const [areaPickerVisible, setAreaPickerVisible] = useState(false);
   const [positionOptions, setPositionOptions] = useState<any[]>(data.positionList || []);
   const [selectedPositions, setSelectedPositions] = useState<number[]>([]);
+  const dataSynced = useRef(false);
+
+  useEffect(() => {
+    if (dataSynced.current) return;
+    if (data && Object.keys(data).length > 0) {
+      dataSynced.current = true;
+      setForm((prev) => ({ ...prev, ...data }));
+    }
+  }, [data]);
 
   useEffect(() => {
     if (data.positionList?.length) {
@@ -97,18 +108,18 @@ export default function StepOne({ cardId, data, onNext }: StepOneProps) {
       Alert.alert('提示', '请输入正确的手机号码');
       return;
     }
-    if (form.fax && !validateFax(form.fax)) {
-      Alert.alert('提示', '请输入正确的传真号码');
-      return;
-    }
-    if (form.telNumber && !validateTel(form.telNumber)) {
-      Alert.alert('提示', '请输入正确的座机号码');
-      return;
-    }
-    if (form.email && !validateEmail(form.email)) {
-      Alert.alert('提示', '请输入正确的邮箱地址');
-      return;
-    }
+    // if (form.fax && !validateFax(form.fax)) {
+    //   Alert.alert('提示', '请输入正确的传真号码');
+    //   return;
+    // }
+    // if (form.telNumber && !validateTel(form.telNumber)) {
+    //   Alert.alert('提示', '请输入正确的座机号码');
+    //   return;
+    // }
+    // if (form.email && !validateEmail(form.email)) {
+    //   Alert.alert('提示', '请输入正确的邮箱地址');
+    //   return;
+    // }
     if (form.profile && form.profile.length > 100) {
       Alert.alert('提示', '个性签名字符不能超过100');
       return;
@@ -223,33 +234,19 @@ export default function StepOne({ cardId, data, onNext }: StepOneProps) {
       {renderInput('座机', 'telNumber', '请输入座机')}
       {renderInput('邮箱', 'email', '请输入邮箱', { keyboardType: 'email-address' })}
 
-      {/* 地址 */}
-      <View style={styles.box}>
+      {/* 省市区选择 */}
+      <TouchableOpacity style={styles.box} onPress={() => setAreaPickerVisible(true)}>
         <Text style={styles.boxLabel}>地址</Text>
-        <View style={styles.addrRow}>
-          <TextInput
-            style={[styles.boxInput, styles.addrInput]}
-            placeholder="省"
-            placeholderTextColor="#a3a3a3"
-            value={form.province || ''}
-            onChangeText={(text) => updateField('province', text)}
-          />
-          <TextInput
-            style={[styles.boxInput, styles.addrInput]}
-            placeholder="市"
-            placeholderTextColor="#a3a3a3"
-            value={form.city || ''}
-            onChangeText={(text) => updateField('city', text)}
-          />
-          <TextInput
-            style={[styles.boxInput, styles.addrInput]}
-            placeholder="区"
-            placeholderTextColor="#a3a3a3"
-            value={form.district || ''}
-            onChangeText={(text) => updateField('district', text)}
-          />
+        <View style={styles.selectRow}>
+          <Text style={form.province ? styles.selectValue : styles.selectPlaceholder}>
+            {form.province
+              ? `${form.province}${form.city ? ` / ${form.city}` : ''}${form.district ? ` / ${form.district}` : ''}`
+              : '请选择省市区'}
+          </Text>
+          <Image source={require('@/assets/ming/right.png')} style={styles.arrow} />
         </View>
-      </View>
+      </TouchableOpacity>
+
       {renderInput('详细地址', 'address', '街道、门牌号等')}
       {renderInput('个性签名', 'profile', '请输入个性签名', { multiline: true, maxLength: 100 })}
 
@@ -297,6 +294,26 @@ export default function StepOne({ cardId, data, onNext }: StepOneProps) {
           </View>
         </View>
       </Modal>
+
+      {/* 省市区选择 */}
+      <AreaPicker
+        visible={areaPickerVisible}
+        onClose={() => setAreaPickerVisible(false)}
+        defaultProvince={form.province}
+        defaultCity={form.city}
+        defaultDistrict={form.district}
+        onConfirm={(province, city, district, provinceCode, cityCode, districtCode) => {
+          setForm((prev) => ({
+            ...prev,
+            province,
+            city,
+            district,
+            provinceCode,
+            cityCode,
+            districtCode,
+          }));
+        }}
+      />
     </View>
   );
 }
@@ -364,15 +381,6 @@ const styles = StyleSheet.create({
   arrow: {
     width: scaleSizeW(16),
     height: scaleSizeW(16),
-  },
-  addrRow: {
-    flexDirection: 'row',
-    marginTop: scaleSizeW(4),
-    gap: scaleSizeW(8),
-  },
-  addrInput: {
-    flex: 1,
-    minHeight: scaleSizeW(24),
   },
   btn: {
     height: scaleSizeW(42),
