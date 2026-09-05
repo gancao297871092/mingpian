@@ -1,6 +1,5 @@
 import { Linking, PermissionsAndroid, Platform, type Permission } from 'react-native';
 import { Camera } from 'react-native-vision-camera';
-import { ExpoGaodeMapModule } from 'expo-gaode-map';
 
 export type PermissionType = 'camera' | 'microphone' | 'photo' | 'location';
 
@@ -51,18 +50,27 @@ function photoPermission(): Permission {
 }
 
 async function requestLocation(): Promise<PermissionState> {
-  const res = await ExpoGaodeMapModule.requestLocationPermission();
-  if (res.granted) return grantedResult;
-  return { status: res.canAskAgain ? 'denied' : 'blocked', granted: false };
+  if (Platform.OS === 'android') {
+    const result = await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+    );
+    if (result === PermissionsAndroid.RESULTS.GRANTED) return grantedResult;
+    if (result === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
+      return { status: 'blocked', granted: false };
+    }
+    return { status: 'denied', granted: false };
+  }
+  return { status: 'not-determined', granted: false };
 }
 
 async function checkLocation(): Promise<PermissionState> {
-  const res = await ExpoGaodeMapModule.checkLocationPermission();
-  if (res.granted) return grantedResult;
-  if (res.status === 'undetermined') {
-    return { status: 'not-determined', granted: false };
+  if (Platform.OS === 'android') {
+    const granted = await PermissionsAndroid.check(
+      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+    );
+    return granted ? grantedResult : deniedResult;
   }
-  return { status: res.canAskAgain ? 'denied' : 'blocked', granted: false };
+  return { status: 'not-determined', granted: false };
 }
 
 export async function checkPermission(type: PermissionType): Promise<PermissionState> {

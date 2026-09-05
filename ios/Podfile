@@ -47,6 +47,16 @@ target 'RnBaseTemplate' do
         if target.name == 'react-native-config'
           config.build_settings['ENVFILE'] = ENVFILES[config.name]
         end
+        config.build_settings.delete 'EXCLUDED_ARCHS[sdk=iphonesimulator*]'
+      end
+    end
+
+    # 移除所有 xcconfig 中的 EXCLUDED_ARCHS[sdk=iphonesimulator*]
+    Dir.glob("#{installer.sandbox.root}/**/Target Support Files/**/*.xcconfig").each do |xcconfig_path|
+      content = File.read(xcconfig_path)
+      if content.include?('EXCLUDED_ARCHS[sdk=iphonesimulator*]')
+        content.gsub!(/^EXCLUDED_ARCHS\[sdk=iphonesimulator\*\].*$/, '')
+        File.write(xcconfig_path, content)
       end
     end
 

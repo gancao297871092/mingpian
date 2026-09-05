@@ -73,7 +73,7 @@ const { mode, setMode } = useThemeMode(); // 'system' | 'light' | 'dark'
 | `checkPermission(type)` | 仅检查当前状态 |
 | `openAppSettings()` | 跳转系统设置（被拒后引导用） |
 
-`status` 取值：`granted / denied / blocked / restricted / not-determined`。相机走 vision-camera，相册走 `PermissionsAndroid`（API 33+ 用 READ_MEDIA_IMAGES），定位走高德模块。
+`status` 取值：`granted / denied / blocked / restricted / not-determined`。相机走 vision-camera，相册走 `PermissionsAndroid`（API 33+ 用 READ_MEDIA_IMAGES），定位走 `PermissionsAndroid`。
 
 ## 多环境配置
 

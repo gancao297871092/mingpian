@@ -26,7 +26,7 @@
     "bignumber.js": "^11.1.5",
     "dayjs": "^1.11.21",
     "expo": "^57.0.9",
-    "expo-gaode-map": "^2.2.43",
+
     "expo-image": "^57.0.1",
     "i18n-js": "^4.5.3",
     "lottie-react-native": "^7.3.8",

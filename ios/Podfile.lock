@@ -1,11 +1,4 @@
 PODS:
-  - AMap3DMap (10.1.600):
-    - AMapFoundation (>= 1.8.0)
-  - AMapFoundation (1.9.0)
-  - AMapLocation (2.12.0):
-    - AMapFoundation (>= 1.9.0)
-  - AMapSearch (9.7.5):
-    - AMapFoundation (>= 1.8.0)
   - BVLinearGradient (2.8.3):
     - React-Core
   - EXConstants (57.0.8):
@@ -43,11 +36,6 @@ PODS:
   - ExpoFileSystem (57.0.1):
     - ExpoModulesCore
   - ExpoFont (57.0.1):
-    - ExpoModulesCore
-  - ExpoGaodeMap (2.2.43):
-    - AMap3DMap (= 10.1.600)
-    - AMapLocation
-    - AMapSearch (~> 9.7.5)
     - ExpoModulesCore
   - ExpoImage (57.0.1):
     - ExpoModulesCore
@@ -2952,7 +2940,6 @@ DEPENDENCIES:
   - "ExpoDomWebView (from `../node_modules/@expo/dom-webview/ios`)"
   - ExpoFileSystem (from `../node_modules/expo-file-system/ios`)
   - ExpoFont (from `../node_modules/expo-font/ios`)
-  - ExpoGaodeMap (from `../node_modules/expo-gaode-map/ios`)
   - ExpoImage (from `../node_modules/expo-image/ios`)
   - ExpoKeepAwake (from `../node_modules/expo-keep-awake/ios`)
   - "ExpoLogBox (from `../node_modules/@expo/log-box`)"
@@ -2963,7 +2950,7 @@ DEPENDENCIES:
   - "ExpoSvgaPlayer (from `../node_modules/@jayming/expo-svga-player/ios`)"
   - FBLazyVector (from `../node_modules/react-native/Libraries/FBLazyVector`)
   - hermes-engine (from `../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)
-  - LiquidGlassView (from `/Users/admin/Desktop/mai/mingpian-app/ios/LiquidGlassView`)
+  - LiquidGlassView (from `/Users/mac/Desktop/wanqi/mingpian-app/ios/LiquidGlassView`)
   - lottie-react-native (from `../node_modules/lottie-react-native`)
   - NitroBackgroundTimer (from `../node_modules/react-native-nitro-bg-timer`)
   - NitroMmkv (from `../node_modules/react-native-mmkv`)
@@ -3073,10 +3060,6 @@ DEPENDENCIES:
 
 SPEC REPOS:
   trunk:
-    - AMap3DMap
-    - AMapFoundation
-    - AMapLocation
-    - AMapSearch
     - libavif
     - libdav1d
     - libwebp
@@ -3108,8 +3091,6 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo-file-system/ios"
   ExpoFont:
     :path: "../node_modules/expo-font/ios"
-  ExpoGaodeMap:
-    :path: "../node_modules/expo-gaode-map/ios"
   ExpoImage:
     :path: "../node_modules/expo-image/ios"
   ExpoKeepAwake:
@@ -3132,7 +3113,7 @@ EXTERNAL SOURCES:
     :podspec: "../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec"
     :tag: hermes-v250829098.0.14
   LiquidGlassView:
-    :path: "/Users/admin/Desktop/mai/mingpian-app/ios/LiquidGlassView"
+    :path: "/Users/mac/Desktop/wanqi/mingpian-app/ios/LiquidGlassView"
   lottie-react-native:
     :path: "../node_modules/lottie-react-native"
   NitroBackgroundTimer:
@@ -3345,10 +3326,6 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/yoga"
 
 SPEC CHECKSUMS:
-  AMap3DMap: e67fc1a66bd83b82b44a06b601864d9fb3db3de0
-  AMapFoundation: 5f01fcabd1e591967e52178d2d96dac843396285
-  AMapLocation: 51549dc73f5bfa8806c33857ad2079fa6215bb49
-  AMapSearch: 29224a399b56b17da1540e4312fc4d9dc37342bb
   BVLinearGradient: cb006ba232a1f3e4f341bb62c42d1098c284da70
   EXConstants: 5efe6122eecac2d970aa50a2a502ecc6ce4b7564
   Expo: cba780b47e8661e90c9fe8e1a92a81cef5773290
@@ -3356,7 +3333,6 @@ SPEC CHECKSUMS:
   ExpoDomWebView: beaec034e51bd028428b98bb1f2633ab79c6d095
   ExpoFileSystem: e441dae0ae671fc451640517550973d9e024fdf0
   ExpoFont: 59e1faf66ba9bcd232ae1e2ce58d202a48b6f65e
-  ExpoGaodeMap: 0c1f727608e721432090cb290d365c705145a184
   ExpoImage: 4c1e7634db6033185a98959fb028d8d4b1c89695
   ExpoKeepAwake: c26f14275017370cc8a4b7b43a0e23361f2053a5
   ExpoLogBox: 6bb73c341aca22e699bd4da6cc61afc844e1a648
@@ -3366,7 +3342,7 @@ SPEC CHECKSUMS:
   ExpoModulesWorkletsAdapter: a350b48bad355963e8eb9f6a284de873fc3d6762
   ExpoSvgaPlayer: 9802fe8c5668e09416b21d28280dc82b05662661
   FBLazyVector: b3e7ad108f0d882e30445c5527d774e3fd432f3d
-  hermes-engine: d94b87b1128925e5f6eab86269e2f6dfa02e3e33
+  hermes-engine: 7d23b92bfb0a0c889c478f53e28f3ef47b99fa43
   libavif: 5f8e715bea24debec477006f21ef9e95432e254d
   libdav1d: 23581a4d8ec811ff171ed5e2e05cd27bad64c39f
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
@@ -3386,7 +3362,7 @@ SPEC CHECKSUMS:
   React: 2574546f2d017abd14d0c9b48cf2b6a0547c2591
   React-callinvoker: 03cd4b931d1d583d87aae99b8f7b6fe26bf571ee
   React-Core: 1c824d9c7dd8aa760b5f1b50d5a54c2a3f598f87
-  React-Core-prebuilt: 7da85c26e5616d52f119b81ce5e3e6fc5c9bda49
+  React-Core-prebuilt: 13924a267683b3d6fa4bde9c80380becf83a9c5c
   React-CoreModules: 2f9ed75bca7f6dea2b70e8a1f4a5ca9b6be52d76
   React-cxxreact: 7103d5ba69848c039e11079e74ceede05efe795e
   React-debug: 8cc8d99ccc664ef9e873027f7fc3fb0a50496012
@@ -3489,6 +3465,6 @@ SPEC CHECKSUMS:
   WechatOpenSDK-XCFramework: 5df9b250e9839dcc306ad8b00f46822eead1ed47
   Yoga: fe50ab299e578f397fef753cf309c6703a4db29b
 
-PODFILE CHECKSUM: d4776c872df45bb280853554ac96b29a1cbe6c7b
+PODFILE CHECKSUM: 8f37de7caeec6a9671a6c5f683a3acddfa06accc
 
-COCOAPODS: 1.16.2
+COCOAPODS: 1.17.0
