@@ -241,9 +241,9 @@ export default function PublishCover() {
         <TouchableOpacity onPress={() => setTab('crop')}>
           <Text style={[styles.tabText, tab !== 'crop' && styles.tabTextDim]}>选封面</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => setTab('preview')}>
+        {/* <TouchableOpacity onPress={() => setTab('preview')}>
           <Text style={[styles.tabText, tab !== 'preview' && styles.tabTextDim]}>预览</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
     ),
     [tab],
