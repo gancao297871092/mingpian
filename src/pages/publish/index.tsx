@@ -1,0 +1,953 @@
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Alert,
+  Image,
+  Keyboard,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import ImagePicker from 'react-native-image-crop-picker';
+import { BottomSheetTextInput, type BottomSheetModal } from '@gorhom/bottom-sheet';
+import Svg, { Path } from 'react-native-svg';
+import SafeView from '@/components/SafeView';
+import AppBottomSheet from '@/components/AppBottomSheet';
+import { scaleSizeH, scaleSizeW } from '@/utils/screenUtils';
+
+const PRIMARY = '#2962D4';
+const TEXT_MAIN = '#000000';
+const TEXT_SUB = '#6C6C6C';
+const DIVIDER = '#EDECEC';
+const TILE_BG = '#F5F5F5';
+const CARD_BG = '#FFFFFF';
+const INFO_BG = '#E3EDFF';
+
+const MAX_IMAGES = 18;
+const TITLE_LIMIT = 20;
+const BODY_LIMIT = 1000;
+
+type PublishTab = 'short' | 'video' | 'long';
+type VisibilityKey = 'public' | 'mutual' | 'private';
+type CommentKey = 'everyone' | 'fans' | 'mutual' | 'self';
+type DeclareOption = 'none' | 'self-shot' | 'reprint' | 'fiction' | 'ai' | 'marketing' | 'opinion';
+
+const TABS: { key: PublishTab; label: string }[] = [
+  { key: 'short', label: '短图文' },
+  { key: 'video', label: '视频' },
+  { key: 'long', label: '长文' },
+];
+
+const VISIBILITY_ROW_LABEL: Record<VisibilityKey, string> = {
+  public: '公开可见',
+  mutual: '仅互关好友可见',
+  private: '仅自己可见',
+};
+const VISIBILITY_OPTIONS: { key: VisibilityKey; label: string }[] = [
+  { key: 'public', label: '公开·所有人可见' },
+  { key: 'mutual', label: '仅互关好友可见' },
+  { key: 'private', label: '私密·仅自己可见' },
+];
+
+const COMMENT_OPTIONS: { key: CommentKey; label: string; icon: number }[] = [
+  { key: 'everyone', label: '所有人', icon: require('@/assets/publish/comment-all.png') },
+  { key: 'fans', label: '仅粉丝', icon: require('@/assets/publish/comment-fans.png') },
+  { key: 'mutual', label: '仅互关好友', icon: require('@/assets/publish/comment-mutual.png') },
+  { key: 'self', label: '仅自己', icon: require('@/assets/publish/comment-self.png') },
+];
+
+const DECLARE_OPTION_LABEL: Record<DeclareOption, string> = {
+  none: '无需声明',
+  'self-shot': '内容为自行拍摄',
+  reprint: '内容为转载',
+  fiction: '含虚构演绎内容',
+  ai: '含 AI 合成内容',
+  marketing: '内容含营销信息',
+  opinion: '个人观点，仅供参考',
+};
+
+const ICONS = {
+  add: require('@/assets/publish/add.png'),
+  remove: require('@/assets/publish/remove.png'),
+  eye: require('@/assets/publish/eye.png'),
+  declare: require('@/assets/publish/declare.png'),
+  comment: require('@/assets/publish/comment.png'),
+  sync: require('@/assets/publish/sync.png'),
+  help: require('@/assets/publish/help.png'),
+  tip: require('@/assets/publish/tip.png'),
+  guideInfo: require('@/assets/publish/guide-info.png'),
+  check: require('@/assets/publish/check.png'),
+  back: require('@/assets/publish/back.png'),
+};
+
+function ChevronLeft({ size = 20, color = '#1A1A1A' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M15 5l-7 7 7 7" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function ChevronRight({ size = 12, color = '#999999' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M9 5l7 7-7 7" stroke={color} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export default function Publish() {
+  const navigation = useNavigation();
+
+  const [activeTab, setActiveTab] = useState<PublishTab>('short');
+  const [images, setImages] = useState<string[]>([]);
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+
+  const [visibility, setVisibility] = useState<VisibilityKey>('public');
+  const [declareOriginal, setDeclareOriginal] = useState(false);
+  const [declareOption, setDeclareOption] = useState<DeclareOption>('none');
+  const [reprintSource, setReprintSource] = useState('');
+  const [reprintDraft, setReprintDraft] = useState('');
+  const [commentWho, setCommentWho] = useState<CommentKey>('everyone');
+  const [syncOn, setSyncOn] = useState(false);
+  const [aiHelpVisible, setAiHelpVisible] = useState(false);
+
+  const guideRef = useRef<BottomSheetModal>(null);
+  const visibilityRef = useRef<BottomSheetModal>(null);
+  const declareRef = useRef<BottomSheetModal>(null);
+  const reprintRef = useRef<BottomSheetModal>(null);
+  const commentRef = useRef<BottomSheetModal>(null);
+  const reprintConfirmedRef = useRef(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => guideRef.current?.present(), 350);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const closeGuide = (enabled: boolean) => {
+    setSyncOn(enabled);
+    guideRef.current?.dismiss();
+  };
+
+  const declareLabel = () => {
+    const parts: string[] = [];
+    if (declareOriginal) parts.push('原创声明');
+    if (declareOption !== 'none') {
+      parts.push(
+        declareOption === 'reprint' && reprintSource
+          ? `转载·${reprintSource}`
+          : DECLARE_OPTION_LABEL[declareOption],
+      );
+    }
+    return parts.length ? parts.join(' · ') : '无需声明';
+  };
+
+  const pickImages = async () => {
+    try {
+      const remain = MAX_IMAGES - images.length;
+      if (remain <= 0) return;
+      const picked = await ImagePicker.openPicker({
+        multiple: true,
+        maxFiles: remain,
+        mediaType: 'photo',
+      });
+      const list = Array.isArray(picked) ? picked : [picked];
+      const paths = list.map(item => item.path).filter(Boolean);
+      setImages(prev => [...prev, ...paths].slice(0, MAX_IMAGES));
+    } catch {
+      // 用户取消
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const openSheet = (target: React.RefObject<BottomSheetModal | null>) => {
+    Keyboard.dismiss();
+    target.current?.present();
+  };
+
+  const openReprint = () => {
+    setReprintDraft(reprintSource);
+    reprintRef.current?.present();
+  };
+
+  const confirmReprint = () => {
+    reprintConfirmedRef.current = true;
+    setReprintSource(reprintDraft.trim());
+    setDeclareOption('reprint');
+    reprintRef.current?.dismiss();
+  };
+
+  const onPublish = () => {
+    if (!title.trim() && !body.trim() && images.length === 0) {
+      Alert.alert('提示', '请先填写内容');
+      return;
+    }
+    Alert.alert('发布成功', '企业用户发布后，需企业管理员审核', [
+      { text: '知道了', onPress: () => navigation.goBack() },
+    ]);
+  };
+
+  const renderSegment = () => (
+    <View style={styles.segment}>
+      {TABS.map(tab => {
+        const active = tab.key === activeTab;
+        return (
+          <TouchableOpacity
+            key={tab.key}
+            style={[styles.segmentItem, active && styles.segmentItemActive]}
+            activeOpacity={0.8}
+            onPress={() => setActiveTab(tab.key)}
+          >
+            <Text style={styles.segmentText}>{tab.label}</Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+
+  const renderImageGrid = () => (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.mediaRow}>
+      {images.map((uri, index) => (
+        <View key={`${uri}-${index}`} style={styles.mediaItem}>
+          <Image source={{ uri }} style={styles.mediaImg} />
+          {index === 0 && (
+            <View style={styles.coverBadge}>
+              <Text style={styles.coverBadgeText}>封面</Text>
+            </View>
+          )}
+          <TouchableOpacity style={styles.mediaRemove} hitSlop={6} onPress={() => removeImage(index)}>
+            <Image source={ICONS.remove} style={styles.mediaRemoveIcon} />
+          </TouchableOpacity>
+        </View>
+      ))}
+      {images.length < MAX_IMAGES && (
+        <TouchableOpacity style={[styles.mediaItem, styles.mediaAdd]} activeOpacity={0.8} onPress={pickImages}>
+          <Image source={ICONS.add} style={styles.mediaAddIcon} />
+        </TouchableOpacity>
+      )}
+    </ScrollView>
+  );
+
+  const renderSettingRow = (
+    icon: React.ReactNode,
+    label: string,
+    value: string,
+    onPress: () => void,
+  ) => (
+    <TouchableOpacity style={styles.settingRow} activeOpacity={0.7} onPress={onPress}>
+      {icon}
+      <Text style={styles.settingLabel}>{label}</Text>
+      <View style={styles.settingRight}>
+        <Text style={styles.settingValue} numberOfLines={1}>{value}</Text>
+        <ChevronRight />
+      </View>
+    </TouchableOpacity>
+  );
+
+  const renderCheck = (show: boolean) =>
+    show ? <Image source={ICONS.check} style={styles.icon18} /> : <View style={styles.icon18} />;
+
+  const renderOptionRow = (
+    label: string,
+    checked: boolean,
+    onPress: () => void,
+    options?: { icon?: number; showDivider?: boolean },
+  ) => (
+    <TouchableOpacity
+      style={[styles.optionRow, options?.showDivider && styles.optionRowDivider]}
+      activeOpacity={0.7}
+      onPress={onPress}
+    >
+      {options?.icon ? <Image source={options.icon} style={styles.icon20} /> : null}
+      <Text style={styles.optionLabel}>{label}</Text>
+      {renderCheck(checked)}
+    </TouchableOpacity>
+  );
+
+  const renderVisibilitySheet = () => (
+    <AppBottomSheet ref={visibilityRef}>
+      <Text style={styles.sheetNote}>以下可见权限设置只对本条动态生效</Text>
+      <View style={styles.sheetCard}>
+        {VISIBILITY_OPTIONS.map((opt, i) => (
+          <React.Fragment key={opt.key}>
+            {renderOptionRow(opt.label, visibility === opt.key, () => {
+              setVisibility(opt.key);
+              visibilityRef.current?.dismiss();
+            }, { showDivider: i > 0 })}
+          </React.Fragment>
+        ))}
+      </View>
+    </AppBottomSheet>
+  );
+
+  const renderCommentSheet = () => (
+    <AppBottomSheet ref={commentRef}>
+      <View style={[styles.sheetCard, { marginTop: scaleSizeH(20) }]}>
+        {COMMENT_OPTIONS.map((opt, i) => (
+          <React.Fragment key={opt.key}>
+            {renderOptionRow(opt.label, commentWho === opt.key, () => {
+              setCommentWho(opt.key);
+              commentRef.current?.dismiss();
+            }, { icon: opt.icon, showDivider: i > 0 })}
+          </React.Fragment>
+        ))}
+      </View>
+    </AppBottomSheet>
+  );
+
+  const renderDeclareSheet = () => (
+    <AppBottomSheet ref={declareRef}>
+      <View style={[styles.sheetCard, { marginTop: scaleSizeH(20) }]}>
+        <View style={styles.optionRow}>
+          <Text style={styles.optionLabel}>原创声明</Text>
+          <Switch
+            value={declareOriginal}
+            onValueChange={setDeclareOriginal}
+            trackColor={{ false: '#E5E5E5', true: PRIMARY }}
+            thumbColor="#FFFFFF"
+          />
+        </View>
+      </View>
+      <View style={styles.sheetCard}>
+        {renderOptionRow('内容为自行拍摄', declareOption === 'self-shot', () => {
+          setDeclareOption('self-shot');
+        })}
+        <TouchableOpacity
+          style={[styles.optionRow, styles.optionRowDivider]}
+          activeOpacity={0.7}
+          onPress={openReprint}
+        >
+          <Text style={styles.optionLabel}>内容为转载</Text>
+          <ChevronRight />
+        </TouchableOpacity>
+      </View>
+      <View style={styles.sheetCard}>
+        {(['fiction', 'ai', 'marketing', 'opinion'] as DeclareOption[]).map((key, i) => (
+          <React.Fragment key={key}>
+            {renderOptionRow(DECLARE_OPTION_LABEL[key], declareOption === key, () => {
+              setDeclareOption(key);
+            }, { showDivider: i > 0 })}
+          </React.Fragment>
+        ))}
+      </View>
+      <View style={styles.sheetCard}>
+        {renderOptionRow('无需声明', declareOption === 'none', () => {
+          setDeclareOption('none');
+        })}
+      </View>
+    </AppBottomSheet>
+  );
+
+  const renderReprintSheet = () => (
+    <AppBottomSheet
+      ref={reprintRef}
+      onClose={() => {
+        if (reprintConfirmedRef.current) {
+          reprintConfirmedRef.current = false;
+          return;
+        }
+        declareRef.current?.present();
+      }}
+    >
+      <View style={styles.reprintHeader}>
+        <TouchableOpacity style={styles.reprintBack} hitSlop={8} onPress={confirmReprint}>
+          <Image source={ICONS.back} style={styles.icon25} />
+        </TouchableOpacity>
+        <Text style={styles.reprintTitle}>转载来源</Text>
+      </View>
+      <View style={styles.reprintInfo}>
+        <Image source={ICONS.tip} style={styles.icon16} />
+        <Text style={styles.reprintInfoText}>作品涉及引用他人发布的内容，需添加引用来源。</Text>
+      </View>
+      <View style={styles.reprintInputCard}>
+        <BottomSheetTextInput
+          style={styles.reprintInput}
+          placeholder="请输入来源名称或链接"
+          placeholderTextColor={TEXT_SUB}
+          value={reprintDraft}
+          onChangeText={setReprintDraft}
+          autoFocus
+          returnKeyType="done"
+          onSubmitEditing={confirmReprint}
+        />
+      </View>
+    </AppBottomSheet>
+  );
+
+  const renderAiHelp = () => (
+    <Modal visible={aiHelpVisible} transparent animationType="fade" onRequestClose={() => setAiHelpVisible(false)}>
+      <View style={styles.aiOverlay}>
+        <View style={styles.aiCard}>
+          <Text style={styles.aiTitle}>AI产业连接说明</Text>
+          <Text style={styles.aiBody}>
+            开启后，AI会分析你公开发布的内容，识别需求/能力并同步到联诚链接，同时为你推荐潜在合作。
+          </Text>
+          <Text style={styles.aiList}>
+            {'  - 不会根据推测替你发布采购需求\n  - 不会自动联系其他企业\n  - 本页开关仅对本条动态生效，不会改设置里的默认值\n  - 修改默认值请到：我的 > 设置 > 隐私与权限 > AI产业连接'}
+          </Text>
+          <TouchableOpacity
+            style={styles.aiBtn}
+            activeOpacity={0.85}
+            onPress={() => setAiHelpVisible(false)}
+          >
+            <Text style={styles.aiBtnText}>我知道了</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  const renderGuideSheet = () => (
+    <AppBottomSheet ref={guideRef} onClose={() => closeGuide(false)}>
+      <Text style={styles.guideTitle}>是否默认同步到「正在发生」?</Text>
+      <View style={styles.guideInfo}>
+        <Image source={ICONS.guideInfo} style={styles.icon16} />
+        <Text style={styles.guideInfoText}>关闭仅影响公开展示，匹配和画像更新仍会继续。</Text>
+      </View>
+      <Text style={styles.guideBody}>
+        开启后，AI结合标签和企业画像进行匹配，明确供需符合条件时同步展示。
+      </Text>
+      <View style={styles.guideActions}>
+        <TouchableOpacity style={styles.guideBtn} activeOpacity={0.85} onPress={() => closeGuide(false)}>
+          <Text style={styles.guideBtnText}>保持关闭</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.guideBtn, styles.guideBtnPrimary]}
+          activeOpacity={0.85}
+          onPress={() => closeGuide(true)}
+        >
+          <Text style={[styles.guideBtnText, styles.guideBtnTextPrimary]}>默认开启</Text>
+        </TouchableOpacity>
+      </View>
+      <Text style={styles.guideFoot}>保存为我的发布默认值，以后可在设置中修改</Text>
+    </AppBottomSheet>
+  );
+
+  return (
+    <SafeView backgroundColor="#fff" disableTop={false}>
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backBtn} activeOpacity={0.7} onPress={() => navigation.goBack()}>
+          <ChevronLeft />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>统一发布</Text>
+        <View style={styles.backBtn} />
+      </View>
+
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        {renderSegment()}
+
+        {activeTab === 'short' ? (
+          <>
+            {renderImageGrid()}
+
+            <View style={styles.titleRow}>
+              <TextInput
+                style={styles.titleInput}
+                placeholder="添加标题"
+                placeholderTextColor={TEXT_SUB}
+                maxLength={TITLE_LIMIT}
+                value={title}
+                onChangeText={setTitle}
+              />
+              <Text style={styles.titleCount}>{[...title].length}/{TITLE_LIMIT}</Text>
+            </View>
+            <View style={styles.divider} />
+
+            <TextInput
+              style={styles.bodyInput}
+              placeholder="添加正文..."
+              placeholderTextColor={TEXT_SUB}
+              maxLength={BODY_LIMIT}
+              multiline
+              value={body}
+              onChangeText={setBody}
+            />
+          </>
+        ) : (
+          <View style={styles.tabPlaceholder}>
+            <Text style={styles.tabPlaceholderText}>
+              {activeTab === 'video' ? '视频' : '长文'}发布敬请期待
+            </Text>
+          </View>
+        )}
+
+        <View style={styles.divider} />
+
+        {renderSettingRow(<Image source={ICONS.eye} style={styles.icon20} />, '可见范围', VISIBILITY_ROW_LABEL[visibility], () =>
+          openSheet(visibilityRef),
+        )}
+        {renderSettingRow(<Image source={ICONS.declare} style={styles.icon20} />, '内容声明', declareLabel(), () =>
+          openSheet(declareRef),
+        )}
+        {renderSettingRow(<Image source={ICONS.comment} style={styles.icon20} />, '谁可以评论', COMMENT_OPTIONS.find(o => o.key === commentWho)?.label || '所有人', () =>
+          openSheet(commentRef),
+        )}
+
+        <View style={styles.syncRow}>
+          <Image source={ICONS.sync} style={styles.iconSync} />
+          <View style={styles.syncCopy}>
+            <View style={styles.syncTitleRow}>
+              <Text style={styles.syncTitle}>同步到「正在发生」</Text>
+              <TouchableOpacity hitSlop={8} onPress={() => setAiHelpVisible(true)}>
+                <Image source={ICONS.help} style={styles.icon15} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.syncSub}>
+              {syncOn ? 'AI + 标签综合匹配 · 符合条件时公开展示' : '不公开·AI匹配和画像更新仍继续'}
+            </Text>
+          </View>
+          <Switch
+            value={syncOn}
+            onValueChange={setSyncOn}
+            trackColor={{ false: '#E5E5E5', true: PRIMARY }}
+            thumbColor="#FFFFFF"
+          />
+        </View>
+
+        <View style={styles.tipBar}>
+          <Image source={ICONS.tip} style={styles.icon16} />
+          <Text style={styles.tipText}>只有明确、有效的供需信息，才会同步到「正在发生」。</Text>
+        </View>
+
+        <TouchableOpacity style={styles.publishBtn} activeOpacity={0.85} onPress={onPublish}>
+          <Text style={styles.publishBtnText}>立即发布</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.reviewNote}>企业用户发布后，需企业管理员审核</Text>
+      </ScrollView>
+
+      {renderGuideSheet()}
+      {renderVisibilitySheet()}
+      {renderDeclareSheet()}
+      {renderReprintSheet()}
+      {renderCommentSheet()}
+      {renderAiHelp()}
+    </SafeView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    paddingHorizontal: scaleSizeW(16),
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: scaleSizeW(16),
+    paddingBottom: scaleSizeH(10),
+  },
+  backBtn: {
+    width: scaleSizeW(44),
+    height: scaleSizeW(44),
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
+  headerTitle: {
+    fontSize: scaleSizeW(17),
+    fontWeight: '600',
+    color: TEXT_MAIN,
+  },
+  segment: {
+    flexDirection: 'row',
+    height: scaleSizeH(32),
+    backgroundColor: TILE_BG,
+    borderRadius: scaleSizeW(100),
+    padding: scaleSizeW(2),
+    marginTop: scaleSizeH(18),
+  },
+  segmentItem: {
+    flex: 1,
+    borderRadius: scaleSizeW(20),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  segmentItemActive: {
+    backgroundColor: '#FFFFFF',
+  },
+  segmentText: {
+    fontSize: scaleSizeW(13),
+    fontWeight: '500',
+    color: TEXT_MAIN,
+  },
+  mediaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSizeW(10),
+    marginTop: scaleSizeH(30),
+  },
+  mediaItem: {
+    width: scaleSizeW(85),
+    height: scaleSizeW(85),
+    borderRadius: scaleSizeW(10),
+    overflow: 'hidden',
+  },
+  mediaImg: {
+    width: '100%',
+    height: '100%',
+  },
+  mediaAdd: {
+    backgroundColor: TILE_BG,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mediaAddIcon: {
+    width: scaleSizeW(33),
+    height: scaleSizeW(33),
+  },
+  coverBadge: {
+    position: 'absolute',
+    top: scaleSizeW(3),
+    left: scaleSizeW(3),
+    height: scaleSizeW(16),
+    paddingHorizontal: scaleSizeW(7),
+    borderRadius: scaleSizeW(90),
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'center',
+  },
+  coverBadgeText: {
+    fontSize: scaleSizeW(10),
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  mediaRemove: {
+    position: 'absolute',
+    top: scaleSizeW(3),
+    right: scaleSizeW(3),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mediaRemoveIcon: {
+    width: scaleSizeW(16),
+    height: scaleSizeW(16),
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: scaleSizeH(30),
+  },
+  titleInput: {
+    flex: 1,
+    padding: 0,
+    fontSize: scaleSizeW(16),
+    fontWeight: '500',
+    color: TEXT_MAIN,
+  },
+  titleCount: {
+    fontSize: scaleSizeW(12),
+    color: '#999999',
+    marginLeft: scaleSizeW(8),
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: DIVIDER,
+    marginTop: scaleSizeH(10),
+  },
+  bodyInput: {
+    padding: 0,
+    marginTop: scaleSizeH(10),
+    minHeight: scaleSizeH(96),
+    fontSize: scaleSizeW(14),
+    lineHeight: scaleSizeH(24),
+    color: TEXT_MAIN,
+    textAlignVertical: 'top',
+  },
+  tabPlaceholder: {
+    height: scaleSizeH(180),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tabPlaceholderText: {
+    fontSize: scaleSizeW(13),
+    color: '#999999',
+  },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: scaleSizeH(50),
+    gap: scaleSizeW(5),
+  },
+  settingLabel: {
+    flex: 1,
+    fontSize: scaleSizeW(14),
+    color: TEXT_MAIN,
+  },
+  settingRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSizeW(4),
+    maxWidth: '60%',
+  },
+  settingValue: {
+    fontSize: scaleSizeW(14),
+    color: TEXT_SUB,
+  },
+  syncRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: scaleSizeH(50),
+    gap: scaleSizeW(5),
+  },
+  syncCopy: {
+    flex: 1,
+  },
+  syncTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSizeW(4),
+  },
+  syncTitle: {
+    fontSize: scaleSizeW(14),
+    fontWeight: '500',
+    color: TEXT_MAIN,
+  },
+  syncSub: {
+    marginTop: scaleSizeH(3),
+    fontSize: scaleSizeW(12),
+    color: TEXT_SUB,
+  },
+  tipBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSizeW(5),
+    height: scaleSizeH(36),
+    paddingLeft: scaleSizeW(14),
+    borderRadius: scaleSizeW(10),
+    backgroundColor: '#F2F6FF',
+    marginTop: scaleSizeH(8),
+  },
+  tipText: {
+    fontSize: scaleSizeW(12),
+    color: PRIMARY,
+  },
+  publishBtn: {
+    height: scaleSizeH(48),
+    borderRadius: scaleSizeW(90),
+    backgroundColor: PRIMARY,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: scaleSizeH(30),
+  },
+  publishBtnText: {
+    fontSize: scaleSizeW(15),
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  reviewNote: {
+    marginTop: scaleSizeH(12),
+    marginBottom: scaleSizeH(30),
+    fontSize: scaleSizeW(12),
+    color: TEXT_SUB,
+    textAlign: 'center',
+  },
+  icon20: {
+    width: scaleSizeW(20),
+    height: scaleSizeW(20),
+  },
+  icon18: {
+    width: scaleSizeW(18),
+    height: scaleSizeW(18),
+  },
+  icon16: {
+    width: scaleSizeW(16),
+    height: scaleSizeW(16),
+  },
+  icon15: {
+    width: scaleSizeW(15),
+    height: scaleSizeW(15),
+  },
+  icon25: {
+    width: scaleSizeW(25),
+    height: scaleSizeW(25),
+  },
+  iconSync: {
+    width: scaleSizeW(20),
+    height: scaleSizeW(18.62),
+  },
+  sheetNote: {
+    marginTop: scaleSizeH(14),
+    marginBottom: scaleSizeH(14),
+    fontSize: scaleSizeW(12),
+    fontWeight: '500',
+    color: '#6E6F74',
+  },
+  sheetCard: {
+    backgroundColor: CARD_BG,
+    borderRadius: scaleSizeW(10),
+    marginBottom: scaleSizeH(10),
+    overflow: 'hidden',
+  },
+  optionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: scaleSizeH(55),
+    paddingHorizontal: scaleSizeW(16),
+    gap: scaleSizeW(9),
+  },
+  optionRowDivider: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: DIVIDER,
+  },
+  optionLabel: {
+    flex: 1,
+    fontSize: scaleSizeW(14),
+    fontWeight: '500',
+    color: TEXT_MAIN,
+  },
+  reprintHeader: {
+    height: scaleSizeH(40),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  reprintBack: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+  },
+  reprintTitle: {
+    fontSize: scaleSizeW(17),
+    fontWeight: '600',
+    color: TEXT_MAIN,
+  },
+  reprintInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSizeW(4),
+    paddingHorizontal: scaleSizeW(12),
+    paddingVertical: scaleSizeH(10),
+    borderRadius: scaleSizeW(10),
+    backgroundColor: INFO_BG,
+    marginTop: scaleSizeH(10),
+  },
+  reprintInfoText: {
+    flex: 1,
+    fontSize: scaleSizeW(12),
+    color: PRIMARY,
+  },
+  reprintInputCard: {
+    height: scaleSizeH(55),
+    justifyContent: 'center',
+    paddingHorizontal: scaleSizeW(14),
+    borderRadius: scaleSizeW(10),
+    backgroundColor: CARD_BG,
+    marginTop: scaleSizeH(12),
+  },
+  reprintInput: {
+    padding: 0,
+    fontSize: scaleSizeW(14),
+    color: TEXT_MAIN,
+  },
+  aiOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  aiCard: {
+    width: scaleSizeW(300),
+    borderRadius: scaleSizeW(34),
+    backgroundColor: 'rgba(245,245,245,0.95)',
+    paddingHorizontal: scaleSizeW(22),
+    paddingTop: scaleSizeH(22),
+    paddingBottom: scaleSizeH(14),
+  },
+  aiTitle: {
+    fontSize: scaleSizeW(15),
+    fontWeight: '600',
+    color: TEXT_MAIN,
+  },
+  aiBody: {
+    marginTop: scaleSizeH(10),
+    fontSize: scaleSizeW(14),
+    lineHeight: scaleSizeH(20),
+    color: TEXT_MAIN,
+  },
+  aiList: {
+    marginTop: scaleSizeH(4),
+    fontSize: scaleSizeW(14),
+    lineHeight: scaleSizeH(28),
+    color: TEXT_MAIN,
+  },
+  aiBtn: {
+    height: scaleSizeH(48),
+    borderRadius: scaleSizeW(100),
+    backgroundColor: PRIMARY,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: scaleSizeH(20),
+  },
+  aiBtnText: {
+    fontSize: scaleSizeW(15),
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  guideTitle: {
+    marginTop: scaleSizeH(20),
+    fontSize: scaleSizeW(22),
+    fontWeight: '600',
+    color: TEXT_MAIN,
+  },
+  guideInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSizeW(4),
+    paddingHorizontal: scaleSizeW(12),
+    paddingVertical: scaleSizeH(10),
+    borderRadius: scaleSizeW(10),
+    backgroundColor: INFO_BG,
+    marginTop: scaleSizeH(24),
+  },
+  guideInfoText: {
+    flex: 1,
+    fontSize: scaleSizeW(12),
+    color: PRIMARY,
+  },
+  guideBody: {
+    marginTop: scaleSizeH(16),
+    fontSize: scaleSizeW(14),
+    lineHeight: scaleSizeH(30),
+    color: TEXT_MAIN,
+  },
+  guideActions: {
+    flexDirection: 'row',
+    gap: scaleSizeW(10),
+    marginTop: scaleSizeH(30),
+  },
+  guideBtn: {
+    flex: 1,
+    height: scaleSizeH(48),
+    borderRadius: scaleSizeW(90),
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  guideBtnPrimary: {
+    backgroundColor: PRIMARY,
+  },
+  guideBtnText: {
+    fontSize: scaleSizeW(15),
+    fontWeight: '500',
+    color: TEXT_MAIN,
+  },
+  guideBtnTextPrimary: {
+    color: '#FFFFFF',
+  },
+  guideFoot: {
+    marginTop: scaleSizeH(14),
+    fontSize: scaleSizeW(12),
+    color: TEXT_SUB,
+    textAlign: 'center',
+  },
+});

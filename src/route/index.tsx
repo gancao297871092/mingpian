@@ -15,6 +15,7 @@ import AgreementPage from '@/pages/login/AgreementPage';
 import EditCard from '@/pages/editCard';
 import AddItem from '@/pages/editCard/AddItem';
 import RichTextEdit from '@/pages/common/RichTextEdit';
+import Publish from '@/pages/publish';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -113,6 +114,11 @@ export default function RootNavigator() {
           name="richTextEdit"
           component={RichTextEdit}
           options={{ title: '', headerStyle: { backgroundColor: '#FFFFFF' }, headerShadowVisible: false, }}
+        />
+        <Stack.Screen
+          name="publish"
+          component={Publish}
+          options={{ headerShown: false }}
         />
       </Stack.Navigator>
     </NavigationContainer>

@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { StatusBar, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import BootSplash from 'react-native-bootsplash';
@@ -66,7 +67,9 @@ function App() {
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
         <ThemeProvider>
-          <Root />
+          <BottomSheetModalProvider>
+            <Root />
+          </BottomSheetModalProvider>
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

@@ -7,6 +7,7 @@ export type RootStackParamList = {
   editCard: { id?: string | number };
   addItem: { itemId?: string | number; cardId?: string | number; userId?: string | number; pjId?: string | number };
   richTextEdit: { initialHtml?: string; placeholder?: string };
+  publish: undefined;
   companyPage: { id: string | number; userId?: string | number };
   certification: { openIndex?: number };
 };

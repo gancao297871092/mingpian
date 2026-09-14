@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
   type LayoutChangeEvent,
 } from 'react-native';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
@@ -124,33 +123,50 @@ export default function LiquidGlassTabBar({ state, descriptors, navigation }: Bo
           navigation.emit({ type: 'tabLongPress', target: route.key });
         };
 
-        return (
+        const publishButton = index === 0 ? (
           <TouchableOpacity
-            key={route.key}
+            key="publish-button"
             accessibilityRole="button"
-            accessibilityState={isFocused ? { selected: true } : {}}
-            accessibilityLabel={options.tabBarAccessibilityLabel}
-            onPress={onPress}
-            onLongPress={onLongPress}
-            activeOpacity={0.7}
-            style={styles.tab}
+            accessibilityLabel="发布"
+            activeOpacity={0.8}
+            style={styles.publishBtn}
+            onPress={() => navigation.navigate('publish' as never)}
           >
-            <TabIcon
-              routeName={route.name}
-              focused={isFocused}
-              color={isFocused ? theme.primary : theme.placeholder}
-            />
-            {typeof label === 'string' ? (
-              <Text
-                style={[
-                  styles.tabLabel,
-                  { color: isFocused ? theme.primary : theme.placeholder },
-                ]}
-              >
-                {label}
-              </Text>
-            ) : null}
+            <Svg width={scaleSizeH(22)} height={scaleSizeH(22)} viewBox="0 0 24 24">
+              <Path d="M12 5v14M5 12h14" stroke="#FFFFFF" strokeWidth={2} strokeLinecap="round" />
+            </Svg>
           </TouchableOpacity>
+        ) : null;
+
+        return (
+          <React.Fragment key={route.key}>
+            {publishButton}
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityState={isFocused ? { selected: true } : {}}
+              accessibilityLabel={options.tabBarAccessibilityLabel}
+              onPress={onPress}
+              onLongPress={onLongPress}
+              activeOpacity={0.7}
+              style={styles.tab}
+            >
+              <TabIcon
+                routeName={route.name}
+                focused={isFocused}
+                color={isFocused ? theme.primary : theme.placeholder}
+              />
+              {typeof label === 'string' ? (
+                <Text
+                  style={[
+                    styles.tabLabel,
+                    { color: isFocused ? theme.primary : theme.placeholder },
+                  ]}
+                >
+                  {label}
+                </Text>
+              ) : null}
+            </TouchableOpacity>
+          </React.Fragment>
         );
       })}
     </LiquidGlass>
@@ -187,5 +203,14 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontSize: setSpText(10),
     marginTop: scaleSizeH(2),
+  },
+  publishBtn: {
+    width: scaleSizeH(44),
+    height: scaleSizeH(44),
+    borderRadius: scaleSizeH(22),
+    backgroundColor: '#2962D4',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: scaleSizeH(8),
   },
 });
