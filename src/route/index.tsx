@@ -16,6 +16,7 @@ import EditCard from '@/pages/editCard';
 import AddItem from '@/pages/editCard/AddItem';
 import RichTextEdit from '@/pages/common/RichTextEdit';
 import Publish from '@/pages/publish';
+import PublishCover from '@/pages/publish/CoverSelect';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -118,6 +119,11 @@ export default function RootNavigator() {
         <Stack.Screen
           name="publish"
           component={Publish}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="publishCover"
+          component={PublishCover}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

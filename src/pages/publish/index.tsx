@@ -12,13 +12,18 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import ImagePicker from 'react-native-image-crop-picker';
+import Video from 'react-native-video';
 import { BottomSheetTextInput, type BottomSheetModal } from '@gorhom/bottom-sheet';
 import Svg, { Path } from 'react-native-svg';
 import SafeView from '@/components/SafeView';
 import AppBottomSheet from '@/components/AppBottomSheet';
+import VideoPlayerModal from '@/components/VideoPlayerModal';
+import { storageUtils } from '@/utils/storage';
 import { scaleSizeH, scaleSizeW } from '@/utils/screenUtils';
+import { getFeedCoverHeight } from '@/utils/feedLayout';
+import { COVER_RATIO_KEY, COVER_TRANSFORM_KEY, COVER_URI_KEY } from './CoverSelect';
 
 const PRIMARY = '#2962D4';
 const TEXT_MAIN = '#000000';
@@ -83,6 +88,9 @@ const ICONS = {
   guideInfo: require('@/assets/publish/guide-info.png'),
   check: require('@/assets/publish/check.png'),
   back: require('@/assets/publish/back.png'),
+  videoAdd: require('@/assets/publish/video-add.png'),
+  exitDiscard: require('@/assets/publish/exit-discard.png'),
+  exitDraft: require('@/assets/publish/exit-draft.png'),
 };
 
 function ChevronLeft({ size = 20, color = '#1A1A1A' }: { size?: number; color?: string }) {
@@ -108,6 +116,34 @@ export default function Publish() {
   const [images, setImages] = useState<string[]>([]);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  const [video, setVideo] = useState<string | null>(null);
+  const [playerVisible, setPlayerVisible] = useState(false);
+  const [videoCover, setVideoCover] = useState<string | null>(null);
+  const [videoRatio, setVideoRatio] = useState<'3:4' | '16:9'>('3:4');
+  const [coverTransform, setCoverTransform] = useState<{ tx: number; ty: number; scale: number } | null>(null);
+  const [videoTitle, setVideoTitle] = useState('');
+  const [videoBody, setVideoBody] = useState('');
+  const [exitMenuVisible, setExitMenuVisible] = useState(false);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const ratio = storageUtils.getString(COVER_RATIO_KEY);
+      if (ratio === '3:4' || ratio === '16:9') {
+        setVideoRatio(ratio);
+        storageUtils.remove(COVER_RATIO_KEY);
+      }
+      const coverUri = storageUtils.getString(COVER_URI_KEY);
+      if (coverUri) {
+        setVideoCover(coverUri);
+        storageUtils.remove(COVER_URI_KEY);
+      }
+      const transform = storageUtils.getObject<{ tx: number; ty: number; scale: number }>(COVER_TRANSFORM_KEY);
+      if (transform) {
+        setCoverTransform(transform);
+        storageUtils.remove(COVER_TRANSFORM_KEY);
+      }
+    }, []),
+  );
 
   const [visibility, setVisibility] = useState<VisibilityKey>('public');
   const [declareOriginal, setDeclareOriginal] = useState(false);
@@ -167,6 +203,70 @@ export default function Publish() {
 
   const removeImage = (index: number) => {
     setImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const pickVideo = async () => {
+    try {
+      const picked = await ImagePicker.openPicker({ mediaType: 'video', multiple: false });
+      const item = Array.isArray(picked) ? picked[0] : picked;
+      if (item?.path) {
+        setVideo(item.path);
+        setVideoCover(null);
+        setCoverTransform(null);
+      }
+    } catch {
+      // 用户取消
+    }
+  };
+
+  const openCoverSelect = () => {
+    if (!video) return;
+    Keyboard.dismiss();
+    (navigation as any).navigate('publishCover', {
+      videoUri: video,
+      ratio: videoRatio,
+      title: videoTitle,
+    });
+  };
+
+  const hasContent = () =>
+    images.length > 0 ||
+    !!video ||
+    !!title.trim() ||
+    !!body.trim() ||
+    !!videoTitle.trim() ||
+    !!videoBody.trim();
+
+  const clearAll = () => {
+    setImages([]);
+    setVideo(null);
+    setVideoCover(null);
+    setCoverTransform(null);
+    setPlayerVisible(false);
+    setTitle('');
+    setBody('');
+    setVideoTitle('');
+    setVideoBody('');
+  };
+
+  const onBack = () => {
+    if (hasContent()) {
+      setExitMenuVisible(true);
+    } else {
+      navigation.goBack();
+    }
+  };
+
+  const onExitDiscard = () => {
+    setExitMenuVisible(false);
+    clearAll();
+    navigation.goBack();
+  };
+
+  const onExitDraft = () => {
+    setExitMenuVisible(false);
+    clearAll();
+    Alert.alert('提示', '已存入草稿箱', [{ text: '知道了', onPress: () => navigation.goBack() }]);
   };
 
   const openSheet = (target: React.RefObject<BottomSheetModal | null>) => {
@@ -235,6 +335,147 @@ export default function Publish() {
         </TouchableOpacity>
       )}
     </ScrollView>
+  );
+
+  const renderTextFields = (
+    value: string,
+    onChange: (v: string) => void,
+    bodyValue: string,
+    onBodyChange: (v: string) => void,
+  ) => (
+    <>
+      <View style={styles.titleRow}>
+        <TextInput
+          style={styles.titleInput}
+          placeholder="添加标题"
+          placeholderTextColor={TEXT_SUB}
+          maxLength={TITLE_LIMIT}
+          value={value}
+          onChangeText={onChange}
+        />
+        <Text style={styles.titleCount}>{[...value].length}/{TITLE_LIMIT}</Text>
+      </View>
+      <View style={styles.divider} />
+      <TextInput
+        style={styles.bodyInput}
+        placeholder="添加正文..."
+        placeholderTextColor={TEXT_SUB}
+        maxLength={BODY_LIMIT}
+        multiline
+        value={bodyValue}
+        onChangeText={onBodyChange}
+      />
+    </>
+  );
+
+  const renderVideoSection = () => {
+    const previewSize = {
+      width: scaleSizeW(110),
+      height: getFeedCoverHeight(scaleSizeW(110), videoRatio),
+    };
+    const cropK = previewSize.width / scaleSizeW(386);
+    const coverContent = videoCover ? (
+      coverTransform ? (
+        <View
+          style={[
+            previewSize,
+            {
+              transform: [
+                { translateX: coverTransform.tx * cropK },
+                { translateY: coverTransform.ty * cropK },
+                { scale: coverTransform.scale },
+              ],
+            },
+          ]}
+        >
+          <Image source={{ uri: videoCover }} style={previewSize} resizeMode="cover" />
+        </View>
+      ) : (
+        <Image source={{ uri: videoCover }} style={previewSize} resizeMode="cover" />
+      )
+    ) : (
+      <>
+        <Image source={ICONS.add} style={styles.mediaAddIcon} />
+        <Text style={styles.videoCoverText}>添加封面</Text>
+      </>
+    );
+    return (
+      <View style={styles.videoRow}>
+        {video ? (
+          <>
+            <View style={[styles.videoPreview, previewSize]}>
+              <TouchableOpacity
+                style={styles.videoPreviewTouch}
+                activeOpacity={0.9}
+                onPress={() => setPlayerVisible(true)}
+              >
+                <Video
+                  source={{ uri: video }}
+                  style={styles.videoPreviewImg}
+                  paused
+                  resizeMode="cover"
+                />
+                <View style={styles.videoPlayBtn}>
+                  <Svg width={scaleSizeW(18)} height={scaleSizeW(18)} viewBox="0 0 24 24">
+                    <Path d="M8 5l12 7-12 7z" fill="#FFFFFF" />
+                  </Svg>
+                </View>
+              </TouchableOpacity>
+              <View style={styles.videoBadge}>
+                <Svg width={scaleSizeW(8)} height={scaleSizeW(8)} viewBox="0 0 24 24">
+                  <Path d="M7 4l13 8-13 8z" fill="#FFFFFF" />
+                </Svg>
+                <Text style={styles.videoBadgeText}>含视频</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.videoRemove}
+                hitSlop={6}
+                onPress={() => {
+                  setVideo(null);
+                  setVideoCover(null);
+                  setCoverTransform(null);
+                }}
+              >
+                <Image source={ICONS.remove} style={styles.mediaRemoveIcon} />
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity
+              style={[styles.videoCoverTile, previewSize, videoCover && styles.videoCoverTileFilled]}
+              activeOpacity={0.8}
+              onPress={openCoverSelect}
+            >
+              {coverContent}
+            </TouchableOpacity>
+          </>
+        ) : (
+          <TouchableOpacity style={[styles.mediaItem, styles.mediaAdd]} activeOpacity={0.8} onPress={pickVideo}>
+            <Image source={ICONS.videoAdd} style={styles.mediaAddIcon} />
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
+
+  const renderExitMenu = () => (
+    <Modal
+      visible={exitMenuVisible}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setExitMenuVisible(false)}
+    >
+      <TouchableOpacity style={styles.exitMask} activeOpacity={1} onPress={() => setExitMenuVisible(false)}>
+        <View style={styles.exitMenu}>
+          <TouchableOpacity style={styles.exitItem} activeOpacity={0.7} onPress={onExitDiscard}>
+            <Image source={ICONS.exitDiscard} style={styles.icon20} />
+            <Text style={[styles.exitItemText, styles.exitDiscardText]}>不保存返回</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.exitItem} activeOpacity={0.7} onPress={onExitDraft}>
+            <Image source={ICONS.exitDraft} style={styles.icon20} />
+            <Text style={styles.exitItemText}>存草稿</Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    </Modal>
   );
 
   const renderSettingRow = (
@@ -435,7 +676,7 @@ export default function Publish() {
   return (
     <SafeView backgroundColor="#fff" disableTop={false}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} activeOpacity={0.7} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.backBtn} activeOpacity={0.7} onPress={onBack}>
           <ChevronLeft />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>统一发布</Text>
@@ -445,38 +686,23 @@ export default function Publish() {
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {renderSegment()}
 
-        {activeTab === 'short' ? (
+        {activeTab === 'short' && (
           <>
             {renderImageGrid()}
-
-            <View style={styles.titleRow}>
-              <TextInput
-                style={styles.titleInput}
-                placeholder="添加标题"
-                placeholderTextColor={TEXT_SUB}
-                maxLength={TITLE_LIMIT}
-                value={title}
-                onChangeText={setTitle}
-              />
-              <Text style={styles.titleCount}>{[...title].length}/{TITLE_LIMIT}</Text>
-            </View>
-            <View style={styles.divider} />
-
-            <TextInput
-              style={styles.bodyInput}
-              placeholder="添加正文..."
-              placeholderTextColor={TEXT_SUB}
-              maxLength={BODY_LIMIT}
-              multiline
-              value={body}
-              onChangeText={setBody}
-            />
+            {renderTextFields(title, setTitle, body, setBody)}
           </>
-        ) : (
+        )}
+
+        {activeTab === 'video' && (
+          <>
+            {renderVideoSection()}
+            {renderTextFields(videoTitle, setVideoTitle, videoBody, setVideoBody)}
+          </>
+        )}
+
+        {activeTab === 'long' && (
           <View style={styles.tabPlaceholder}>
-            <Text style={styles.tabPlaceholderText}>
-              {activeTab === 'video' ? '视频' : '长文'}发布敬请期待
-            </Text>
+            <Text style={styles.tabPlaceholderText}>长文发布敬请期待</Text>
           </View>
         )}
 
@@ -531,6 +757,8 @@ export default function Publish() {
       {renderReprintSheet()}
       {renderCommentSheet()}
       {renderAiHelp()}
+      {renderExitMenu()}
+      <VideoPlayerModal visible={playerVisible} uri={video} onClose={() => setPlayerVisible(false)} />
     </SafeView>
   );
 }
@@ -773,6 +1001,108 @@ const styles = StyleSheet.create({
   iconSync: {
     width: scaleSizeW(20),
     height: scaleSizeW(18.62),
+  },
+  videoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: scaleSizeW(10),
+    marginTop: scaleSizeH(30),
+  },
+  videoPreview: {
+    borderRadius: scaleSizeW(10),
+    overflow: 'hidden',
+    backgroundColor: TILE_BG,
+  },
+  videoPreviewImg: {
+    width: '100%',
+    height: '100%',
+  },
+  videoPreviewTouch: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  videoPlayBtn: {
+    position: 'absolute',
+    alignSelf: 'center',
+    top: '50%',
+    marginTop: scaleSizeW(-18),
+    width: scaleSizeW(36),
+    height: scaleSizeW(36),
+    borderRadius: scaleSizeW(18),
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  videoCoverTileFilled: {
+    backgroundColor: 'transparent',
+    overflow: 'hidden',
+  },
+  videoBadge: {
+    position: 'absolute',
+    top: scaleSizeW(10),
+    right: scaleSizeW(6),
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSizeW(3),
+    height: scaleSizeW(20),
+    paddingHorizontal: scaleSizeW(5),
+    borderRadius: scaleSizeW(10),
+    backgroundColor: 'rgba(0,0,0,0.7)',
+  },
+  videoBadgeText: {
+    fontSize: scaleSizeW(10),
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  videoRemove: {
+    position: 'absolute',
+    top: scaleSizeW(4),
+    left: scaleSizeW(4),
+  },
+  videoCoverTile: {
+    borderRadius: scaleSizeW(10),
+    backgroundColor: TILE_BG,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: scaleSizeH(5),
+  },
+  videoCoverText: {
+    fontSize: scaleSizeW(12),
+    fontWeight: '500',
+    color: '#999999',
+  },
+  exitMask: {
+    flex: 1,
+  },
+  exitMenu: {
+    position: 'absolute',
+    left: scaleSizeW(16),
+    top: scaleSizeH(104),
+    width: scaleSizeW(136),
+    borderRadius: scaleSizeW(10),
+    backgroundColor: '#FFFFFF',
+    paddingVertical: scaleSizeH(14),
+    paddingHorizontal: scaleSizeW(14),
+    gap: scaleSizeH(20),
+    shadowColor: '#000000',
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  exitItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSizeW(5),
+  },
+  exitItemText: {
+    fontSize: scaleSizeW(14),
+    fontWeight: '500',
+    color: TEXT_MAIN,
+  },
+  exitDiscardText: {
+    color: '#EF4444',
   },
   sheetNote: {
     marginTop: scaleSizeH(14),

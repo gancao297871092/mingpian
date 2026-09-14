@@ -8,6 +8,7 @@ export type RootStackParamList = {
   addItem: { itemId?: string | number; cardId?: string | number; userId?: string | number; pjId?: string | number };
   richTextEdit: { initialHtml?: string; placeholder?: string };
   publish: undefined;
+  publishCover: { videoUri: string; ratio?: '3:4' | '16:9'; title?: string };
   companyPage: { id: string | number; userId?: string | number };
   certification: { openIndex?: number };
 };
