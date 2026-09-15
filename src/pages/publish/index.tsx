@@ -14,18 +14,17 @@ import {
   View,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import ImagePicker from 'react-native-image-crop-picker';
 import Video from 'react-native-video';
 import { BottomSheetTextInput, type BottomSheetModal } from '@gorhom/bottom-sheet';
 import Svg, { Path } from 'react-native-svg';
+import { API } from '@/api';
 import SafeView from '@/components/SafeView';
 import AppBottomSheet from '@/components/AppBottomSheet';
-import VideoPlayerModal from '@/components/VideoPlayerModal';
 import ImageUploader, { UploadImage } from '@/components/ImageUploader';
+import VideoUploader, { UploadVideo } from '@/components/VideoUploader';
 import { storageUtils } from '@/utils/storage';
 import { scaleSizeH, scaleSizeW } from '@/utils/screenUtils';
 import { getFeedCoverHeight } from '@/utils/feedLayout';
-import { MAX_VIDEO_BYTES } from '@/utils/media';
 import { uploadToOss } from '@/utils/ossUpload';
 import { COVER_RATIO_KEY, COVER_TRANSFORM_KEY, COVER_URI_KEY } from './CoverSelect';
 
@@ -40,6 +39,8 @@ const INFO_BG = '#E3EDFF';
 const MAX_IMAGES = 18;
 const TITLE_LIMIT = 20;
 const BODY_LIMIT = 1000;
+const GUIDE_SHOWN_KEY = 'publishGuideShown';
+const SYNC_ON_KEY = 'publishSyncOn';
 
 type PublishTab = 'short' | 'video' | 'long';
 type VisibilityKey = 'public' | 'mutual' | 'private';
@@ -84,7 +85,6 @@ const DECLARE_OPTION_LABEL: Record<DeclareOption, string> = {
 
 const ICONS = {
   add: require('@/assets/publish/add.png'),
-  remove: require('@/assets/publish/remove.png'),
   eye: require('@/assets/publish/eye.png'),
   declare: require('@/assets/publish/declare.png'),
   comment: require('@/assets/publish/comment.png'),
@@ -94,7 +94,6 @@ const ICONS = {
   guideInfo: require('@/assets/publish/guide-info.png'),
   check: require('@/assets/publish/check.png'),
   back: require('@/assets/publish/back.png'),
-  videoAdd: require('@/assets/publish/video-add.png'),
   exitDiscard: require('@/assets/publish/exit-discard.png'),
   exitDraft: require('@/assets/publish/exit-draft.png'),
 };
@@ -122,16 +121,15 @@ export default function Publish() {
   const [images, setImages] = useState<PublishImage[]>([]);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
-  const [video, setVideo] = useState<string | null>(null);
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [videoUploading, setVideoUploading] = useState(false);
-  const [playerVisible, setPlayerVisible] = useState(false);
+  const [video, setVideo] = useState<UploadVideo | null>(null);
   const [videoCover, setVideoCover] = useState<string | null>(null);
+  const [coverUploading, setCoverUploading] = useState(false);
   const [videoRatio, setVideoRatio] = useState<'3:4' | '16:9'>('3:4');
   const [coverTransform, setCoverTransform] = useState<{ tx: number; ty: number; scale: number } | null>(null);
   const [videoTitle, setVideoTitle] = useState('');
   const [videoBody, setVideoBody] = useState('');
   const [exitMenuVisible, setExitMenuVisible] = useState(false);
+  const [publishing, setPublishing] = useState(false);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -144,6 +142,7 @@ export default function Publish() {
       if (coverUri) {
         setVideoCover(coverUri);
         storageUtils.remove(COVER_URI_KEY);
+        uploadCover(coverUri);
       }
       const transform = storageUtils.getObject<{ tx: number; ty: number; scale: number }>(COVER_TRANSFORM_KEY);
       if (transform) {
@@ -159,7 +158,11 @@ export default function Publish() {
   const [reprintSource, setReprintSource] = useState('');
   const [reprintDraft, setReprintDraft] = useState('');
   const [commentWho, setCommentWho] = useState<CommentKey>('everyone');
-  const [syncOn, setSyncOn] = useState(false);
+  const [syncOn, setSyncOnState] = useState(() => storageUtils.getString(SYNC_ON_KEY) === '1');
+  const setSyncOn = (enabled: boolean) => {
+    setSyncOnState(enabled);
+    storageUtils.set(SYNC_ON_KEY, enabled ? '1' : '0');
+  };
   const [aiHelpVisible, setAiHelpVisible] = useState(false);
 
   const guideRef = useRef<BottomSheetModal>(null);
@@ -168,13 +171,17 @@ export default function Publish() {
   const reprintRef = useRef<BottomSheetModal>(null);
   const commentRef = useRef<BottomSheetModal>(null);
   const reprintConfirmedRef = useRef(false);
+  const guideConfirmedRef = useRef(false);
 
   useEffect(() => {
+    if (storageUtils.getString(GUIDE_SHOWN_KEY)) return;
     const timer = setTimeout(() => guideRef.current?.present(), 350);
     return () => clearTimeout(timer);
   }, []);
 
   const closeGuide = (enabled: boolean) => {
+    guideConfirmedRef.current = true;
+    storageUtils.set(GUIDE_SHOWN_KEY, '1');
     setSyncOn(enabled);
     guideRef.current?.dismiss();
   };
@@ -192,38 +199,27 @@ export default function Publish() {
     return parts.length ? parts.join(' · ') : '无需声明';
   };
 
-  const pickVideo = async () => {
-    try {
-      const picked = await ImagePicker.openPicker({ mediaType: 'video', multiple: false });
-      const item = Array.isArray(picked) ? picked[0] : picked;
-      if (!item?.path) return;
-      if (item.size && item.size > MAX_VIDEO_BYTES) {
-        Alert.alert('提示', '视频过大，请选择500MB以内的视频');
-        return;
-      }
-      setVideo(item.path);
+  const handleVideoChange = (next: UploadVideo | null) => {
+    if (!next || next.uri !== video?.uri) {
       setVideoCover(null);
       setCoverTransform(null);
-      setVideoUrl(null);
-      setVideoUploading(true);
-      try {
-        const url = await uploadToOss(item.path, item.mime || 'video/mp4');
-        setVideoUrl(url);
-      } catch {
-        Alert.alert('提示', '视频上传失败，请重试');
-      } finally {
-        setVideoUploading(false);
-      }
-    } catch {
-      // 用户取消
     }
+    setVideo(next);
+  };
+
+  const uploadCover = (uri: string) => {
+    setCoverUploading(true);
+    uploadToOss(uri, 'image/jpeg')
+      .then(url => setVideoCover(prev => (prev === uri ? url : prev)))
+      .catch(() => undefined)
+      .finally(() => setCoverUploading(false));
   };
 
   const openCoverSelect = () => {
     if (!video) return;
     Keyboard.dismiss();
     (navigation as any).navigate('publishCover', {
-      videoUri: video,
+      videoUri: video.uri,
       ratio: videoRatio,
       title: videoTitle,
     });
@@ -242,7 +238,6 @@ export default function Publish() {
     setVideo(null);
     setVideoCover(null);
     setCoverTransform(null);
-    setPlayerVisible(false);
     setTitle('');
     setBody('');
     setVideoTitle('');
@@ -286,7 +281,10 @@ export default function Publish() {
     reprintRef.current?.dismiss();
   };
 
-  const onPublish = () => {
+  const VISIBILITY_MAP: Record<VisibilityKey, number> = { public: 0, mutual: 1, private: 2 };
+  const COMMENT_MAP: Record<CommentKey, number> = { everyone: 0, fans: 1, mutual: 2, self: 3 };
+
+  const onPublish = async () => {
     const activeTitle = activeTab === 'video' ? videoTitle : title;
     const activeBody = activeTab === 'video' ? videoBody : body;
     if (activeTab === 'short' && !activeTitle.trim() && !activeBody.trim() && images.length === 0) {
@@ -309,17 +307,47 @@ export default function Publish() {
       Alert.alert('提示', '有图片上传失败，请重试或删除');
       return;
     }
-    if (videoUploading) {
+    if (video?.uploading) {
       Alert.alert('提示', '视频上传中，请稍候');
       return;
     }
-    if (activeTab === 'video' && video && !videoUrl) {
+    if (activeTab === 'video' && video && (!video.url || video.failed)) {
       Alert.alert('提示', '视频上传失败，请删除后重试');
       return;
     }
-    Alert.alert('发布成功', '企业用户发布后，需企业管理员审核', [
-      { text: '知道了', onPress: () => navigation.goBack() },
-    ]);
+    if (activeTab === 'video' && coverUploading) {
+      Alert.alert('提示', '封面上传中，请稍候');
+      return;
+    }
+    if (publishing) return;
+    setPublishing(true);
+    try {
+      let videoCoverUrl: string | undefined;
+      if (activeTab === 'video' && videoCover) {
+        videoCoverUrl = videoCover.startsWith('http')
+          ? videoCover
+          : await uploadToOss(videoCover, 'image/jpeg');
+      }
+      await API.publish.submit({
+        draftType: activeTab === 'video' ? 1 : 0,
+        title: activeTitle.trim(),
+        content: activeBody.trim(),
+        images: activeTab === 'short' ? images.map(item => item.url || item.uri) : undefined,
+        videoUrl: activeTab === 'video' ? video?.url : undefined,
+        videoCover: videoCoverUrl,
+        aiConnectEnabled: syncOn ? 1 : 0,
+        declaration: declareOriginal ? 1 : 0,
+        visibility: VISIBILITY_MAP[visibility],
+        commentScope: COMMENT_MAP[commentWho],
+      });
+      Alert.alert('发布成功', '企业用户发布后，需企业管理员审核', [
+        { text: '知道了', onPress: () => navigation.goBack() },
+      ]);
+    } catch (e: any) {
+      Alert.alert('发布失败', e?.msg || '请稍后重试');
+    } finally {
+      setPublishing(false);
+    }
   };
 
   const renderSegment = () => (
@@ -373,30 +401,38 @@ export default function Publish() {
   );
 
   const renderVideoSection = () => {
+    const videoSize = {
+      width: scaleSizeW(110),
+      height: getFeedCoverHeight(scaleSizeW(110), '3:4'),
+    };
     const previewSize = {
       width: scaleSizeW(110),
       height: getFeedCoverHeight(scaleSizeW(110), videoRatio),
     };
     const cropK = previewSize.width / scaleSizeW(386);
-    const coverContent = videoCover ? (
-      coverTransform ? (
-        <View
-          style={[
-            previewSize,
-            {
-              transform: [
-                { translateX: coverTransform.tx * cropK },
-                { translateY: coverTransform.ty * cropK },
-                { scale: coverTransform.scale },
-              ],
-            },
-          ]}
-        >
-          <Image source={{ uri: videoCover }} style={previewSize} resizeMode="cover" />
-        </View>
-      ) : (
-        <Image source={{ uri: videoCover }} style={previewSize} resizeMode="cover" />
-      )
+    const hasCover = !!videoCover || !!(coverTransform && video);
+    const coverMedia = videoCover ? (
+      <Image source={{ uri: videoCover }} style={previewSize} resizeMode="cover" />
+    ) : video ? (
+      <Video source={{ uri: video.uri }} style={previewSize} paused resizeMode="cover" pointerEvents="none" />
+    ) : null;
+    const coverContent = coverTransform && video ? (
+      <View
+        style={[
+          previewSize,
+          {
+            transform: [
+              { translateX: coverTransform.tx * cropK },
+              { translateY: coverTransform.ty * cropK },
+              { scale: coverTransform.scale },
+            ],
+          },
+        ]}
+      >
+        {coverMedia}
+      </View>
+    ) : videoCover ? (
+      <Image source={{ uri: videoCover }} style={previewSize} resizeMode="cover" />
     ) : (
       <>
         <Image source={ICONS.add} style={styles.mediaAddIcon} />
@@ -405,60 +441,29 @@ export default function Publish() {
     );
     return (
       <View style={styles.videoRow}>
-        {video ? (
-          <>
-            <View style={[styles.videoPreview, previewSize]}>
-              <TouchableOpacity
-                style={styles.videoPreviewTouch}
-                activeOpacity={0.9}
-                onPress={() => setPlayerVisible(true)}
-              >
-                <Video
-                  source={{ uri: video }}
-                  style={styles.videoPreviewImg}
-                  paused
-                  resizeMode="cover"
-                />
-                <View style={styles.videoPlayBtn}>
-                  <Svg width={scaleSizeW(18)} height={scaleSizeW(18)} viewBox="0 0 24 24">
-                    <Path d="M8 5l12 7-12 7z" fill="#FFFFFF" />
-                  </Svg>
-                </View>
-                {videoUploading && (
-                  <View style={styles.mediaLoading}>
-                    <ActivityIndicator color="#FFFFFF" size="small" />
-                  </View>
-                )}
-              </TouchableOpacity>
-              <View style={styles.videoBadge}>
-                <Svg width={scaleSizeW(8)} height={scaleSizeW(8)} viewBox="0 0 24 24">
-                  <Path d="M7 4l13 8-13 8z" fill="#FFFFFF" />
-                </Svg>
-                <Text style={styles.videoBadgeText}>含视频</Text>
+        <VideoUploader
+          value={video}
+          onChange={handleVideoChange}
+          width={videoSize.width}
+          height={videoSize.height}
+        />
+        {video && (
+          <TouchableOpacity
+            style={[styles.videoCoverTile, previewSize, hasCover && styles.videoCoverTileFilled]}
+            activeOpacity={0.8}
+            onPress={openCoverSelect}
+          >
+            {coverContent}
+            {hasCover && (
+              <View style={styles.coverEditBtn}>
+                <Text style={styles.coverEditText}>更改封面</Text>
               </View>
-              <TouchableOpacity
-                style={styles.videoRemove}
-                hitSlop={6}
-                onPress={() => {
-                  setVideo(null);
-                  setVideoCover(null);
-                  setCoverTransform(null);
-                }}
-              >
-                <Image source={ICONS.remove} style={styles.mediaRemoveIcon} />
-              </TouchableOpacity>
-            </View>
-            <TouchableOpacity
-              style={[styles.videoCoverTile, previewSize, videoCover && styles.videoCoverTileFilled]}
-              activeOpacity={0.8}
-              onPress={openCoverSelect}
-            >
-              {coverContent}
-            </TouchableOpacity>
-          </>
-        ) : (
-          <TouchableOpacity style={[styles.mediaItem, styles.mediaAdd]} activeOpacity={0.8} onPress={pickVideo}>
-            <Image source={ICONS.videoAdd} style={styles.mediaAddIcon} />
+            )}
+            {coverUploading && (
+              <View style={styles.coverLoading}>
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              </View>
+            )}
           </TouchableOpacity>
         )}
       </View>
@@ -657,7 +662,16 @@ export default function Publish() {
   );
 
   const renderGuideSheet = () => (
-    <AppBottomSheet ref={guideRef} onClose={() => closeGuide(false)}>
+    <AppBottomSheet
+      ref={guideRef}
+      onClose={() => {
+        if (guideConfirmedRef.current) {
+          guideConfirmedRef.current = false;
+          return;
+        }
+        closeGuide(false);
+      }}
+    >
       <Text style={styles.guideTitle}>是否默认同步到「正在发生」?</Text>
       <View style={styles.guideInfo}>
         <Image source={ICONS.guideInfo} style={styles.icon16} />
@@ -758,8 +772,17 @@ export default function Publish() {
           <Text style={styles.tipText}>只有明确、有效的供需信息，才会同步到「正在发生」。</Text>
         </View>
 
-        <TouchableOpacity style={styles.publishBtn} activeOpacity={0.85} onPress={onPublish}>
-          <Text style={styles.publishBtnText}>立即发布</Text>
+        <TouchableOpacity
+          style={[styles.publishBtn, publishing && styles.publishBtnDisabled]}
+          activeOpacity={0.85}
+          disabled={publishing}
+          onPress={onPublish}
+        >
+          {publishing ? (
+            <ActivityIndicator color="#FFFFFF" size="small" />
+          ) : (
+            <Text style={styles.publishBtnText}>立即发布</Text>
+          )}
         </TouchableOpacity>
 
         <Text style={styles.reviewNote}>企业用户发布后，需企业管理员审核</Text>
@@ -772,7 +795,6 @@ export default function Publish() {
       {renderCommentSheet()}
       {renderAiHelp()}
       {renderExitMenu()}
-      <VideoPlayerModal visible={playerVisible} uri={video} onClose={() => setPlayerVisible(false)} />
     </SafeView>
   );
 }
@@ -825,34 +847,9 @@ const styles = StyleSheet.create({
   uploaderWrap: {
     marginTop: scaleSizeH(30),
   },
-  mediaItem: {
-    width: scaleSizeW(85),
-    height: scaleSizeW(85),
-    borderRadius: scaleSizeW(10),
-    overflow: 'hidden',
-  },
-  mediaLoading: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  mediaAdd: {
-    backgroundColor: TILE_BG,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   mediaAddIcon: {
     width: scaleSizeW(33),
     height: scaleSizeW(33),
-  },
-  mediaRemoveIcon: {
-    width: scaleSizeW(16),
-    height: scaleSizeW(16),
   },
   titleRow: {
     flexDirection: 'row',
@@ -964,6 +961,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: scaleSizeH(30),
   },
+  publishBtnDisabled: {
+    opacity: 0.6,
+  },
   publishBtnText: {
     fontSize: scaleSizeW(15),
     fontWeight: '500',
@@ -1006,57 +1006,34 @@ const styles = StyleSheet.create({
     gap: scaleSizeW(10),
     marginTop: scaleSizeH(30),
   },
-  videoPreview: {
-    borderRadius: scaleSizeW(10),
-    overflow: 'hidden',
-    backgroundColor: TILE_BG,
-  },
-  videoPreviewImg: {
-    width: '100%',
-    height: '100%',
-  },
-  videoPreviewTouch: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  videoPlayBtn: {
-    position: 'absolute',
-    alignSelf: 'center',
-    top: '50%',
-    marginTop: scaleSizeW(-18),
-    width: scaleSizeW(36),
-    height: scaleSizeW(36),
-    borderRadius: scaleSizeW(18),
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   videoCoverTileFilled: {
     backgroundColor: 'transparent',
     overflow: 'hidden',
   },
-  videoBadge: {
+  coverLoading: {
     position: 'absolute',
-    top: scaleSizeW(10),
-    right: scaleSizeW(6),
-    flexDirection: 'row',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: scaleSizeW(3),
-    height: scaleSizeW(20),
-    paddingHorizontal: scaleSizeW(5),
-    borderRadius: scaleSizeW(10),
-    backgroundColor: 'rgba(0,0,0,0.7)',
   },
-  videoBadgeText: {
+  coverEditBtn: {
+    position: 'absolute',
+    bottom: scaleSizeW(6),
+    alignSelf: 'center',
+    height: scaleSizeW(20),
+    paddingHorizontal: scaleSizeW(10),
+    borderRadius: scaleSizeW(10),
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+  },
+  coverEditText: {
     fontSize: scaleSizeW(10),
     fontWeight: '500',
     color: '#FFFFFF',
-  },
-  videoRemove: {
-    position: 'absolute',
-    top: scaleSizeW(4),
-    left: scaleSizeW(4),
   },
   videoCoverTile: {
     borderRadius: scaleSizeW(10),

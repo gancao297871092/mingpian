@@ -1,4 +1,4 @@
-import { request, ResponseResult } from '@/utils/request';
+import { request } from '@/utils/request';
 
 export namespace API {
   export namespace auth {
@@ -96,12 +96,47 @@ export namespace API {
     }
   }
 
+  export namespace publish {
+    /** 三类型统一发布（draftType: 0图文/1视频/2长文） */
+    export function submit(data: {
+      draftType: 0 | 1 | 2;
+      title?: string;
+      content?: string;
+      images?: string[];
+      videoUrl?: string;
+      videoCover?: string;
+      aiConnectEnabled?: number;
+      declaration?: number;
+      visibility?: number;
+      commentScope?: number;
+      boardType?: number;
+      tags?: string;
+      draftId?: number;
+    }) {
+      return request.post<any>('/publish/submit', data);
+    }
+  }
+
   export namespace file {
     /** 图片上传 */
     export function upload(data: FormData) {
       return request.post<{ id: number; url: string; width: string; height: string }>('/file/upload', data, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
+    }
+    /** 视频上传（异步转码，秒回 status=0） */
+    export function uploadVideo(data: FormData) {
+      return request.post<{ id: number; status: number; url: string }>('/file/uploadVideo', data, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 600000,
+      });
+    }
+    /** 视频转码状态查询（status=1 时 url 可播放） */
+    export function mediaStatus(params: { mediaId: number }) {
+      return request.get<{ mediaId: number; status: number; url: string; width?: string; height?: string }>(
+        '/file/media/status',
+        { params },
+      );
     }
     /** OSS 直传签名 */
     export function ossSignature() {

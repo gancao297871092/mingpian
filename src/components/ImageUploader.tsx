@@ -179,7 +179,6 @@ export default function ImageUploader({
   style,
 }: ImageUploaderProps) {
 
-  console.log(value, 'value')
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const latestRef = useRef<UploadImage[]>(value);
   const lastSentRef = useRef<UploadImage[]>(value);
