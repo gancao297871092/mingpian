@@ -16,24 +16,16 @@ import {
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import ImagePicker from 'react-native-image-crop-picker';
 import Video from 'react-native-video';
-import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
-import Animated from 'react-native-reanimated';
-import { ScrollView as GestureScrollView } from 'react-native-gesture-handler';
-import {
-  DropProvider,
-  SortableDirection,
-  SortableItem,
-  useHorizontalSortableList,
-} from 'react-native-reanimated-dnd';
 import { BottomSheetTextInput, type BottomSheetModal } from '@gorhom/bottom-sheet';
 import Svg, { Path } from 'react-native-svg';
 import SafeView from '@/components/SafeView';
 import AppBottomSheet from '@/components/AppBottomSheet';
 import VideoPlayerModal from '@/components/VideoPlayerModal';
+import ImageUploader, { UploadImage } from '@/components/ImageUploader';
 import { storageUtils } from '@/utils/storage';
 import { scaleSizeH, scaleSizeW } from '@/utils/screenUtils';
 import { getFeedCoverHeight } from '@/utils/feedLayout';
-import { MAX_IMAGE_BYTES, MAX_VIDEO_BYTES, maybeCompressImage } from '@/utils/media';
+import { MAX_VIDEO_BYTES } from '@/utils/media';
 import { uploadToOss } from '@/utils/ossUpload';
 import { COVER_RATIO_KEY, COVER_TRANSFORM_KEY, COVER_URI_KEY } from './CoverSelect';
 
@@ -49,22 +41,12 @@ const MAX_IMAGES = 18;
 const TITLE_LIMIT = 20;
 const BODY_LIMIT = 1000;
 
-const AnimatedGestureScrollView = Animated.createAnimatedComponent(GestureScrollView);
-const MEDIA_ITEM_SIZE = scaleSizeW(85);
-const MEDIA_ITEM_GAP = scaleSizeW(10);
-
 type PublishTab = 'short' | 'video' | 'long';
 type VisibilityKey = 'public' | 'mutual' | 'private';
 type CommentKey = 'everyone' | 'fans' | 'mutual' | 'self';
 type DeclareOption = 'none' | 'self-shot' | 'reprint' | 'fiction' | 'ai' | 'marketing' | 'opinion';
 
-interface PublishImage {
-  key: string;
-  uri: string;
-  url?: string;
-  uploading: boolean;
-  failed?: boolean;
-}
+type PublishImage = UploadImage;
 
 const TABS: { key: PublishTab; label: string }[] = [
   { key: 'short', label: '短图文' },
@@ -130,102 +112,6 @@ function ChevronRight({ size = 12, color = '#999999' }: { size?: number; color?:
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path d="M9 5l7 7-7 7" stroke={color} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
-  );
-}
-
-interface SortableImageGridProps {
-  images: PublishImage[];
-  showAdd: boolean;
-  onAdd: () => void;
-  onRemove: (key: string) => void;
-  onRetry: (item: PublishImage) => void;
-  onDrop: (id: string, position: number, allPositions?: { [id: string]: number }) => void;
-}
-
-function SortableImageGrid({ images, showAdd, onAdd, onRemove, onRetry, onDrop }: SortableImageGridProps) {
-  const data = React.useMemo(() => images.map(item => ({ ...item, id: item.key })), [images]);
-  const { scrollViewRef, dropProviderRef, handleScroll, handleScrollEnd, contentWidth, getItemProps } =
-    useHorizontalSortableList({ data, itemWidth: MEDIA_ITEM_SIZE, gap: MEDIA_ITEM_GAP });
-
-  return (
-    <DropProvider ref={dropProviderRef}>
-      <AnimatedGestureScrollView
-        ref={scrollViewRef}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-        onScrollEndDrag={handleScrollEnd}
-        onMomentumScrollEnd={handleScrollEnd}
-        contentContainerStyle={{
-          width: contentWidth + (showAdd ? MEDIA_ITEM_SIZE : 0),
-          height: MEDIA_ITEM_SIZE,
-        }}
-      >
-        {data.map((item, index) => {
-          const itemProps = getItemProps(item, index);
-          return (
-            <SortableItem
-              key={itemProps.id}
-              id={itemProps.id}
-              data={item}
-              direction={SortableDirection.Horizontal}
-              positions={itemProps.positions}
-              leftBound={itemProps.leftBound}
-              autoScrollHorizontalDirection={itemProps.autoScrollDirection}
-              itemsCount={itemProps.itemsCount}
-              itemWidth={itemProps.itemWidth}
-              gap={itemProps.gap}
-              paddingHorizontal={itemProps.paddingHorizontal}
-              onDragStart={() =>
-                ReactNativeHapticFeedback.trigger('impactLight', { enableVibrateFallback: true })
-              }
-              onDrop={onDrop}
-            >
-              <View style={styles.mediaItem}>
-                <Image source={{ uri: item.uri }} style={styles.mediaImg} />
-                {index === 0 && (
-                  <View style={styles.coverBadge}>
-                    <Text style={styles.coverBadgeText}>封面</Text>
-                  </View>
-                )}
-                {item.uploading && (
-                  <View style={styles.mediaLoading}>
-                    <ActivityIndicator color="#FFFFFF" size="small" />
-                  </View>
-                )}
-                {!item.uploading && item.failed && (
-                  <TouchableOpacity
-                    style={styles.mediaLoading}
-                    activeOpacity={0.8}
-                    onPress={() => onRetry(item)}
-                  >
-                    <Text style={styles.mediaRetryText}>重试</Text>
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity style={styles.mediaRemove} hitSlop={6} onPress={() => onRemove(item.key)}>
-                  <Image source={ICONS.remove} style={styles.mediaRemoveIcon} />
-                </TouchableOpacity>
-              </View>
-            </SortableItem>
-          );
-        })}
-        {showAdd && (
-          <TouchableOpacity
-            style={[
-              styles.mediaItem,
-              styles.mediaAdd,
-              styles.mediaAddAbsolute,
-              { left: data.length * (MEDIA_ITEM_SIZE + MEDIA_ITEM_GAP) },
-            ]}
-            activeOpacity={0.8}
-            onPress={onAdd}
-          >
-            <Image source={ICONS.add} style={styles.mediaAddIcon} />
-          </TouchableOpacity>
-        )}
-      </AnimatedGestureScrollView>
-    </DropProvider>
   );
 }
 
@@ -304,62 +190,6 @@ export default function Publish() {
       );
     }
     return parts.length ? parts.join(' · ') : '无需声明';
-  };
-
-  const updateImage = (key: string, patch: Partial<PublishImage>) => {
-    setImages(prev => prev.map(item => (item.key === key ? { ...item, ...patch } : item)));
-  };
-
-  const uploadImageItem = async (key: string, uri: string, mime?: string) => {
-    try {
-      const compressed = await maybeCompressImage(uri);
-      if (compressed !== uri) updateImage(key, { uri: compressed });
-      const url = await uploadToOss(compressed, mime);
-      updateImage(key, { url, uploading: false });
-    } catch {
-      updateImage(key, { uploading: false, failed: true });
-    }
-  };
-
-  const pickImages = async () => {
-    try {
-      const remain = MAX_IMAGES - images.length;
-      if (remain <= 0) return;
-      const picked = await ImagePicker.openPicker({
-        multiple: true,
-        maxFiles: remain,
-        mediaType: 'photo',
-      });
-      const list = Array.isArray(picked) ? picked : [picked];
-      const valid: typeof list = [];
-      let oversize = false;
-      list.forEach(item => {
-        if (item.size && item.size > MAX_IMAGE_BYTES) {
-          oversize = true;
-        } else if (item.path) {
-          valid.push(item);
-        }
-      });
-      if (oversize) {
-        Alert.alert('提示', '图片过大，请选择50MB以内的图片');
-      }
-      const newItems: PublishImage[] = valid.slice(0, remain).map(item => ({
-        key: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        uri: item.path,
-        uploading: true,
-      }));
-      if (!newItems.length) return;
-      setImages(prev => [...prev, ...newItems].slice(0, MAX_IMAGES));
-      newItems.forEach((item, i) => {
-        uploadImageItem(item.key, item.uri, valid[i]?.mime);
-      });
-    } catch {
-      // 用户取消
-    }
-  };
-
-  const removeImage = (key: string) => {
-    setImages(prev => prev.filter(item => item.key !== key));
   };
 
   const pickVideo = async () => {
@@ -507,28 +337,6 @@ export default function Publish() {
           </TouchableOpacity>
         );
       })}
-    </View>
-  );
-
-  const handleImageDrop = (_id: string, _position: number, allPositions?: { [id: string]: number }) => {
-    if (!allPositions) return;
-    setImages(prev => [...prev].sort((a, b) => (allPositions[a.key] ?? 0) - (allPositions[b.key] ?? 0)));
-  };
-
-  const renderImageGrid = () => (
-    <View style={styles.mediaListWrap}>
-      <SortableImageGrid
-        key={images.map(item => item.key).join('|')}
-        images={images}
-        showAdd={images.length < MAX_IMAGES}
-        onAdd={pickImages}
-        onRemove={removeImage}
-        onRetry={item => {
-          updateImage(item.key, { uploading: true, failed: false });
-          uploadImageItem(item.key, item.uri);
-        }}
-        onDrop={handleImageDrop}
-      />
     </View>
   );
 
@@ -889,7 +697,12 @@ export default function Publish() {
 
         {activeTab === 'short' && (
           <>
-            {renderImageGrid()}
+            <ImageUploader
+              value={images}
+              onChange={setImages}
+              maxCount={MAX_IMAGES}
+              style={styles.uploaderWrap}
+            />
             {renderTextFields(title, setTitle, body, setBody)}
           </>
         )}
@@ -1009,13 +822,12 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: TEXT_MAIN,
   },
-  mediaListWrap: {
-    height: MEDIA_ITEM_SIZE,
+  uploaderWrap: {
     marginTop: scaleSizeH(30),
   },
   mediaItem: {
-    width: MEDIA_ITEM_SIZE,
-    height: MEDIA_ITEM_SIZE,
+    width: scaleSizeW(85),
+    height: scaleSizeW(85),
     borderRadius: scaleSizeW(10),
     overflow: 'hidden',
   },
@@ -1029,48 +841,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  mediaRetryText: {
-    fontSize: scaleSizeW(12),
-    fontWeight: '500',
-    color: '#FFFFFF',
-  },
-  mediaImg: {
-    width: '100%',
-    height: '100%',
-  },
   mediaAdd: {
     backgroundColor: TILE_BG,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  mediaAddAbsolute: {
-    position: 'absolute',
-  },
   mediaAddIcon: {
     width: scaleSizeW(33),
     height: scaleSizeW(33),
-  },
-  coverBadge: {
-    position: 'absolute',
-    top: scaleSizeW(3),
-    left: scaleSizeW(3),
-    height: scaleSizeW(16),
-    paddingHorizontal: scaleSizeW(7),
-    borderRadius: scaleSizeW(90),
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    justifyContent: 'center',
-  },
-  coverBadgeText: {
-    fontSize: scaleSizeW(10),
-    fontWeight: '500',
-    color: '#FFFFFF',
-  },
-  mediaRemove: {
-    position: 'absolute',
-    top: scaleSizeW(3),
-    right: scaleSizeW(3),
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   mediaRemoveIcon: {
     width: scaleSizeW(16),

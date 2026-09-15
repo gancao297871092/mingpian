@@ -59,15 +59,22 @@ export async function uploadToOss(uri: string, mime = 'image/jpeg'): Promise<str
   if (sig.security_token) form.append('x-oss-security-token', sig.security_token);
   form.append('x-oss-signature', sig.signature);
   form.append('success_action_status', '200');
-  form.append('file', { uri, type: mime, name: fileName } as any);
+  const fileUri = uri.startsWith('file://') || uri.startsWith('http') ? uri : `file://${uri}`;
+  form.append('file', { uri: fileUri, type: mime, name: fileName } as any);
 
   const host = `https://${sig.bucket_name}.${sig.endpoint}`;
-  console.log('OSS 上传', { host, key, fileName, mime, sig });
-  const resp = await fetch(host, { method: 'POST', body: form });
-    console.log('resp', resp);
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => '');
-    throw new Error(`OSS 上传失败(${resp.status}) ${text}`);
+  console.log('OSS 上传', { host, key, fileName, mime, fileUri });
+  const status = await new Promise<number>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', host);
+    xhr.onload = () => resolve(xhr.status);
+    xhr.onerror = () => reject(new Error('OSS 上传失败: 网络错误'));
+    xhr.ontimeout = () => reject(new Error('OSS 上传失败: 请求超时'));
+    xhr.send(form);
+  });
+  console.log('resp', status);
+  if (status < 200 || status >= 300) {
+    throw new Error(`OSS 上传失败(${status})`);
   }
   const cdn = sig.cdn_domain.startsWith('http') ? sig.cdn_domain : `https://${sig.cdn_domain}`;
   console.log('OSS 上传成功', `${cdn}/${key}`);
