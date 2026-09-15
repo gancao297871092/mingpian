@@ -1,9 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Image, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import ImagePicker from 'react-native-image-crop-picker';
 import Video from 'react-native-video';
+import { captureRef } from 'react-native-view-shot';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
@@ -34,6 +35,7 @@ export default function PublishCover() {
   const [tab, setTab] = useState<'crop' | 'preview'>('crop');
   const [ratio, setRatio] = useState<RatioKey>(initialRatio);
   const [albumCover, setAlbumCover] = useState<string | null>(null);
+  const captureAreaRef = useRef<View>(null);
 
   const cropH = RATIO_H[ratio];
 
@@ -115,10 +117,15 @@ export default function PublishCover() {
     }
   };
 
-  const onDone = () => {
+  const onDone = async () => {
     storageUtils.set(COVER_RATIO_KEY, ratio);
-    if (albumCover) {
-      storageUtils.set(COVER_URI_KEY, albumCover);
+    try {
+      const uri = await captureRef(captureAreaRef, { format: 'jpg', quality: 0.92 });
+      storageUtils.set(COVER_URI_KEY, uri);
+    } catch {
+      if (albumCover) {
+        storageUtils.set(COVER_URI_KEY, albumCover);
+      }
     }
     storageUtils.setObject(COVER_TRANSFORM_KEY, {
       tx: savedTx.value,
@@ -141,7 +148,9 @@ export default function PublishCover() {
         <View style={styles.cropDim}>{renderMedia(CROP_W, cropH)}</View>
         <GestureDetector gesture={composed}>
           <View style={[styles.cropWindow, { height: cropH }]}>
-            <Animated.View style={mediaStyle}>{renderMedia(CROP_W, cropH)}</Animated.View>
+            <View ref={captureAreaRef} collapsable={false} style={styles.cropCaptureArea}>
+              <Animated.View style={mediaStyle}>{renderMedia(CROP_W, cropH)}</Animated.View>
+            </View>
           </View>
         </GestureDetector>
         <Text style={styles.cropHint}>拖动调整位置，双指缩放</Text>
@@ -306,6 +315,10 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     borderWidth: 1.5,
     borderColor: '#FFFFFF',
+    overflow: 'hidden',
+  },
+  cropCaptureArea: {
+    flex: 1,
     overflow: 'hidden',
   },
   cropHint: {

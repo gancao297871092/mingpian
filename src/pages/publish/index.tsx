@@ -14,7 +14,6 @@ import {
   View,
 } from 'react-native';
 import { useNavigation, useFocusEffect, useRoute, usePreventRemove, type RouteProp } from '@react-navigation/native';
-import Video from 'react-native-video';
 import { BottomSheetTextInput, type BottomSheetModal } from '@gorhom/bottom-sheet';
 import Svg, { Path } from 'react-native-svg';
 import { API } from '@/api';
@@ -477,29 +476,8 @@ export default function Publish() {
       width: scaleSizeW(110),
       height: getFeedCoverHeight(scaleSizeW(110), videoRatio),
     };
-    const cropK = previewSize.width / scaleSizeW(386);
-    const hasCover = !!videoCover || !!(coverTransform && video);
-    const coverMedia = videoCover ? (
-      <Image source={{ uri: videoCover }} style={previewSize} resizeMode="cover" />
-    ) : video ? (
-      <Video source={{ uri: video.uri }} style={previewSize} paused resizeMode="cover" pointerEvents="none" />
-    ) : null;
-    const coverContent = coverTransform && video ? (
-      <View
-        style={[
-          previewSize,
-          {
-            transform: [
-              { translateX: coverTransform.tx * cropK },
-              { translateY: coverTransform.ty * cropK },
-              { scale: coverTransform.scale },
-            ],
-          },
-        ]}
-      >
-        {coverMedia}
-      </View>
-    ) : videoCover ? (
+    const hasCover = !!videoCover;
+    const coverContent = videoCover ? (
       <Image source={{ uri: videoCover }} style={previewSize} resizeMode="cover" />
     ) : (
       <>
