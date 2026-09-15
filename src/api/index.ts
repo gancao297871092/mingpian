@@ -103,5 +103,20 @@ export namespace API {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
     }
+    /** OSS 直传签名 */
+    export function ossSignature() {
+      return request.get<{
+        security_token?: string;
+        signature: string;
+        x_oss_date: string;
+        x_oss_credential: string;
+        x_oss_signature_version: string;
+        policy: string;
+        endpoint: string;
+        bucket_name: string;
+        cdn_domain: string;
+        upload_prefix: string;
+      }>('/generate_signature');
+    }
   }
 }

@@ -33,7 +33,8 @@ class Request {
 
   constructor() {
     this.instance = axios.create({
-      baseURL: `${BASE_URL}/v1`,
+      // baseURL: `${BASE_URL.replace(/\/+$/, '')}/v1`,
+      baseURL: `http://192.168.110.222:9090/v1`,
       timeout: env.apiTimeout,
       headers: {
         'X-Requested-With': 'XMLHttpRequest',

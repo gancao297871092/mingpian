@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Image,
   Keyboard,
@@ -15,6 +16,15 @@ import {
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import ImagePicker from 'react-native-image-crop-picker';
 import Video from 'react-native-video';
+import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
+import Animated from 'react-native-reanimated';
+import { ScrollView as GestureScrollView } from 'react-native-gesture-handler';
+import {
+  DropProvider,
+  SortableDirection,
+  SortableItem,
+  useHorizontalSortableList,
+} from 'react-native-reanimated-dnd';
 import { BottomSheetTextInput, type BottomSheetModal } from '@gorhom/bottom-sheet';
 import Svg, { Path } from 'react-native-svg';
 import SafeView from '@/components/SafeView';
@@ -23,6 +33,8 @@ import VideoPlayerModal from '@/components/VideoPlayerModal';
 import { storageUtils } from '@/utils/storage';
 import { scaleSizeH, scaleSizeW } from '@/utils/screenUtils';
 import { getFeedCoverHeight } from '@/utils/feedLayout';
+import { MAX_IMAGE_BYTES, MAX_VIDEO_BYTES, maybeCompressImage } from '@/utils/media';
+import { uploadToOss } from '@/utils/ossUpload';
 import { COVER_RATIO_KEY, COVER_TRANSFORM_KEY, COVER_URI_KEY } from './CoverSelect';
 
 const PRIMARY = '#2962D4';
@@ -37,10 +49,22 @@ const MAX_IMAGES = 18;
 const TITLE_LIMIT = 20;
 const BODY_LIMIT = 1000;
 
+const AnimatedGestureScrollView = Animated.createAnimatedComponent(GestureScrollView);
+const MEDIA_ITEM_SIZE = scaleSizeW(85);
+const MEDIA_ITEM_GAP = scaleSizeW(10);
+
 type PublishTab = 'short' | 'video' | 'long';
 type VisibilityKey = 'public' | 'mutual' | 'private';
 type CommentKey = 'everyone' | 'fans' | 'mutual' | 'self';
 type DeclareOption = 'none' | 'self-shot' | 'reprint' | 'fiction' | 'ai' | 'marketing' | 'opinion';
+
+interface PublishImage {
+  key: string;
+  uri: string;
+  url?: string;
+  uploading: boolean;
+  failed?: boolean;
+}
 
 const TABS: { key: PublishTab; label: string }[] = [
   { key: 'short', label: '短图文' },
@@ -109,14 +133,112 @@ function ChevronRight({ size = 12, color = '#999999' }: { size?: number; color?:
   );
 }
 
+interface SortableImageGridProps {
+  images: PublishImage[];
+  showAdd: boolean;
+  onAdd: () => void;
+  onRemove: (key: string) => void;
+  onRetry: (item: PublishImage) => void;
+  onDrop: (id: string, position: number, allPositions?: { [id: string]: number }) => void;
+}
+
+function SortableImageGrid({ images, showAdd, onAdd, onRemove, onRetry, onDrop }: SortableImageGridProps) {
+  const data = React.useMemo(() => images.map(item => ({ ...item, id: item.key })), [images]);
+  const { scrollViewRef, dropProviderRef, handleScroll, handleScrollEnd, contentWidth, getItemProps } =
+    useHorizontalSortableList({ data, itemWidth: MEDIA_ITEM_SIZE, gap: MEDIA_ITEM_GAP });
+
+  return (
+    <DropProvider ref={dropProviderRef}>
+      <AnimatedGestureScrollView
+        ref={scrollViewRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        onScrollEndDrag={handleScrollEnd}
+        onMomentumScrollEnd={handleScrollEnd}
+        contentContainerStyle={{
+          width: contentWidth + (showAdd ? MEDIA_ITEM_SIZE : 0),
+          height: MEDIA_ITEM_SIZE,
+        }}
+      >
+        {data.map((item, index) => {
+          const itemProps = getItemProps(item, index);
+          return (
+            <SortableItem
+              key={itemProps.id}
+              id={itemProps.id}
+              data={item}
+              direction={SortableDirection.Horizontal}
+              positions={itemProps.positions}
+              leftBound={itemProps.leftBound}
+              autoScrollHorizontalDirection={itemProps.autoScrollDirection}
+              itemsCount={itemProps.itemsCount}
+              itemWidth={itemProps.itemWidth}
+              gap={itemProps.gap}
+              paddingHorizontal={itemProps.paddingHorizontal}
+              onDragStart={() =>
+                ReactNativeHapticFeedback.trigger('impactLight', { enableVibrateFallback: true })
+              }
+              onDrop={onDrop}
+            >
+              <View style={styles.mediaItem}>
+                <Image source={{ uri: item.uri }} style={styles.mediaImg} />
+                {index === 0 && (
+                  <View style={styles.coverBadge}>
+                    <Text style={styles.coverBadgeText}>封面</Text>
+                  </View>
+                )}
+                {item.uploading && (
+                  <View style={styles.mediaLoading}>
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  </View>
+                )}
+                {!item.uploading && item.failed && (
+                  <TouchableOpacity
+                    style={styles.mediaLoading}
+                    activeOpacity={0.8}
+                    onPress={() => onRetry(item)}
+                  >
+                    <Text style={styles.mediaRetryText}>重试</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity style={styles.mediaRemove} hitSlop={6} onPress={() => onRemove(item.key)}>
+                  <Image source={ICONS.remove} style={styles.mediaRemoveIcon} />
+                </TouchableOpacity>
+              </View>
+            </SortableItem>
+          );
+        })}
+        {showAdd && (
+          <TouchableOpacity
+            style={[
+              styles.mediaItem,
+              styles.mediaAdd,
+              styles.mediaAddAbsolute,
+              { left: data.length * (MEDIA_ITEM_SIZE + MEDIA_ITEM_GAP) },
+            ]}
+            activeOpacity={0.8}
+            onPress={onAdd}
+          >
+            <Image source={ICONS.add} style={styles.mediaAddIcon} />
+          </TouchableOpacity>
+        )}
+      </AnimatedGestureScrollView>
+    </DropProvider>
+  );
+}
+
 export default function Publish() {
   const navigation = useNavigation();
 
   const [activeTab, setActiveTab] = useState<PublishTab>('short');
-  const [images, setImages] = useState<string[]>([]);
+  const [images, setImages] = useState<PublishImage[]>([]);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [video, setVideo] = useState<string | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [videoUploading, setVideoUploading] = useState(false);
   const [playerVisible, setPlayerVisible] = useState(false);
   const [videoCover, setVideoCover] = useState<string | null>(null);
   const [videoRatio, setVideoRatio] = useState<'3:4' | '16:9'>('3:4');
@@ -184,6 +306,21 @@ export default function Publish() {
     return parts.length ? parts.join(' · ') : '无需声明';
   };
 
+  const updateImage = (key: string, patch: Partial<PublishImage>) => {
+    setImages(prev => prev.map(item => (item.key === key ? { ...item, ...patch } : item)));
+  };
+
+  const uploadImageItem = async (key: string, uri: string, mime?: string) => {
+    try {
+      const compressed = await maybeCompressImage(uri);
+      if (compressed !== uri) updateImage(key, { uri: compressed });
+      const url = await uploadToOss(compressed, mime);
+      updateImage(key, { url, uploading: false });
+    } catch {
+      updateImage(key, { uploading: false, failed: true });
+    }
+  };
+
   const pickImages = async () => {
     try {
       const remain = MAX_IMAGES - images.length;
@@ -194,25 +331,58 @@ export default function Publish() {
         mediaType: 'photo',
       });
       const list = Array.isArray(picked) ? picked : [picked];
-      const paths = list.map(item => item.path).filter(Boolean);
-      setImages(prev => [...prev, ...paths].slice(0, MAX_IMAGES));
+      const valid: typeof list = [];
+      let oversize = false;
+      list.forEach(item => {
+        if (item.size && item.size > MAX_IMAGE_BYTES) {
+          oversize = true;
+        } else if (item.path) {
+          valid.push(item);
+        }
+      });
+      if (oversize) {
+        Alert.alert('提示', '图片过大，请选择50MB以内的图片');
+      }
+      const newItems: PublishImage[] = valid.slice(0, remain).map(item => ({
+        key: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        uri: item.path,
+        uploading: true,
+      }));
+      if (!newItems.length) return;
+      setImages(prev => [...prev, ...newItems].slice(0, MAX_IMAGES));
+      newItems.forEach((item, i) => {
+        uploadImageItem(item.key, item.uri, valid[i]?.mime);
+      });
     } catch {
       // 用户取消
     }
   };
 
-  const removeImage = (index: number) => {
-    setImages(prev => prev.filter((_, i) => i !== index));
+  const removeImage = (key: string) => {
+    setImages(prev => prev.filter(item => item.key !== key));
   };
 
   const pickVideo = async () => {
     try {
       const picked = await ImagePicker.openPicker({ mediaType: 'video', multiple: false });
       const item = Array.isArray(picked) ? picked[0] : picked;
-      if (item?.path) {
-        setVideo(item.path);
-        setVideoCover(null);
-        setCoverTransform(null);
+      if (!item?.path) return;
+      if (item.size && item.size > MAX_VIDEO_BYTES) {
+        Alert.alert('提示', '视频过大，请选择500MB以内的视频');
+        return;
+      }
+      setVideo(item.path);
+      setVideoCover(null);
+      setCoverTransform(null);
+      setVideoUrl(null);
+      setVideoUploading(true);
+      try {
+        const url = await uploadToOss(item.path, item.mime || 'video/mp4');
+        setVideoUrl(url);
+      } catch {
+        Alert.alert('提示', '视频上传失败，请重试');
+      } finally {
+        setVideoUploading(false);
       }
     } catch {
       // 用户取消
@@ -287,8 +457,34 @@ export default function Publish() {
   };
 
   const onPublish = () => {
-    if (!title.trim() && !body.trim() && images.length === 0) {
+    const activeTitle = activeTab === 'video' ? videoTitle : title;
+    const activeBody = activeTab === 'video' ? videoBody : body;
+    if (activeTab === 'short' && !activeTitle.trim() && !activeBody.trim() && images.length === 0) {
       Alert.alert('提示', '请先填写内容');
+      return;
+    }
+    if (activeTab === 'video' && !video) {
+      Alert.alert('提示', '请先上传视频');
+      return;
+    }
+    if ([...activeTitle].length > TITLE_LIMIT) {
+      Alert.alert('提示', '标题最多20字');
+      return;
+    }
+    if (images.some(item => item.uploading)) {
+      Alert.alert('提示', '图片上传中，请稍候');
+      return;
+    }
+    if (images.some(item => item.failed)) {
+      Alert.alert('提示', '有图片上传失败，请重试或删除');
+      return;
+    }
+    if (videoUploading) {
+      Alert.alert('提示', '视频上传中，请稍候');
+      return;
+    }
+    if (activeTab === 'video' && video && !videoUrl) {
+      Alert.alert('提示', '视频上传失败，请删除后重试');
       return;
     }
     Alert.alert('发布成功', '企业用户发布后，需企业管理员审核', [
@@ -314,27 +510,26 @@ export default function Publish() {
     </View>
   );
 
+  const handleImageDrop = (_id: string, _position: number, allPositions?: { [id: string]: number }) => {
+    if (!allPositions) return;
+    setImages(prev => [...prev].sort((a, b) => (allPositions[a.key] ?? 0) - (allPositions[b.key] ?? 0)));
+  };
+
   const renderImageGrid = () => (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.mediaRow}>
-      {images.map((uri, index) => (
-        <View key={`${uri}-${index}`} style={styles.mediaItem}>
-          <Image source={{ uri }} style={styles.mediaImg} />
-          {index === 0 && (
-            <View style={styles.coverBadge}>
-              <Text style={styles.coverBadgeText}>封面</Text>
-            </View>
-          )}
-          <TouchableOpacity style={styles.mediaRemove} hitSlop={6} onPress={() => removeImage(index)}>
-            <Image source={ICONS.remove} style={styles.mediaRemoveIcon} />
-          </TouchableOpacity>
-        </View>
-      ))}
-      {images.length < MAX_IMAGES && (
-        <TouchableOpacity style={[styles.mediaItem, styles.mediaAdd]} activeOpacity={0.8} onPress={pickImages}>
-          <Image source={ICONS.add} style={styles.mediaAddIcon} />
-        </TouchableOpacity>
-      )}
-    </ScrollView>
+    <View style={styles.mediaListWrap}>
+      <SortableImageGrid
+        key={images.map(item => item.key).join('|')}
+        images={images}
+        showAdd={images.length < MAX_IMAGES}
+        onAdd={pickImages}
+        onRemove={removeImage}
+        onRetry={item => {
+          updateImage(item.key, { uploading: true, failed: false });
+          uploadImageItem(item.key, item.uri);
+        }}
+        onDrop={handleImageDrop}
+      />
+    </View>
   );
 
   const renderTextFields = (
@@ -349,11 +544,12 @@ export default function Publish() {
           style={styles.titleInput}
           placeholder="添加标题"
           placeholderTextColor={TEXT_SUB}
-          maxLength={TITLE_LIMIT}
           value={value}
           onChangeText={onChange}
         />
-        <Text style={styles.titleCount}>{[...value].length}/{TITLE_LIMIT}</Text>
+        <Text style={[styles.titleCount, [...value].length > TITLE_LIMIT && styles.titleCountOver]}>
+          {[...value].length}/{TITLE_LIMIT}
+        </Text>
       </View>
       <View style={styles.divider} />
       <TextInput
@@ -420,6 +616,11 @@ export default function Publish() {
                     <Path d="M8 5l12 7-12 7z" fill="#FFFFFF" />
                   </Svg>
                 </View>
+                {videoUploading && (
+                  <View style={styles.mediaLoading}>
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  </View>
+                )}
               </TouchableOpacity>
               <View style={styles.videoBadge}>
                 <Svg width={scaleSizeW(8)} height={scaleSizeW(8)} viewBox="0 0 24 24">
@@ -808,17 +1009,30 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: TEXT_MAIN,
   },
-  mediaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scaleSizeW(10),
+  mediaListWrap: {
+    height: MEDIA_ITEM_SIZE,
     marginTop: scaleSizeH(30),
   },
   mediaItem: {
-    width: scaleSizeW(85),
-    height: scaleSizeW(85),
+    width: MEDIA_ITEM_SIZE,
+    height: MEDIA_ITEM_SIZE,
     borderRadius: scaleSizeW(10),
     overflow: 'hidden',
+  },
+  mediaLoading: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mediaRetryText: {
+    fontSize: scaleSizeW(12),
+    fontWeight: '500',
+    color: '#FFFFFF',
   },
   mediaImg: {
     width: '100%',
@@ -828,6 +1042,9 @@ const styles = StyleSheet.create({
     backgroundColor: TILE_BG,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  mediaAddAbsolute: {
+    position: 'absolute',
   },
   mediaAddIcon: {
     width: scaleSizeW(33),
@@ -875,6 +1092,9 @@ const styles = StyleSheet.create({
     fontSize: scaleSizeW(12),
     color: '#999999',
     marginLeft: scaleSizeW(8),
+  },
+  titleCountOver: {
+    color: '#EF4444',
   },
   divider: {
     height: StyleSheet.hairlineWidth,
