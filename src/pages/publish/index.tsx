@@ -588,11 +588,15 @@ export default function Publish() {
           } : styles.bodyInput}
           placeholder="添加正文..."
           placeholderTextColor={TEXT_SUB}
-          maxLength={BODY_LIMIT}
           multiline
           value={bodyValue}
           onChangeText={onBodyChange}
         />
+        {bodyEditing && (
+          <Text style={[styles.editCounter, [...bodyValue].length > BODY_LIMIT && styles.titleCountOver]}>
+            {[...bodyValue].length}/{BODY_LIMIT}
+          </Text>
+        )}
         <View style={styles.bodyToolbar}>
           <TouchableOpacity
             style={styles.toolBtn}
@@ -1201,8 +1205,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   editCounter: {
-    paddingRight: scaleSizeW(16),
-    marginBottom: scaleSizeH(4),
+    marginTop: scaleSizeH(6),
     fontSize: scaleSizeW(12),
     color: '#999999',
     textAlign: 'right',
