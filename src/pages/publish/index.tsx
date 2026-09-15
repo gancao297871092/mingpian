@@ -19,7 +19,7 @@ import {
 } from 'react-native';
 import { useNavigation, useFocusEffect, useRoute, usePreventRemove, type RouteProp } from '@react-navigation/native';
 import { BottomSheetTextInput, type BottomSheetModal } from '@gorhom/bottom-sheet';
-import Animated, { FadeInUp, FadeOut, FadeOutUp, SlideInUp, withTiming, Easing } from 'react-native-reanimated';
+import Animated, { FadeInUp, FadeOut, FadeOutUp, Easing } from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
 import { API } from '@/api';
 import SafeView from '@/components/SafeView';
@@ -537,7 +537,11 @@ export default function Publish() {
     return (
       <>
         {!bodyEditing ?
-          <>
+          <Animated.View
+            key="title-row-section"
+            entering={FadeInUp.duration(250).delay(20).easing(Easing.out(Easing.cubic))}
+            exiting={FadeOutUp.duration(180).easing(Easing.in(Easing.cubic))}
+          >
             <View style={styles.titleRow}>
               <TextInput
                 style={styles.titleInput}
@@ -551,7 +555,7 @@ export default function Publish() {
               </Text>
             </View>
             <View style={styles.divider} />
-          </>
+          </Animated.View>
           : null}
         <TextInput
           ref={bodyInputRef}
@@ -583,8 +587,12 @@ export default function Publish() {
             <Text style={styles.toolBtnStrong}>#</Text>
             <Text style={styles.toolBtnText}>话题</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.expandBtn} activeOpacity={0.8} onPress={() => enterBodyEditing()}>
-            <ExpandIcon />
+          <TouchableOpacity
+            style={styles.expandBtn}
+            activeOpacity={0.8}
+            onPress={() => bodyEditing ? exitBodyEditing() : enterBodyEditing()}
+          >
+            <ExpandIcon collapse={bodyEditing} />
           </TouchableOpacity>
         </View>
       </>
@@ -870,17 +878,31 @@ export default function Publish() {
     <SafeView backgroundColor="#fff">
       <KeyboardAvoidingView style={styles.flex1} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView style={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          {!bodyEditing && renderSegment()}
+          {!bodyEditing && (
+            <Animated.View
+              key="top-media-section"
+              entering={FadeInUp.duration(240).easing(Easing.out(Easing.cubic))}
+              exiting={FadeOutUp.duration(200).easing(Easing.in(Easing.cubic))}
+            >
+              {renderSegment()}
+            </Animated.View>
+          )}
 
           {activeTab === 'short' && (
             <>
               {!bodyEditing && (
-                <ImageUploader
-                  value={images}
-                  onChange={setImages}
-                  maxCount={MAX_IMAGES}
-                  style={styles.uploaderWrap}
-                />
+                <Animated.View
+                  key="short-image-uploader"
+                  entering={FadeInUp.duration(260).delay(40).easing(Easing.out(Easing.cubic))}
+                  exiting={FadeOutUp.duration(180).easing(Easing.in(Easing.cubic))}
+                >
+                  <ImageUploader
+                    value={images}
+                    onChange={setImages}
+                    maxCount={MAX_IMAGES}
+                    style={styles.uploaderWrap}
+                  />
+                </Animated.View>
               )}
               {renderTextFields(title, setTitle, body, setBody)}
             </>
@@ -888,19 +910,37 @@ export default function Publish() {
 
           {activeTab === 'video' && (
             <>
-              {!bodyEditing && renderVideoSection()}
+              {!bodyEditing && (
+                <Animated.View
+                  key="video-section"
+                  entering={FadeInUp.duration(260).delay(40).easing(Easing.out(Easing.cubic))}
+                  exiting={FadeOutUp.duration(180).easing(Easing.in(Easing.cubic))}
+                >
+                  {renderVideoSection()}
+                </Animated.View>
+              )}
               {renderTextFields(videoTitle, setVideoTitle, videoBody, setVideoBody)}
             </>
           )}
 
           {activeTab === 'long' && !bodyEditing && (
-            <View style={styles.tabPlaceholder}>
-              <Text style={styles.tabPlaceholderText}>长文发布敬请期待</Text>
-            </View>
+            <Animated.View
+              key="long-placeholder"
+              entering={FadeInUp.duration(260).delay(40).easing(Easing.out(Easing.cubic))}
+              exiting={FadeOutUp.duration(180).easing(Easing.in(Easing.cubic))}
+            >
+              <View style={styles.tabPlaceholder}>
+                <Text style={styles.tabPlaceholderText}>长文发布敬请期待</Text>
+              </View>
+            </Animated.View>
           )}
 
           {!bodyEditing && (
-            <>
+            <Animated.View
+              key="bottom-settings-section"
+              entering={FadeInUp.duration(280).delay(80).easing(Easing.out(Easing.cubic))}
+              exiting={FadeOut.duration(180).easing(Easing.in(Easing.cubic))}
+            >
               <View style={styles.divider} />
               {renderSettingRow(<Image source={ICONS.eye} style={styles.icon20} />, '可见范围', VISIBILITY_ROW_LABEL[visibility], () =>
                 openSheet(visibilityRef),
@@ -952,7 +992,7 @@ export default function Publish() {
               </TouchableOpacity>
 
               <Text style={styles.reviewNote}>企业用户发布后，需企业管理员审核</Text>
-            </>
+            </Animated.View>
           )}
         </ScrollView>
       </KeyboardAvoidingView>
