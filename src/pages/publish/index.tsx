@@ -13,7 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, useRoute, type RouteProp } from '@react-navigation/native';
 import Video from 'react-native-video';
 import { BottomSheetTextInput, type BottomSheetModal } from '@gorhom/bottom-sheet';
 import Svg, { Path } from 'react-native-svg';
@@ -26,7 +26,9 @@ import { storageUtils } from '@/utils/storage';
 import { scaleSizeH, scaleSizeW } from '@/utils/screenUtils';
 import { getFeedCoverHeight } from '@/utils/feedLayout';
 import { uploadToOss } from '@/utils/ossUpload';
+import { deleteDraft, saveDraft } from '@/utils/draftStore';
 import { COVER_RATIO_KEY, COVER_TRANSFORM_KEY, COVER_URI_KEY } from './CoverSelect';
+import type { RootStackParamList } from '@/route/map';
 
 const PRIMARY = '#2962D4';
 const TEXT_MAIN = '#000000';
@@ -116,6 +118,8 @@ function ChevronRight({ size = 12, color = '#999999' }: { size?: number; color?:
 
 export default function Publish() {
   const navigation = useNavigation();
+  const route = useRoute<RouteProp<RootStackParamList, 'publish'>>();
+  const draftParam = route.params?.draft;
 
   const [activeTab, setActiveTab] = useState<PublishTab>('short');
   const [images, setImages] = useState<PublishImage[]>([]);
@@ -130,6 +134,36 @@ export default function Publish() {
   const [videoBody, setVideoBody] = useState('');
   const [exitMenuVisible, setExitMenuVisible] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [draftId, setDraftId] = useState<string | null>(draftParam?.id ?? null);
+
+  useEffect(() => {
+    if (!draftParam) return;
+    if (draftParam.draftType === 1) {
+      setActiveTab('video');
+      setVideoTitle(draftParam.title);
+      setVideoBody(draftParam.content);
+      const videoUri = draftParam.videoUri || draftParam.videoUrl;
+      if (videoUri) {
+        setVideo({ uri: videoUri, url: draftParam.videoUrl, uploading: false });
+      }
+      setVideoCover(draftParam.videoCover ?? null);
+      if (draftParam.videoRatio) setVideoRatio(draftParam.videoRatio);
+      setCoverTransform(draftParam.coverTransform ?? null);
+    } else {
+      setActiveTab('short');
+      setTitle(draftParam.title);
+      setBody(draftParam.content);
+      setImages(
+        draftParam.images.map((img, i) => ({
+          key: `${draftParam.id}-${i}`,
+          uri: img.uri,
+          url: img.url,
+          uploading: false,
+        })),
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -260,6 +294,29 @@ export default function Publish() {
 
   const onExitDraft = () => {
     setExitMenuVisible(false);
+    if (activeTab === 'short' && images.length === 0) {
+      Alert.alert('提示', '短图文至少需要一张图片才能存草稿');
+      return;
+    }
+    if (activeTab === 'video' && !video) {
+      Alert.alert('提示', '视频动态至少需要上传一个视频才能存草稿');
+      return;
+    }
+    const id = draftId ?? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    saveDraft({
+      id,
+      draftType: activeTab === 'video' ? 1 : 0,
+      title: activeTab === 'video' ? videoTitle : title,
+      content: activeTab === 'video' ? videoBody : body,
+      images: images.map(item => ({ uri: item.url || item.uri, url: item.url })),
+      videoUri: video?.uri,
+      videoUrl: video?.url,
+      videoCover: videoCover ?? undefined,
+      videoRatio,
+      coverTransform,
+      updatedAt: Date.now(),
+    });
+    setDraftId(id);
     clearAll();
     Alert.alert('提示', '已存入草稿箱', [{ text: '知道了', onPress: () => navigation.goBack() }]);
   };
@@ -340,6 +397,7 @@ export default function Publish() {
         visibility: VISIBILITY_MAP[visibility],
         commentScope: COMMENT_MAP[commentWho],
       });
+      if (draftId) deleteDraft(draftId);
       Alert.alert('发布成功', '企业用户发布后，需企业管理员审核', [
         { text: '知道了', onPress: () => navigation.goBack() },
       ]);

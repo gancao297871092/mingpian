@@ -1,0 +1,42 @@
+import { storageUtils } from './storage';
+
+export interface LocalDraftImage {
+  uri: string;
+  url?: string;
+}
+
+export interface LocalDraft {
+  id: string;
+  draftType: 0 | 1;
+  title: string;
+  content: string;
+  images: LocalDraftImage[];
+  videoUri?: string;
+  videoUrl?: string;
+  videoCover?: string;
+  videoRatio?: '3:4' | '16:9';
+  coverTransform?: { tx: number; ty: number; scale: number } | null;
+  updatedAt: number;
+}
+
+const KEY = 'publishDrafts';
+
+export function listDrafts(): LocalDraft[] {
+  return storageUtils.getObject<LocalDraft[]>(KEY) ?? [];
+}
+
+export function saveDraft(draft: LocalDraft) {
+  const list = listDrafts().filter(item => item.id !== draft.id);
+  list.unshift(draft);
+  storageUtils.setObject(KEY, list);
+}
+
+export function deleteDraft(id: string) {
+  storageUtils.setObject(KEY, listDrafts().filter(item => item.id !== id));
+}
+
+export function formatDraftTime(ts: number): string {
+  const d = new Date(ts);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}

@@ -1,3 +1,5 @@
+import type { LocalDraft } from '@/utils/draftStore';
+
 export type RootStackParamList = {
   MainTabs: undefined;
   login: undefined;
@@ -7,8 +9,9 @@ export type RootStackParamList = {
   editCard: { id?: string | number };
   addItem: { itemId?: string | number; cardId?: string | number; userId?: string | number; pjId?: string | number };
   richTextEdit: { initialHtml?: string; placeholder?: string };
-  publish: undefined;
+  publish: { draft?: LocalDraft } | undefined;
   publishCover: { videoUri: string; ratio?: '3:4' | '16:9'; title?: string };
+  draftBox: undefined;
   companyPage: { id: string | number; userId?: string | number };
   certification: { openIndex?: number };
 };

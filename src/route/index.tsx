@@ -17,6 +17,7 @@ import AddItem from '@/pages/editCard/AddItem';
 import RichTextEdit from '@/pages/common/RichTextEdit';
 import Publish from '@/pages/publish';
 import PublishCover from '@/pages/publish/CoverSelect';
+import DraftBox from '@/pages/publish/DraftBox';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -119,6 +120,11 @@ export default function RootNavigator() {
         <Stack.Screen
           name="publish"
           component={Publish}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="draftBox"
+          component={DraftBox}
           options={{ headerShown: false }}
         />
         <Stack.Screen
