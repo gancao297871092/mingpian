@@ -13,7 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useNavigation, useFocusEffect, useRoute, type RouteProp } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, useRoute, usePreventRemove, type RouteProp } from '@react-navigation/native';
 import Video from 'react-native-video';
 import { BottomSheetTextInput, type BottomSheetModal } from '@gorhom/bottom-sheet';
 import Svg, { Path } from 'react-native-svg';
@@ -99,14 +99,6 @@ const ICONS = {
   exitDiscard: require('@/assets/publish/exit-discard.png'),
   exitDraft: require('@/assets/publish/exit-draft.png'),
 };
-
-function ChevronLeft({ size = 20, color = '#1A1A1A' }: { size?: number; color?: string }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M15 5l-7 7 7 7" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-    </Svg>
-  );
-}
 
 function ChevronRight({ size = 12, color = '#999999' }: { size?: number; color?: string }) {
   return (
@@ -278,18 +270,30 @@ export default function Publish() {
     setVideoBody('');
   };
 
-  const onBack = () => {
-    if (hasContent()) {
-      setExitMenuVisible(true);
+  const [allowLeave, setAllowLeave] = useState(false);
+  const pendingActionRef = useRef<any>(null);
+
+  usePreventRemove(!allowLeave && hasContent(), ({ data }) => {
+    pendingActionRef.current = data.action;
+    setExitMenuVisible(true);
+  });
+
+  useEffect(() => {
+    if (!allowLeave) return;
+    const action = pendingActionRef.current;
+    pendingActionRef.current = null;
+    if (action) {
+      navigation.dispatch(action);
     } else {
       navigation.goBack();
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allowLeave]);
 
   const onExitDiscard = () => {
     setExitMenuVisible(false);
     clearAll();
-    navigation.goBack();
+    setAllowLeave(true);
   };
 
   const onExitDraft = () => {
@@ -318,7 +322,7 @@ export default function Publish() {
     });
     setDraftId(id);
     clearAll();
-    Alert.alert('提示', '已存入草稿箱', [{ text: '知道了', onPress: () => navigation.goBack() }]);
+    Alert.alert('提示', '已存入草稿箱', [{ text: '知道了', onPress: () => setAllowLeave(true) }]);
   };
 
   const openSheet = (target: React.RefObject<BottomSheetModal | null>) => {
@@ -399,7 +403,13 @@ export default function Publish() {
       });
       if (draftId) deleteDraft(draftId);
       Alert.alert('发布成功', '企业用户发布后，需企业管理员审核', [
-        { text: '知道了', onPress: () => navigation.goBack() },
+        {
+          text: '知道了',
+          onPress: () => {
+            clearAll();
+            setAllowLeave(true);
+          },
+        },
       ]);
     } catch (e: any) {
       Alert.alert('发布失败', e?.msg || '请稍后重试');
@@ -755,15 +765,7 @@ export default function Publish() {
   );
 
   return (
-    <SafeView backgroundColor="#fff" disableTop={false}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} activeOpacity={0.7} onPress={onBack}>
-          <ChevronLeft />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>统一发布</Text>
-        <View style={styles.backBtn} />
-      </View>
-
+    <SafeView backgroundColor="#fff">
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {renderSegment()}
 
@@ -861,24 +863,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: scaleSizeW(16),
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: scaleSizeW(16),
-    paddingBottom: scaleSizeH(10),
-  },
-  backBtn: {
-    width: scaleSizeW(44),
-    height: scaleSizeW(44),
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-  },
-  headerTitle: {
-    fontSize: scaleSizeW(17),
-    fontWeight: '600',
-    color: TEXT_MAIN,
   },
   segment: {
     flexDirection: 'row',

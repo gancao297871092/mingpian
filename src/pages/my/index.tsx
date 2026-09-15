@@ -79,6 +79,18 @@ export default function My() {
       </View>
 
       <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>我的发布</Text>
+        <TouchableOpacity
+          style={[styles.menuRow, { borderColor: theme.border }]}
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate('draftBox')}
+        >
+          <Text style={[styles.menuText, { color: theme.text }]}>草稿箱</Text>
+          <Text style={[styles.menuArrow, { color: theme.subText }]}>›</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>主题 / Theme</Text>
         {renderOptions<ThemeMode>(THEME_MODES, themeMode, setThemeMode)}
       </View>
@@ -133,5 +145,20 @@ const styles = StyleSheet.create({
   },
   optionTextActive: {
     color: '#fff',
+  },
+  menuRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: scaleSizeW(14),
+    paddingVertical: scaleSizeH(12),
+    borderRadius: scaleSizeH(8),
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  menuText: {
+    fontSize: setSpText(14),
+  },
+  menuArrow: {
+    fontSize: setSpText(18),
   },
 });

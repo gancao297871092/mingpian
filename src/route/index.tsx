@@ -120,12 +120,23 @@ export default function RootNavigator() {
         <Stack.Screen
           name="publish"
           component={Publish}
-          options={{ headerShown: false }}
+          options={{
+            title: '统一发布',
+            headerStyle: { backgroundColor: '#FFFFFF' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+            headerBackButtonMenuEnabled: false,
+          }}
         />
         <Stack.Screen
           name="draftBox"
           component={DraftBox}
-          options={{ headerShown: false }}
+          options={{
+            title: '草稿箱',
+            headerStyle: { backgroundColor: '#FFFFFF' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
         />
         <Stack.Screen
           name="publishCover"

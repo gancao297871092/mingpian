@@ -11,7 +11,6 @@ import { scaleSizeH, scaleSizeW } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
 
 const PRIMARY = '#2962D4';
-const TEXT_MAIN = '#1A1A1A';
 const TEXT_SUB = '#616161';
 const INFO_BG = '#E3EDFF';
 
@@ -136,17 +135,7 @@ export default function DraftBox() {
   });
 
   return (
-    <SafeView backgroundColor="#FFFFFF" disableTop={false}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} activeOpacity={0.7} onPress={() => navigation.goBack()}>
-          <Svg width={scaleSizeW(20)} height={scaleSizeW(20)} viewBox="0 0 24 24" fill="none">
-            <Path d="M15 5l-7 7 7 7" stroke={TEXT_MAIN} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-          </Svg>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>草稿箱</Text>
-        <View style={styles.backBtn} />
-      </View>
-
+    <SafeView backgroundColor="#FFFFFF">
       <View style={styles.tipBar}>
         <TipIcon />
         <Text style={styles.tipText}>草稿在应用卸载后会被删除，请及时发布</Text>
@@ -170,24 +159,6 @@ export default function DraftBox() {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: scaleSizeW(16),
-    paddingBottom: scaleSizeH(10),
-  },
-  backBtn: {
-    width: scaleSizeW(44),
-    height: scaleSizeW(44),
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-  },
-  headerTitle: {
-    fontSize: scaleSizeW(17),
-    fontWeight: '600',
-    color: TEXT_MAIN,
-  },
   tipBar: {
     flexDirection: 'row',
     alignItems: 'center',
