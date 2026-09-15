@@ -15,6 +15,7 @@ import {
   TextInput,
   TouchableOpacity,
   UIManager,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useNavigation, useFocusEffect, useRoute, usePreventRemove, type RouteProp } from '@react-navigation/native';
@@ -148,6 +149,7 @@ function ExpandIcon({ size = 32, collapse = false }: { size?: number; collapse?:
 
 export default function Publish() {
   const navigation = useNavigation();
+  const { width: SCREEN_W, height: SCREEN_H } = useWindowDimensions();
   const route = useRoute<RouteProp<RootStackParamList, 'publish'>>();
   const draftParam = route.params?.draft;
 
@@ -230,25 +232,40 @@ export default function Publish() {
   };
   const [aiHelpVisible, setAiHelpVisible] = useState(false);
 
-  const guideRef = useRef<BottomSheetModal>(null);
   const visibilityRef = useRef<BottomSheetModal>(null);
   const declareRef = useRef<BottomSheetModal>(null);
   const reprintRef = useRef<BottomSheetModal>(null);
   const commentRef = useRef<BottomSheetModal>(null);
   const reprintConfirmedRef = useRef(false);
-  const guideConfirmedRef = useRef(false);
+  const [entryDialog, setEntryDialog] = useState<'ask' | 'onConfirm' | 'offConfirm' | null>(null);
+  const syncRowRef = useRef<View>(null);
+  const [syncHole, setSyncHole] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
 
   useEffect(() => {
     if (storageUtils.getString(GUIDE_SHOWN_KEY)) return;
-    const timer = setTimeout(() => guideRef.current?.present(), 350);
+    const timer = setTimeout(() => {
+      const node = syncRowRef.current;
+      if (!node) {
+        setEntryDialog('ask');
+        return;
+      }
+      node.measureInWindow((x, y, width, height) => {
+        setSyncHole({ x: x - scaleSizeW(7), y: y - scaleSizeH(8), width: width + scaleSizeW(14), height: height + scaleSizeH(16) });
+        setEntryDialog('ask');
+      });
+    }, 350);
     return () => clearTimeout(timer);
   }, []);
 
-  const closeGuide = (enabled: boolean) => {
-    guideConfirmedRef.current = true;
+  const chooseSyncDefault = (enabled: boolean) => {
     storageUtils.set(GUIDE_SHOWN_KEY, '1');
     setSyncOn(enabled);
-    guideRef.current?.dismiss();
+    setEntryDialog(enabled ? 'onConfirm' : 'offConfirm');
+  };
+
+  const enableSyncOnce = () => {
+    setSyncOnState(true);
+    setEntryDialog(null);
   };
 
   const declareLabel = () => {
@@ -355,12 +372,6 @@ export default function Publish() {
     navigation.setOptions({
       title: '',
       headerBackVisible: false,
-      // eslint-disable-next-line react/no-unstable-nested-components
-      headerLeft: () => (
-        <TouchableOpacity hitSlop={8} onPress={exitBodyEditing}>
-          <Text style={styles.headerActionText}>取消</Text>
-        </TouchableOpacity>
-      ),
       // eslint-disable-next-line react/no-unstable-nested-components
       headerRight: () => (
         <TouchableOpacity hitSlop={8} onPress={exitBodyEditing}>
@@ -839,39 +850,93 @@ export default function Publish() {
     </Modal>
   );
 
-  const renderGuideSheet = () => (
-    <AppBottomSheet
-      ref={guideRef}
-      onClose={() => {
-        if (guideConfirmedRef.current) {
-          guideConfirmedRef.current = false;
-          return;
-        }
-        closeGuide(false);
-      }}
-    >
-      <Text style={styles.guideTitle}>是否默认同步到「正在发生」?</Text>
-      <View style={styles.guideInfo}>
-        <Image source={ICONS.guideInfo} style={styles.icon16} />
-        <Text style={styles.guideInfoText}>关闭仅影响公开展示，匹配和画像更新仍会继续。</Text>
+  const renderEntryDialog = () => (
+    <Modal visible={entryDialog !== null} transparent animationType="fade">
+      <View style={styles.entryOverlay}>
+        {syncHole ? (
+          <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+            <Path
+              fillRule="evenodd"
+              fill="rgba(0,0,0,0.25)"
+              d={(() => {
+                const r = scaleSizeW(10);
+                const { x, y, width: w, height: h } = syncHole;
+                return `M0 0H${SCREEN_W}V${SCREEN_H}H0Z`
+                  + `M${x + r} ${y}H${x + w - r}A${r} ${r} 0 0 1 ${x + w} ${y + r}V${y + h - r}`
+                  + `A${r} ${r} 0 0 1 ${x + w - r} ${y + h}H${x + r}A${r} ${r} 0 0 1 ${x} ${y + h - r}`
+                  + `V${y + r}A${r} ${r} 0 0 1 ${x + r} ${y}Z`;
+              })()}
+            />
+          </Svg>
+        ) : (
+          <View style={[styles.entryDim, StyleSheet.absoluteFill]} />
+        )}
+        {entryDialog === 'ask' && (
+          <View style={styles.entryCard}>
+            <Text style={styles.entryTitle}>是否默认同步到「正在发生」?</Text>
+            <View style={styles.entryInfo}>
+              <Image source={ICONS.guideInfo} style={styles.icon16} />
+              <Text style={styles.entryInfoText}>关闭后不公开，匹配和画像更新仍会继续</Text>
+            </View>
+            <Text style={styles.entryBody}>
+              开启后，AI会结合标签和企业画像匹配；明确供需符合条件时同步到「正在发生」。
+            </Text>
+            <TouchableOpacity
+              style={styles.entryBtn}
+              activeOpacity={0.85}
+              onPress={() => chooseSyncDefault(true)}
+            >
+              <Text style={[styles.entryBtnText, styles.entryBtnTextPrimary]}>默认开启</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.entryBtn, styles.entryBtnGhost]}
+              activeOpacity={0.85}
+              onPress={() => chooseSyncDefault(false)}
+            >
+              <Text style={styles.entryBtnText}>保持关闭</Text>
+            </TouchableOpacity>
+            <Text style={styles.entryFoot}>保存为我的发布默认值，以后可在设置中修改</Text>
+          </View>
+        )}
+        {entryDialog === 'onConfirm' && (
+          <View style={styles.entryCard}>
+            <Text style={styles.entryTitle}>已设为默认开启</Text>
+            <Text style={styles.entryBody}>
+              本次及以后发布时默认同步，每次发布前仍可单独关闭。
+            </Text>
+            <TouchableOpacity
+              style={styles.entryBtn}
+              activeOpacity={0.85}
+              onPress={() => setEntryDialog(null)}
+            >
+              <Text style={[styles.entryBtnText, styles.entryBtnTextPrimary]}>知道了</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        {entryDialog === 'offConfirm' && (
+          <View style={styles.entryCard}>
+            <Text style={styles.entryTitle}>已设为默认关闭</Text>
+            <Text style={styles.entryBody}>
+              动态不会公开到「正在发生」。AI匹配和画像更新仍继续，发现合适企业时只提醒你。
+            </Text>
+            <TouchableOpacity
+              style={styles.entryBtn}
+              activeOpacity={0.85}
+              onPress={() => setEntryDialog(null)}
+            >
+              <Text style={[styles.entryBtnText, styles.entryBtnTextPrimary]}>知道了</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.entryBtn, styles.entryBtnGhost]}
+              activeOpacity={0.85}
+              onPress={enableSyncOnce}
+            >
+              <Text style={styles.entryBtnText}>仅本次开启</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
-      <Text style={styles.guideBody}>
-        开启后，AI结合标签和企业画像进行匹配，明确供需符合条件时同步展示。
-      </Text>
-      <View style={styles.guideActions}>
-        <TouchableOpacity style={styles.guideBtn} activeOpacity={0.85} onPress={() => closeGuide(false)}>
-          <Text style={styles.guideBtnText}>保持关闭</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.guideBtn, styles.guideBtnPrimary]}
-          activeOpacity={0.85}
-          onPress={() => closeGuide(true)}
-        >
-          <Text style={[styles.guideBtnText, styles.guideBtnTextPrimary]}>默认开启</Text>
-        </TouchableOpacity>
-      </View>
-      <Text style={styles.guideFoot}>保存为我的发布默认值，以后可在设置中修改</Text>
-    </AppBottomSheet>
+    </Modal>
   );
 
   return (
@@ -952,7 +1017,7 @@ export default function Publish() {
                 openSheet(commentRef),
               )}
 
-              <View style={styles.syncRow}>
+              <View style={styles.syncRow} ref={syncRowRef} collapsable={false}>
                 <Image source={ICONS.sync} style={styles.iconSync} />
                 <View style={styles.syncCopy}>
                   <View style={styles.syncTitleRow}>
@@ -997,7 +1062,7 @@ export default function Publish() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {renderGuideSheet()}
+      {renderEntryDialog()}
       {renderVisibilitySheet()}
       {renderDeclareSheet()}
       {renderReprintSheet()}
@@ -1476,13 +1541,30 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#FFFFFF',
   },
-  guideTitle: {
-    marginTop: scaleSizeH(20),
-    fontSize: scaleSizeW(22),
+  entryOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  entryDim: {
+    position: 'absolute',
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  entryCard: {
+    width: scaleSizeW(342),
+    borderRadius: scaleSizeW(20),
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: scaleSizeW(20),
+    paddingTop: scaleSizeH(20),
+    paddingBottom: scaleSizeH(20),
+  },
+  entryTitle: {
+    fontSize: scaleSizeW(16),
     fontWeight: '600',
+    lineHeight: scaleSizeH(20),
     color: TEXT_MAIN,
   },
-  guideInfo: {
+  entryInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: scaleSizeW(4),
@@ -1490,45 +1572,41 @@ const styles = StyleSheet.create({
     paddingVertical: scaleSizeH(10),
     borderRadius: scaleSizeW(10),
     backgroundColor: INFO_BG,
-    marginTop: scaleSizeH(24),
+    marginTop: scaleSizeH(15),
   },
-  guideInfoText: {
+  entryInfoText: {
     flex: 1,
     fontSize: scaleSizeW(12),
     color: PRIMARY,
   },
-  guideBody: {
-    marginTop: scaleSizeH(16),
+  entryBody: {
+    marginTop: scaleSizeH(10),
     fontSize: scaleSizeW(14),
     lineHeight: scaleSizeH(30),
     color: TEXT_MAIN,
   },
-  guideActions: {
-    flexDirection: 'row',
-    gap: scaleSizeW(10),
-    marginTop: scaleSizeH(30),
-  },
-  guideBtn: {
-    flex: 1,
+  entryBtn: {
     height: scaleSizeH(48),
     borderRadius: scaleSizeW(90),
-    backgroundColor: '#FFFFFF',
+    backgroundColor: PRIMARY,
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: scaleSizeH(20),
   },
-  guideBtnPrimary: {
-    backgroundColor: PRIMARY,
+  entryBtnGhost: {
+    backgroundColor: TILE_BG,
+    marginTop: scaleSizeH(10),
   },
-  guideBtnText: {
+  entryBtnText: {
     fontSize: scaleSizeW(15),
     fontWeight: '500',
     color: TEXT_MAIN,
   },
-  guideBtnTextPrimary: {
+  entryBtnTextPrimary: {
     color: '#FFFFFF',
   },
-  guideFoot: {
-    marginTop: scaleSizeH(14),
+  entryFoot: {
+    marginTop: scaleSizeH(10),
     fontSize: scaleSizeW(12),
     color: TEXT_SUB,
     textAlign: 'center',
