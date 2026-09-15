@@ -4,17 +4,22 @@ import {
   Alert,
   Image,
   Keyboard,
+  KeyboardAvoidingView,
+  LayoutAnimation,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Switch,
   Text,
   TextInput,
   TouchableOpacity,
+  UIManager,
   View,
 } from 'react-native';
 import { useNavigation, useFocusEffect, useRoute, usePreventRemove, type RouteProp } from '@react-navigation/native';
 import { BottomSheetTextInput, type BottomSheetModal } from '@gorhom/bottom-sheet';
+import Animated, { FadeInUp, FadeOut, FadeOutUp, SlideInUp, withTiming, Easing } from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
 import { API } from '@/api';
 import SafeView from '@/components/SafeView';
@@ -42,6 +47,19 @@ const TITLE_LIMIT = 20;
 const BODY_LIMIT = 1000;
 const GUIDE_SHOWN_KEY = 'publishGuideShown';
 const SYNC_ON_KEY = 'publishSyncOn';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+function animateLayout() {
+  LayoutAnimation.configureNext({
+    duration: 280,
+    create: { type: LayoutAnimation.Types.easeOut, property: LayoutAnimation.Properties.opacity },
+    update: { type: LayoutAnimation.Types.spring, springDamping: 0.85 },
+    delete: { type: LayoutAnimation.Types.easeIn, property: LayoutAnimation.Properties.opacity },
+  });
+}
 
 type PublishTab = 'short' | 'video' | 'long';
 type VisibilityKey = 'public' | 'mutual' | 'private';
@@ -107,6 +125,27 @@ function ChevronRight({ size = 12, color = '#999999' }: { size?: number; color?:
   );
 }
 
+function ExpandIcon({ size = 32, collapse = false }: { size?: number; collapse?: boolean }) {
+  return (
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 36 36"
+      fill="none"
+      style={collapse ? { transform: [{ scaleX: -1 }] } : undefined}
+    >
+      <Path
+        d="M16.73 17.3C17.09 17.3 17.38 17 17.38 16.65V11.65C17.38 11.29 17.09 11 16.73 11C16.37 11 16.08 11.29 16.08 11.65V16.65L16.73 16H11.65C11.29 16 11 16.29 11 16.65C11 17 11.29 17.3 11.65 17.3H16.73Z"
+        fill="#1A1A1A"
+      />
+      <Path
+        d="M19.65 19C19.29 19 19 19.29 19 19.65V24.65C19 25 19.29 25.3 19.65 25.3C20 25.3 20.3 25 20.3 24.65V19.65L19.65 20.3H24.73C25.09 20.3 25.38 20 25.38 19.65C25.38 19.29 25.09 19 24.73 19H19.65Z"
+        fill="#1A1A1A"
+      />
+    </Svg>
+  );
+}
+
 export default function Publish() {
   const navigation = useNavigation();
   const route = useRoute<RouteProp<RootStackParamList, 'publish'>>();
@@ -125,6 +164,7 @@ export default function Publish() {
   const [videoBody, setVideoBody] = useState('');
   const [exitMenuVisible, setExitMenuVisible] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [bodyEditing, setBodyEditing] = useState(false);
   const [draftId, setDraftId] = useState<string | null>(draftParam?.id ?? null);
 
   useEffect(() => {
@@ -272,10 +312,63 @@ export default function Publish() {
   const [allowLeave, setAllowLeave] = useState(false);
   const pendingActionRef = useRef<any>(null);
 
-  usePreventRemove(!allowLeave && hasContent(), ({ data }) => {
+  const activeBody = activeTab === 'video' ? videoBody : body;
+  const setActiveBody = activeTab === 'video' ? setVideoBody : setBody;
+  const bodyInputRef = useRef<TextInput>(null);
+
+  const insertActiveBody = (insert: string) => {
+    setActiveBody(prev => (prev.length >= BODY_LIMIT ? prev : prev + insert));
+  };
+
+  const enterBodyEditing = (insert?: string) => {
+    if (insert) insertActiveBody(insert);
+    bodyInputRef.current?.focus();
+    animateLayout();
+    setBodyEditing(true);
+  };
+
+  const exitBodyEditing = () => {
+    animateLayout();
+    Keyboard.dismiss();
+    setBodyEditing(false);
+  };
+
+  usePreventRemove(!allowLeave && (bodyEditing || hasContent()), ({ data }) => {
+    if (bodyEditing) {
+      exitBodyEditing();
+      return;
+    }
     pendingActionRef.current = data.action;
     setExitMenuVisible(true);
   });
+
+  useEffect(() => {
+    if (!bodyEditing) {
+      navigation.setOptions({
+        title: '统一发布',
+        headerBackVisible: true,
+        headerLeft: undefined,
+        headerRight: undefined,
+      });
+      return;
+    }
+    navigation.setOptions({
+      title: '',
+      headerBackVisible: false,
+      // eslint-disable-next-line react/no-unstable-nested-components
+      headerLeft: () => (
+        <TouchableOpacity hitSlop={8} onPress={exitBodyEditing}>
+          <Text style={styles.headerActionText}>取消</Text>
+        </TouchableOpacity>
+      ),
+      // eslint-disable-next-line react/no-unstable-nested-components
+      headerRight: () => (
+        <TouchableOpacity hitSlop={8} onPress={exitBodyEditing}>
+          <Text style={[styles.headerActionText, styles.headerDoneText]}>完成</Text>
+        </TouchableOpacity>
+      ),
+    });
+  }, [bodyEditing, navigation]);
 
   useEffect(() => {
     if (!allowLeave) return;
@@ -346,8 +439,8 @@ export default function Publish() {
 
   const onPublish = async () => {
     const activeTitle = activeTab === 'video' ? videoTitle : title;
-    const activeBody = activeTab === 'video' ? videoBody : body;
-    if (activeTab === 'short' && !activeTitle.trim() && !activeBody.trim() && images.length === 0) {
+    const activeContent = activeTab === 'video' ? videoBody : body;
+    if (activeTab === 'short' && !activeTitle.trim() && !activeContent.trim() && images.length === 0) {
       Alert.alert('提示', '请先填写内容');
       return;
     }
@@ -391,7 +484,7 @@ export default function Publish() {
       await API.publish.submit({
         draftType: activeTab === 'video' ? 1 : 0,
         title: activeTitle.trim(),
-        content: activeBody.trim(),
+        content: activeContent.trim(),
         images: activeTab === 'short' ? images.map(item => item.url || item.uri) : undefined,
         videoUrl: activeTab === 'video' ? video?.url : undefined,
         videoCover: videoCoverUrl,
@@ -440,32 +533,63 @@ export default function Publish() {
     onChange: (v: string) => void,
     bodyValue: string,
     onBodyChange: (v: string) => void,
-  ) => (
-    <>
-      <View style={styles.titleRow}>
+  ) => {
+    return (
+      <>
+        {!bodyEditing ?
+          <>
+            <View style={styles.titleRow}>
+              <TextInput
+                style={styles.titleInput}
+                placeholder="添加标题"
+                placeholderTextColor={TEXT_SUB}
+                value={value}
+                onChangeText={onChange}
+              />
+              <Text style={[styles.titleCount, [...value].length > TITLE_LIMIT && styles.titleCountOver]}>
+                {[...value].length}/{TITLE_LIMIT}
+              </Text>
+            </View>
+            <View style={styles.divider} />
+          </>
+          : null}
         <TextInput
-          style={styles.titleInput}
-          placeholder="添加标题"
+          ref={bodyInputRef}
+          style={bodyEditing ? {
+            padding: 0,
+            marginTop: scaleSizeH(10),
+            minHeight: scaleSizeH(226),
+            fontSize: scaleSizeW(14),
+            lineHeight: scaleSizeH(24),
+            color: TEXT_MAIN,
+            textAlignVertical: 'top',
+          } : styles.bodyInput}
+          placeholder="添加正文..."
           placeholderTextColor={TEXT_SUB}
-          value={value}
-          onChangeText={onChange}
+          maxLength={BODY_LIMIT}
+          multiline
+          value={bodyValue}
+          onChangeText={onBodyChange}
         />
-        <Text style={[styles.titleCount, [...value].length > TITLE_LIMIT && styles.titleCountOver]}>
-          {[...value].length}/{TITLE_LIMIT}
-        </Text>
-      </View>
-      <View style={styles.divider} />
-      <TextInput
-        style={styles.bodyInput}
-        placeholder="添加正文..."
-        placeholderTextColor={TEXT_SUB}
-        maxLength={BODY_LIMIT}
-        multiline
-        value={bodyValue}
-        onChangeText={onBodyChange}
-      />
-    </>
-  );
+        <View style={styles.bodyToolbar}>
+          <TouchableOpacity
+            style={styles.toolBtn}
+            activeOpacity={0.8}
+            onPress={() => {
+              insertActiveBody('#');
+              bodyInputRef.current?.focus();
+            }}
+          >
+            <Text style={styles.toolBtnStrong}>#</Text>
+            <Text style={styles.toolBtnText}>话题</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.expandBtn} activeOpacity={0.8} onPress={() => enterBodyEditing()}>
+            <ExpandIcon />
+          </TouchableOpacity>
+        </View>
+      </>
+    );
+  };
 
   const renderVideoSection = () => {
     const videoSize = {
@@ -744,87 +868,94 @@ export default function Publish() {
 
   return (
     <SafeView backgroundColor="#fff">
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        {renderSegment()}
+      <KeyboardAvoidingView style={styles.flex1} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView style={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          {!bodyEditing && renderSegment()}
 
-        {activeTab === 'short' && (
-          <>
-            <ImageUploader
-              value={images}
-              onChange={setImages}
-              maxCount={MAX_IMAGES}
-              style={styles.uploaderWrap}
-            />
-            {renderTextFields(title, setTitle, body, setBody)}
-          </>
-        )}
-
-        {activeTab === 'video' && (
-          <>
-            {renderVideoSection()}
-            {renderTextFields(videoTitle, setVideoTitle, videoBody, setVideoBody)}
-          </>
-        )}
-
-        {activeTab === 'long' && (
-          <View style={styles.tabPlaceholder}>
-            <Text style={styles.tabPlaceholderText}>长文发布敬请期待</Text>
-          </View>
-        )}
-
-        <View style={styles.divider} />
-
-        {renderSettingRow(<Image source={ICONS.eye} style={styles.icon20} />, '可见范围', VISIBILITY_ROW_LABEL[visibility], () =>
-          openSheet(visibilityRef),
-        )}
-        {renderSettingRow(<Image source={ICONS.declare} style={styles.icon20} />, '内容声明', declareLabel(), () =>
-          openSheet(declareRef),
-        )}
-        {renderSettingRow(<Image source={ICONS.comment} style={styles.icon20} />, '谁可以评论', COMMENT_OPTIONS.find(o => o.key === commentWho)?.label || '所有人', () =>
-          openSheet(commentRef),
-        )}
-
-        <View style={styles.syncRow}>
-          <Image source={ICONS.sync} style={styles.iconSync} />
-          <View style={styles.syncCopy}>
-            <View style={styles.syncTitleRow}>
-              <Text style={styles.syncTitle}>同步到「正在发生」</Text>
-              <TouchableOpacity hitSlop={8} onPress={() => setAiHelpVisible(true)}>
-                <Image source={ICONS.help} style={styles.icon15} />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.syncSub}>
-              {syncOn ? 'AI + 标签综合匹配 · 符合条件时公开展示' : '不公开·AI匹配和画像更新仍继续'}
-            </Text>
-          </View>
-          <Switch
-            value={syncOn}
-            onValueChange={setSyncOn}
-            trackColor={{ false: '#E5E5E5', true: PRIMARY }}
-            thumbColor="#FFFFFF"
-          />
-        </View>
-
-        <View style={styles.tipBar}>
-          <Image source={ICONS.tip} style={styles.icon16} />
-          <Text style={styles.tipText}>只有明确、有效的供需信息，才会同步到「正在发生」。</Text>
-        </View>
-
-        <TouchableOpacity
-          style={[styles.publishBtn, publishing && styles.publishBtnDisabled]}
-          activeOpacity={0.85}
-          disabled={publishing}
-          onPress={onPublish}
-        >
-          {publishing ? (
-            <ActivityIndicator color="#FFFFFF" size="small" />
-          ) : (
-            <Text style={styles.publishBtnText}>立即发布</Text>
+          {activeTab === 'short' && (
+            <>
+              {!bodyEditing && (
+                <ImageUploader
+                  value={images}
+                  onChange={setImages}
+                  maxCount={MAX_IMAGES}
+                  style={styles.uploaderWrap}
+                />
+              )}
+              {renderTextFields(title, setTitle, body, setBody)}
+            </>
           )}
-        </TouchableOpacity>
 
-        <Text style={styles.reviewNote}>企业用户发布后，需企业管理员审核</Text>
-      </ScrollView>
+          {activeTab === 'video' && (
+            <>
+              {!bodyEditing && renderVideoSection()}
+              {renderTextFields(videoTitle, setVideoTitle, videoBody, setVideoBody)}
+            </>
+          )}
+
+          {activeTab === 'long' && !bodyEditing && (
+            <View style={styles.tabPlaceholder}>
+              <Text style={styles.tabPlaceholderText}>长文发布敬请期待</Text>
+            </View>
+          )}
+
+          {!bodyEditing && (
+            <>
+              <View style={styles.divider} />
+              {renderSettingRow(<Image source={ICONS.eye} style={styles.icon20} />, '可见范围', VISIBILITY_ROW_LABEL[visibility], () =>
+                openSheet(visibilityRef),
+              )}
+              {renderSettingRow(<Image source={ICONS.declare} style={styles.icon20} />, '内容声明', declareLabel(), () =>
+                openSheet(declareRef),
+              )}
+              {renderSettingRow(<Image source={ICONS.comment} style={styles.icon20} />, '谁可以评论', COMMENT_OPTIONS.find(o => o.key === commentWho)?.label || '所有人', () =>
+                openSheet(commentRef),
+              )}
+
+              <View style={styles.syncRow}>
+                <Image source={ICONS.sync} style={styles.iconSync} />
+                <View style={styles.syncCopy}>
+                  <View style={styles.syncTitleRow}>
+                    <Text style={styles.syncTitle}>同步到「正在发生」</Text>
+                    <TouchableOpacity hitSlop={8} onPress={() => setAiHelpVisible(true)}>
+                      <Image source={ICONS.help} style={styles.icon15} />
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.syncSub}>
+                    {syncOn ? 'AI + 标签综合匹配 · 符合条件时公开展示' : '不公开·AI匹配和画像更新仍继续'}
+                  </Text>
+                </View>
+                <Switch
+                  value={syncOn}
+                  onValueChange={setSyncOn}
+                  trackColor={{ false: '#E5E5E5', true: PRIMARY }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+
+              <View style={styles.tipBar}>
+                <Image source={ICONS.tip} style={styles.icon16} />
+                <Text style={styles.tipText}>只有明确、有效的供需信息，才会同步到「正在发生」。</Text>
+              </View>
+
+              <TouchableOpacity
+                style={[styles.publishBtn, publishing && styles.publishBtnDisabled]}
+                activeOpacity={0.85}
+                disabled={publishing}
+                onPress={onPublish}
+              >
+                {publishing ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.publishBtnText}>立即发布</Text>
+                )}
+              </TouchableOpacity>
+
+              <Text style={styles.reviewNote}>企业用户发布后，需企业管理员审核</Text>
+            </>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       {renderGuideSheet()}
       {renderVisibilitySheet()}
@@ -904,6 +1035,93 @@ const styles = StyleSheet.create({
     lineHeight: scaleSizeH(24),
     color: TEXT_MAIN,
     textAlignVertical: 'top',
+  },
+  flex1: {
+    flex: 1,
+  },
+  bodyEditingInput: {
+    marginTop: scaleSizeH(10),
+    minHeight: scaleSizeH(240),
+    fontSize: scaleSizeW(14),
+    lineHeight: scaleSizeH(24),
+    color: TEXT_MAIN,
+    textAlignVertical: 'top',
+    backgroundColor: 'red',
+  },
+  bodyToolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: scaleSizeH(10),
+  },
+  expandBtn: {
+    width: scaleSizeW(32),
+    height: scaleSizeW(32),
+    borderRadius: scaleSizeW(8),
+    backgroundColor: TILE_BG,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  toolBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSizeW(4),
+    height: scaleSizeW(32),
+    paddingHorizontal: scaleSizeW(10),
+    borderRadius: scaleSizeW(8),
+    backgroundColor: TILE_BG,
+  },
+  toolBtnStrong: {
+    fontSize: scaleSizeW(14),
+    fontWeight: '600',
+    color: TEXT_MAIN,
+  },
+  toolBtnText: {
+    fontSize: scaleSizeW(14),
+    color: TEXT_MAIN,
+  },
+  editBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: scaleSizeW(16),
+    paddingVertical: scaleSizeH(8),
+    backgroundColor: '#FFFFFF',
+  },
+  editCounter: {
+    paddingRight: scaleSizeW(16),
+    marginBottom: scaleSizeH(4),
+    fontSize: scaleSizeW(12),
+    color: '#999999',
+    textAlign: 'right',
+  },
+  topicRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: scaleSizeW(10),
+    paddingHorizontal: scaleSizeW(16),
+    paddingVertical: scaleSizeH(10),
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: DIVIDER,
+  },
+  topicName: {
+    flex: 1,
+    fontSize: scaleSizeW(15),
+    lineHeight: scaleSizeH(24),
+    color: TEXT_MAIN,
+  },
+  topicAction: {
+    fontSize: scaleSizeW(12),
+    color: TEXT_SUB,
+  },
+  headerActionText: {
+    fontSize: scaleSizeW(17),
+    fontWeight: '500',
+    color: TEXT_MAIN,
+  },
+  headerDoneText: {
+    color: PRIMARY,
   },
   tabPlaceholder: {
     height: scaleSizeH(180),
