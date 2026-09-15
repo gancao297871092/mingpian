@@ -373,12 +373,19 @@ export default function Publish() {
       title: '',
       headerBackVisible: false,
       // eslint-disable-next-line react/no-unstable-nested-components
-      headerRight: () => (
+      headerLeft: () => (
         <TouchableOpacity hitSlop={8} onPress={exitBodyEditing}>
-          <Text style={[styles.headerActionText, styles.headerDoneText]}>完成</Text>
+          <Text style={styles.headerActionText}>取消</Text>
+        </TouchableOpacity>
+      ),
+      // eslint-disable-next-line react/no-unstable-nested-components
+      headerRight: () => (
+        <TouchableOpacity hitSlop={8} onPress={onPublish}>
+          <Text style={[styles.headerActionText, styles.headerDoneText]}>发布</Text>
         </TouchableOpacity>
       ),
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bodyEditing, navigation]);
 
   useEffect(() => {
