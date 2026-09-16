@@ -103,7 +103,6 @@ export default function Home() {
             <View style={styles.tabItem}>
               <View style={styles.tabWithBadge}>
                 <Text style={[styles.tabText, activeTab === 'follow' && styles.tabTextActive]}>关注</Text>
-                <View style={styles.tabBadge} />
               </View>
               {activeTab === 'follow' && <View style={styles.tabIndicator} />}
             </View>
