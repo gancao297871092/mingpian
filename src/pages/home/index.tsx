@@ -101,11 +101,9 @@ export default function Home() {
           </TouchableOpacity>
           <TouchableOpacity activeOpacity={0.7} onPress={() => setActiveTab('follow')}>
             <View style={styles.tabItem}>
-              <View style={styles.tabWithBadge}>
-                <Text style={[styles.tabText, activeTab === 'follow' && styles.tabTextActive]}>关注</Text>
-                <View style={styles.tabBadge}>
-                  <Text style={styles.tabBadgeText}>8</Text>
-                </View>
+              <Text style={[styles.tabText, activeTab === 'follow' && styles.tabTextActive]}>关注</Text>
+              <View style={styles.tabBadge}>
+                <Text style={styles.tabBadgeText}>8</Text>
               </View>
               {activeTab === 'follow' && <View style={styles.tabIndicator} />}
             </View>
@@ -169,11 +167,6 @@ const styles = StyleSheet.create({
   tabItem: {
     alignItems: 'center',
   },
-  tabWithBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scaleSizeW(2),
-  },
   tabText: {
     fontSize: setSpText(17),
     fontWeight: 'normal',
@@ -192,13 +185,15 @@ const styles = StyleSheet.create({
     marginTop: scaleSizeH(2),
   },
   tabBadge: {
+    position: 'absolute',
+    right: -scaleSizeW(14),
+    top: -scaleSizeH(3),
     height: scaleSizeH(14),
     paddingHorizontal: scaleSizeW(5),
     borderRadius: scaleSizeW(90),
     backgroundColor: '#EF4444',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: -scaleSizeH(8),
   },
   tabBadgeText: {
     fontSize: setSpText(10),
