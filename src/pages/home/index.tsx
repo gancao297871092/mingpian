@@ -1,8 +1,8 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
+  FlatList,
   Image,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import SafeView from '@/components/SafeView';
 import ListFooter from '@/components/ListFooter';
-import WaterfallList from './WaterfallList';
+import WaterfallCard from '@/components/WaterfallCard';
 import WaterfallSkeleton from './WaterfallSkeleton';
 import EmptyState from '@/components/EmptyState';
 import { MOCK_WATERFALL_DATA, type WaterfallItem } from './mockData';
@@ -59,7 +59,6 @@ type HomeTab = 'recommend' | 'follow';
 export default function Home() {
   const [activeTab, setActiveTab] = useState<HomeTab>('recommend');
   const params = useMemo(() => ({ tab: activeTab }), [activeTab]);
-  const scrollViewRef = useRef<ScrollView>(null);
 
   const {
     list,
@@ -84,16 +83,11 @@ export default function Home() {
     );
   };
 
-  const onScroll = useCallback(
-    (event: { nativeEvent: { contentOffset: { y: number }; contentSize: { height: number }; layoutMeasurement: { height: number } } }) => {
-      const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-      const isNearBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 200;
-      if (isNearBottom && !fetching && !isLastPage) {
-        loadMore();
-      }
-    },
-    [fetching, isLastPage, loadMore],
-  );
+  const onEndReached = useCallback(() => {
+    if (!fetching && !isLastPage) {
+      loadMore();
+    }
+  }, [fetching, isLastPage, loadMore]);
 
   const renderHeader = () => (
     <View style={styles.header}>
@@ -126,33 +120,29 @@ export default function Home() {
   const showSkeleton = fetching && list.length === 0;
 
   return (
-    <SafeView backgroundColor="#fff" disableTop={false}>
+    <SafeView backgroundColor="#F5F5F5" disableTop={false}>
       {renderHeader()}
       {showSkeleton ? (
         <View style={styles.skeletonWrap}>
           <WaterfallSkeleton />
         </View>
       ) : (
-        <ScrollView
-          ref={scrollViewRef}
-          style={styles.scrollView}
+        <FlatList
+          data={list}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          columnWrapperStyle={styles.columnWrapper}
+          renderItem={({ item }) => <WaterfallCard item={item} onToggleLike={onToggleLike} />}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl refreshing={fetching && list.length > 0} onRefresh={refresh} tintColor="#2962D4" />
           }
-          onScroll={onScroll}
-          scrollEventThrottle={200}
-          contentContainerStyle={styles.scrollContent}
-        >
-          {list.length === 0 && !fetching ? (
-            <EmptyState variant="content" title="暂无内容" />
-          ) : (
-            <>
-              <WaterfallList data={list} onToggleLike={onToggleLike} />
-              <ListFooter fetching={fetching} isLastPage={isLastPage} listLength={list.length} />
-            </>
-          )}
-        </ScrollView>
+          onEndReached={onEndReached}
+          onEndReachedThreshold={0.3}
+          ListEmptyComponent={!fetching ? <EmptyState variant="content" title="暂无内容" /> : null}
+          ListFooterComponent={<ListFooter fetching={fetching} isLastPage={isLastPage} listLength={list.length} />}
+          contentContainerStyle={styles.listContent}
+        />
       )}
     </SafeView>
   );
@@ -160,7 +150,7 @@ export default function Home() {
 
 const styles = StyleSheet.create({
   header: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#F5F5F5',
   },
   headerTop: {
     flexDirection: 'row',
@@ -227,12 +217,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     paddingTop: 5,
   },
-  scrollView: {
-    flex: 1,
+  listContent: {
+    paddingHorizontal: scaleSizeW(5),
+    paddingTop: scaleSizeH(5),
+    paddingBottom: scaleSizeH(100),
     backgroundColor: '#F5F5F5',
   },
-  scrollContent: {
-    paddingBottom: scaleSizeH(100),
-    flexGrow: 1,
+  columnWrapper: {
+    gap: scaleSizeW(4),
   },
 });
