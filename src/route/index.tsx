@@ -8,6 +8,8 @@ import LiquidGlassTabBar from '@/components/LiquidGlassTabBar';
 import type { RootStackParamList, MainTabParamList } from './map';
 
 import Home from '@/pages/home';
+import LinkPage from '@/pages/link';
+import MessagePage from '@/pages/message';
 import My from '@/pages/my';
 import LoginHome from '@/pages/login';
 import OtherNumberLogin from '@/pages/login/OtherNumberLogin';
@@ -39,25 +41,32 @@ function useNavTheme() {
 }
 
 function MainTabs() {
-  const theme = useTheme();
   return (
     <Tab.Navigator
       tabBar={props => <LiquidGlassTabBar {...props} />}
       screenOptions={{
-        tabBarActiveTintColor: theme.primary,
-        tabBarInactiveTintColor: theme.placeholder,
         freezeOnBlur: true,
       }}
     >
       <Tab.Screen
         name="home"
         component={Home}
-        options={{ title: i18n.t('首页'), headerShown: false }}
+        options={{ title: '广场', headerShown: false }}
+      />
+      <Tab.Screen
+        name="link"
+        component={LinkPage}
+        options={{ title: '链接', headerShown: false }}
+      />
+      <Tab.Screen
+        name="message"
+        component={MessagePage}
+        options={{ title: '消息', headerShown: false }}
       />
       <Tab.Screen
         name="my"
         component={My}
-        options={{ title: i18n.t('我的') }}
+        options={{ title: '我的' }}
       />
     </Tab.Navigator>
   );

@@ -1,216 +1,219 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
 import {
-  Animated,
+  Image,
   Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
-  type LayoutChangeEvent,
+  View,
 } from 'react-native';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import Svg, { Path } from 'react-native-svg';
 import { LiquidGlass } from '@/components/capabilities';
-import { useTheme } from '@/theme';
-import { getBottomSpaces, scaleSizeH, setSpText } from '@/utils/screenUtils';
+import { getBottomSpaces, scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 
-interface TabIconDef {
-  active: string;
-  inactive: string;
-}
-
-const TAB_ICONS: Record<string, TabIconDef> = {
+const TAB_ICONS: Record<string, { active: number; inactive: number }> = {
   home: {
-    active: 'M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z',
-    inactive: 'M12 5.69l5 4.5V18h-2v-6H9v6H7v-7.81l5-4.5M12 3L2 12h3v8h6v-6h2v6h6v-8h3L12 3z',
+    active: require('@/assets/tab-icons/home-active.png'),
+    inactive: require('@/assets/tab-icons/home-inactive.png'),
   },
-  demos: {
-    active: 'M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z',
-    inactive: 'M3 3h8v8H3V3zm2 2v4h4V5H5zm8-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm8-2h8v8h-8v-8zm2 2v4h4v-4h-4z',
+  link: {
+    active: require('@/assets/tab-icons/link-active.png'),
+    inactive: require('@/assets/tab-icons/link-inactive.png'),
+  },
+  message: {
+    active: require('@/assets/tab-icons/message-active.png'),
+    inactive: require('@/assets/tab-icons/message-inactive.png'),
   },
   my: {
-    active: 'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z',
-    inactive: 'M12 6c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2m0 10c2.7 0 5.8 1.29 6 2H6c.23-.72 3.31-2 6-2m0-12C9.79 4 8 5.79 8 8s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm0 10c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z',
+    active: require('@/assets/tab-icons/my-active.png'),
+    inactive: require('@/assets/tab-icons/my-inactive.png'),
   },
 };
 
-const TabIcon = ({ routeName, focused, color }: { routeName: string; focused: boolean; color: string }) => {
+const ACTIVE_COLOR = '#000000';
+const INACTIVE_COLOR = '#818181';
+const PUBLISH_BG = '#2962D4';
+const PUBLISH_SHADOW = '#BED4FF';
+
+const TabIcon = ({ routeName, focused }: { routeName: string; focused: boolean }) => {
   const icon = TAB_ICONS[routeName];
   if (!icon) return null;
   return (
-    <Svg width={scaleSizeH(22)} height={scaleSizeH(22)} viewBox="0 0 24 24">
-      <Path d={focused ? icon.active : icon.inactive} fill={color} />
-    </Svg>
+    <Image
+      source={focused ? icon.active : icon.inactive}
+      style={styles.tabIcon}
+      resizeMode="contain"
+    />
   );
 };
 
-const PILL_WIDTH = scaleSizeH(95);
+function TabItem({
+  route,
+  index,
+  descriptors,
+  state,
+  navigation,
+}: {
+  route: BottomTabBarProps['state']['routes'][number];
+  index: number;
+  descriptors: BottomTabBarProps['descriptors'];
+  state: BottomTabBarProps['state'];
+  navigation: BottomTabBarProps['navigation'];
+}) {
+  const { options } = descriptors[route.key];
+  const isFocused = state.index === index;
+  const label =
+    options.tabBarLabel !== undefined
+      ? options.tabBarLabel
+      : options.title !== undefined
+        ? options.title
+        : route.name;
 
-export default function LiquidGlassTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
-  const theme = useTheme();
-  const [tabBarWidth, setTabBarWidth] = useState(0);
-  const indicatorAnim = useRef(new Animated.Value(state.index)).current;
-  const tabWidth = tabBarWidth > 0 ? tabBarWidth / state.routes.length : 0;
-  const actualPillWidth = Math.min(PILL_WIDTH, tabWidth - 16);
-
-  useEffect(() => {
-    if (tabWidth > 0) {
-      Animated.spring(indicatorAnim, {
-        toValue: state.index,
-        useNativeDriver: true,
-        tension: 120,
-        friction: 12,
-      }).start();
+  const onPress = () => {
+    const event = navigation.emit({
+      type: 'tabPress',
+      target: route.key,
+      canPreventDefault: true,
+    });
+    if (!isFocused && !event.defaultPrevented) {
+      navigation.navigate(route.name);
     }
-  }, [state.index, tabWidth, indicatorAnim]);
+  };
 
-  const onLayout = (e: LayoutChangeEvent) => {
-    setTabBarWidth(e.nativeEvent.layout.width);
+  const onLongPress = () => {
+    navigation.emit({ type: 'tabLongPress', target: route.key });
   };
 
   return (
-    <LiquidGlass
-      style={styles.toolbar}
-      effect="regular"
-      tintColor="rgba(231,231,231,0.12)"
-      colorScheme="light"
-      interactive
-      onLayout={onLayout}
+    <TouchableOpacity
+      key={route.key}
+      accessibilityRole="button"
+      accessibilityState={isFocused ? { selected: true } : {}}
+      accessibilityLabel={options.tabBarAccessibilityLabel}
+      onPress={onPress}
+      onLongPress={onLongPress}
+      activeOpacity={0.7}
+      style={styles.tab}
     >
-      {tabWidth > 0 && (
-        <Animated.View
-          style={[
-            styles.pill,
-            {
-              backgroundColor:
-                Platform.OS === 'android' ? 'rgba(220,220,220,0.4)' : 'rgba(231,231,231,0.4)',
-              width: actualPillWidth,
-              left: (tabWidth - actualPillWidth) / 2,
-              transform: [
-                {
-                  translateX: indicatorAnim.interpolate({
-                    inputRange: [0, state.routes.length - 1],
-                    outputRange: [0, (state.routes.length - 1) * tabWidth],
-                    extrapolate: 'clamp',
-                  }),
-                },
-              ],
-            },
-          ]}
-        />
-      )}
-      {state.routes.map((route, index) => {
-        const { options } = descriptors[route.key];
-        const isFocused = state.index === index;
-        const label =
-          options.tabBarLabel !== undefined
-            ? options.tabBarLabel
-            : options.title !== undefined
-              ? options.title
-              : route.name;
+      <TabIcon routeName={route.name} focused={isFocused} />
+      {typeof label === 'string' ? (
+        <Text style={[styles.tabLabel, { color: isFocused ? ACTIVE_COLOR : INACTIVE_COLOR }]}>
+          {label}
+        </Text>
+      ) : null}
+    </TouchableOpacity>
+  );
+}
 
-        const onPress = () => {
-          const event = navigation.emit({
-            type: 'tabPress',
-            target: route.key,
-            canPreventDefault: true,
-          });
-          if (!isFocused && !event.defaultPrevented) {
-            navigation.navigate(route.name);
-          }
-        };
-
-        const onLongPress = () => {
-          navigation.emit({ type: 'tabLongPress', target: route.key });
-        };
-
-        const publishButton = index === 0 ? (
+export default function LiquidGlassTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+  return (
+    <View style={styles.container} pointerEvents="box-none">
+      <LiquidGlass
+        style={styles.toolbar}
+        effect="regular"
+        tintColor="rgba(255,255,255,0.80)"
+        colorScheme="light"
+        interactive
+      >
+        <View style={styles.tabsRow}>
+          {/* 广场 */}
+          <TabItem route={state.routes[0]} index={0} descriptors={descriptors} state={state} navigation={navigation} />
+          {/* 链接 */}
+          <TabItem route={state.routes[1]} index={1} descriptors={descriptors} state={state} navigation={navigation} />
+          {/* 发布按钮 */}
           <TouchableOpacity
-            key="publish-button"
             accessibilityRole="button"
             accessibilityLabel="发布"
             activeOpacity={0.8}
             style={styles.publishBtn}
             onPress={() => navigation.navigate('publish' as never)}
           >
-            <Svg width={scaleSizeH(22)} height={scaleSizeH(22)} viewBox="0 0 24 24">
-              <Path d="M12 5v14M5 12h14" stroke="#FFFFFF" strokeWidth={2} strokeLinecap="round" />
-            </Svg>
+            <Image
+              source={require('@/assets/tab-icons/publish.png')}
+              style={styles.publishIcon}
+              resizeMode="contain"
+            />
           </TouchableOpacity>
-        ) : null;
-
-        return (
-          <React.Fragment key={route.key}>
-            {publishButton}
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityState={isFocused ? { selected: true } : {}}
-              accessibilityLabel={options.tabBarAccessibilityLabel}
-              onPress={onPress}
-              onLongPress={onLongPress}
-              activeOpacity={0.7}
-              style={styles.tab}
-            >
-              <TabIcon
-                routeName={route.name}
-                focused={isFocused}
-                color={isFocused ? theme.primary : theme.placeholder}
-              />
-              {typeof label === 'string' ? (
-                <Text
-                  style={[
-                    styles.tabLabel,
-                    { color: isFocused ? theme.primary : theme.placeholder },
-                  ]}
-                >
-                  {label}
-                </Text>
-              ) : null}
-            </TouchableOpacity>
-          </React.Fragment>
-        );
-      })}
-    </LiquidGlass>
+          {/* 消息 */}
+          <TabItem route={state.routes[2]} index={2} descriptors={descriptors} state={state} navigation={navigation} />
+          {/* 我的 */}
+          <TabItem route={state.routes[3]} index={3} descriptors={descriptors} state={state} navigation={navigation} />
+        </View>
+      </LiquidGlass>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  toolbar: {
-    flexDirection: 'row',
+  container: {
     position: 'absolute',
-    borderRadius: 25,
-    bottom: getBottomSpaces(),
-    left: 20,
-    right: 20,
-    justifyContent: 'center',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: scaleSizeH(80),
     alignItems: 'center',
-    overflow: 'hidden',
-    height: 50,
     zIndex: 10,
   },
-  pill: {
-    position: 'absolute',
-    top: 5,
-    height: 40,
-    borderRadius: 87,
+  toolbar: {
+    width: '100%',
+    height: scaleSizeH(70) + getBottomSpaces(),
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: 'rgba(0,0,0,0.08)',
+        shadowOffset: { width: 0, height: 4 },
+        shadowRadius: 12,
+        shadowOpacity: 1,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  tabsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: scaleSizeW(38),
+    height: scaleSizeH(70),
+    backgroundColor:'red'
   },
   tab: {
-    flex: 1,
-    height: scaleSizeH(44),
-    flexDirection: 'column',
+    width: scaleSizeW(27),
+    height: scaleSizeH(41),
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  tabIcon: {
+    width: scaleSizeW(24),
+    height: scaleSizeH(24),
   },
   tabLabel: {
     fontSize: setSpText(10),
-    marginTop: scaleSizeH(2),
+    fontWeight: '400',
+    marginTop: scaleSizeH(3),
   },
   publishBtn: {
-    width: scaleSizeH(44),
-    height: scaleSizeH(44),
-    borderRadius: scaleSizeH(22),
-    backgroundColor: '#2962D4',
+    width: scaleSizeW(66),
+    height: scaleSizeH(35),
+    borderRadius: scaleSizeH(18),
+    backgroundColor: PUBLISH_BG,
     justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: scaleSizeH(8),
+    ...Platform.select({
+      ios: {
+        shadowColor: PUBLISH_SHADOW,
+        shadowOffset: { width: 0, height: 4 },
+        shadowRadius: 4,
+        shadowOpacity: 1,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  publishIcon: {
+    width: scaleSizeW(16),
+    height: scaleSizeH(16),
   },
 });
