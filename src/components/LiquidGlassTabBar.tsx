@@ -176,7 +176,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: scaleSizeW(38),
     height: scaleSizeH(70),
-    backgroundColor:'red'
   },
   tab: {
     width: scaleSizeW(27),
@@ -213,7 +212,7 @@ const styles = StyleSheet.create({
     }),
   },
   publishIcon: {
-    width: scaleSizeW(16),
-    height: scaleSizeH(16),
+    width: scaleSizeW(14),
+    height: scaleSizeH(14),
   },
 });
