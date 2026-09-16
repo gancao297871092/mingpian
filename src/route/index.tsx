@@ -133,7 +133,7 @@ export default function RootNavigator() {
           component={DraftBox}
           options={{
             title: '草稿箱',
-            headerStyle: { backgroundColor: '#FFFFFF' },
+            headerStyle: { backgroundColor: '#F6F7FB' },
             headerTitleStyle: { color: '#000000' },
             headerShadowVisible: false,
           }}

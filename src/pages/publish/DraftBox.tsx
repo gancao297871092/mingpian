@@ -135,7 +135,7 @@ export default function DraftBox() {
   });
 
   return (
-    <SafeView backgroundColor="#FFFFFF">
+    <SafeView backgroundColor="#F6F7FB">
       <View style={styles.tipBar}>
         <TipIcon />
         <Text style={styles.tipText}>草稿在应用卸载后会被删除，请及时发布</Text>
@@ -220,6 +220,7 @@ const styles = StyleSheet.create({
   cardBody: {
     padding: scaleSizeW(11),
     gap: scaleSizeH(8),
+    backgroundColor: '#FFFFFF',
   },
   cardTitle: {
     fontSize: scaleSizeW(15),
