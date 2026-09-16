@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  FlatList,
   Image,
   RefreshControl,
   StyleSheet,
@@ -8,6 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import SafeView from '@/components/SafeView';
 import ListFooter from '@/components/ListFooter';
 import WaterfallCard from '@/components/WaterfallCard';
@@ -103,13 +103,16 @@ export default function Home() {
             <View style={styles.tabItem}>
               <View style={styles.tabWithBadge}>
                 <Text style={[styles.tabText, activeTab === 'follow' && styles.tabTextActive]}>关注</Text>
+                <View style={styles.tabBadge}>
+                  <Text style={styles.tabBadgeText}>8</Text>
+                </View>
               </View>
               {activeTab === 'follow' && <View style={styles.tabIndicator} />}
             </View>
           </TouchableOpacity>
         </View>
         <TouchableOpacity activeOpacity={0.7} style={styles.msgBtn}>
-          <Image source={require('@/assets/tab-icons/message-icon.png')} style={styles.msgIcon} resizeMode="contain" />
+          <Image source={require('@/assets/tab-icons/search-icon.png')} style={styles.msgIcon} resizeMode="contain" />
         </TouchableOpacity>
       </View>
       <View style={styles.divider} />
@@ -119,18 +122,18 @@ export default function Home() {
   const showSkeleton = fetching && list.length === 0;
 
   return (
-    <SafeView backgroundColor="#F5F5F5" disableTop={false}>
+    <SafeView backgroundColor="#fff" disableTop={false}>
       {renderHeader()}
       {showSkeleton ? (
         <View style={styles.skeletonWrap}>
           <WaterfallSkeleton />
         </View>
       ) : (
-        <FlatList
+        <FlashList
           data={list}
           keyExtractor={(item) => item.id}
+          masonry
           numColumns={2}
-          columnWrapperStyle={styles.columnWrapper}
           renderItem={({ item }) => <WaterfallCard item={item} onToggleLike={onToggleLike} />}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -149,14 +152,14 @@ export default function Home() {
 
 const styles = StyleSheet.create({
   header: {
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#FFFFFF',
   },
   headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: scaleSizeW(16),
-    height: scaleSizeH(38),
+    height: scaleSizeH(48),
   },
   tabRow: {
     flexDirection: 'row',
@@ -189,11 +192,19 @@ const styles = StyleSheet.create({
     marginTop: scaleSizeH(2),
   },
   tabBadge: {
-    width: scaleSizeW(6),
-    height: scaleSizeW(6),
-    borderRadius: scaleSizeW(3),
+    height: scaleSizeH(14),
+    paddingHorizontal: scaleSizeW(5),
+    borderRadius: scaleSizeW(90),
     backgroundColor: '#EF4444',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginTop: -scaleSizeH(8),
+  },
+  tabBadgeText: {
+    fontSize: setSpText(10),
+    fontWeight: '500',
+    lineHeight: scaleSizeH(12),
+    color: '#FFFFFF',
   },
   msgBtn: {
     width: scaleSizeW(20),
@@ -221,8 +232,5 @@ const styles = StyleSheet.create({
     paddingTop: scaleSizeH(5),
     paddingBottom: scaleSizeH(100),
     backgroundColor: '#F5F5F5',
-  },
-  columnWrapper: {
-    gap: scaleSizeW(4),
   },
 });

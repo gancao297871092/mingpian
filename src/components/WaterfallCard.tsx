@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { formatLikeCount } from '@/utils/format';
+import Svg, { Path } from 'react-native-svg';
 
 export interface WaterfallItem {
   id: string;
@@ -19,6 +20,7 @@ export interface WaterfallItem {
   companyName: string;
   likeCount: number;
   isLiked: boolean;
+  hasVideo?: boolean;
 }
 
 export const CARD_WIDTH = scaleSizeW(194);
@@ -32,6 +34,14 @@ export default function WaterfallCard({ item, onToggleLike }: CardProps) {
   return (
     <View style={styles.card}>
       <Image source={{ uri: item.imageUrl }} style={[styles.cardImage, { height: scaleSizeH(item.imageHeight) }]} resizeMode="cover" />
+      {item.hasVideo && (
+        <View style={styles.videoBadge}>
+          <Svg width={scaleSizeW(10)} height={scaleSizeW(10)} viewBox="0 0 10 10">
+            <Path d="M2.5 1.5L8 5L2.5 8.5Z" fill="#FFFFFF" />
+          </Svg>
+          <Text style={styles.videoBadgeText}>含视频</Text>
+        </View>
+      )}
       <View style={styles.cardContent}>
         <Text style={styles.cardTitle} numberOfLines={2}>
           {item.title}
@@ -62,30 +72,50 @@ export default function WaterfallCard({ item, onToggleLike }: CardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    width: CARD_WIDTH,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FFFFFF',
+    borderRadius: scaleSizeW(4),
+    overflow: 'hidden',
+    marginHorizontal: scaleSizeW(2),
     marginBottom: scaleSizeH(5),
   },
   cardImage: {
-    width: CARD_WIDTH,
+    width: '100%',
     backgroundColor: '#f5f5f5',
+  },
+  videoBadge: {
+    position: 'absolute',
+    top: scaleSizeH(10),
+    right: scaleSizeW(5),
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSizeW(3),
+    height: scaleSizeH(20),
+    paddingHorizontal: scaleSizeW(5),
+    borderRadius: scaleSizeW(10),
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  videoBadgeText: {
+    fontSize: setSpText(10),
+    fontWeight: '500',
+    lineHeight: scaleSizeH(10),
+    color: '#FFFFFF',
   },
   cardContent: {
     paddingHorizontal: scaleSizeW(11),
     paddingTop: scaleSizeH(6),
-    paddingBottom: scaleSizeH(10),
+    paddingBottom: scaleSizeH(12),
   },
   cardTitle: {
     fontSize: setSpText(15),
-    fontWeight: '400',
+    fontWeight: '500',
     color: '#333333',
     lineHeight: scaleSizeH(21),
-    minHeight: scaleSizeH(41),
+    // minHeight: scaleSizeH(41),
   },
   cardMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: scaleSizeH(8),
+    marginTop: scaleSizeH(12),
   },
   avatar: {
     width: scaleSizeW(27),
@@ -104,14 +134,14 @@ const styles = StyleSheet.create({
     fontSize: setSpText(12),
     fontWeight: '400',
     color: '#333333',
-    lineHeight: scaleSizeH(16),
+    lineHeight: scaleSizeH(12),
   },
   companyName: {
     fontSize: setSpText(10),
     fontWeight: '400',
     color: '#6c6c6c',
-    lineHeight: scaleSizeH(14),
-    marginTop: scaleSizeH(1),
+    lineHeight: scaleSizeH(12),
+    marginTop: scaleSizeH(5),
   },
   likeBtn: {
     flexDirection: 'row',
