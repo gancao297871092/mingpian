@@ -5,7 +5,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Video from 'react-native-video';
 import Svg, { Path } from 'react-native-svg';
 import SafeView from '@/components/SafeView';
-import Empty from '@/components/Empty';
+import EmptyState from '@/components/EmptyState';
 import { deleteDraft, formatDraftTime, listDrafts, LocalDraft } from '@/utils/draftStore';
 import { scaleSizeH, scaleSizeW } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
@@ -143,7 +143,7 @@ export default function DraftBox() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.listContent}>
         {drafts.length === 0 ? (
-          <Empty label="暂无草稿" />
+          <EmptyState variant="content" title="暂无草稿" style={styles.empty} />
         ) : (
           <View style={styles.columns}>
             {columns.map((col, i) => (
@@ -173,9 +173,13 @@ const styles = StyleSheet.create({
     color: PRIMARY,
   },
   listContent: {
+    flexGrow: 1,
     paddingHorizontal: scaleSizeW(5),
     paddingTop: scaleSizeH(12),
     paddingBottom: scaleSizeH(30),
+  },
+  empty: {
+    marginTop: scaleSizeH(80),
   },
   columns: {
     flexDirection: 'row',
