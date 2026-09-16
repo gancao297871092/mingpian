@@ -25,3 +25,18 @@ export function numTokw(num: number | string, fixed?: number, noFixedNum?: numbe
   }
   return nums.toFixed(noFixedNum && nums < noFixedNum ? 0 : fixed ?? 0);
 }
+
+/**
+ * 点赞数格式化（k / w）
+ */
+export function formatLikeCount(count: number): string {
+  if (count < 1000) {
+    return String(count);
+  }
+  if (count < 10000) {
+    const k = (count / 1000).toFixed(1);
+    return `${k.replace(/\.0$/, '')}k`;
+  }
+  const w = (count / 10000).toFixed(1);
+  return `${w.replace(/\.0$/, '')}w`;
+}
