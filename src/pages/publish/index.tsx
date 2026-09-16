@@ -380,18 +380,23 @@ export default function Publish() {
       headerRight: undefined,
       unstable_headerLeftItems: () => [
         {
-          type: 'button',
-          label: '取消',
-          onPress: exitBodyEditing,
+          type: 'custom',
+          element: (
+            <TouchableOpacity hitSlop={8} onPress={exitBodyEditing}>
+              <Text style={styles.headerActionText}>取消</Text>
+            </TouchableOpacity>
+          ),
           hidesSharedBackground: true,
         },
       ],
       unstable_headerRightItems: () => [
         {
-          type: 'button',
-          label: '发布',
-          onPress: onPublish,
-          tintColor: PRIMARY,
+          type: 'custom',
+          element: (
+            <TouchableOpacity hitSlop={8} onPress={onPublish}>
+              <Text style={[styles.headerActionText, styles.headerDoneText]}>发布</Text>
+            </TouchableOpacity>
+          ),
           hidesSharedBackground: true,
         },
       ],
