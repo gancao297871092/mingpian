@@ -366,24 +366,35 @@ export default function Publish() {
         headerBackVisible: true,
         headerLeft: undefined,
         headerRight: undefined,
+        unstable_headerLeftItems: undefined,
+        unstable_headerRightItems: undefined,
       });
       return;
     }
+    // 全屏编辑模式：用 header items 配置，hidesSharedBackground 去掉文字按钮的玻璃效果
+    // 注意：hidesSharedBackground 仅 iOS 18+ 生效
     navigation.setOptions({
       title: '',
       headerBackVisible: false,
-      // eslint-disable-next-line react/no-unstable-nested-components
-      headerLeft: () => (
-        <TouchableOpacity hitSlop={8} onPress={exitBodyEditing}>
-          <Text style={styles.headerActionText}>取消</Text>
-        </TouchableOpacity>
-      ),
-      // eslint-disable-next-line react/no-unstable-nested-components
-      headerRight: () => (
-        <TouchableOpacity hitSlop={8} onPress={onPublish}>
-          <Text style={[styles.headerActionText, styles.headerDoneText]}>发布</Text>
-        </TouchableOpacity>
-      ),
+      headerLeft: undefined,
+      headerRight: undefined,
+      unstable_headerLeftItems: () => [
+        {
+          type: 'button',
+          label: '取消',
+          onPress: exitBodyEditing,
+          hidesSharedBackground: true,
+        },
+      ],
+      unstable_headerRightItems: () => [
+        {
+          type: 'button',
+          label: '发布',
+          onPress: onPublish,
+          tintColor: PRIMARY,
+          hidesSharedBackground: true,
+        },
+      ],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bodyEditing, navigation]);
