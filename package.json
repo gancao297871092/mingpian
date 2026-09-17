@@ -11,6 +11,7 @@
     "postinstall": "patch-package"
   },
   "dependencies": {
+    "@expo/metro-config": "^57.0.12",
     "@gorhom/bottom-sheet": "^5.2.14",
     "@jayming/expo-svga-player": "^1.0.2",
     "@react-native-camera-roll/camera-roll": "^7.10.2",
@@ -27,7 +28,6 @@
     "bignumber.js": "^11.1.5",
     "dayjs": "^1.11.21",
     "expo": "^57.0.9",
-    "expo-gaode-map": "^2.2.43",
     "expo-image": "^57.0.1",
     "i18n-js": "^4.5.3",
     "lottie-react-native": "^7.3.8",
@@ -56,7 +56,7 @@
     "react-native-pell-rich-editor": "^1.10.0",
     "react-native-qrcode-svg": "^6.3.21",
     "react-native-reanimated": "~4.5.0",
-    "react-native-reanimated-carousel": "^5.0.0",
+    "react-native-reanimated-carousel": "^5.1.1",
     "react-native-reanimated-dnd": "^2.0.0",
     "react-native-render-html": "^6.3.4",
     "react-native-safe-area-context": "^5.8.0",

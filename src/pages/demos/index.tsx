@@ -18,7 +18,6 @@ const demos = [
   { key: 'DragSortDemo', title: '🔀 拖拽排序', icon: '🔀' },
   { key: 'UploadDemo', title: '☁️ 上传组件', icon: '☁️' },
   { key: 'LiquidGlassDemo', title: '💧 液态玻璃', icon: '💧' },
-  { key: 'GaodeMapDemo', title: '🗺️ 高德地图', icon: '🗺️' },
   { key: 'SwipeDeleteDemo', title: '↩️ 滑块删除', icon: '↩️' },
   { key: 'AccordionDemo', title: '📐 手风琴', icon: '📐' },
   { key: 'TabViewDemo', title: '📑 标签页', icon: '📑' },
