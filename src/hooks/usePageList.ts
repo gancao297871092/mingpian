@@ -39,7 +39,8 @@ export function usePageList<T, P extends FetchPageParams>(
             setList(prev => [...prev, ...(pageData.list || [])]);
           }
           setTotal(pageData.total);
-          setIsLastPage(pageData.isLastPage);
+          const last = pageData.isLastPage ?? (pageData.pages != null ? pageData.pageNum >= pageData.pages : false);
+          setIsLastPage(last);
         })
         .catch(() => {
           setIsLastPage(false);

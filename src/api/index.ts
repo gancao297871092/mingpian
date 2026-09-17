@@ -41,6 +41,23 @@ export namespace API {
     }
   }
 
+  export namespace square {
+    /** 广场动态流 */
+    export function feed(data: {
+      tab?: string;
+      boardType?: number;
+      pageNum?: number;
+      pageSize?: number;
+    }) {
+      return request.post<{
+        list: any[];
+        total: number;
+        pageNum: number;
+        pages: number;
+      }>('/square/feed', data);
+    }
+  }
+
   export namespace card {
     /** 名片列表 */
     export function list(params?: { t?: number }) {

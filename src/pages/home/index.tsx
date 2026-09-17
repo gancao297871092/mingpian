@@ -1,7 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   Image,
-  RefreshControl,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -10,10 +9,10 @@ import {
 import { FlashList } from '@shopify/flash-list';
 import SafeView from '@/components/SafeView';
 import ListFooter from '@/components/ListFooter';
-import WaterfallCard from '@/components/WaterfallCard';
+import WaterfallCard, { WaterfallItem } from '@/components/WaterfallCard';
 import WaterfallSkeleton from './WaterfallSkeleton';
 import EmptyState from '@/components/EmptyState';
-import { MOCK_WATERFALL_DATA, type WaterfallItem } from './mockData';
+import { API } from '@/api';
 import { usePageList } from '@/hooks/usePageList';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { PageList } from '@/utils/request';
@@ -24,33 +23,40 @@ interface FetchParams {
   tab?: string;
 }
 
+function transformBbsToItem(bbs: any): WaterfallItem {
+  const media = bbs.mediaLinkList?.[0]?.media;
+  const imageUrl = media?.mdUrl || bbs.coverUrl || '';
+  const originalWidth = media?.width ? parseInt(media.width, 10) : 194;
+  const originalHeight = media?.height ? parseInt(media.height, 10) : 200;
+  const imageHeight = Math.round((194 * originalHeight) / originalWidth);
+
+  return {
+    id: String(bbs.id),
+    imageUrl,
+    imageHeight,
+    title: bbs.title || '',
+    avatarUrl: bbs.userInfoVo?.avatar || '',
+    userName: bbs.userInfoVo?.nickname || bbs.userInfoVo?.username || '',
+    companyName: bbs.userInfoVo?.cpName || '',
+    likeCount: bbs.countLike || 0,
+    isLiked: bbs.userIsZan === 1,
+    hasVideo: media?.fileType === 'video' || !!bbs.coverUrl,
+  };
+}
+
 function fetchWaterfallList(params: FetchParams): Promise<PageList<WaterfallItem>> {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const { pageNum, pageSize } = params;
-      const list: WaterfallItem[] = [];
-      if (pageNum <= 3) {
-        const start = (pageNum - 1) * pageSize;
-        for (let i = 0; i < pageSize; i++) {
-          const idx = (start + i) % MOCK_WATERFALL_DATA.length;
-          list.push({
-            ...MOCK_WATERFALL_DATA[idx],
-            id: `${MOCK_WATERFALL_DATA[idx].id}-${pageNum}-${i}`,
-          });
-        }
-      }
-      resolve({
-        code: '0',
-        msg: 'success',
-        data: {
-          list,
-          total: 24,
-          pageNum,
-          pageSize,
-          isLastPage: pageNum >= 3,
-        },
-      });
-    }, 1500);
+  return API.square.feed(params).then((res) => {
+    const data = res.data;
+    return {
+      code: res.code,
+      msg: res.msg,
+      data: {
+        list: data.list.map(transformBbsToItem),
+        total: data.total,
+        pageNum: data.pageNum,
+        pages: data.pages,
+      },
+    };
   });
 }
 
@@ -129,14 +135,15 @@ export default function Home() {
       ) : (
         <FlashList
           data={list}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item: WaterfallItem) => item.id}
           masonry
           numColumns={2}
-          renderItem={({ item }) => <WaterfallCard item={item} onToggleLike={onToggleLike} />}
+          renderItem={({ item }: { item: WaterfallItem }) => (
+            <WaterfallCard item={item} onToggleLike={onToggleLike} />
+          )}
           showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl refreshing={fetching && list.length > 0} onRefresh={refresh} tintColor="#2962D4" />
-          }
+          refreshing={fetching && list.length > 0}
+          onRefresh={refresh}
           onEndReached={onEndReached}
           onEndReachedThreshold={0.3}
           ListEmptyComponent={!fetching ? <EmptyState variant="content" title="暂无内容" /> : null}
@@ -219,7 +226,6 @@ const styles = StyleSheet.create({
   skeletonWrap: {
     flex: 1,
     backgroundColor: '#F5F5F5',
-    paddingHorizontal: 5,
     paddingTop: 5,
   },
   listContent: {

@@ -1,4 +1,4 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { storageUtils } from './storage';
 import { env } from '@/config/env';
 
@@ -17,8 +17,9 @@ export interface PageList<T = any> {
     list: T[];
     total: number;
     pageNum: number;
-    pageSize: number;
-    isLastPage: boolean;
+    pageSize?: number;
+    pages?: number;
+    isLastPage?: boolean;
   };
 }
 
