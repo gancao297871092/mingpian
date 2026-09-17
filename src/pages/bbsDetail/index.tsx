@@ -1,24 +1,25 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   Modal,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  type ViewProps,
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { Carousel } from 'react-native-reanimated-carousel';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { useRoute, type RouteProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureViewer, GestureTrigger, useGestureViewerState } from 'react-native-gesture-image-viewer';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Circle, Path } from 'react-native-svg';
 import SafeView from '@/components/SafeView';
 import EmptyState from '@/components/EmptyState';
+import NavHeader from '@/components/NavHeader';
 import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText, SCREEN_WIDTH } from '@/utils/screenUtils';
 import { formatLikeCount } from '@/utils/format';
@@ -236,6 +237,27 @@ function PreviewBadge() {
   );
 }
 
+interface TapViewProps extends ViewProps {
+  onPress?: () => void;
+  children?: React.ReactNode;
+}
+
+// 轮播 item 内的点击必须走 gesture-handler 的 Tap（与 carousel 的 pan 协调），
+// 用 RN Pressable 会消费触摸流导致 carousel 拖不动
+const TapView = React.forwardRef<View, TapViewProps>(({ onPress, children, ...rest }, ref) => {
+  const onPressRef = useRef(onPress);
+  onPressRef.current = onPress;
+  const tap = useMemo(() => Gesture.Tap().onEnd(() => onPressRef.current?.()), []);
+  return (
+    <GestureDetector gesture={tap}>
+      <View ref={ref} {...rest}>
+        {children}
+      </View>
+    </GestureDetector>
+  );
+});
+TapView.displayName = 'TapView';
+
 function CommentLike({ count, showCount = true }: { count: number; showCount?: boolean }) {
   const [liked, setLiked] = useState(false);
   return (
@@ -329,7 +351,6 @@ function CommentItem({ item }: { item: CommentData }) {
 }
 
 export default function BbsDetail() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'bbsDetail'>>();
   const insets = useSafeAreaInsets();
   const currentAvatar = useUserStore(s => s.userInfo?.wqUser?.avatar);
@@ -360,7 +381,7 @@ export default function BbsDetail() {
         setLikeCount(d.likeCount);
         setFavCount(d.favCount);
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => {
         if (mounted) setLoading(false);
       });
@@ -370,50 +391,6 @@ export default function BbsDetail() {
   }, [route.params.id]);
 
   const onToggleFollow = useCallback(() => setFollowing(v => !v), []);
-
-  useEffect(() => {
-    if (!detail) return;
-    navigation.setOptions({
-      headerTitleAlign: 'left',
-      headerTitle: () => (
-        <View style={styles.headerAuthor}>
-          <ExpoImage source={{ uri: detail.authorAvatar }} style={styles.headerAvatar} contentFit="cover" transition={150} />
-          <View style={styles.headerAuthorText}>
-            <Text style={styles.headerName} numberOfLines={1}>{detail.authorName}</Text>
-            <View style={styles.headerCompanyRow}>
-              <Text style={styles.headerCompany} numberOfLines={1}>{detail.authorCompany}</Text>
-              <VerifiedBadge />
-            </View>
-          </View>
-        </View>
-      ),
-      unstable_headerRightItems: () => [
-        {
-          type: 'custom',
-          element: (
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={[styles.followBtn, following && styles.followedBtn]}
-              onPress={onToggleFollow}
-            >
-              <Text style={[styles.followText, following && styles.followedText]}>{following ? '已关注' : '关注'}</Text>
-            </TouchableOpacity>
-          ),
-          hidesSharedBackground: true,
-        },
-        {
-          type: 'custom',
-          element: (
-            <TouchableOpacity activeOpacity={0.7} hitSlop={8} style={styles.moreBtn}>
-              <View style={styles.moreDot} />
-              <View style={styles.moreDot} />
-              <View style={styles.moreDot} />
-            </TouchableOpacity>
-          ),
-        },
-      ],
-    });
-  }, [navigation, detail, following, onToggleFollow]);
 
   const imgHeight = useMemo(() => SCREEN_WIDTH * (535 / 402), []);
 
@@ -444,13 +421,14 @@ export default function BbsDetail() {
             <Carousel
               data={detail.images}
               loop={false}
+              autoplay={false}
               onSnapToItem={onSnapToItem}
               style={{ width: SCREEN_WIDTH, height: imgHeight }}
               itemSize={SCREEN_WIDTH}
               renderWindowSize={SCREEN_WIDTH}
               renderItem={({ item, index }) => (
                 <GestureTrigger index={index} onPress={() => setPreviewIndex(index)}>
-                  <Pressable>
+                  <TapView>
                     <ExpoImage
                       source={{ uri: item }}
                       style={{ width: SCREEN_WIDTH, height: imgHeight }}
@@ -459,7 +437,7 @@ export default function BbsDetail() {
                       cachePolicy="memory-disk"
                       recyclingKey={item}
                     />
-                  </Pressable>
+                  </TapView>
                 </GestureTrigger>
               )}
             />
@@ -507,6 +485,40 @@ export default function BbsDetail() {
 
   return (
     <SafeView backgroundColor="#FFFFFF">
+      <NavHeader
+        center={
+          detail ? (
+            <View style={styles.headerAuthor}>
+              <ExpoImage source={{ uri: detail.authorAvatar }} style={styles.headerAvatar} contentFit="cover" transition={150} />
+              <View style={styles.headerAuthorText}>
+                <Text style={styles.headerName} numberOfLines={1}>{detail.authorName}</Text>
+                <View style={styles.headerCompanyRow}>
+                  <Text style={styles.headerCompany} numberOfLines={1}>{detail.authorCompany}</Text>
+                  <VerifiedBadge />
+                </View>
+              </View>
+            </View>
+          ) : null
+        }
+        right={
+          <>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={[styles.followBtn, following && styles.followedBtn]}
+              onPress={onToggleFollow}
+            >
+              <Text style={[styles.followText, following && styles.followedText]}>{following ? '已关注' : '关注'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity activeOpacity={0.7} hitSlop={8} style={styles.moreBtn}>
+              <Svg width={scaleSizeW(30)} height={scaleSizeW(14)} viewBox="0 0 30 14">
+                <Circle cx={7} cy={7} r={2} fill="#999999" />
+                <Circle cx={15} cy={7} r={2} fill="#999999" />
+                <Circle cx={23} cy={7} r={2} fill="#999999" />
+              </Svg>
+            </TouchableOpacity>
+          </>
+        }
+      />
       {loading ? (
         <View style={styles.loadingBox}>
           <ActivityIndicator color={BLUE} />
@@ -582,7 +594,8 @@ const styles = StyleSheet.create({
   headerAuthor: {
     flexDirection: 'row',
     alignItems: 'center',
-    maxWidth: scaleSizeW(220),
+    marginLeft: scaleSizeW(12),
+    flexShrink: 1,
   },
   headerAvatar: {
     width: scaleSizeW(37),
@@ -635,16 +648,9 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
   moreBtn: {
-    flexDirection: 'row',
+    marginLeft: scaleSizeW(15),
     alignItems: 'center',
-    gap: scaleSizeW(4),
-    paddingHorizontal: scaleSizeW(2),
-  },
-  moreDot: {
-    width: scaleSizeW(4),
-    height: scaleSizeW(4),
-    borderRadius: scaleSizeW(2),
-    backgroundColor: '#999999',
+    justifyContent: 'center',
   },
   pageBadge: {
     position: 'absolute',

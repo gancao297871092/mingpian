@@ -155,13 +155,7 @@ export default function RootNavigator() {
         <Stack.Screen
           name="bbsDetail"
           component={BbsDetail}
-          options={{
-            title: '',
-            headerStyle: { backgroundColor: '#FFFFFF' },
-            headerTitleStyle: { color: '#000000' },
-            headerShadowVisible: false,
-            headerTitleAlign: 'left',
-          }}
+          options={{ headerShown: false }}
         />
       </Stack.Navigator>
     </NavigationContainer>
