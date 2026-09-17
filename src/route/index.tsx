@@ -2,7 +2,6 @@ import React from 'react';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import i18n from '@/language';
 import { useTheme } from '@/theme';
 import LiquidGlassTabBar from '@/components/LiquidGlassTabBar';
 import type { RootStackParamList, MainTabParamList } from './map';
@@ -20,6 +19,7 @@ import RichTextEdit from '@/pages/common/RichTextEdit';
 import Publish from '@/pages/publish';
 import PublishCover from '@/pages/publish/CoverSelect';
 import DraftBox from '@/pages/publish/DraftBox';
+import BbsDetail from '@/pages/bbsDetail';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -151,6 +151,17 @@ export default function RootNavigator() {
           name="publishCover"
           component={PublishCover}
           options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="bbsDetail"
+          component={BbsDetail}
+          options={{
+            title: '',
+            headerStyle: { backgroundColor: '#FFFFFF' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+            headerTitleAlign: 'left',
+          }}
         />
       </Stack.Navigator>
     </NavigationContainer>

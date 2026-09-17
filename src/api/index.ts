@@ -56,6 +56,10 @@ export namespace API {
         pages: number;
       }>('/square/feed', data);
     }
+    /** 动态聚合详情（作者/媒体/点赞收藏状态/评论数） */
+    export function bbsDetail(params: { bbsId: string | number }) {
+      return request.get<{ bbs: any; commentCount: number }>('/square/bbs/detail', { params });
+    }
   }
 
   export namespace card {

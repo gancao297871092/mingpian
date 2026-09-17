@@ -29,11 +29,12 @@ export const CARD_WIDTH = scaleSizeW(194);
 interface CardProps {
   item: WaterfallItem;
   onToggleLike: (id: string) => void;
+  onPress?: (id: string) => void;
 }
 
-export default function WaterfallCard({ item, onToggleLike }: CardProps) {
+export default function WaterfallCard({ item, onToggleLike, onPress }: CardProps) {
   return (
-    <View style={styles.card}>
+    <TouchableOpacity activeOpacity={0.9} style={styles.card} onPress={() => onPress?.(item.id)}>
       {!!item.imageUrl && (
         <ExpoImage
           source={{ uri: item.imageUrl }}
@@ -86,7 +87,7 @@ export default function WaterfallCard({ item, onToggleLike }: CardProps) {
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 

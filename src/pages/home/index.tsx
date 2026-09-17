@@ -7,6 +7,8 @@ import {
   View,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import SafeView from '@/components/SafeView';
 import ListFooter from '@/components/ListFooter';
 import WaterfallCard, { WaterfallItem } from '@/components/WaterfallCard';
@@ -16,6 +18,7 @@ import { API } from '@/api';
 import { usePageList } from '@/hooks/usePageList';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { PageList } from '@/utils/request';
+import type { RootStackParamList } from '@/route/map';
 
 interface FetchParams {
   pageNum: number;
@@ -71,6 +74,7 @@ function fetchWaterfallList(params: FetchParams): Promise<PageList<WaterfallItem
 type HomeTab = 'recommend' | 'follow';
 
 export default function Home() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [activeTab, setActiveTab] = useState<HomeTab>('recommend');
   const params = useMemo(() => ({ tab: activeTab }), [activeTab]);
 
@@ -147,7 +151,7 @@ export default function Home() {
           masonry
           numColumns={2}
           renderItem={({ item }: { item: WaterfallItem }) => (
-            <WaterfallCard item={item} onToggleLike={onToggleLike} />
+            <WaterfallCard item={item} onToggleLike={onToggleLike} onPress={(id) => navigation.navigate('bbsDetail', { id })} />
           )}
           showsVerticalScrollIndicator={false}
           refreshing={fetching && list.length > 0}
