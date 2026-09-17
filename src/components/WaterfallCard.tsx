@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { formatLikeCount } from '@/utils/format';
 import Svg, { Path } from 'react-native-svg';
@@ -33,8 +34,18 @@ interface CardProps {
 export default function WaterfallCard({ item, onToggleLike }: CardProps) {
   return (
     <View style={styles.card}>
-      <Image source={{ uri: item.imageUrl }} style={[styles.cardImage, { height: scaleSizeH(item.imageHeight) }]} resizeMode="cover" />
-      {item.hasVideo && (
+      {!!item.imageUrl && (
+        <ExpoImage
+          source={{ uri: item.imageUrl }}
+          style={[styles.cardImage, { height: scaleSizeH(item.imageHeight) }]}
+          contentFit="cover"
+          transition={200}
+          cachePolicy="memory-disk"
+          recyclingKey={item.imageUrl}
+          priority="low"
+        />
+      )}
+      {item.hasVideo && !!item.imageUrl && (
         <View style={styles.videoBadge}>
           <Svg width={scaleSizeW(10)} height={scaleSizeW(10)} viewBox="0 0 10 10">
             <Path d="M2.5 1.5L8 5L2.5 8.5Z" fill="#FFFFFF" />
@@ -47,7 +58,14 @@ export default function WaterfallCard({ item, onToggleLike }: CardProps) {
           {item.title}
         </Text>
         <View style={styles.cardMeta}>
-          <Image source={{ uri: item.avatarUrl }} style={styles.avatar} />
+          <ExpoImage
+            source={{ uri: item.avatarUrl }}
+            style={styles.avatar}
+            contentFit="cover"
+            transition={150}
+            cachePolicy="memory-disk"
+            recyclingKey={item.avatarUrl}
+          />
           <View style={styles.metaText}>
             <Text style={styles.userName} numberOfLines={1}>
               {item.userName}

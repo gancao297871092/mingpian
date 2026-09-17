@@ -23,12 +23,20 @@ interface FetchParams {
   tab?: string;
 }
 
+function ossVideoSnapshot(videoUrl: string): string {
+  if (!videoUrl) return '';
+  return `${videoUrl}?x-oss-process=video/snapshot,t_0,f_jpg,w_388,h_640,m_fast`;
+}
+
 function transformBbsToItem(bbs: any): WaterfallItem {
   const media = bbs.mediaLinkList?.[0]?.media;
-  const imageUrl = media?.mdUrl || bbs.coverUrl || '';
+  const isVideo = media?.fileType === 'video';
+  const imageUrl = isVideo
+    ? (bbs.posterUrl || bbs.coverUrl || ossVideoSnapshot(media?.mdUrl || ''))
+    : (media?.mdUrl || bbs.posterUrl || bbs.coverUrl || '');
   const originalWidth = media?.width ? parseInt(media.width, 10) : 194;
   const originalHeight = media?.height ? parseInt(media.height, 10) : 200;
-  const imageHeight = Math.round((194 * originalHeight) / originalWidth);
+  const imageHeight = Math.min(Math.round((194 * originalHeight) / originalWidth), 320);
 
   return {
     id: String(bbs.id),
@@ -40,13 +48,14 @@ function transformBbsToItem(bbs: any): WaterfallItem {
     companyName: bbs.userInfoVo?.cpName || '',
     likeCount: bbs.countLike || 0,
     isLiked: bbs.userIsZan === 1,
-    hasVideo: media?.fileType === 'video' || !!bbs.coverUrl,
+    hasVideo: isVideo,
   };
 }
 
 function fetchWaterfallList(params: FetchParams): Promise<PageList<WaterfallItem>> {
   return API.square.feed(params).then((res) => {
     const data = res.data;
+    console.log(data, 'data');
     return {
       code: res.code,
       msg: res.msg,
