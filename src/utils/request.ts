@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
+import { Alert } from 'react-native';
 import { storageUtils } from './storage';
 import { env } from '@/config/env';
 
@@ -59,6 +60,9 @@ class Request {
       response => {
         const data = response.data as ResponseResult<any>;
         if (data.code !== '200') {
+          if (data?.msg) {
+            Alert.alert('提示', data.msg);
+          }
           return Promise.reject(data);
         }
         return data as any;
