@@ -54,9 +54,11 @@ export default function WaterfallCard({ item, onToggleLike }: CardProps) {
         </View>
       )}
       <View style={styles.cardContent}>
-        <Text style={styles.cardTitle} numberOfLines={2}>
-          {item.title}
-        </Text>
+        {!!item.title
+          ? <Text style={styles.cardTitle} numberOfLines={2}>
+            {item.title}
+          </Text>
+          : null}
         <View style={styles.cardMeta}>
           <ExpoImage
             source={{ uri: item.avatarUrl }}
@@ -128,7 +130,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#333333',
     lineHeight: scaleSizeH(21),
-    // minHeight: scaleSizeH(41),
   },
   cardMeta: {
     flexDirection: 'row',

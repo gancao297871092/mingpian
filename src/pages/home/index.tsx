@@ -55,7 +55,6 @@ function transformBbsToItem(bbs: any): WaterfallItem {
 function fetchWaterfallList(params: FetchParams): Promise<PageList<WaterfallItem>> {
   return API.square.feed(params).then((res) => {
     const data = res.data;
-    console.log(data, 'data');
     return {
       code: res.code,
       msg: res.msg,
