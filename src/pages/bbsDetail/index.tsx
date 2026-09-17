@@ -2,8 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
+  Modal,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,9 +11,11 @@ import {
   View,
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
+import { Carousel } from 'react-native-reanimated-carousel';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GestureViewer, GestureTrigger, useGestureViewerState } from 'react-native-gesture-image-viewer';
 import Svg, { Path } from 'react-native-svg';
 import SafeView from '@/components/SafeView';
 import EmptyState from '@/components/EmptyState';
@@ -25,6 +27,9 @@ import type { RootStackParamList } from '@/route/map';
 
 const BLUE = '#2962D4';
 const LIKE_RED = '#FE2B55';
+
+const VERIFIED_PATH =
+  'M5.99414 0.949219C6.25322 0.949219 6.51231 1.04805 6.70992 1.2457L7.62333 2.15914H8.88415C9.44325 2.15914 9.89641 2.61236 9.89641 3.17141V4.43223L10.766 5.30181C11.1613 5.69712 11.1613 6.33805 10.766 6.73337L9.8964 7.60296V8.9076C9.8964 9.46665 9.44324 9.91986 8.88414 9.91986H7.57952L6.70993 10.7894C6.5123 10.9871 6.25322 11.0859 5.99414 11.0859C5.73504 11.0859 5.47596 10.9871 5.27835 10.7895L4.40876 9.91986H3.14796C2.58893 9.91986 2.1357 9.46665 2.1357 8.9076V7.64681L1.22229 6.73337C0.826945 6.33806 0.826945 5.69713 1.22229 5.30181L2.13568 4.38837V3.17142C2.13568 2.61238 2.58893 2.15916 3.14795 2.15916H4.36494L5.27834 1.24571C5.47597 1.04807 5.73504 0.949219 5.99412 0.949219H5.99414ZM7.87004 4.97129C7.7332 4.83445 7.51136 4.83445 7.37452 4.97129L5.70192 6.64387L4.98075 5.94745C4.84294 5.81436 4.62415 5.81682 4.48936 5.95196L4.48529 5.9561L4.48518 5.95622C4.35076 6.09541 4.35463 6.31724 4.49384 6.45166L5.4442 7.36943C5.48869 7.41252 5.54385 7.44299 5.60401 7.45771C5.72614 7.49878 5.86643 7.47067 5.96373 7.37337L7.87016 5.46694C8.007 5.3301 8.007 5.10824 7.87016 4.97141L7.87004 4.97129Z';
 
 const THUMB_PATH =
   'M12.6741 7.94118C13.0831 6.11417 13.3687 4.79274 13.5314 3.97427C13.9409 1.91363 12.8775 0 10.7699 0C8.86939 0 7.91493 0.944479 7.35213 2.83239L7.33769 2.88751C6.99985 4.41474 6.48325 5.59862 5.79944 6.44571C5.44362 6.8876 4.99556 7.24642 4.4866 7.49707C3.97763 7.74772 3.42006 7.88415 2.85286 7.89682L2.31368 7.90837C1.02795 7.93593 0 8.99433 0 10.2908V18.1126C0 19.7073 1.28232 21.0001 2.86441 21.0001H13.0164C15.1017 21.0001 16.9631 19.6818 17.6705 17.7044L19.7795 11.8083C20.316 10.3082 19.5448 8.65335 18.0567 8.11233C17.7452 7.99909 17.4163 7.94117 17.0849 7.94118H12.6741ZM10.7688 1.57501C11.7348 1.57501 12.2331 2.47276 11.9966 3.66504C11.8102 4.60374 11.4555 6.23492 10.9329 8.55412C10.8219 9.04684 11.1928 9.51619 11.6936 9.51619H17.0749C17.2251 9.51619 17.3742 9.54244 17.5156 9.59415C18.1911 9.83985 18.5412 10.5922 18.2976 11.2742L16.1919 17.1699C15.7086 18.5234 14.4368 19.4251 13.0119 19.4251H2.87517C2.15697 19.4251 1.57501 18.8373 1.57501 18.1126V10.2908C1.57501 9.85114 1.92308 9.4923 2.35831 9.48311L2.89644 9.47156C3.68964 9.45367 4.46933 9.26254 5.18088 8.91157C5.89244 8.5606 6.51864 8.05828 7.0156 7.4398C7.86086 6.39138 8.47117 4.99592 8.8581 3.25921C9.23925 1.99343 9.6687 1.57501 10.7691 1.57501H10.7688Z';
@@ -216,9 +221,18 @@ function transformDetail(bbs: any): DetailData {
 function VerifiedBadge() {
   return (
     <Svg width={scaleSizeW(12)} height={scaleSizeW(12)} viewBox="0 0 12 12">
-      <Path d="M6 0a6 6 0 1 1 0 12A6 6 0 0 1 6 0Z" fill={BLUE} />
-      <Path d="M3.2 6.2 5.1 8.1 8.9 4.1" stroke="#FFFFFF" strokeWidth={1.2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <Path d={VERIFIED_PATH} fill={BLUE} />
     </Svg>
+  );
+}
+
+function PreviewBadge() {
+  const { currentIndex, totalCount } = useGestureViewerState();
+  if (totalCount <= 1) return null;
+  return (
+    <View style={styles.previewBadge} pointerEvents="none">
+      <Text style={styles.pageBadgeText}>{currentIndex + 1}/{totalCount}</Text>
+    </View>
   );
 }
 
@@ -330,6 +344,7 @@ export default function BbsDetail() {
   const [likeCount, setLikeCount] = useState(0);
   const [favCount, setFavCount] = useState(0);
   const [imgIndex, setImgIndex] = useState(0);
+  const [previewIndex, setPreviewIndex] = useState(-1);
 
   useEffect(() => {
     let mounted = true;
@@ -402,8 +417,13 @@ export default function BbsDetail() {
 
   const imgHeight = useMemo(() => SCREEN_WIDTH * (535 / 402), []);
 
-  const onImageScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    setImgIndex(Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH));
+  const renderPreviewImage = useCallback(
+    (uri: string) => <ExpoImage source={{ uri }} style={styles.previewImage} contentFit="contain" transition={100} />,
+    [],
+  );
+
+  const onSnapToItem = (index: number) => {
+    setImgIndex(index);
   };
 
   const onToggleLike = () => {
@@ -421,24 +441,28 @@ export default function BbsDetail() {
       <View>
         {detail.images.length > 0 && (
           <View>
-            <ScrollView
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              onMomentumScrollEnd={onImageScrollEnd}
-            >
-              {detail.images.map(uri => (
-                <ExpoImage
-                  key={uri}
-                  source={{ uri }}
-                  style={{ width: SCREEN_WIDTH, height: imgHeight }}
-                  contentFit="cover"
-                  transition={200}
-                  cachePolicy="memory-disk"
-                  recyclingKey={uri}
-                />
-              ))}
-            </ScrollView>
+            <Carousel
+              data={detail.images}
+              loop={false}
+              onSnapToItem={onSnapToItem}
+              style={{ width: SCREEN_WIDTH, height: imgHeight }}
+              itemSize={SCREEN_WIDTH}
+              renderWindowSize={SCREEN_WIDTH}
+              renderItem={({ item, index }) => (
+                <GestureTrigger index={index} onPress={() => setPreviewIndex(index)}>
+                  <Pressable>
+                    <ExpoImage
+                      source={{ uri: item }}
+                      style={{ width: SCREEN_WIDTH, height: imgHeight }}
+                      contentFit="cover"
+                      transition={200}
+                      cachePolicy="memory-disk"
+                      recyclingKey={item}
+                    />
+                  </Pressable>
+                </GestureTrigger>
+              )}
+            />
             {detail.images.length > 1 && (
               <View style={styles.pageBadge}>
                 <Text style={styles.pageBadgeText}>{imgIndex + 1}/{detail.images.length}</Text>
@@ -526,6 +550,21 @@ export default function BbsDetail() {
           </View>
         </View>
       </View>
+      <Modal transparent visible={previewIndex >= 0} onRequestClose={() => setPreviewIndex(-1)}>
+        {detail && previewIndex >= 0 && (
+          <>
+            <GestureViewer
+              data={detail.images}
+              initialIndex={previewIndex}
+              renderItem={renderPreviewImage}
+              ListComponent={ScrollView}
+              onDismiss={() => setPreviewIndex(-1)}
+              onSingleTap={() => setPreviewIndex(-1)}
+            />
+            <PreviewBadge />
+          </>
+        )}
+      </Modal>
     </SafeView>
   );
 }
@@ -622,6 +661,21 @@ const styles = StyleSheet.create({
     fontSize: setSpText(12),
     color: '#FFFFFF',
     lineHeight: scaleSizeH(12),
+  },
+  previewBadge: {
+    position: 'absolute',
+    top: scaleSizeH(60),
+    right: scaleSizeW(16),
+    height: scaleSizeH(20),
+    paddingHorizontal: scaleSizeW(10),
+    borderRadius: scaleSizeH(10),
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewImage: {
+    width: '100%',
+    height: '100%',
   },
   dotsRow: {
     flexDirection: 'row',
