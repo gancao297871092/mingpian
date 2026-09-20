@@ -23,6 +23,8 @@ export interface WaterfallItem {
   isLiked: boolean;
   hasVideo?: boolean;
   isFollowed?: boolean;
+  isFaved?: boolean;
+  favCount?: number;
 }
 
 export const CARD_WIDTH = scaleSizeW(194);

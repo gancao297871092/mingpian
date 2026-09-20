@@ -30,6 +30,7 @@ import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText, SCREEN_WIDTH } from '@/utils/screenUtils';
 import { formatLikeCount } from '@/utils/format';
 import { useUserStore } from '@/store/user';
+import { useBbsInteractionStore } from '@/store/bbsInteraction';
 import CommentInputSheet from './CommentInputSheet';
 import CommentActionSheet, { type CommentAction } from './CommentActionSheet';
 import CommentReportSheet from './CommentReportSheet';
@@ -390,6 +391,8 @@ export default function BbsDetail() {
   const [imgIndex, setImgIndex] = useState(0);
   const [previewIndex, setPreviewIndex] = useState(-1);
   const [visibility, setVisibility] = useState<VisibilityKey>('public');
+  const likeNextRef = useRef({ isLiked: false, likeCount: 0 });
+  const favNextRef = useRef({ isFaved: false, favCount: 0 });
 
   const myId = useUserStore(s => s.userInfo?.wqUser?.id);
   const isBbsAuthor = !!detail && !!myId && detail.authorId === myId;
@@ -556,7 +559,7 @@ export default function BbsDetail() {
         setDetail(d);
         setLiked(d.isLiked);
         setFaved(d.isFaved);
-        setFollowing(res.data.isFollowed == 1 || route.params.isFollowed === true);
+        setFollowing(res.data.isFollowed === 1 || route.params.isFollowed === true);
         setVisibility(d.visibility === 2 ? 'private' : d.visibility === 1 ? 'mutual' : 'public');
         setLikeCount(d.likeCount);
         setFavCount(d.favCount);
@@ -625,9 +628,16 @@ export default function BbsDetail() {
   const onToggleLike = () => {
     const next = !liked;
     setLiked(next);
-    setLikeCount(c => (next ? c + 1 : c - 1));
+    setLikeCount(c => {
+      const count = next ? c + 1 : c - 1;
+      likeNextRef.current = { isLiked: next, likeCount: count };
+      return count;
+    });
     API.bbs
       .like({ bbsId: Number(route.params.id), status: next ? 1 : 0 })
+      .then(() => {
+        useBbsInteractionStore.getState().setLike(route.params.id, likeNextRef.current);
+      })
       .catch(() => {
         setLiked(!next);
         setLikeCount(c => (next ? c - 1 : c + 1));
@@ -636,9 +646,16 @@ export default function BbsDetail() {
   const onToggleFav = () => {
     const next = !faved;
     setFaved(next);
-    setFavCount(c => (next ? c + 1 : c - 1));
+    setFavCount(c => {
+      const count = next ? c + 1 : c - 1;
+      favNextRef.current = { isFaved: next, favCount: count };
+      return count;
+    });
     API.bbs
       .favorite({ bbsId: Number(route.params.id), status: next ? 1 : 0 })
+      .then(() => {
+        useBbsInteractionStore.getState().setFav(route.params.id, favNextRef.current);
+      })
       .catch(() => {
         setFaved(!next);
         setFavCount(c => (next ? c - 1 : c + 1));
@@ -812,13 +829,13 @@ export default function BbsDetail() {
             <Svg width={scaleSizeW(20)} height={scaleSizeW(21)} viewBox="0 0 20 21">
               <Path d={THUMB_PATH} fill={liked ? LIKE_RED : '#000000'} />
             </Svg>
-            <Text style={styles.bottomActionText}>{formatLikeCount(likeCount)}</Text>
+            <Text style={[styles.bottomActionText, { color: liked ? LIKE_RED : '#000000' }]}>{formatLikeCount(likeCount)}</Text>
           </TouchableOpacity>
           <TouchableOpacity activeOpacity={0.7} hitSlop={6} style={styles.bottomAction} onPress={onToggleFav}>
             <Svg width={scaleSizeW(22)} height={scaleSizeW(21)} viewBox="0 0 22 21">
               <Path d={STAR_PATH} fill={faved ? '#FFB800' : '#000000'} />
             </Svg>
-            <Text style={styles.bottomActionText}>{formatLikeCount(favCount)}</Text>
+            <Text style={[styles.bottomActionText, { color: faved ? '#FFB800' : '#000000' }]}>{formatLikeCount(favCount)}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => openCommentInput()}

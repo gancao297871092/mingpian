@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Image,
   StyleSheet,
@@ -15,6 +15,7 @@ import WaterfallCard, { WaterfallItem } from '@/components/WaterfallCard';
 import WaterfallSkeleton from './WaterfallSkeleton';
 import EmptyState from '@/components/EmptyState';
 import { API } from '@/api';
+import { useBbsInteractionStore } from '@/store/bbsInteraction';
 import { usePageList } from '@/hooks/usePageList';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { PageList } from '@/utils/request';
@@ -53,6 +54,8 @@ function transformBbsToItem(bbs: any): WaterfallItem {
     isLiked: bbs.userIsZan === 1,
     hasVideo: isVideo,
     isFollowed: Number(bbs.isFollow ?? bbs.currentUserIsFollow) === 1,
+    isFaved: bbs.userIsFavorites === 1,
+    favCount: bbs.countFavorite || 0,
   };
 }
 
@@ -88,23 +91,47 @@ export default function Home() {
     isLastPage,
   } = usePageList<WaterfallItem, FetchParams>(fetchWaterfallList, params, 8, true);
 
+  const likeMap = useBbsInteractionStore(s => s.likeMap);
+  const favMap = useBbsInteractionStore(s => s.favMap);
+
+  useEffect(() => {
+    setList(prev =>
+      prev.map(item => {
+        const like = likeMap[item.id];
+        const fav = favMap[item.id];
+        if (!like && !fav) return item;
+        return {
+          ...item,
+          isLiked: like?.isLiked ?? item.isLiked,
+          likeCount: like?.likeCount ?? item.likeCount,
+          isFaved: fav?.isFaved ?? item.isFaved,
+          favCount: fav?.favCount ?? item.favCount,
+        };
+      }),
+    );
+  }, [likeMap, favMap, setList]);
+
   const onToggleLike = (id: string) => {
     const target = list.find(item => item.id === id);
     if (!target) return;
     const next = !target.isLiked;
+    const likeCount = target.likeCount + (next ? 1 : -1);
     setList((prev) =>
       prev.map((item) =>
         item.id === id
           ? {
               ...item,
               isLiked: next,
-              likeCount: item.likeCount + (next ? 1 : -1),
+              likeCount,
             }
           : item,
       ),
     );
     API.bbs
       .like({ bbsId: Number(id), status: next ? 1 : 0 })
+      .then(() => {
+        useBbsInteractionStore.getState().setLike(id, { isLiked: next, likeCount });
+      })
       .catch(() => {
         setList((prev) =>
           prev.map((item) =>
