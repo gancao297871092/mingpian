@@ -5,6 +5,8 @@ import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import BootSplash from 'react-native-bootsplash';
+import Toast, { type ToastConfig } from 'react-native-toast-message';
+import { Text, View } from 'react-native';
 import { ThemeProvider, useTheme } from '@/theme';
 import RootNavigator from '@/route';
 import { initWechat } from '@/utils/wechat';
@@ -20,6 +22,14 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+const toastConfig: ToastConfig = {
+  success: props => (
+    <View style={toastStyles.wrap}>
+      <Text style={toastStyles.text}>{props.text1}</Text>
+    </View>
+  ),
+};
 
 function Root() {
   const theme = useTheme();
@@ -58,6 +68,7 @@ function Root() {
     <QueryClientProvider client={queryClient}>
       <StatusBar barStyle={theme.dark ? 'light-content' : 'dark-content'} />
       <RootNavigator />
+      <Toast config={toastConfig} topOffset={80} />
     </QueryClientProvider>
   );
 }
@@ -79,6 +90,22 @@ function App() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+  },
+});
+
+const toastStyles = StyleSheet.create({
+  wrap: {
+    position: 'absolute',
+    top: '55%',
+    alignSelf: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+  },
+  text: {
+    fontSize: 14,
+    color: '#FFFFFF',
   },
 });
 
