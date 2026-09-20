@@ -89,17 +89,35 @@ export default function Home() {
   } = usePageList<WaterfallItem, FetchParams>(fetchWaterfallList, params, 8, true);
 
   const onToggleLike = (id: string) => {
+    const target = list.find(item => item.id === id);
+    if (!target) return;
+    const next = !target.isLiked;
     setList((prev) =>
       prev.map((item) =>
         item.id === id
           ? {
               ...item,
-              isLiked: !item.isLiked,
-              likeCount: item.isLiked ? item.likeCount - 1 : item.likeCount + 1,
+              isLiked: next,
+              likeCount: item.likeCount + (next ? 1 : -1),
             }
           : item,
       ),
     );
+    API.bbs
+      .like({ bbsId: Number(id), status: next ? 1 : 0 })
+      .catch(() => {
+        setList((prev) =>
+          prev.map((item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  isLiked: !next,
+                  likeCount: item.likeCount + (next ? -1 : 1),
+                }
+              : item,
+          ),
+        );
+      });
   };
 
   const onEndReached = useCallback(() => {
