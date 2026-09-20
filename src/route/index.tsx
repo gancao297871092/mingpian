@@ -20,6 +20,7 @@ import Publish from '@/pages/publish';
 import PublishCover from '@/pages/publish/CoverSelect';
 import DraftBox from '@/pages/publish/DraftBox';
 import BbsDetail from '@/pages/bbsDetail';
+import ReportBbs from '@/pages/report';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -156,6 +157,16 @@ export default function RootNavigator() {
           name="bbsDetail"
           component={BbsDetail}
           options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="reportBbs"
+          component={ReportBbs}
+          options={{
+            title: '举报动态',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
         />
       </Stack.Navigator>
     </NavigationContainer>

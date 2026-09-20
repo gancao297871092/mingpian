@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   FlatList,
+  Image as RNImage,
   Modal,
   ScrollView,
   StyleSheet,
@@ -13,7 +14,9 @@ import {
 import { Image as ExpoImage } from 'expo-image';
 import { Carousel } from 'react-native-reanimated-carousel';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { useRoute, type RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureViewer, GestureTrigger, useGestureViewerState } from 'react-native-gesture-image-viewer';
 import Svg, { Circle, Path } from 'react-native-svg';
@@ -24,6 +27,10 @@ import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText, SCREEN_WIDTH } from '@/utils/screenUtils';
 import { formatLikeCount } from '@/utils/format';
 import { useUserStore } from '@/store/user';
+import CommentInputSheet from './CommentInputSheet';
+import CommentActionSheet, { type CommentAction } from './CommentActionSheet';
+import CommentReportSheet from './CommentReportSheet';
+import MoreActionSheet, { type MoreAction } from './MoreActionSheet';
 import type { RootStackParamList } from '@/route/map';
 
 const BLUE = '#2962D4';
@@ -75,6 +82,10 @@ interface DetailData {
   favCount: number;
   isLiked: boolean;
   isFaved: boolean;
+  mediaWidth: number;
+  mediaHeight: number;
+  isVideo: boolean;
+  posterUrl: string;
 }
 
 const MOCK_COMMENTS: CommentData[] = [
@@ -190,6 +201,7 @@ function parseTags(tags?: string): string[] {
 
 function transformDetail(bbs: any): DetailData {
   const mediaList: any[] = bbs.mediaLinkList ?? [];
+  const firstMedia = mediaList[0]?.media;
   const images = mediaList
     .map(link => {
       const media = link?.media;
@@ -216,6 +228,10 @@ function transformDetail(bbs: any): DetailData {
     favCount: bbs.countFavorite || 0,
     isLiked: bbs.userIsZan === 1,
     isFaved: bbs.userIsFavorites === 1,
+    mediaWidth: Number(firstMedia?.width) || 0,
+    mediaHeight: Number(firstMedia?.height) || 0,
+    isVideo: firstMedia?.fileType === 'video',
+    posterUrl: bbs.posterUrl || '',
   };
 }
 
@@ -244,10 +260,10 @@ interface TapViewProps extends ViewProps {
 
 // 轮播 item 内的点击必须走 gesture-handler 的 Tap（与 carousel 的 pan 协调），
 // 用 RN Pressable 会消费触摸流导致 carousel 拖不动
+// 注意：gesture 回调是 worklet，不能在其中捕获 ref 再在 render 中修改 ref.current
+// （对象被传入 worklet 后会被冻结，修改会抛错）
 const TapView = React.forwardRef<View, TapViewProps>(({ onPress, children, ...rest }, ref) => {
-  const onPressRef = useRef(onPress);
-  onPressRef.current = onPress;
-  const tap = useMemo(() => Gesture.Tap().onEnd(() => onPressRef.current?.()), []);
+  const tap = useMemo(() => Gesture.Tap().onEnd(() => { onPress?.(); }), [onPress]);
   return (
     <GestureDetector gesture={tap}>
       <View ref={ref} {...rest}>
@@ -274,7 +290,7 @@ function CommentLike({ count, showCount = true }: { count: number; showCount?: b
   );
 }
 
-function ReplyRow({ reply }: { reply: ReplyData }) {
+function ReplyRow({ reply, onReply }: { reply: ReplyData; onReply?: (name: string) => void }) {
   return (
     <View style={styles.replyRow}>
       <ExpoImage source={{ uri: reply.avatar }} style={styles.replyAvatar} contentFit="cover" transition={150} recyclingKey={reply.avatar} />
@@ -293,7 +309,7 @@ function ReplyRow({ reply }: { reply: ReplyData }) {
         <View style={styles.commentMetaRow}>
           <View style={styles.commentMetaLeft}>
             <Text style={styles.commentMetaText}>{reply.time} {reply.location}</Text>
-            <TouchableOpacity activeOpacity={0.7} hitSlop={6}>
+            <TouchableOpacity activeOpacity={0.7} hitSlop={6} onPress={() => onReply?.(reply.userName)}>
               <Text style={styles.commentReplyText}>回复</Text>
             </TouchableOpacity>
           </View>
@@ -304,13 +320,21 @@ function ReplyRow({ reply }: { reply: ReplyData }) {
   );
 }
 
-function CommentItem({ item }: { item: CommentData }) {
+function CommentItem({
+  item,
+  onReply,
+  onLongPress,
+}: {
+  item: CommentData;
+  onReply?: (name: string) => void;
+  onLongPress?: (item: CommentData) => void;
+}) {
   const [expanded, setExpanded] = useState(false);
   const visibleReplies = expanded ? item.replies : item.replies.slice(0, 1);
   const hiddenCount = item.replies.length - visibleReplies.length;
 
   return (
-    <View style={styles.commentRow}>
+    <TouchableOpacity activeOpacity={1} style={styles.commentRow} onLongPress={() => onLongPress?.(item)} delayLongPress={350}>
       <ExpoImage source={{ uri: item.avatar }} style={styles.commentAvatar} contentFit="cover" transition={150} recyclingKey={item.avatar} />
       <View style={styles.commentBody}>
         <View style={styles.replyNameRow}>
@@ -320,7 +344,7 @@ function CommentItem({ item }: { item: CommentData }) {
         <View style={styles.commentMetaRow}>
           <View style={styles.commentMetaLeft}>
             <Text style={styles.commentMetaText}>{item.time} {item.location}</Text>
-            <TouchableOpacity activeOpacity={0.7} hitSlop={6}>
+            <TouchableOpacity activeOpacity={0.7} hitSlop={6} onPress={() => onReply?.(item.userName)}>
               <Text style={styles.commentReplyText}>回复</Text>
             </TouchableOpacity>
           </View>
@@ -332,7 +356,7 @@ function CommentItem({ item }: { item: CommentData }) {
           </View>
         )}
         {visibleReplies.map(r => (
-          <ReplyRow key={r.id} reply={r} />
+          <ReplyRow key={r.id} reply={r} onReply={onReply} />
         ))}
         {item.replies.length > 1 && (
           <TouchableOpacity activeOpacity={0.7} style={styles.expandRow} onPress={() => setExpanded(v => !v)}>
@@ -346,12 +370,13 @@ function CommentItem({ item }: { item: CommentData }) {
           </View>
         )}
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
 export default function BbsDetail() {
   const route = useRoute<RouteProp<RootStackParamList, 'bbsDetail'>>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
   const currentAvatar = useUserStore(s => s.userInfo?.wqUser?.avatar);
 
@@ -366,6 +391,46 @@ export default function BbsDetail() {
   const [favCount, setFavCount] = useState(0);
   const [imgIndex, setImgIndex] = useState(0);
   const [previewIndex, setPreviewIndex] = useState(-1);
+
+  const inputSheetRef = useRef<BottomSheetModal>(null);
+  const actionSheetRef = useRef<BottomSheetModal>(null);
+  const reportSheetRef = useRef<BottomSheetModal>(null);
+  const moreSheetRef = useRef<BottomSheetModal>(null);
+  const pendingReportRef = useRef(false);
+  const [replyTarget, setReplyTarget] = useState<string | null>(null);
+
+  const openCommentInput = useCallback((target?: string) => {
+    setReplyTarget(target ?? null);
+    inputSheetRef.current?.present();
+  }, []);
+
+  const openCommentActions = useCallback(() => {
+    actionSheetRef.current?.present();
+  }, []);
+
+  const onCommentAction = useCallback((action: CommentAction) => {
+    if (action === 'report') {
+      pendingReportRef.current = true;
+    }
+    actionSheetRef.current?.dismiss();
+  }, []);
+
+  const onActionSheetClose = useCallback(() => {
+    if (pendingReportRef.current) {
+      pendingReportRef.current = false;
+      reportSheetRef.current?.present();
+    }
+  }, []);
+
+  const onMoreAction = useCallback(
+    (action: MoreAction) => {
+      moreSheetRef.current?.dismiss();
+      if (action === 'report') {
+        navigation.navigate('reportBbs', { id: route.params.id });
+      }
+    },
+    [navigation, route.params.id],
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -392,16 +457,44 @@ export default function BbsDetail() {
 
   const onToggleFollow = useCallback(() => setFollowing(v => !v), []);
 
-  const imgHeight = useMemo(() => SCREEN_WIDTH * (535 / 402), []);
+  const DEFAULT_IMG_HEIGHT = SCREEN_WIDTH * (535 / 402);
+  const [imgHeight, setImgHeight] = useState(DEFAULT_IMG_HEIGHT);
+
+  useEffect(() => {
+    if (!detail) return;
+    const maxHeight = (SCREEN_WIDTH * 4) / 3;
+    const minHeight = SCREEN_WIDTH * 0.5;
+    const applySize = (width: number, height: number) => {
+      if (!width || !height) return;
+      const scale = SCREEN_WIDTH / width;
+      setImgHeight(Math.min(Math.max(height * scale, minHeight), maxHeight));
+    };
+    if (detail.isVideo && detail.posterUrl) {
+      let cancelled = false;
+      RNImage.getSize(
+        detail.posterUrl,
+        (w, h) => {
+          if (!cancelled) applySize(w, h);
+        },
+        () => {
+          if (!cancelled) applySize(detail.mediaWidth, detail.mediaHeight);
+        },
+      );
+      return () => {
+        cancelled = true;
+      };
+    }
+    applySize(detail.mediaWidth, detail.mediaHeight);
+  }, [detail]);
 
   const renderPreviewImage = useCallback(
     (uri: string) => <ExpoImage source={{ uri }} style={styles.previewImage} contentFit="contain" transition={100} />,
     [],
   );
 
-  const onSnapToItem = (index: number) => {
+  const onSnapToItem = useCallback((index: number) => {
     setImgIndex(index);
-  };
+  }, []);
 
   const onToggleLike = () => {
     setLiked(v => !v);
@@ -420,7 +513,7 @@ export default function BbsDetail() {
           <View>
             <Carousel
               data={detail.images}
-              loop={false}
+              loop={true}
               autoplay={false}
               onSnapToItem={onSnapToItem}
               style={{ width: SCREEN_WIDTH, height: imgHeight }}
@@ -474,7 +567,7 @@ export default function BbsDetail() {
               contentFit="cover"
               transition={150}
             />
-            <TouchableOpacity activeOpacity={0.7} style={styles.commentInput}>
+            <TouchableOpacity activeOpacity={0.7} style={styles.commentInput} onPress={() => openCommentInput()}>
               <Text style={styles.commentInputText}>留下你的看法</Text>
             </TouchableOpacity>
           </View>
@@ -509,7 +602,12 @@ export default function BbsDetail() {
             >
               <Text style={[styles.followText, following && styles.followedText]}>{following ? '已关注' : '关注'}</Text>
             </TouchableOpacity>
-            <TouchableOpacity activeOpacity={0.7} hitSlop={8} style={styles.moreBtn}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              hitSlop={8}
+              style={styles.moreBtn}
+              onPress={() => moreSheetRef.current?.present()}
+            >
               <Svg width={scaleSizeW(30)} height={scaleSizeW(14)} viewBox="0 0 30 14">
                 <Circle cx={7} cy={7} r={2} fill="#999999" />
                 <Circle cx={15} cy={7} r={2} fill="#999999" />
@@ -527,7 +625,9 @@ export default function BbsDetail() {
         <FlatList
           data={comments}
           keyExtractor={item => item.id}
-          renderItem={({ item }) => <CommentItem item={item} />}
+          renderItem={({ item }) => (
+            <CommentItem item={item} onReply={openCommentInput} onLongPress={openCommentActions} />
+          )}
           ListHeaderComponent={renderHeader}
           ListEmptyComponent={
             <EmptyState variant="comment" title="暂无评论" style={styles.emptyComment} />
@@ -536,12 +636,19 @@ export default function BbsDetail() {
           showsVerticalScrollIndicator={false}
         />
       )}
-      <View style={[styles.bottomBar, { paddingBottom: insets.bottom }]}>
+      <View style={[styles.bottomBar, { paddingBottom: scaleSizeH(10) }]}>
         <View style={styles.bottomBarRow}>
-          <TouchableOpacity activeOpacity={0.7} style={styles.bottomInput}>
+          {/* <TouchableOpacity activeOpacity={0.7} style={styles.bottomInput} onPress={() => openCommentInput()}>
             <Text style={styles.commentInputText}>留下你的看法</Text>
+          </TouchableOpacity> */}
+          <TouchableOpacity activeOpacity={0.7} style={[styles.bottomInput, {
+            backgroundColor: '#F2F6FF',
+            justifyContent: 'center',
+            alignItems: 'center',
+            paddingLeft: 0
+          }]} onPress={() => openCommentInput()}>
+            <Text style={[styles.commentInputText, { color: '#2962D4' }]}>编辑和权限设置</Text>
           </TouchableOpacity>
-          <View style={styles.bottomSpacer} />
           <TouchableOpacity activeOpacity={0.7} hitSlop={6} style={styles.bottomAction} onPress={onToggleLike}>
             <Svg width={scaleSizeW(20)} height={scaleSizeW(21)} viewBox="0 0 20 21">
               <Path d={THUMB_PATH} fill={liked ? LIKE_RED : '#000000'} />
@@ -562,6 +669,14 @@ export default function BbsDetail() {
           </View>
         </View>
       </View>
+      <CommentInputSheet
+        ref={inputSheetRef}
+        placeholder={replyTarget ? `回复 @${replyTarget}` : '留下你的看法'}
+        onSend={() => { }}
+      />
+      <CommentActionSheet ref={actionSheetRef} onAction={onCommentAction} onClose={onActionSheetClose} />
+      <CommentReportSheet ref={reportSheetRef} onSubmit={() => reportSheetRef.current?.dismiss()} />
+      <MoreActionSheet ref={moreSheetRef} onAction={onMoreAction} />
       <Modal transparent visible={previewIndex >= 0} onRequestClose={() => setPreviewIndex(-1)}>
         {detail && previewIndex >= 0 && (
           <>
@@ -935,12 +1050,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: scaleSizeW(16),
   },
   bottomInput: {
-    width: scaleSizeW(176),
     height: scaleSizeH(36),
     borderRadius: scaleSizeH(18),
     backgroundColor: '#F4F4F4',
     justifyContent: 'center',
     paddingLeft: scaleSizeW(14),
+    flex: 1
   },
   bottomSpacer: {
     flex: 1,

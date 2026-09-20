@@ -16,6 +16,7 @@ export interface AppBottomSheetProps {
   showHandle?: boolean;
   backdropOpacity?: number;
   enablePanDownToClose?: boolean;
+  bottomGap?: boolean;
 }
 
 const AppBottomSheet = forwardRef<BottomSheetModal, AppBottomSheetProps>(function Sheet(
@@ -26,6 +27,7 @@ const AppBottomSheet = forwardRef<BottomSheetModal, AppBottomSheetProps>(functio
     showHandle = true,
     backdropOpacity = 0.25,
     enablePanDownToClose = true,
+    bottomGap = true,
   },
   ref,
 ) {
@@ -55,7 +57,7 @@ const AppBottomSheet = forwardRef<BottomSheetModal, AppBottomSheetProps>(functio
       handleIndicatorStyle={styles.handle}
       backgroundStyle={[styles.background, { backgroundColor }]}
     >
-      <BottomSheetView style={[styles.content, { paddingBottom: insets.bottom + scaleSizeH(20) }]}>
+      <BottomSheetView style={[styles.content, { paddingBottom: bottomGap ? insets.bottom + scaleSizeH(20) : scaleSizeH(20) }]}>
         {children}
       </BottomSheetView>
     </BottomSheetModal>
