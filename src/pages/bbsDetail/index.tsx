@@ -15,6 +15,7 @@ import {
 import { Image as ExpoImage } from 'expo-image';
 import { Carousel } from 'react-native-reanimated-carousel';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { scheduleOnRN } from 'react-native-worklets';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
@@ -205,10 +206,16 @@ interface TapViewProps extends ViewProps {
 
 // 轮播 item 内的点击必须走 gesture-handler 的 Tap（与 carousel 的 pan 协调），
 // 用 RN Pressable 会消费触摸流导致 carousel 拖不动
-// 注意：gesture 回调是 worklet，不能在其中捕获 ref 再在 render 中修改 ref.current
-// （对象被传入 worklet 后会被冻结，修改会抛错）
+// 注意：gesture 回调是 worklet，在 UI 线程执行，不能在其中同步调用普通 JS 函数，
+// 需用 scheduleOnRN 调度回 JS 线程；也不能捕获 ref 后再修改 ref.current
 const TapView = React.forwardRef<View, TapViewProps>(({ onPress, children, ...rest }, ref) => {
-  const tap = useMemo(() => Gesture.Tap().onEnd(() => { onPress?.(); }), [onPress]);
+  const tap = useMemo(
+    () =>
+      Gesture.Tap().onEnd(() => {
+        if (onPress) scheduleOnRN(onPress);
+      }),
+    [onPress],
+  );
   return (
     <GestureDetector gesture={tap}>
       <View ref={ref} {...rest}>
