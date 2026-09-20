@@ -556,7 +556,7 @@ export default function BbsDetail() {
         setDetail(d);
         setLiked(d.isLiked);
         setFaved(d.isFaved);
-        setFollowing(d.isFollowed || route.params.isFollowed === true);
+        setFollowing(res.data.isFollowed == 1 || route.params.isFollowed === true);
         setVisibility(d.visibility === 2 ? 'private' : d.visibility === 1 ? 'mutual' : 'public');
         setLikeCount(d.likeCount);
         setFavCount(d.favCount);
@@ -725,10 +725,10 @@ export default function BbsDetail() {
               <ExpoImage source={{ uri: detail.authorAvatar }} style={styles.headerAvatar} contentFit="cover" transition={150} />
               <View style={styles.headerAuthorText}>
                 <Text style={styles.headerName} numberOfLines={1}>{detail.authorName}</Text>
-                <View style={styles.headerCompanyRow}>
+                {detail.authorCompany && <View style={styles.headerCompanyRow}>
                   <Text style={styles.headerCompany} numberOfLines={1}>{detail.authorCompany}</Text>
                   <VerifiedBadge />
-                </View>
+                </View>}
               </View>
             </View>
           ) : null
@@ -820,12 +820,15 @@ export default function BbsDetail() {
             </Svg>
             <Text style={styles.bottomActionText}>{formatLikeCount(favCount)}</Text>
           </TouchableOpacity>
-          <View style={styles.bottomAction}>
+          <TouchableOpacity
+            onPress={() => openCommentInput()}
+            style={styles.bottomAction}
+          >
             <Svg width={scaleSizeW(21)} height={scaleSizeW(21)} viewBox="0 0 21 21">
               <Path d={COMMENT_PATH} fill="#000000" />
             </Svg>
             <Text style={styles.bottomActionText}>{formatLikeCount(commentCount)}</Text>
-          </View>
+          </TouchableOpacity>
         </View>
       </View>
       <CommentInputSheet

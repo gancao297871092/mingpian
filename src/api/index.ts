@@ -62,7 +62,7 @@ export namespace API {
     }
     /** 动态聚合详情（作者/媒体/点赞收藏状态/评论数） */
     export function bbsDetail(params: { bbsId: string | number }) {
-      return request.get<{ bbs: any; commentCount: number }>('/square/bbs/detail', { params });
+      return request.get<{ bbs: any; commentCount: number; isFollowed: 0 | 1 }>('/square/bbs/detail', { params });
     }
   }
 
