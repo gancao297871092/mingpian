@@ -471,6 +471,58 @@ export default function Publish() {
   const VISIBILITY_MAP: Record<VisibilityKey, number> = { public: 0, mutual: 1, private: 2 };
   const COMMENT_MAP: Record<CommentKey, number> = { everyone: 0, fans: 1, mutual: 2, self: 3 };
 
+  /** 媒体列表：对齐小程序 mediaLinkList 结构 */
+  const buildMediaList = (): API.publish.PublishMedia[] => {
+    if (activeTab === 'video') {
+      return video?.url
+        ? [
+          {
+            type: 6,
+            isIndex: 0,
+            fileType: 'video',
+            mdUrl: video.url,
+            url: video.url,
+            isLocal: 1,
+            tempFilePath: video.uri,
+            width: video.width,
+            height: video.height,
+            size: video.size,
+            duration: video.duration,
+            media: {
+              mdUrl: video.url,
+              fileType: 'video',
+              width: video.width,
+              height: video.height,
+              size: video.size,
+              duration: video.duration,
+            },
+          },
+        ]
+        : [];
+    }
+    return images
+      .filter(item => !!item.url)
+      .map(item => ({
+        type: 6,
+        isIndex: 0,
+        fileType: 'image',
+        mdUrl: item.url as string,
+        url: item.url as string,
+        isLocal: 1,
+        tempFilePath: item.uri,
+        width: item.width,
+        height: item.height,
+        size: item.size,
+        media: {
+          mdUrl: item.url as string,
+          fileType: 'image',
+          width: item.width,
+          height: item.height,
+          size: item.size,
+        },
+      }));
+  };
+
   const onPublish = async () => {
     const activeTitle = activeTab === 'video' ? videoTitle : title;
     const activeContent = activeTab === 'video' ? videoBody : body;
@@ -519,13 +571,14 @@ export default function Publish() {
         draftType: activeTab === 'video' ? 1 : 0,
         title: activeTitle.trim(),
         content: activeContent.trim(),
-        images: activeTab === 'short' ? images.map(item => item.url || item.uri) : undefined,
+        mediaList: buildMediaList(),
         videoUrl: activeTab === 'video' ? video?.url : undefined,
         videoCover: videoCoverUrl,
         aiConnectEnabled: syncOn ? 1 : 0,
         declaration: declareOriginal ? 1 : 0,
         visibility: VISIBILITY_MAP[visibility],
         commentScope: COMMENT_MAP[commentWho],
+        boardType: 0
       });
       if (draftId) deleteDraft(draftId);
       Alert.alert('发布成功', '企业用户发布后，需企业管理员审核', [
@@ -778,20 +831,19 @@ export default function Publish() {
   const renderDeclareSheet = () => (
     <AppBottomSheet ref={declareRef}>
       <View style={[styles.sheetCard, { marginTop: scaleSizeH(20) }]}>
-        <View style={styles.optionRow}>
+        <View style={[styles.optionRow]}>
           <Text style={styles.optionLabel}>原创声明</Text>
-          <Switch
-            value={declareOriginal}
-            onValueChange={setDeclareOriginal}
-            trackColor={{ false: '#E5E5E5', true: PRIMARY }}
-            thumbColor="#FFFFFF"
-          />
+          <View>
+            <Switch
+              value={declareOriginal}
+              onValueChange={setDeclareOriginal}
+              trackColor={{ false: '#E5E5E5', true: PRIMARY }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
         </View>
       </View>
       <View style={styles.sheetCard}>
-        {renderOptionRow('内容为自行拍摄', declareOption === 'self-shot', () => {
-          setDeclareOption('self-shot');
-        })}
         <TouchableOpacity
           style={[styles.optionRow, styles.optionRowDivider]}
           activeOpacity={0.7}

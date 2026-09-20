@@ -24,6 +24,10 @@ export interface UploadVideo {
   url?: string;
   uploading: boolean;
   failed?: boolean;
+  width?: number;
+  height?: number;
+  size?: number;
+  duration?: number;
 }
 
 interface VideoUploaderProps {
@@ -100,7 +104,17 @@ export default function VideoUploader({
         Alert.alert('提示', `视频过大，请选择${Math.round(maxBytes / 1024 / 1024)}MB以内的视频`);
         return;
       }
-      startUpload({ uri: item.path, uploading: true }, item.mime);
+      startUpload(
+        {
+          uri: item.path,
+          uploading: true,
+          width: item.width,
+          height: item.height,
+          size: item.size,
+          duration: item.duration,
+        },
+        item.mime,
+      );
     } catch {
       // 用户取消
     }

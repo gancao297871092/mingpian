@@ -33,6 +33,9 @@ export interface UploadImage {
   url?: string;
   uploading: boolean;
   failed?: boolean;
+  width?: number;
+  height?: number;
+  size?: number;
 }
 
 interface ImageUploaderProps {
@@ -235,6 +238,9 @@ export default function ImageUploader({
         key: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         uri: item.path,
         uploading: true,
+        width: item.width,
+        height: item.height,
+        size: item.size,
       }));
       if (!newItems.length) return;
       emitChange(prev => [...prev, ...newItems].slice(0, maxCount));

@@ -122,12 +122,36 @@ export namespace API {
   }
 
   export namespace publish {
+    /** 媒体素材（对齐小程序 mediaLinkList 结构） */
+    export interface PublishMedia {
+      type: number;
+      mdId?: number;
+      targetId?: number;
+      isIndex: number;
+      fileType: string;
+      mdUrl: string;
+      url: string;
+      isLocal: number;
+      tempFilePath?: string;
+      width?: number;
+      height?: number;
+      size?: number;
+      duration?: number;
+      media: {
+        mdUrl: string;
+        fileType: string;
+        width?: number;
+        height?: number;
+        size?: number;
+        duration?: number;
+      };
+    }
     /** 三类型统一发布（draftType: 0图文/1视频/2长文） */
     export function submit(data: {
       draftType: 0 | 1 | 2;
       title?: string;
       content?: string;
-      images?: string[];
+      mediaList?: PublishMedia[];
       videoUrl?: string;
       videoCover?: string;
       aiConnectEnabled?: number;
