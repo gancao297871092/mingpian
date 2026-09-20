@@ -2,6 +2,7 @@ import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { Alert } from 'react-native';
 import { storageUtils } from './storage';
 import { env } from '@/config/env';
+import { resetToLogin } from '@/route/navigationRef';
 
 export const BASE_URL = env.apiUrl;
 
@@ -9,6 +10,33 @@ export interface ResponseResult<T = any> {
   code: string;
   msg: string;
   data: T;
+}
+
+const AUTH_ERROR_CODES = ['401', '10001', '10002', '10003'];
+
+let authAlertShowing = false;
+
+function handleAuthError() {
+  storageUtils.remove('token');
+  storageUtils.remove('userInfo');
+  if (authAlertShowing) return;
+  authAlertShowing = true;
+  Alert.alert('提示', '登录已过期，请重新登录', [
+    {
+      text: '取消',
+      style: 'cancel',
+      onPress: () => {
+        authAlertShowing = false;
+      },
+    },
+    {
+      text: '去登录',
+      onPress: () => {
+        authAlertShowing = false;
+        resetToLogin();
+      },
+    },
+  ]);
 }
 
 export interface PageList<T = any> {
@@ -60,6 +88,10 @@ class Request {
       response => {
         const data = response.data as ResponseResult<any>;
         if (data.code !== '200') {
+          if (AUTH_ERROR_CODES.includes(String(data?.code))) {
+            handleAuthError();
+            return Promise.reject(data);
+          }
           if (data?.msg) {
             Alert.alert('提示', data.msg);
           }
@@ -68,9 +100,9 @@ class Request {
         return data as any;
       },
       error => {
-        if (error.response?.status === 401 || error.code === '401' || error.code === '10001' || error.code === '10002' || error.code === '10003') {
-          storageUtils.remove('token');
-          storageUtils.remove('userInfo');
+        const code = String(error.response?.data?.code ?? error.code ?? error.response?.status ?? '');
+        if (error.response?.status === 401 || AUTH_ERROR_CODES.includes(code)) {
+          handleAuthError();
         }
         return Promise.reject(error);
       },

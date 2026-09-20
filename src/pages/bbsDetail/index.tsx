@@ -16,7 +16,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { Carousel } from 'react-native-reanimated-carousel';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { scheduleOnRN } from 'react-native-worklets';
-import * as Clipboard from 'expo-clipboard';
+import Clipboard from '@react-native-clipboard/clipboard';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
@@ -516,7 +516,7 @@ export default function BbsDetail() {
       } else if (action === 'delete' && selectedComment) {
         onDeleteComment(selectedComment.id);
       } else if (action === 'copy' && selectedComment) {
-        Clipboard.setStringAsync(selectedComment.content);
+        Clipboard.setString(selectedComment.content);
       }
       actionSheetRef.current?.dismiss();
     },

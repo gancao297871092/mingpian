@@ -2001,6 +2001,11 @@
   resolved "https://registry.npmjs.org/@react-native-camera-roll/camera-roll/-/camera-roll-7.10.2.tgz"
   integrity sha512-XgJQJDFUycmqSX+MH7vTcRigQwEIQNLIu1GvOngCZRwlSV2mF61UzeruSmmHwkBcGnHZFXkKg9fil0FQVfyglw==
 
+"@react-native-clipboard/clipboard@^1.16.3":
+  version "1.16.3"
+  resolved "https://registry.npmjs.org/@react-native-clipboard/clipboard/-/clipboard-1.16.3.tgz"
+  integrity sha512-cMIcvoZKIrShzJHEaHbTAp458R9WOv0fB6UyC7Ek4Qk561Ow/DrzmmJmH/rAZg21Z6ixJ4YSdFDC14crqIBmCQ==
+
 "@react-native-community/blur@^4.4.1":
   version "4.4.1"
   resolved "https://registry.npmjs.org/@react-native-community/blur/-/blur-4.4.1.tgz"
@@ -4492,11 +4497,6 @@ expo-asset@~57.0.8:
   dependencies:
     "@expo/image-utils" "^0.11.4"
     expo-constants "~57.0.8"
-
-expo-clipboard@^57.0.2:
-  version "57.0.2"
-  resolved "https://registry.npmjs.org/expo-clipboard/-/expo-clipboard-57.0.2.tgz"
-  integrity sha512-VB4Au8X/RbvJKUtJk+87vdtveWSNEa5RzY3ooeO6VNF7Rd49RbQXZOu3/TfEW9p7mU8TCfyTvjyCiAUwSoSJ4w==
 
 expo-constants@~57.0.8:
   version "57.0.8"

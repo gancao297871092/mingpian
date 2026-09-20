@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useTheme } from '@/theme';
 import LiquidGlassTabBar from '@/components/LiquidGlassTabBar';
+import { navigationRef } from './navigationRef';
 import type { RootStackParamList, MainTabParamList } from './map';
 
 import Home from '@/pages/home';
@@ -76,7 +77,7 @@ function MainTabs() {
 export default function RootNavigator() {
   const navTheme = useNavTheme();
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer ref={navigationRef} theme={navTheme}>
       <Stack.Navigator
         screenOptions={{
           headerTitleAlign: 'center',
