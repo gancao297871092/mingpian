@@ -279,14 +279,22 @@ function CommentItem({
   const [expanded, setExpanded] = useState(false);
   const [replies, setReplies] = useState(item.replies);
   const loadingRepliesRef = useRef(false);
+  const loadedAllRef = useRef(false);
   const visibleReplies = expanded ? replies : replies.slice(0, 1);
   const hiddenCount = item.replyCount - visibleReplies.length;
+
+  useEffect(() => {
+    if (!loadedAllRef.current) setReplies(item.replies);
+  }, [item.replies]);
 
   const onToggleExpand = () => {
     if (!expanded && item.replyCount > replies.length && !loadingRepliesRef.current) {
       loadingRepliesRef.current = true;
       onLoadReplies?.(item.id)
-        .then(list => setReplies(list))
+        .then(list => {
+          loadedAllRef.current = true;
+          setReplies(list);
+        })
         .catch(() => { })
         .finally(() => {
           loadingRepliesRef.current = false;
@@ -421,7 +429,21 @@ export default function BbsDetail() {
       }
       API.bbsComment
         .add(data)
-        .then(() => loadComments(1))
+        .then(res => {
+          if (replyTarget) {
+            const reply = transformReply(res.data ?? {});
+            setComments(prev =>
+              prev.map(c =>
+                c.id === replyTarget.commentId
+                  ? { ...c, replyCount: c.replyCount + 1, replies: [...c.replies, reply] }
+                  : c,
+              ),
+            );
+            setCommentCount(c => c + 1);
+          } else {
+            loadComments(1);
+          }
+        })
         .catch(() => { });
     },
     [replyTarget, route.params.id, loadComments],
@@ -727,14 +749,9 @@ export default function BbsDetail() {
                   actionSheetRef.current?.present();
                 }}
                 activeOpacity={0.7}
-                style={[styles.bottomInput, {
-                  backgroundColor: '#F2F6FF',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  paddingLeft: 0
-                }]}
+                style={[styles.bottomInput, styles.authorBtn]}
               >
-                <Text style={[styles.commentInputText, { color: '#2962D4' }]}>编辑和权限设置</Text>
+                <Text style={[styles.commentInputText, styles.authorBtnText]}>编辑和权限设置</Text>
               </TouchableOpacity>
             </>
           ) : (
@@ -1165,16 +1182,11 @@ const styles = StyleSheet.create({
     flex: 1
   },
   authorBtn: {
-    flex: 0,
-    width: scaleSizeW(86),
     backgroundColor: '#F2F6FF',
     alignItems: 'center',
     paddingLeft: 0,
-    marginRight: scaleSizeW(10),
   },
   authorBtnText: {
-    fontSize: setSpText(14),
-    fontWeight: '400',
     color: BLUE,
   },
   bottomSpacer: {
