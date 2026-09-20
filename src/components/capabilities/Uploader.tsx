@@ -1,162 +1,235 @@
-import React, { useCallback, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Image, Alert, ActivityIndicator,
+  ActivityIndicator,
+  Alert,
+  Image,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import ImagePicker from 'react-native-image-crop-picker';
-import axios from 'axios';
+import { GestureViewer } from 'react-native-gesture-image-viewer';
+import { scaleSizeW } from '@/utils/screenUtils';
+import { MAX_IMAGE_BYTES, maybeCompressImage } from '@/utils/media';
+import { uploadToOss } from '@/utils/ossUpload';
+import type { UploadImage } from '@/components/ImageUploader';
 
-interface UploadFile {
-  uri: string;
-  mime: string;
-  filename?: string;
-  progress: number;
-  url?: string;
-}
+const ICONS = {
+  add: require('@/assets/publish/add.png'),
+  remove: require('@/assets/publish/remove.png'),
+};
 
 interface UploaderProps {
-  onUpload?: (files: UploadFile[]) => void;
-  maxFiles?: number;
+  value?: UploadImage[];
+  onChange?: (images: UploadImage[]) => void;
+  maxCount?: number;
+  itemSize?: number;
+  gap?: number;
+  maxBytes?: number;
+  uploadFn?: (uri: string, mime?: string) => Promise<string>;
+  addIcon?: React.ReactNode;
 }
 
-export default function Uploader({ onUpload, maxFiles = 9 }: UploaderProps) {
-  const [files, setFiles] = useState<UploadFile[]>([]);
-  const [uploading, setUploading] = useState(false);
+export default function Uploader({
+  value,
+  onChange,
+  maxCount = 9,
+  itemSize = scaleSizeW(78),
+  gap = scaleSizeW(10),
+  maxBytes = MAX_IMAGE_BYTES,
+  uploadFn = uploadToOss,
+  addIcon,
+}: UploaderProps) {
+  const [innerImages, setInnerImages] = useState<UploadImage[]>([]);
+  const controlled = value !== undefined;
+  const images = controlled ? value : innerImages;
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
-  const selectImage = useCallback(async () => {
-    try {
-      const result = await ImagePicker.openPicker({
-        multiple: false,
-        mediaType: 'photo',
-      });
-      const newFile: UploadFile = {
-        uri: result.path,
-        mime: result.mime || 'image/jpeg',
-        filename: result.filename || 'photo.jpg',
-        progress: 0,
-      };
-      const updated = [...files, newFile];
-      setFiles(updated);
-      handleUpload(newFile);
-    } catch (e: any) {
-      if (e?.code !== 'E_PICKER_CANCELLED') {
-        Alert.alert('选择失败', e?.message);
-      }
-    }
-  }, [files]);
+  const latestRef = useRef(images);
+  latestRef.current = images;
 
-  const takePhoto = useCallback(async () => {
-    try {
-      const result = await ImagePicker.openCamera({
-        mediaType: 'photo',
-      });
-      const newFile: UploadFile = {
-        uri: result.path,
-        mime: result.mime || 'image/jpeg',
-        filename: result.filename || 'camera.jpg',
-        progress: 0,
-      };
-      const updated = [...files, newFile];
-      setFiles(updated);
-    } catch (e: any) {
-      if (e?.code !== 'E_PICKER_CANCELLED') {
-        Alert.alert('拍照失败', e?.message);
-      }
-    }
-  }, [files]);
-
-  const handleUpload = async (file: UploadFile) => {
-    setUploading(true);
-    const formData = new FormData();
-    formData.append('file', {
-      uri: file.uri,
-      type: file.mime,
-      name: file.filename,
-    } as any);
-    try {
-      await axios.post('https://httpbin.org/post', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        onUploadProgress: (e) => {
-          const progress = e.total ? Math.round((e.loaded / e.total) * 100) : 0;
-          setFiles(prev =>
-            prev.map(f => f.uri === file.uri ? { ...f, progress } : f),
-          );
-        },
-      });
-      setFiles(prev =>
-        prev.map(f => f.uri === file.uri ? { ...f, progress: 100, url: file.uri } : f),
-      );
-    } catch {
-      Alert.alert('上传失败');
-    } finally {
-      setUploading(false);
+  const emitChange = (updater: (prev: UploadImage[]) => UploadImage[]) => {
+    const next = updater(latestRef.current);
+    latestRef.current = next;
+    if (controlled) {
+      onChange?.(next);
+    } else {
+      setInnerImages(next);
+      onChange?.(next);
     }
   };
 
-  const removeFile = (uri: string) => {
-    setFiles(prev => prev.filter(f => f.uri !== uri));
+  const updateImage = (key: string, patch: Partial<UploadImage>) => {
+    emitChange(prev => prev.map(item => (item.key === key ? { ...item, ...patch } : item)));
+  };
+
+  const uploadImageItem = async (key: string, uri: string, mime?: string) => {
+    try {
+      const compressed = await maybeCompressImage(uri);
+      if (compressed !== uri) updateImage(key, { uri: compressed });
+      const url = await uploadFn(compressed, mime);
+      updateImage(key, { url, uploading: false });
+    } catch {
+      updateImage(key, { uploading: false, failed: true });
+    }
+  };
+
+  const pickImages = async () => {
+    try {
+      const remain = maxCount - latestRef.current.length;
+      if (remain <= 0) return;
+      const picked = await ImagePicker.openPicker({
+        multiple: true,
+        maxFiles: remain,
+        mediaType: 'photo',
+      });
+      const list = Array.isArray(picked) ? picked : [picked];
+      const valid: typeof list = [];
+      let oversize = false;
+      list.forEach(item => {
+        if (item.size && item.size > maxBytes) {
+          oversize = true;
+        } else if (item.path) {
+          valid.push(item);
+        }
+      });
+      if (oversize) {
+        Alert.alert('提示', `图片过大，请选择${Math.round(maxBytes / 1024 / 1024)}MB以内的图片`);
+      }
+      const newItems: UploadImage[] = valid.slice(0, remain).map(item => ({
+        key: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        uri: item.path,
+        uploading: true,
+      }));
+      if (!newItems.length) return;
+      emitChange(prev => [...prev, ...newItems].slice(0, maxCount));
+      newItems.forEach((item, i) => {
+        uploadImageItem(item.key, item.uri, valid[i]?.mime);
+      });
+    } catch (e) {
+      console.log('选择图片异常', e);
+    }
+  };
+
+  const removeImage = (key: string) => {
+    emitChange(prev => prev.filter(item => item.key !== key));
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.grid}>
-        {files.map((file, index) => (
-          <View key={index} style={styles.thumbWrap}>
-            <Image source={{ uri: file.uri }} style={styles.thumb} />
-            {file.progress > 0 && file.progress < 100 && (
-              <View style={styles.progressOverlay}>
-                <ActivityIndicator color="#fff" />
-                <Text style={styles.progressText}>{file.progress}%</Text>
-              </View>
-            )}
-            <TouchableOpacity style={styles.removeBtn} onPress={() => removeFile(file.uri)}>
-              <Text style={styles.removeText}>×</Text>
-            </TouchableOpacity>
-          </View>
-        ))}
-        {files.length < maxFiles && (
-          <TouchableOpacity style={styles.addBtn} onPress={selectImage}>
-            <Text style={styles.addText}>+</Text>
-            <Text style={styles.addLabel}>选择图片</Text>
+    <View style={[styles.grid, { gap }]}>
+      {images.map((item, index) => (
+        <View
+          key={item.key}
+          style={[styles.thumbWrap, { width: itemSize, height: itemSize, borderRadius: itemSize * 0.12 }]}
+        >
+          <TouchableOpacity style={styles.thumbTouch} activeOpacity={0.9} onPress={() => setPreviewIndex(index)}>
+            <Image source={{ uri: item.uri }} style={styles.thumb} />
           </TouchableOpacity>
-        )}
-      </View>
-      {files.length === 0 && (
-        <TouchableOpacity style={styles.cameraBtn} onPress={takePhoto}>
-          <Text style={styles.cameraBtnText}>拍照上传</Text>
+          {item.uploading && (
+            <View style={styles.thumbOverlay}>
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            </View>
+          )}
+          {!item.uploading && item.failed && (
+            <TouchableOpacity
+              style={styles.thumbOverlay}
+              activeOpacity={0.8}
+              onPress={() => {
+                updateImage(item.key, { uploading: true, failed: false });
+                uploadImageItem(item.key, item.uri);
+              }}
+            >
+              <Text style={styles.retryText}>重试</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity style={styles.removeBtn} hitSlop={6} onPress={() => removeImage(item.key)}>
+            <Image source={ICONS.remove} style={styles.removeIcon} />
+          </TouchableOpacity>
+        </View>
+      ))}
+      {images.length < maxCount && (
+        <TouchableOpacity
+          style={[styles.addBtn, { width: itemSize, height: itemSize, borderRadius: itemSize * 0.12 }]}
+          activeOpacity={0.8}
+          onPress={pickImages}
+        >
+          {addIcon ?? <Image source={ICONS.add} style={styles.addIcon} />}
         </TouchableOpacity>
       )}
+      <Modal
+        transparent
+        visible={previewIndex !== null}
+        animationType="fade"
+        onRequestClose={() => setPreviewIndex(null)}
+      >
+        {previewIndex !== null && (
+          <GestureViewer
+            data={images.map(item => item.uri)}
+            initialIndex={previewIndex}
+            renderItem={(uri: string) => (
+              <Image source={{ uri }} style={styles.previewImage} resizeMode="contain" />
+            )}
+            ListComponent={ScrollView}
+            onDismiss={() => setPreviewIndex(null)}
+          />
+        )}
+      </Modal>
     </View>
   );
 }
 
-const SIZE = 80;
-
 const styles = StyleSheet.create({
-  container: { padding: 16 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  thumbWrap: { width: SIZE, height: SIZE, borderRadius: 8, overflow: 'hidden' },
-  thumb: { width: SIZE, height: SIZE, borderRadius: 8 },
-  progressOverlay: {
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  thumbWrap: {
+    overflow: 'hidden',
+  },
+  thumbTouch: {
+    width: '100%',
+    height: '100%',
+  },
+  thumb: {
+    width: '100%',
+    height: '100%',
+  },
+  thumbOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 8,
-    justifyContent: 'center', alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  progressText: { color: '#fff', fontSize: 11 },
+  retryText: {
+    fontSize: scaleSizeW(12),
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
   removeBtn: {
-    position: 'absolute', top: -6, right: -6, width: 20, height: 20,
-    borderRadius: 10, backgroundColor: '#FF4757', justifyContent: 'center', alignItems: 'center',
+    position: 'absolute',
+    top: scaleSizeW(3),
+    right: scaleSizeW(3),
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  removeText: { color: '#fff', fontSize: 14, fontWeight: 'bold', lineHeight: 16 },
+  removeIcon: {
+    width: scaleSizeW(16),
+    height: scaleSizeW(16),
+  },
   addBtn: {
-    width: SIZE, height: SIZE, borderRadius: 8,
-    borderWidth: 2, borderColor: '#ddd', borderStyle: 'dashed',
-    justifyContent: 'center', alignItems: 'center',
+    backgroundColor: '#F5F5F5',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  addText: { fontSize: 28, color: '#ccc', lineHeight: 32 },
-  addLabel: { fontSize: 10, color: '#ccc' },
-  cameraBtn: {
-    marginTop: 12, paddingVertical: 12, alignItems: 'center',
-    backgroundColor: '#f5f5f5', borderRadius: 8,
+  addIcon: {
+    width: scaleSizeW(33),
+    height: scaleSizeW(33),
   },
-  cameraBtnText: { color: '#666', fontSize: 14 },
+  previewImage: {
+    width: '100%',
+    height: '100%',
+  },
 });

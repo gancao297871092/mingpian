@@ -138,6 +138,19 @@ export namespace API {
     }
   }
 
+  export namespace bbs {
+    /** 举报（reportedTargetType: 1=用户，2=动态，3=店铺；reportType: 1-6） */
+    export function reportSubmit(data: {
+      reportedTargetId: number;
+      reportedTargetType: number;
+      reportType: number;
+      reportReason?: string;
+      reportImages?: string;
+    }) {
+      return request.post<any>('/bbs/report/submit', data);
+    }
+  }
+
   export namespace bbsComment {
     /** 发表评论/回复（parentId 空=一级） */
     export function add(data: { bbsId: number; parentId?: number; replyToUserId?: number; content: string }) {

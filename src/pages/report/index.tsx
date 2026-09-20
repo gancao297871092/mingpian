@@ -1,8 +1,14 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import SafeView from '@/components/SafeView';
+import Uploader from '@/components/capabilities/Uploader';
+import type { UploadImage } from '@/components/ImageUploader';
+import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { CameraIcon } from '../bbsDetail/sheetIcons';
+import type { RootStackParamList } from '@/route/map';
 
 const BLUE = '#2962D4';
 const RED = '#EF4444';
@@ -10,9 +16,38 @@ const RED = '#EF4444';
 const REPORT_TYPES = ['色情低俗', '垃圾广告', '违法违规', '未成年保护', '辱骂攻击', '其他'];
 
 export default function ReportBbs() {
+  const route = useRoute<RouteProp<RootStackParamList, 'reportBbs'>>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [typeIndex, setTypeIndex] = useState(-1);
   const [reason, setReason] = useState('');
-  const canSubmit = typeIndex >= 0;
+  const [images, setImages] = useState<UploadImage[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const canSubmit = typeIndex >= 0 && !submitting;
+
+  const onSubmit = () => {
+    if (!canSubmit) return;
+    if (images.some(i => i.uploading)) {
+      Alert.alert('提示', '图片上传中，请稍候再提交');
+      return;
+    }
+    const urls = images.filter(i => i.url).map(i => i.url as string);
+    setSubmitting(true);
+    API.bbs
+      .reportSubmit({
+        reportedTargetId: Number(route.params.id),
+        reportedTargetType: 2,
+        reportType: typeIndex + 1,
+        reportReason: reason.trim() || undefined,
+        reportImages: urls.join(';') || undefined,
+      })
+      .then(() => {
+        Alert.alert('提示', '举报成功，我们会尽快处理', [
+          { text: '确定', onPress: () => navigation.goBack() },
+        ]);
+      })
+      .catch(() => { })
+      .finally(() => setSubmitting(false));
+  };
 
   return (
     <SafeView backgroundColor="#F6F7FB">
@@ -61,17 +96,22 @@ export default function ReportBbs() {
 
         <View style={styles.card}>
           <Text style={styles.label}>上传图片</Text>
-          <TouchableOpacity activeOpacity={0.7} style={styles.uploadBox}>
-            <CameraIcon />
-          </TouchableOpacity>
+          <View style={styles.uploadWrap}>
+            <Uploader
+              value={images}
+              onChange={setImages}
+              itemSize={scaleSizeW(78)}
+              addIcon={<CameraIcon />}
+            />
+          </View>
         </View>
 
         <TouchableOpacity
           activeOpacity={0.7}
           style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
-          onPress={() => { }}
+          onPress={onSubmit}
         >
-          <Text style={styles.submitText}>提交</Text>
+          <Text style={styles.submitText}>{submitting ? '提交中...' : '提交'}</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeView>
@@ -149,13 +189,7 @@ const styles = StyleSheet.create({
     color: '#999999',
     lineHeight: scaleSizeH(16),
   },
-  uploadBox: {
-    width: scaleSizeW(78),
-    height: scaleSizeW(78),
-    borderRadius: scaleSizeW(10),
-    backgroundColor: '#F5F5F5',
-    alignItems: 'center',
-    justifyContent: 'center',
+  uploadWrap: {
     marginTop: scaleSizeH(15),
   },
   submitBtn: {
