@@ -52,6 +52,7 @@ function transformBbsToItem(bbs: any): WaterfallItem {
     likeCount: bbs.countLike || 0,
     isLiked: bbs.userIsZan === 1,
     hasVideo: isVideo,
+    isFollowed: Number(bbs.isFollow ?? bbs.currentUserIsFollow) === 1,
   };
 }
 
@@ -151,7 +152,7 @@ export default function Home() {
           masonry
           numColumns={2}
           renderItem={({ item }: { item: WaterfallItem }) => (
-            <WaterfallCard item={item} onToggleLike={onToggleLike} onPress={(id) => navigation.navigate('bbsDetail', { id })} />
+            <WaterfallCard item={item} onToggleLike={onToggleLike} onPress={(id) => navigation.navigate('bbsDetail', { id, isFollowed: item.isFollowed })} />
           )}
           showsVerticalScrollIndicator={false}
           refreshing={fetching && list.length > 0}

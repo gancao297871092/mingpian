@@ -39,6 +39,10 @@ export namespace API {
     export function info() {
       return request.get<any>('/user/base/info');
     }
+    /** 关注/取消关注（isFollow: 1关注 0取消） */
+    export function followOperate(data: { targetUserId: number; isFollow: number }) {
+      return request.post<any>('/user/follow/operate', data);
+    }
   }
 
   export namespace square {
@@ -139,6 +143,14 @@ export namespace API {
   }
 
   export namespace bbs {
+    /** 点赞/取消（status: 1赞 0取消） */
+    export function like(params: { bbsId: number; status: number }) {
+      return request.get<any>('/bbs/like', { params });
+    }
+    /** 收藏/取消（status: 1收藏 0取消） */
+    export function favorite(params: { bbsId: number; status: number }) {
+      return request.get<any>('/bbs/favorite', { params });
+    }
     /** 举报（reportedTargetType: 1=用户，2=动态，3=店铺；reportType: 1-6） */
     export function reportSubmit(data: {
       reportedTargetId: number;

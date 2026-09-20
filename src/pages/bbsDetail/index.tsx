@@ -16,6 +16,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { Carousel } from 'react-native-reanimated-carousel';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { scheduleOnRN } from 'react-native-worklets';
+import * as Clipboard from 'expo-clipboard';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
@@ -84,6 +85,7 @@ interface DetailData {
   timeText: string;
   location: string;
   declaration: boolean;
+  visibility: number;
   images: string[];
   authorName: string;
   authorCompany: string;
@@ -93,6 +95,7 @@ interface DetailData {
   favCount: number;
   isLiked: boolean;
   isFaved: boolean;
+  isFollowed: boolean;
   mediaWidth: number;
   mediaHeight: number;
   isVideo: boolean;
@@ -118,6 +121,12 @@ function parseTags(tags?: string): string[] {
     .map(t => (t.startsWith('#') ? t : `#${t}`));
 }
 
+function joinRegion(province?: string, city?: string): string {
+  if (!province) return city || '';
+  if (!city || province === city) return province;
+  return province + city;
+}
+
 function transformReply(c: any): ReplyData {
   const info = c.userInfoVo ?? {};
   return {
@@ -129,7 +138,7 @@ function transformReply(c: any): ReplyData {
     replyTo: c.replyToNickname || '',
     content: c.content || '',
     time: formatPushTime(c.createTime),
-    location: [info.province, info.city].filter(Boolean).join(''),
+    location: joinRegion(info.province, info.city),
     likeCount: c.likeCount || 0,
   };
 }
@@ -163,8 +172,9 @@ function transformDetail(bbs: any): DetailData {
     content: bbs.content || '',
     tags: parseTags(bbs.tags),
     timeText: formatPushTime(bbs.pushTime),
-    location: [bbs.province, bbs.city].filter(Boolean).join('') || bbs.ipLocation || '',
+    location: joinRegion(bbs.province, bbs.city) || bbs.ipLocation || '',
     declaration: Number(bbs.declaration) === 1,
+    visibility: bbs.visibility ?? 0,
     images,
     authorName: bbs.userInfoVo?.nickname || bbs.userInfoVo?.username || '',
     authorCompany: bbs.userInfoVo?.cpName || '',
@@ -174,6 +184,7 @@ function transformDetail(bbs: any): DetailData {
     favCount: bbs.countFavorite || 0,
     isLiked: bbs.userIsZan === 1,
     isFaved: bbs.userIsFavorites === 1,
+    isFollowed: Number(bbs.userInfoVo?.isFollow ?? bbs.isFollow) === 1,
     mediaWidth: Number(firstMedia?.width) || 0,
     mediaHeight: Number(firstMedia?.height) || 0,
     isVideo: firstMedia?.fileType === 'video',
@@ -504,6 +515,8 @@ export default function BbsDetail() {
         onToggleTop(selectedComment.id);
       } else if (action === 'delete' && selectedComment) {
         onDeleteComment(selectedComment.id);
+      } else if (action === 'copy' && selectedComment) {
+        Clipboard.setStringAsync(selectedComment.content);
       }
       actionSheetRef.current?.dismiss();
     },
@@ -534,11 +547,15 @@ export default function BbsDetail() {
     API.square
       .bbsDetail({ bbsId: route.params.id })
       .then(res => {
+        console.log(res.data);
         if (!mounted) return;
         const d = transformDetail(res.data?.bbs ?? {});
+
         setDetail(d);
         setLiked(d.isLiked);
         setFaved(d.isFaved);
+        setFollowing(d.isFollowed || route.params.isFollowed === true);
+        setVisibility(d.visibility === 2 ? 'private' : d.visibility === 1 ? 'mutual' : 'public');
         setLikeCount(d.likeCount);
         setFavCount(d.favCount);
       })
@@ -549,13 +566,20 @@ export default function BbsDetail() {
     return () => {
       mounted = false;
     };
-  }, [route.params.id]);
+  }, [route.params.id, route.params.isFollowed]);
 
   useEffect(() => {
     loadComments(1);
   }, [loadComments]);
 
-  const onToggleFollow = useCallback(() => setFollowing(v => !v), []);
+  const onToggleFollow = useCallback(() => {
+    if (!detail) return;
+    const next = !following;
+    setFollowing(next);
+    API.user
+      .followOperate({ targetUserId: detail.authorId, isFollow: next ? 1 : 0 })
+      .catch(() => setFollowing(!next));
+  }, [detail, following]);
 
   const DEFAULT_IMG_HEIGHT = SCREEN_WIDTH * (535 / 402);
   const [imgHeight, setImgHeight] = useState(DEFAULT_IMG_HEIGHT);
@@ -597,12 +621,26 @@ export default function BbsDetail() {
   }, []);
 
   const onToggleLike = () => {
-    setLiked(v => !v);
-    setLikeCount(c => (liked ? c - 1 : c + 1));
+    const next = !liked;
+    setLiked(next);
+    setLikeCount(c => (next ? c + 1 : c - 1));
+    API.bbs
+      .like({ bbsId: Number(route.params.id), status: next ? 1 : 0 })
+      .catch(() => {
+        setLiked(!next);
+        setLikeCount(c => (next ? c - 1 : c + 1));
+      });
   };
   const onToggleFav = () => {
-    setFaved(v => !v);
-    setFavCount(c => (faved ? c - 1 : c + 1));
+    const next = !faved;
+    setFaved(next);
+    setFavCount(c => (next ? c + 1 : c - 1));
+    API.bbs
+      .favorite({ bbsId: Number(route.params.id), status: next ? 1 : 0 })
+      .catch(() => {
+        setFaved(!next);
+        setFavCount(c => (next ? c - 1 : c + 1));
+      });
   };
 
   const renderHeader = () => {
@@ -695,13 +733,15 @@ export default function BbsDetail() {
         }
         right={
           <>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={[styles.followBtn, following && styles.followedBtn]}
-              onPress={onToggleFollow}
-            >
-              <Text style={[styles.followText, following && styles.followedText]}>{following ? '已关注' : '关注'}</Text>
-            </TouchableOpacity>
+            {!isBbsAuthor && (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={[styles.followBtn, following && styles.followedBtn]}
+                onPress={onToggleFollow}
+              >
+                <Text style={[styles.followText, following && styles.followedText]}>{following ? '已关注' : '关注'}</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               activeOpacity={0.7}
               hitSlop={8}

@@ -12,7 +12,7 @@ export type RootStackParamList = {
   publish: { draft?: LocalDraft } | undefined;
   publishCover: { videoUri: string; ratio?: '3:4' | '16:9'; title?: string };
   draftBox: undefined;
-  bbsDetail: { id: string };
+  bbsDetail: { id: string; isFollowed?: boolean };
   reportBbs: { id: string };
   companyPage: { id: string | number; userId?: string | number };
   certification: { openIndex?: number };
