@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Image as RNImage,
   Modal,
@@ -17,7 +18,6 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureViewer, GestureTrigger, useGestureViewerState } from 'react-native-gesture-image-viewer';
 import Svg, { Circle, Path } from 'react-native-svg';
 import SafeView from '@/components/SafeView';
@@ -31,6 +31,7 @@ import CommentInputSheet from './CommentInputSheet';
 import CommentActionSheet, { type CommentAction } from './CommentActionSheet';
 import CommentReportSheet from './CommentReportSheet';
 import MoreActionSheet, { type MoreAction } from './MoreActionSheet';
+import VisibilitySheet, { type VisibilityKey } from './VisibilitySheet';
 import type { RootStackParamList } from '@/route/map';
 
 const BLUE = '#2962D4';
@@ -50,6 +51,7 @@ const THUMB_SMALL_PATH =
 
 interface ReplyData {
   id: string;
+  userId: number;
   avatar: string;
   userName: string;
   isAuthor?: boolean;
@@ -62,8 +64,15 @@ interface ReplyData {
 
 interface CommentData extends ReplyData {
   isTop?: boolean;
-  authorLiked?: boolean;
+  replyCount: number;
+  authorReplied?: boolean;
   replies: ReplyData[];
+}
+
+interface ReplyTarget {
+  name: string;
+  commentId: string;
+  replyToUserId: number;
 }
 
 interface DetailData {
@@ -78,6 +87,7 @@ interface DetailData {
   authorName: string;
   authorCompany: string;
   authorAvatar: string;
+  authorId: number;
   likeCount: number;
   favCount: number;
   isLiked: boolean;
@@ -87,98 +97,6 @@ interface DetailData {
   isVideo: boolean;
   posterUrl: string;
 }
-
-const MOCK_COMMENTS: CommentData[] = [
-  {
-    id: 'c1',
-    avatar: 'https://i.pravatar.cc/100?img=12',
-    userName: '万企小刘·联诚采信用户',
-    content: '您好想了解一下',
-    time: '05-22',
-    location: '上海',
-    likeCount: 6,
-    isTop: true,
-    replies: [
-      {
-        id: 'c1r1',
-        avatar: 'https://i.pravatar.cc/100?img=32',
-        userName: 'WQ_26383331·浙江新能制造有限公司',
-        isAuthor: true,
-        content: '操作流程已发，请私信查收哦~',
-        time: '05-22',
-        location: '上海',
-        likeCount: 0,
-      },
-      { id: 'c1r2', avatar: 'https://i.pravatar.cc/100?img=15', userName: '李工·苏州精工机械', content: '同求一份操作流程，麻烦了', time: '05-22', location: '江苏', likeCount: 0 },
-      { id: 'c1r3', avatar: 'https://i.pravatar.cc/100?img=25', userName: '陈工·联诚采信用户', content: '已私信，同样想了解一下', time: '05-22', location: '浙江', likeCount: 0 },
-      { id: 'c1r4', avatar: 'https://i.pravatar.cc/100?img=36', userName: '赵磊·东莞自动化设备', content: '这个资料可以共享一下吗', time: '05-22', location: '广东', likeCount: 0 },
-      { id: 'c1r5', avatar: 'https://i.pravatar.cc/100?img=45', userName: '孙倩·联诚采信用户', content: '同求，感谢分享', time: '05-22', location: '上海', likeCount: 0 },
-      { id: 'c1r6', avatar: 'https://i.pravatar.cc/100?img=56', userName: '周工·重庆智能制造', content: '操作流程能发我一份吗', time: '05-22', location: '重庆', likeCount: 0 },
-      { id: 'c1r7', avatar: 'https://i.pravatar.cc/100?img=66', userName: '吴工·联诚采信用户', content: '学到了，也想了解细节', time: '05-22', location: '四川', likeCount: 0 },
-    ],
-  },
-  {
-    id: 'c2',
-    avatar: 'https://i.pravatar.cc/100?img=47',
-    userName: '王芳·深圳智控科技有限公司',
-    content: '异常恢复一定要覆盖人工取料、换型中断和网络短时断开，复位后物料状态必须与控制系统保持一致。',
-    time: '05-22',
-    location: '广东',
-    likeCount: 6,
-    replies: [
-      {
-        id: 'c2r1',
-        avatar: 'https://i.pravatar.cc/100?img=32',
-        userName: 'WQ_26383331·浙江新能制造有限公司',
-        isAuthor: true,
-        content: '这个 checklist 思路很实用，我们现场也在推广类似做法。',
-        time: '05-22',
-        location: '上海',
-        likeCount: 0,
-      },
-      {
-        id: 'c2r2',
-        avatar: 'https://i.pravatar.cc/100?img=12',
-        userName: '万企小刘·联诚采信用户',
-        content: '我们现场也会把人工干预场景写进恢复用例，后续一起核对。',
-        time: '05-22',
-        location: '上海',
-        likeCount: 0,
-      },
-      {
-        id: 'c2r3',
-        avatar: 'https://i.pravatar.cc/100?img=47',
-        userName: '王芳·联诚采信用户',
-        replyTo: '万企小刘',
-        content: '同意，人工干预场景建议单独做一份恢复 checklist。',
-        time: '05-22',
-        location: '上海',
-        likeCount: 0,
-      },
-    ],
-  },
-  {
-    id: 'c3',
-    avatar: 'https://i.pravatar.cc/100?img=53',
-    userName: '张强·联诚采信用户',
-    content: '建议先把整线节拍拆到每个工位，再排查等待信号和缓存区容量，很多节拍问题并不是单机速度不足。',
-    time: '05-22',
-    location: '广东',
-    likeCount: 6,
-    replies: [],
-  },
-  {
-    id: 'c4',
-    avatar: 'https://i.pravatar.cc/100?img=68',
-    userName: 'Jesse·联诚采信用户',
-    content: '补充一点：试生产阶段最好固定观察窗口，连续运行前后各记录一次关键参数，偏差才看得见。',
-    time: '05-22',
-    location: '广东',
-    likeCount: 6,
-    authorLiked: true,
-    replies: [],
-  },
-];
 
 function ossVideoSnapshot(videoUrl: string): string {
   if (!videoUrl) return '';
@@ -197,6 +115,32 @@ function parseTags(tags?: string): string[] {
     .split(/[,，\s]+/)
     .filter(Boolean)
     .map(t => (t.startsWith('#') ? t : `#${t}`));
+}
+
+function transformReply(c: any): ReplyData {
+  const info = c.userInfoVo ?? {};
+  return {
+    id: String(c.id),
+    userId: c.userId,
+    avatar: info.avatar || '',
+    userName: [info.nickname || info.username, info.cpName].filter(Boolean).join('·'),
+    isAuthor: !!c.isAuthor,
+    replyTo: c.replyToNickname || '',
+    content: c.content || '',
+    time: formatPushTime(c.createTime),
+    location: [info.province, info.city].filter(Boolean).join(''),
+    likeCount: c.likeCount || 0,
+  };
+}
+
+function transformComment(c: any): CommentData {
+  return {
+    ...transformReply(c),
+    isTop: Number(c.isTop) === 1,
+    replyCount: c.replyCount || 0,
+    authorReplied: !!c.authorReplied,
+    replies: (c.firstReplies ?? []).map(transformReply),
+  };
 }
 
 function transformDetail(bbs: any): DetailData {
@@ -224,6 +168,7 @@ function transformDetail(bbs: any): DetailData {
     authorName: bbs.userInfoVo?.nickname || bbs.userInfoVo?.username || '',
     authorCompany: bbs.userInfoVo?.cpName || '',
     authorAvatar: bbs.userInfoVo?.avatar || '',
+    authorId: bbs.userId || 0,
     likeCount: bbs.countLike || 0,
     favCount: bbs.countFavorite || 0,
     isLiked: bbs.userIsZan === 1,
@@ -290,7 +235,7 @@ function CommentLike({ count, showCount = true }: { count: number; showCount?: b
   );
 }
 
-function ReplyRow({ reply, onReply }: { reply: ReplyData; onReply?: (name: string) => void }) {
+function ReplyRow({ reply, onReply }: { reply: ReplyData; onReply?: (name: string, userId: number) => void }) {
   return (
     <View style={styles.replyRow}>
       <ExpoImage source={{ uri: reply.avatar }} style={styles.replyAvatar} contentFit="cover" transition={150} recyclingKey={reply.avatar} />
@@ -309,7 +254,7 @@ function ReplyRow({ reply, onReply }: { reply: ReplyData; onReply?: (name: strin
         <View style={styles.commentMetaRow}>
           <View style={styles.commentMetaLeft}>
             <Text style={styles.commentMetaText}>{reply.time} {reply.location}</Text>
-            <TouchableOpacity activeOpacity={0.7} hitSlop={6} onPress={() => onReply?.(reply.userName)}>
+            <TouchableOpacity activeOpacity={0.7} hitSlop={6} onPress={() => onReply?.(reply.userName, reply.userId)}>
               <Text style={styles.commentReplyText}>回复</Text>
             </TouchableOpacity>
           </View>
@@ -324,14 +269,31 @@ function CommentItem({
   item,
   onReply,
   onLongPress,
+  onLoadReplies,
 }: {
   item: CommentData;
-  onReply?: (name: string) => void;
+  onReply?: (target: ReplyTarget) => void;
   onLongPress?: (item: CommentData) => void;
+  onLoadReplies?: (commentId: string) => Promise<ReplyData[]>;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const visibleReplies = expanded ? item.replies : item.replies.slice(0, 1);
-  const hiddenCount = item.replies.length - visibleReplies.length;
+  const [replies, setReplies] = useState(item.replies);
+  const loadingRepliesRef = useRef(false);
+  const visibleReplies = expanded ? replies : replies.slice(0, 1);
+  const hiddenCount = item.replyCount - visibleReplies.length;
+
+  const onToggleExpand = () => {
+    if (!expanded && item.replyCount > replies.length && !loadingRepliesRef.current) {
+      loadingRepliesRef.current = true;
+      onLoadReplies?.(item.id)
+        .then(list => setReplies(list))
+        .catch(() => { })
+        .finally(() => {
+          loadingRepliesRef.current = false;
+        });
+    }
+    setExpanded(v => !v);
+  };
 
   return (
     <TouchableOpacity activeOpacity={1} style={styles.commentRow} onLongPress={() => onLongPress?.(item)} delayLongPress={350}>
@@ -344,7 +306,11 @@ function CommentItem({
         <View style={styles.commentMetaRow}>
           <View style={styles.commentMetaLeft}>
             <Text style={styles.commentMetaText}>{item.time} {item.location}</Text>
-            <TouchableOpacity activeOpacity={0.7} hitSlop={6} onPress={() => onReply?.(item.userName)}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              hitSlop={6}
+              onPress={() => onReply?.({ name: item.userName, commentId: item.id, replyToUserId: item.userId })}
+            >
               <Text style={styles.commentReplyText}>回复</Text>
             </TouchableOpacity>
           </View>
@@ -356,17 +322,21 @@ function CommentItem({
           </View>
         )}
         {visibleReplies.map(r => (
-          <ReplyRow key={r.id} reply={r} onReply={onReply} />
+          <ReplyRow
+            key={r.id}
+            reply={r}
+            onReply={(name, userId) => onReply?.({ name, commentId: item.id, replyToUserId: userId })}
+          />
         ))}
-        {item.replies.length > 1 && (
-          <TouchableOpacity activeOpacity={0.7} style={styles.expandRow} onPress={() => setExpanded(v => !v)}>
+        {item.replyCount > 1 && (
+          <TouchableOpacity activeOpacity={0.7} style={styles.expandRow} onPress={onToggleExpand}>
             <View style={styles.expandDash} />
             <Text style={styles.expandText}>{expanded ? '收起' : `展开 ${hiddenCount} 条回复`}</Text>
           </TouchableOpacity>
         )}
-        {item.authorLiked && (
+        {item.authorReplied && (
           <View style={styles.authorLikedBadge}>
-            <Text style={styles.authorLikedText}>作者赞过</Text>
+            <Text style={styles.authorLikedText}>作者回复过</Text>
           </View>
         )}
       </View>
@@ -377,13 +347,14 @@ function CommentItem({
 export default function BbsDetail() {
   const route = useRoute<RouteProp<RootStackParamList, 'bbsDetail'>>();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const insets = useSafeAreaInsets();
   const currentAvatar = useUserStore(s => s.userInfo?.wqUser?.avatar);
 
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<DetailData | null>(null);
   const [commentCount, setCommentCount] = useState(0);
-  const [comments] = useState<CommentData[]>(MOCK_COMMENTS);
+  const [comments, setComments] = useState<CommentData[]>([]);
+  const [commentPage, setCommentPage] = useState(1);
+  const [commentPages, setCommentPages] = useState(1);
   const [following, setFollowing] = useState(false);
   const [liked, setLiked] = useState(false);
   const [faved, setFaved] = useState(false);
@@ -391,35 +362,132 @@ export default function BbsDetail() {
   const [favCount, setFavCount] = useState(0);
   const [imgIndex, setImgIndex] = useState(0);
   const [previewIndex, setPreviewIndex] = useState(-1);
+  const [visibility, setVisibility] = useState<VisibilityKey>('public');
+
+  const myId = useUserStore(s => s.userInfo?.wqUser?.id);
+  const isBbsAuthor = !!detail && !!myId && detail.authorId === myId;
 
   const inputSheetRef = useRef<BottomSheetModal>(null);
   const actionSheetRef = useRef<BottomSheetModal>(null);
   const reportSheetRef = useRef<BottomSheetModal>(null);
   const moreSheetRef = useRef<BottomSheetModal>(null);
-  const pendingReportRef = useRef(false);
-  const [replyTarget, setReplyTarget] = useState<string | null>(null);
+  const visibilitySheetRef = useRef<BottomSheetModal>(null);
+  const pendingActionRef = useRef<'report' | 'visibility' | null>(null);
+  const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null);
+  const [selectedComment, setSelectedComment] = useState<CommentData | null>(null);
+  const [actionVariant, setActionVariant] = useState<'user' | 'author' | 'manage'>('user');
 
-  const openCommentInput = useCallback((target?: string) => {
+  const loadComments = useCallback(
+    (page: number) => {
+      return API.bbsComment
+        .list({ bbsId: Number(route.params.id), pageNum: page, pageSize: 20 })
+        .then(res => {
+          const mapped = (res.data?.list ?? []).map(transformComment);
+          setComments(prev => (page === 1 ? mapped : [...prev, ...mapped]));
+          setCommentPage(page);
+          setCommentPages(res.data?.pages || 1);
+          setCommentCount(res.data?.total ?? 0);
+        })
+        .catch(() => { });
+    },
+    [route.params.id],
+  );
+
+  const fetchReplies = useCallback(async (commentId: string): Promise<ReplyData[]> => {
+    const res = await API.bbsComment.replyList({ commentId: Number(commentId), pageNum: 1, pageSize: 50 });
+    return (res.data?.list ?? []).map(transformReply);
+  }, []);
+
+  const openCommentInput = useCallback((target?: ReplyTarget) => {
     setReplyTarget(target ?? null);
     inputSheetRef.current?.present();
   }, []);
 
-  const openCommentActions = useCallback(() => {
+  const openCommentActions = useCallback((item: CommentData) => {
+    setSelectedComment(item);
+    setActionVariant(isBbsAuthor ? 'author' : 'user');
     actionSheetRef.current?.present();
-  }, []);
+  }, [isBbsAuthor]);
 
-  const onCommentAction = useCallback((action: CommentAction) => {
-    if (action === 'report') {
-      pendingReportRef.current = true;
-    }
-    actionSheetRef.current?.dismiss();
-  }, []);
+  const onSendComment = useCallback(
+    (text: string) => {
+      const data: { bbsId: number; parentId?: number; replyToUserId?: number; content: string } = {
+        bbsId: Number(route.params.id),
+        content: text,
+      };
+      if (replyTarget) {
+        data.parentId = Number(replyTarget.commentId);
+        data.replyToUserId = replyTarget.replyToUserId;
+      }
+      API.bbsComment
+        .add(data)
+        .then(() => loadComments(1))
+        .catch(() => { });
+    },
+    [replyTarget, route.params.id, loadComments],
+  );
+
+  const onToggleTop = useCallback(
+    (commentId: string, force: number = 0) => {
+      API.bbsComment
+        .top({ commentId: Number(commentId), force })
+        .then(res => {
+          if (res.data?.needConfirm) {
+            Alert.alert('提示', res.data.msg || '已有其他置顶评论，是否替换？', [
+              { text: '取消', style: 'cancel' },
+              { text: '确认', onPress: () => onToggleTop(commentId, 1) },
+            ]);
+            return;
+          }
+          loadComments(1);
+        })
+        .catch(() => { });
+    },
+    [loadComments],
+  );
+
+  const onDeleteComment = useCallback(
+    (commentId: string) => {
+      Alert.alert('提示', '确认删除该评论吗？', [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '删除',
+          style: 'destructive',
+          onPress: () => {
+            API.bbsComment
+              .del({ commentId: Number(commentId) })
+              .then(() => loadComments(1))
+              .catch(() => { });
+          },
+        },
+      ]);
+    },
+    [loadComments],
+  );
+
+  const onCommentAction = useCallback(
+    (action: CommentAction) => {
+      if (action === 'report') {
+        pendingActionRef.current = 'report';
+      } else if (action === 'permission') {
+        pendingActionRef.current = 'visibility';
+      } else if (action === 'pin' && selectedComment) {
+        onToggleTop(selectedComment.id);
+      } else if (action === 'delete' && selectedComment) {
+        onDeleteComment(selectedComment.id);
+      }
+      actionSheetRef.current?.dismiss();
+    },
+    [selectedComment, onToggleTop, onDeleteComment],
+  );
 
   const onActionSheetClose = useCallback(() => {
-    if (pendingReportRef.current) {
-      pendingReportRef.current = false;
+    if (pendingActionRef.current === 'report') {
       reportSheetRef.current?.present();
+    } else if (pendingActionRef.current === 'visibility') {
+      visibilitySheetRef.current?.present();
     }
+    pendingActionRef.current = null;
   }, []);
 
   const onMoreAction = useCallback(
@@ -440,7 +508,6 @@ export default function BbsDetail() {
         if (!mounted) return;
         const d = transformDetail(res.data?.bbs ?? {});
         setDetail(d);
-        setCommentCount(res.data?.commentCount ?? 0);
         setLiked(d.isLiked);
         setFaved(d.isFaved);
         setLikeCount(d.likeCount);
@@ -454,6 +521,10 @@ export default function BbsDetail() {
       mounted = false;
     };
   }, [route.params.id]);
+
+  useEffect(() => {
+    loadComments(1);
+  }, [loadComments]);
 
   const onToggleFollow = useCallback(() => setFollowing(v => !v), []);
 
@@ -626,29 +697,51 @@ export default function BbsDetail() {
           data={comments}
           keyExtractor={item => item.id}
           renderItem={({ item }) => (
-            <CommentItem item={item} onReply={openCommentInput} onLongPress={openCommentActions} />
+            <CommentItem
+              item={item}
+              onReply={openCommentInput}
+              onLongPress={openCommentActions}
+              onLoadReplies={fetchReplies}
+            />
           )}
           ListHeaderComponent={renderHeader}
           ListEmptyComponent={
             <EmptyState variant="comment" title="暂无评论" style={styles.emptyComment} />
           }
+          onEndReachedThreshold={0.3}
+          onEndReached={() => {
+            if (commentPage < commentPages) loadComments(commentPage + 1);
+          }}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
         />
       )}
       <View style={[styles.bottomBar, { paddingBottom: scaleSizeH(10) }]}>
         <View style={styles.bottomBarRow}>
-          {/* <TouchableOpacity activeOpacity={0.7} style={styles.bottomInput} onPress={() => openCommentInput()}>
-            <Text style={styles.commentInputText}>留下你的看法</Text>
-          </TouchableOpacity> */}
-          <TouchableOpacity activeOpacity={0.7} style={[styles.bottomInput, {
-            backgroundColor: '#F2F6FF',
-            justifyContent: 'center',
-            alignItems: 'center',
-            paddingLeft: 0
-          }]} onPress={() => openCommentInput()}>
-            <Text style={[styles.commentInputText, { color: '#2962D4' }]}>编辑和权限设置</Text>
-          </TouchableOpacity>
+          {isBbsAuthor ? (
+            <>
+              <TouchableOpacity
+                onPress={() => {
+                  setSelectedComment(null);
+                  setActionVariant('manage');
+                  actionSheetRef.current?.present();
+                }}
+                activeOpacity={0.7}
+                style={[styles.bottomInput, {
+                  backgroundColor: '#F2F6FF',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  paddingLeft: 0
+                }]}
+              >
+                <Text style={[styles.commentInputText, { color: '#2962D4' }]}>编辑和权限设置</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <TouchableOpacity activeOpacity={0.7} style={styles.bottomInput} onPress={() => openCommentInput()}>
+              <Text style={styles.commentInputText}>留下你的看法</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity activeOpacity={0.7} hitSlop={6} style={styles.bottomAction} onPress={onToggleLike}>
             <Svg width={scaleSizeW(20)} height={scaleSizeW(21)} viewBox="0 0 20 21">
               <Path d={THUMB_PATH} fill={liked ? LIKE_RED : '#000000'} />
@@ -671,12 +764,26 @@ export default function BbsDetail() {
       </View>
       <CommentInputSheet
         ref={inputSheetRef}
-        placeholder={replyTarget ? `回复 @${replyTarget}` : '留下你的看法'}
-        onSend={() => { }}
+        placeholder={replyTarget ? `回复 @${replyTarget.name}` : '留下你的看法'}
+        onSend={onSendComment}
       />
-      <CommentActionSheet ref={actionSheetRef} onAction={onCommentAction} onClose={onActionSheetClose} />
+      <CommentActionSheet
+        ref={actionSheetRef}
+        variant={actionVariant}
+        isTop={selectedComment?.isTop}
+        onAction={onCommentAction}
+        onClose={onActionSheetClose}
+      />
       <CommentReportSheet ref={reportSheetRef} onSubmit={() => reportSheetRef.current?.dismiss()} />
       <MoreActionSheet ref={moreSheetRef} onAction={onMoreAction} />
+      <VisibilitySheet
+        ref={visibilitySheetRef}
+        value={visibility}
+        onSelect={key => {
+          setVisibility(key);
+          visibilitySheetRef.current?.dismiss();
+        }}
+      />
       <Modal transparent visible={previewIndex >= 0} onRequestClose={() => setPreviewIndex(-1)}>
         {detail && previewIndex >= 0 && (
           <>
@@ -1056,6 +1163,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingLeft: scaleSizeW(14),
     flex: 1
+  },
+  authorBtn: {
+    flex: 0,
+    width: scaleSizeW(86),
+    backgroundColor: '#F2F6FF',
+    alignItems: 'center',
+    paddingLeft: 0,
+    marginRight: scaleSizeW(10),
+  },
+  authorBtnText: {
+    fontSize: setSpText(14),
+    fontWeight: '400',
+    color: BLUE,
   },
   bottomSpacer: {
     flex: 1,

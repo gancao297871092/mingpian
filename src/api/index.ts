@@ -138,6 +138,38 @@ export namespace API {
     }
   }
 
+  export namespace bbsComment {
+    /** 发表评论/回复（parentId 空=一级） */
+    export function add(data: { bbsId: number; parentId?: number; replyToUserId?: number; content: string }) {
+      return request.post<any>('/bbs/comment/publish', data);
+    }
+    /** 一级评论分页（置顶+权重排序，含前3条二级预览） */
+    export function list(params: { bbsId: number; pageNum?: number; pageSize?: number }) {
+      return request.get<{ list: any[]; total: number; pageNum: number; pages: number }>(
+        '/bbs/comment/list',
+        { params },
+      );
+    }
+    /** 二级回复分页（时间正序） */
+    export function replyList(params: { commentId: number; pageNum?: number; pageSize?: number }) {
+      return request.get<{ list: any[]; total: number; pageNum: number; pages: number }>(
+        '/bbs/comment/reply/list',
+        { params },
+      );
+    }
+    /** 删除评论（本人/动态作者；一级级联二级） */
+    export function del(params: { commentId: number }) {
+      return request.get<any>('/bbs/comment/del', { params });
+    }
+    /** 置顶/取消置顶（仅动态作者；已有置顶返回 needConfirm，确认后 force=1 重调） */
+    export function top(params: { commentId: number; force?: number }) {
+      return request.get<{ isTop?: number; needConfirm?: boolean; msg?: string }>(
+        '/bbs/comment/top',
+        { params },
+      );
+    }
+  }
+
   export namespace file {
     /** 图片上传 */
     export function upload(data: FormData) {
