@@ -36,6 +36,10 @@ export interface UploadImage {
   width?: number;
   height?: number;
   size?: number;
+  /** 已入素材库的媒体ID（预发布草稿回填的已有媒体） */
+  mdId?: number;
+  /** 本地上传标记：1=本次新上传（发布时需提交） */
+  isLocal?: number;
 }
 
 interface ImageUploaderProps {
@@ -48,6 +52,8 @@ interface ImageUploaderProps {
   maxBytes?: number;
   uploadFn?: (uri: string, mime?: string) => Promise<string>;
   style?: StyleProp<ViewStyle>;
+  /** 删除图片时回调（可用于删除素材库媒体） */
+  onRemove?: (item: UploadImage) => void;
 }
 
 const AnimatedGestureScrollView = Animated.createAnimatedComponent(GestureScrollView);
@@ -180,6 +186,7 @@ export default function ImageUploader({
   maxBytes = MAX_IMAGE_BYTES,
   uploadFn = uploadToOss,
   style,
+  onRemove,
 }: ImageUploaderProps) {
 
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
@@ -241,6 +248,7 @@ export default function ImageUploader({
         width: item.width,
         height: item.height,
         size: item.size,
+        isLocal: 1,
       }));
       if (!newItems.length) return;
       emitChange(prev => [...prev, ...newItems].slice(0, maxCount));
@@ -253,6 +261,8 @@ export default function ImageUploader({
   };
 
   const removeImage = (key: string) => {
+    const removed = latestRef.current.find(item => item.key === key);
+    if (removed) onRemove?.(removed);
     emitChange(prev => prev.filter(item => item.key !== key));
   };
 

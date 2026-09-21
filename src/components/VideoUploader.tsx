@@ -28,6 +28,8 @@ export interface UploadVideo {
   height?: number;
   size?: number;
   duration?: number;
+  /** 本地上传标记：1=本次新上传（发布时需提交） */
+  isLocal?: number;
 }
 
 interface VideoUploaderProps {
@@ -112,6 +114,7 @@ export default function VideoUploader({
           height: item.height,
           size: item.size,
           duration: item.duration,
+          isLocal: 1,
         },
         item.mime,
       );

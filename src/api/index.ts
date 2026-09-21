@@ -171,6 +171,21 @@ export namespace API {
     export function like(params: { bbsId: number; status: number }) {
       return request.get<any>('/bbs/like', { params });
     }
+    /** 预发布草稿（取/建 status=2 草稿 + 已关联媒体，发布页回填用） */
+    export function pushPre() {
+      return request.get<any>('/bbs/user/push/pre');
+    }
+    /** 发布动态（id 传预发布草稿 id；mediaList 只传本次新上传的媒体） */
+    export function push(data: {
+      id?: number;
+      content: string;
+      title?: string;
+      tags?: string;
+      isToLife?: number;
+      mediaList?: publish.PublishMedia[];
+    }) {
+      return request.post<any>('/bbs/user/push', data);
+    }
     /** 收藏/取消（status: 1收藏 0取消） */
     export function favorite(params: { bbsId: number; status: number }) {
       return request.get<any>('/bbs/favorite', { params });
