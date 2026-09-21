@@ -1,16 +1,12 @@
 import { storageUtils } from './storage';
 
-export interface LocalDraftImage {
-  uri: string;
-  url?: string;
-}
-
 export interface LocalDraft {
   id: string;
   draftType: 0 | 1;
   title: string;
   content: string;
-  images: LocalDraftImage[];
+  /** 已上传图片 url 列表（与后端 images 字段一致） */
+  images: string[];
   videoUri?: string;
   videoUrl?: string;
   videoCover?: string;

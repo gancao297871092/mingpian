@@ -121,70 +121,45 @@ export namespace API {
     }
   }
 
-  export namespace publish {
-    /** 媒体素材（对齐小程序 mediaLinkList 结构） */
-    export interface PublishMedia {
-      type: number;
-      mdId?: number;
-      targetId?: number;
-      isIndex: number;
-      fileType: string;
-      mdUrl: string;
-      url: string;
-      isLocal: number;
-      tempFilePath?: string;
-      width?: number;
-      height?: number;
-      size?: number;
-      duration?: number;
-      media: {
-        mdUrl: string;
-        fileType: string;
-        width?: number;
-        height?: number;
-        size?: number;
-        duration?: number;
-      };
+  export namespace bbs {
+    /** 点赞/取消（status: 1赞 0取消） */
+    export function like(params: { bbsId: number; status: number }) {
+      return request.get<any>('/bbs/like', { params });
     }
-    /** 三类型统一发布（draftType: 0图文/1视频/2长文） */
-    export function submit(data: {
-      draftType: 0 | 1 | 2;
+    export function bbsDetail(params: { bbsId: number }) {
+      return request.get<any>('/my/bbs/detail', { params });
+    }
+    /** 发布动态（id 传预发布草稿 id；mediaList 全量传已上传媒体） */
+    export function push(data: {
+      id?: number;
+      content: string;
+      title?: string;
+      tags?: string;
+      images?: string[];
+      videos?: string[];
+      videoCover?: string;
+      boardType?: number;
+      isToLife?: number;
+    }) {
+      return request.post<any>('/publish/submit', data);
+    }
+    /** 编辑动态（仅本人；images/videos 全量传已上传 url，媒体全量替换） */
+    export function update(data: {
+      bbsId: number;
       title?: string;
       content?: string;
-      mediaList?: PublishMedia[];
-      videoUrl?: string;
+      tags?: string;
+      images?: string[];
+      videos?: string[];
       videoCover?: string;
       aiConnectEnabled?: number;
       declaration?: number;
       visibility?: number;
       commentScope?: number;
       boardType?: number;
-      tags?: string;
-      draftId?: number;
-    }) {
-      return request.post<any>('/publish/submit', data);
-    }
-  }
-
-  export namespace bbs {
-    /** 点赞/取消（status: 1赞 0取消） */
-    export function like(params: { bbsId: number; status: number }) {
-      return request.get<any>('/bbs/like', { params });
-    }
-    /** 预发布草稿（取/建 status=2 草稿 + 已关联媒体，发布页回填用） */
-    export function pushPre() {
-      return request.get<any>('/bbs/user/push/pre');
-    }
-    /** 发布动态（id 传预发布草稿 id；mediaList 只传本次新上传的媒体） */
-    export function push(data: {
-      id?: number;
-      content: string;
-      title?: string;
-      tags?: string;
       isToLife?: number;
-      mediaList?: publish.PublishMedia[];
     }) {
-      return request.post<any>('/bbs/user/push', data);
+      return request.post<any>('/my/bbs/update', data);
     }
     /** 收藏/取消（status: 1收藏 0取消） */
     export function favorite(params: { bbsId: number; status: number }) {

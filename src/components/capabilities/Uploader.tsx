@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,16 +15,21 @@ import { GestureViewer } from 'react-native-gesture-image-viewer';
 import { scaleSizeW } from '@/utils/screenUtils';
 import { MAX_IMAGE_BYTES, maybeCompressImage } from '@/utils/media';
 import { uploadToOss } from '@/utils/ossUpload';
-import type { UploadImage } from '@/components/ImageUploader';
 
-const ICONS = {
-  add: require('@/assets/publish/add.png'),
-  remove: require('@/assets/publish/remove.png'),
-};
+interface UploadItem {
+  key: string;
+  uri: string;
+  url?: string;
+  uploading: boolean;
+  failed?: boolean;
+}
 
 interface UploaderProps {
-  value?: UploadImage[];
-  onChange?: (images: UploadImage[]) => void;
+  /** 已上传图片 url 列表（对外契约，与后端 images 字段一致）；不传则内部自管 */
+  value?: string[];
+  onChange?: (urls: string[]) => void;
+  /** 存在上传中或失败项时回调（用于提交前校验） */
+  onBusyChange?: (busy: boolean) => void;
   maxCount?: number;
   itemSize?: number;
   gap?: number;
@@ -33,9 +38,21 @@ interface UploaderProps {
   addIcon?: React.ReactNode;
 }
 
+const ICONS = {
+  add: require('@/assets/publish/add.png'),
+  remove: require('@/assets/publish/remove.png'),
+};
+
+const newKey = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+function toItem(url: string): UploadItem {
+  return { key: newKey(), uri: url, url, uploading: false };
+}
+
 export default function Uploader({
   value,
   onChange,
+  onBusyChange,
   maxCount = 9,
   itemSize = scaleSizeW(78),
   gap = scaleSizeW(10),
@@ -43,43 +60,56 @@ export default function Uploader({
   uploadFn = uploadToOss,
   addIcon,
 }: UploaderProps) {
-  const [innerImages, setInnerImages] = useState<UploadImage[]>([]);
   const controlled = value !== undefined;
-  const images = controlled ? value : innerImages;
+  const [innerUrls, setInnerUrls] = useState<string[]>([]);
+  const urls = controlled ? (value as string[]) : innerUrls;
+  const [items, setItems] = useState<UploadItem[]>(() => urls.map(toItem));
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const lastEmittedRef = useRef<string[]>(urls);
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
 
-  const latestRef = useRef(images);
-  latestRef.current = images;
-
-  const emitChange = (updater: (prev: UploadImage[]) => UploadImage[]) => {
-    const next = updater(latestRef.current);
-    latestRef.current = next;
-    if (controlled) {
-      onChange?.(next);
-    } else {
-      setInnerImages(next);
-      onChange?.(next);
-    }
+  const emit = (next: UploadItem[]) => {
+    const nextUrls = next.filter(i => !!i.url).map(i => i.url as string);
+    lastEmittedRef.current = nextUrls;
+    if (!controlled) setInnerUrls(nextUrls);
+    onChange?.(nextUrls);
   };
 
-  const updateImage = (key: string, patch: Partial<UploadImage>) => {
-    emitChange(prev => prev.map(item => (item.key === key ? { ...item, ...patch } : item)));
+  const updateItems = (updater: (prev: UploadItem[]) => UploadItem[]) => {
+    const next = updater(itemsRef.current);
+    setItems(next);
+    onBusyChange?.(next.some(i => i.uploading || i.failed));
+    return next;
   };
 
-  const uploadImageItem = async (key: string, uri: string, mime?: string) => {
+  // 外部回填：value 变化且非本组件 emit 引起时重建
+  useEffect(() => {
+    if (urls === lastEmittedRef.current) return;
+    lastEmittedRef.current = urls;
+    updateItems(() => urls.map(toItem));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urls]);
+
+  const uploadItem = async (key: string, uri: string, mime?: string) => {
     try {
       const compressed = await maybeCompressImage(uri);
-      if (compressed !== uri) updateImage(key, { uri: compressed });
+      if (compressed !== uri) {
+        updateItems(prev => prev.map(i => (i.key === key ? { ...i, uri: compressed } : i)));
+      }
       const url = await uploadFn(compressed, mime);
-      updateImage(key, { url, uploading: false });
+      const next = updateItems(prev =>
+        prev.map(i => (i.key === key ? { ...i, url, uploading: false } : i)),
+      );
+      emit(next);
     } catch {
-      updateImage(key, { uploading: false, failed: true });
+      updateItems(prev => prev.map(i => (i.key === key ? { ...i, uploading: false, failed: true } : i)));
     }
   };
 
   const pickImages = async () => {
     try {
-      const remain = maxCount - latestRef.current.length;
+      const remain = maxCount - itemsRef.current.length;
       if (remain <= 0) return;
       const picked = await ImagePicker.openPicker({
         multiple: true,
@@ -99,15 +129,15 @@ export default function Uploader({
       if (oversize) {
         Alert.alert('提示', `图片过大，请选择${Math.round(maxBytes / 1024 / 1024)}MB以内的图片`);
       }
-      const newItems: UploadImage[] = valid.slice(0, remain).map(item => ({
-        key: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      const newItems: UploadItem[] = valid.slice(0, remain).map(item => ({
+        key: newKey(),
         uri: item.path,
         uploading: true,
       }));
       if (!newItems.length) return;
-      emitChange(prev => [...prev, ...newItems].slice(0, maxCount));
+      updateItems(prev => [...prev, ...newItems].slice(0, maxCount));
       newItems.forEach((item, i) => {
-        uploadImageItem(item.key, item.uri, valid[i]?.mime);
+        uploadItem(item.key, item.uri, valid[i]?.mime);
       });
     } catch (e) {
       console.log('选择图片异常', e);
@@ -115,17 +145,27 @@ export default function Uploader({
   };
 
   const removeImage = (key: string) => {
-    emitChange(prev => prev.filter(item => item.key !== key));
+    const next = updateItems(prev => prev.filter(item => item.key !== key));
+    emit(next);
   };
+
+  const previewUrls = items.filter(i => !!i.url).map(i => i.url as string);
 
   return (
     <View style={[styles.grid, { gap }]}>
-      {images.map((item, index) => (
+      {items.map(item => (
         <View
           key={item.key}
           style={[styles.thumbWrap, { width: itemSize, height: itemSize, borderRadius: itemSize * 0.12 }]}
         >
-          <TouchableOpacity style={styles.thumbTouch} activeOpacity={0.9} onPress={() => setPreviewIndex(index)}>
+          <TouchableOpacity
+            style={styles.thumbTouch}
+            activeOpacity={0.9}
+            onPress={() => {
+              const idx = previewUrls.indexOf(item.url as string);
+              if (idx >= 0) setPreviewIndex(idx);
+            }}
+          >
             <Image source={{ uri: item.uri }} style={styles.thumb} />
           </TouchableOpacity>
           {item.uploading && (
@@ -138,8 +178,10 @@ export default function Uploader({
               style={styles.thumbOverlay}
               activeOpacity={0.8}
               onPress={() => {
-                updateImage(item.key, { uploading: true, failed: false });
-                uploadImageItem(item.key, item.uri);
+                updateItems(prev =>
+                  prev.map(i => (i.key === item.key ? { ...i, uploading: true, failed: false } : i)),
+                );
+                uploadItem(item.key, item.uri);
               }}
             >
               <Text style={styles.retryText}>重试</Text>
@@ -150,7 +192,7 @@ export default function Uploader({
           </TouchableOpacity>
         </View>
       ))}
-      {images.length < maxCount && (
+      {items.length < maxCount && (
         <TouchableOpacity
           style={[styles.addBtn, { width: itemSize, height: itemSize, borderRadius: itemSize * 0.12 }]}
           activeOpacity={0.8}
@@ -167,7 +209,7 @@ export default function Uploader({
       >
         {previewIndex !== null && (
           <GestureViewer
-            data={images.map(item => item.uri)}
+            data={previewUrls}
             initialIndex={previewIndex}
             renderItem={(uri: string) => (
               <Image source={{ uri }} style={styles.previewImage} resizeMode="contain" />

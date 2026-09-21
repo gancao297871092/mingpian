@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -18,7 +18,7 @@ import { API } from '@/api';
 import { scaleSizeW } from '@/utils/screenUtils';
 import { MAX_VIDEO_BYTES } from '@/utils/media';
 
-export interface UploadVideo {
+interface VideoItem {
   uri: string;
   mediaId?: number;
   url?: string;
@@ -28,13 +28,16 @@ export interface UploadVideo {
   height?: number;
   size?: number;
   duration?: number;
-  /** 本地上传标记：1=本次新上传（发布时需提交） */
-  isLocal?: number;
 }
 
 interface VideoUploaderProps {
-  value: UploadVideo | null;
-  onChange: (video: UploadVideo | null) => void;
+  /** 已上传视频 url（对外契约；null=未选择） */
+  value: string | null;
+  onChange: (url: string | null) => void;
+  /** 选择本地视频时回调（用于封面选帧等需要本地文件的场景） */
+  onPick?: (uri: string) => void;
+  /** 存在上传中或失败项时回调（用于发布前校验） */
+  onBusyChange?: (busy: boolean) => void;
   width?: number;
   height?: number;
   emptySize?: number;
@@ -53,6 +56,8 @@ const POLL_MAX_TIMES = 150;
 export default function VideoUploader({
   value,
   onChange,
+  onPick,
+  onBusyChange,
   width = scaleSizeW(110),
   height = scaleSizeW(110),
   emptySize = scaleSizeW(85),
@@ -60,7 +65,32 @@ export default function VideoUploader({
   style,
 }: VideoUploaderProps) {
   const [playerVisible, setPlayerVisible] = useState(false);
+  const [item, setItem] = useState<VideoItem | null>(() =>
+    value ? { uri: value, url: value, uploading: false } : null,
+  );
   const tokenRef = useRef(0);
+  const itemRef = useRef(item);
+  itemRef.current = item;
+  const lastEmittedRef = useRef<string | null>(value);
+
+  const emit = (next: VideoItem | null) => {
+    lastEmittedRef.current = next?.url ?? null;
+    onChange(next?.url ?? null);
+  };
+
+  const updateItem = (next: VideoItem | null) => {
+    setItem(next);
+    onBusyChange?.(!!next && (next.uploading || !!next.failed));
+    return next;
+  };
+
+  // 外部回填（草稿/编辑回显）：value 变化且非本组件 emit 引起时重建
+  useEffect(() => {
+    if (value === lastEmittedRef.current) return;
+    lastEmittedRef.current = value;
+    updateItem(value ? { uri: value, url: value, uploading: false } : null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
 
   const pollMedia = async (mediaId: number, token: number): Promise<string> => {
     for (let i = 0; i < POLL_MAX_TIMES; i++) {
@@ -73,9 +103,9 @@ export default function VideoUploader({
     throw new Error('视频转码超时');
   };
 
-  const startUpload = async (video: UploadVideo, mime?: string) => {
+  const startUpload = async (video: VideoItem, mime?: string) => {
     const token = ++tokenRef.current;
-    onChange({ ...video, uploading: true, failed: false });
+    updateItem({ ...video, uploading: true, failed: false });
     try {
       const name = video.uri.split('/').pop() || `video-${Date.now()}.mp4`;
       const fileUri = video.uri.startsWith('file://') ? video.uri : `file://${video.uri}`;
@@ -85,14 +115,14 @@ export default function VideoUploader({
       const res = await API.file.uploadVideo(form);
       const mediaId = res.data.id;
       if (tokenRef.current !== token) return;
-      onChange({ ...video, mediaId, uploading: true });
+      updateItem({ ...video, mediaId, uploading: true });
       const url = await pollMedia(mediaId, token);
       if (tokenRef.current !== token) return;
-      onChange({ ...video, mediaId, url, uploading: false });
+      emit(updateItem({ ...video, mediaId, url, uploading: false }));
     } catch (e: any) {
       if (tokenRef.current !== token) return;
       if (e?.message !== 'cancelled') {
-        onChange({ ...video, uploading: false, failed: true });
+        updateItem({ ...video, uploading: false, failed: true });
       }
     }
   };
@@ -100,23 +130,23 @@ export default function VideoUploader({
   const pickVideo = async () => {
     try {
       const picked = await ImagePicker.openPicker({ mediaType: 'video', multiple: false });
-      const item = Array.isArray(picked) ? picked[0] : picked;
-      if (!item?.path) return;
-      if (item.size && item.size > maxBytes) {
+      const pickedItem = Array.isArray(picked) ? picked[0] : picked;
+      if (!pickedItem?.path) return;
+      if (pickedItem.size && pickedItem.size > maxBytes) {
         Alert.alert('提示', `视频过大，请选择${Math.round(maxBytes / 1024 / 1024)}MB以内的视频`);
         return;
       }
+      onPick?.(pickedItem.path);
       startUpload(
         {
-          uri: item.path,
+          uri: pickedItem.path,
           uploading: true,
-          width: item.width,
-          height: item.height,
-          size: item.size,
-          duration: item.duration,
-          isLocal: 1,
+          width: pickedItem.width,
+          height: pickedItem.height,
+          size: pickedItem.size,
+          duration: pickedItem.duration,
         },
-        item.mime,
+        pickedItem.mime,
       );
     } catch {
       // 用户取消
@@ -125,32 +155,32 @@ export default function VideoUploader({
 
   const removeVideo = () => {
     tokenRef.current += 1;
-    onChange(null);
+    emit(updateItem(null));
   };
 
   const size = { width, height };
 
   return (
     <View style={style}>
-      {value ? (
+      {item ? (
         <View style={[styles.videoPreview, size]}>
           <TouchableOpacity style={styles.videoPreviewTouch} activeOpacity={0.9} onPress={() => setPlayerVisible(true)}>
-            <Video source={{ uri: value.uri }} style={styles.videoPreviewImg} paused resizeMode="cover" />
+            <Video source={{ uri: item.uri }} style={styles.videoPreviewImg} paused resizeMode="cover" />
             <View style={styles.videoPlayBtn}>
               <Svg width={scaleSizeW(18)} height={scaleSizeW(18)} viewBox="0 0 24 24">
                 <Path d="M8 5l12 7-12 7z" fill="#FFFFFF" />
               </Svg>
             </View>
-            {value.uploading && (
+            {item.uploading && (
               <View style={styles.mediaLoading}>
                 <ActivityIndicator color="#FFFFFF" size="small" />
               </View>
             )}
-            {!value.uploading && value.failed && (
+            {!item.uploading && item.failed && (
               <TouchableOpacity
                 style={styles.mediaLoading}
                 activeOpacity={0.8}
-                onPress={() => startUpload(value)}
+                onPress={() => startUpload(item)}
               >
                 <Text style={styles.mediaRetryText}>重试</Text>
               </TouchableOpacity>
@@ -175,7 +205,7 @@ export default function VideoUploader({
           <Image source={ICONS.videoAdd} style={styles.mediaAddIcon} />
         </TouchableOpacity>
       )}
-      <VideoPlayerModal visible={playerVisible} uri={value?.uri ?? null} onClose={() => setPlayerVisible(false)} />
+      <VideoPlayerModal visible={playerVisible} uri={item?.uri ?? null} onClose={() => setPlayerVisible(false)} />
     </View>
   );
 }

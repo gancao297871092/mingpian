@@ -4,7 +4,6 @@ import { useNavigation, useRoute, type RouteProp } from '@react-navigation/nativ
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import SafeView from '@/components/SafeView';
 import Uploader from '@/components/capabilities/Uploader';
-import type { UploadImage } from '@/components/ImageUploader';
 import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { CameraIcon } from '../bbsDetail/sheetIcons';
@@ -20,17 +19,17 @@ export default function ReportBbs() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [typeIndex, setTypeIndex] = useState(-1);
   const [reason, setReason] = useState('');
-  const [images, setImages] = useState<UploadImage[]>([]);
+  const [images, setImages] = useState<string[]>([]);
+  const [imgBusy, setImgBusy] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const canSubmit = typeIndex >= 0 && !submitting;
 
   const onSubmit = () => {
     if (!canSubmit) return;
-    if (images.some(i => i.uploading)) {
+    if (imgBusy) {
       Alert.alert('提示', '图片上传中，请稍候再提交');
       return;
     }
-    const urls = images.filter(i => i.url).map(i => i.url as string);
     setSubmitting(true);
     API.bbs
       .reportSubmit({
@@ -38,7 +37,7 @@ export default function ReportBbs() {
         reportedTargetType: 2,
         reportType: typeIndex + 1,
         reportReason: reason.trim() || undefined,
-        reportImages: urls.join(';') || undefined,
+        reportImages: images.join(';') || undefined,
       })
       .then(() => {
         Alert.alert('提示', '举报成功，我们会尽快处理', [
@@ -100,6 +99,7 @@ export default function ReportBbs() {
             <Uploader
               value={images}
               onChange={setImages}
+              onBusyChange={setImgBusy}
               itemSize={scaleSizeW(78)}
               addIcon={<CameraIcon />}
             />

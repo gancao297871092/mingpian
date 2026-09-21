@@ -95,8 +95,8 @@ export default function DraftBox() {
       return null;
     }
     const first = draft.images[0];
-    if (first?.uri) {
-      return <Image source={{ uri: first.uri }} style={[styles.cover, { height: COVER_TALL }]} resizeMode="cover" />;
+    if (first) {
+      return <Image source={{ uri: first }} style={[styles.cover, { height: COVER_TALL }]} resizeMode="cover" />;
     }
     return null;
   };

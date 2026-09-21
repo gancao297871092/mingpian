@@ -25,8 +25,8 @@ import Svg, { Path } from 'react-native-svg';
 import { API } from '@/api';
 import SafeView from '@/components/SafeView';
 import AppBottomSheet from '@/components/AppBottomSheet';
-import ImageUploader, { UploadImage } from '@/components/ImageUploader';
-import VideoUploader, { UploadVideo } from '@/components/VideoUploader';
+import ImageUploader from '@/components/ImageUploader';
+import VideoUploader from '@/components/VideoUploader';
 import { storageUtils } from '@/utils/storage';
 import { scaleSizeH, scaleSizeW } from '@/utils/screenUtils';
 import { getFeedCoverHeight } from '@/utils/feedLayout';
@@ -66,8 +66,6 @@ type PublishTab = 'short' | 'video' | 'long';
 type VisibilityKey = 'public' | 'mutual' | 'private';
 type CommentKey = 'everyone' | 'fans' | 'mutual' | 'self';
 type DeclareOption = 'none' | 'self-shot' | 'reprint' | 'fiction' | 'ai' | 'marketing' | 'opinion';
-
-type PublishImage = UploadImage;
 
 const TABS: { key: PublishTab; label: string }[] = [
   { key: 'short', label: '短图文' },
@@ -154,10 +152,13 @@ export default function Publish() {
   const draftParam = route.params?.draft;
 
   const [activeTab, setActiveTab] = useState<PublishTab>('short');
-  const [images, setImages] = useState<PublishImage[]>([]);
+  const [images, setImages] = useState<string[]>([]);
+  const [imgBusy, setImgBusy] = useState(false);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
-  const [video, setVideo] = useState<UploadVideo | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [videoBusy, setVideoBusy] = useState(false);
+  const [videoLocalUri, setVideoLocalUri] = useState<string | null>(null);
   const [videoCover, setVideoCover] = useState<string | null>(null);
   const [coverUploading, setCoverUploading] = useState(false);
   const [videoRatio, setVideoRatio] = useState<'3:4' | '16:9'>('3:4');
@@ -169,6 +170,7 @@ export default function Publish() {
   const [bodyEditing, setBodyEditing] = useState(false);
   const [draftId, setDraftId] = useState<string | null>(draftParam?.id ?? null);
   const [bbsDraftId, setBbsDraftId] = useState<number | null>(null);
+  const editBbsId = route.params?.editBbsId;
 
   useEffect(() => {
     if (!draftParam) return;
@@ -176,10 +178,8 @@ export default function Publish() {
       setActiveTab('video');
       setVideoTitle(draftParam.title);
       setVideoBody(draftParam.content);
-      const videoUri = draftParam.videoUri || draftParam.videoUrl;
-      if (videoUri) {
-        setVideo({ uri: videoUri, url: draftParam.videoUrl, uploading: false });
-      }
+      if (draftParam.videoUrl) setVideoUrl(draftParam.videoUrl);
+      setVideoLocalUri(draftParam.videoUri ?? null);
       setVideoCover(draftParam.videoCover ?? null);
       if (draftParam.videoRatio) setVideoRatio(draftParam.videoRatio);
       setCoverTransform(draftParam.coverTransform ?? null);
@@ -187,48 +187,29 @@ export default function Publish() {
       setActiveTab('short');
       setTitle(draftParam.title);
       setBody(draftParam.content);
-      setImages(
-        draftParam.images.map((img, i) => ({
-          key: `${draftParam.id}-${i}`,
-          uri: img.uri,
-          url: img.url,
-          uploading: false,
-          isLocal: 1,
-        })),
-      );
+      setImages(draftParam.images);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 对齐小程序：进入发布页走 /bbs/user/push/pre 取（或建）预发布草稿并回填
   useEffect(() => {
-    if (draftParam) return;
-    API.bbs
-      .pushPre()
+    // 编辑动态：走详情回显（imageList/videoList 为已上传 url 列表）
+    if (draftParam || !editBbsId) return;
+    API.square
+      .bbsDetail({ bbsId: editBbsId })
       .then(res => {
-        const d = res.data ?? {};
-        setBbsDraftId(d.id ?? null);
-        setTitle(d.title || '');
-        setBody(d.content || '');
-        const links: any[] = d.mediaLinkList ?? [];
-        const imgLinks = links.filter(l => l?.media && l.media.fileType === 'image');
-        const videoLink = links.find(l => l?.media && l.media.fileType === 'video');
-        setImages(
-          imgLinks.map((l, i) => ({
-            key: `${l.mdId ?? 'pre'}-${i}`,
-            uri: l.media.mdUrl,
-            url: l.media.mdUrl,
-            uploading: false,
-            mdId: l.mdId,
-          })),
-        );
-        if (videoLink) {
+        const d: any = res.data ?? {};
+        const bbs = d.bbs ?? {};
+        setBbsDraftId(bbs.id ?? editBbsId);
+        setTitle(bbs.title || '');
+        setBody(bbs.content || '');
+        const toUrl = (o: any) => (typeof o === 'string' ? o : (o?.mdUrl ?? o?.url ?? ''));
+        const imageList: string[] = (d.imageList ?? []).map(toUrl).filter(Boolean);
+        const videoList: string[] = (d.videoList ?? []).map(toUrl).filter(Boolean);
+        setImages(imageList);
+        if (videoList.length > 0) {
           setActiveTab('video');
-          setVideo({
-            uri: videoLink.media.mdUrl,
-            url: videoLink.media.mdUrl,
-            uploading: false,
-          });
+          setVideoUrl(videoList[0]);
         }
       })
       .catch(() => { });
@@ -318,12 +299,13 @@ export default function Publish() {
     return parts.length ? parts.join(' · ') : '无需声明';
   };
 
-  const handleVideoChange = (next: UploadVideo | null) => {
-    if (!next || next.uri !== video?.uri) {
+  const onVideoChange = (url: string | null) => {
+    if (url !== videoUrl) {
       setVideoCover(null);
       setCoverTransform(null);
     }
-    setVideo(next);
+    setVideoUrl(url);
+    if (!url) setVideoLocalUri(null);
   };
 
   const uploadCover = (uri: string) => {
@@ -335,10 +317,10 @@ export default function Publish() {
   };
 
   const openCoverSelect = () => {
-    if (!video) return;
+    if (!videoLocalUri) return;
     Keyboard.dismiss();
     (navigation as any).navigate('publishCover', {
-      videoUri: video.uri,
+      videoUri: videoLocalUri,
       ratio: videoRatio,
       title: videoTitle,
     });
@@ -346,7 +328,7 @@ export default function Publish() {
 
   const hasContent = () =>
     images.length > 0 ||
-    !!video ||
+    !!videoUrl ||
     !!title.trim() ||
     !!body.trim() ||
     !!videoTitle.trim() ||
@@ -354,7 +336,8 @@ export default function Publish() {
 
   const clearAll = () => {
     setImages([]);
-    setVideo(null);
+    setVideoUrl(null);
+    setVideoLocalUri(null);
     setVideoCover(null);
     setCoverTransform(null);
     setTitle('');
@@ -458,13 +441,14 @@ export default function Publish() {
     setAllowLeave(true);
   };
 
+
   const onExitDraft = () => {
     setExitMenuVisible(false);
     if (activeTab === 'short' && images.length === 0) {
       Alert.alert('提示', '短图文至少需要一张图片才能存草稿');
       return;
     }
-    if (activeTab === 'video' && !video) {
+    if (activeTab === 'video' && !videoUrl) {
       Alert.alert('提示', '视频动态至少需要上传一个视频才能存草稿');
       return;
     }
@@ -474,9 +458,9 @@ export default function Publish() {
       draftType: activeTab === 'video' ? 1 : 0,
       title: activeTab === 'video' ? videoTitle : title,
       content: activeTab === 'video' ? videoBody : body,
-      images: images.map(item => ({ uri: item.url || item.uri, url: item.url })),
-      videoUri: video?.uri,
-      videoUrl: video?.url,
+      images,
+      videoUri: videoLocalUri ?? undefined,
+      videoUrl: videoUrl ?? undefined,
       videoCover: videoCover ?? undefined,
       videoRatio,
       coverTransform,
@@ -504,82 +488,7 @@ export default function Publish() {
     reprintRef.current?.dismiss();
   };
 
-  /** 媒体列表：对齐小程序 mediaLinkList 结构；只收集本次新上传（无 mdId）的媒体 */
-  const buildMediaList = (): API.publish.PublishMedia[] => {
-    const toMedia = (
-      fileType: string,
-      mdUrl: string,
-      url: string,
-      media: API.publish.PublishMedia['media'],
-      extra: Partial<Omit<API.publish.PublishMedia, 'type' | 'isIndex' | 'isLocal' | 'targetId' | 'fileType' | 'mdUrl' | 'url' | 'media'>>,
-    ): API.publish.PublishMedia => ({
-      type: 6,
-      isIndex: 0,
-      isLocal: 1,
-      targetId: bbsDraftId ?? undefined,
-      fileType,
-      mdUrl,
-      url,
-      ...extra,
-      media,
-    });
-    if (activeTab === 'video') {
-      return video?.url && video.isLocal === 1
-        ? [
-            toMedia(
-              'video',
-              video.url,
-              video.url,
-              {
-                mdUrl: video.url,
-                fileType: 'video',
-                width: video.width,
-                height: video.height,
-                size: video.size,
-                duration: video.duration,
-              },
-              {
-                tempFilePath: video.uri,
-                width: video.width,
-                height: video.height,
-                size: video.size,
-                duration: video.duration,
-              },
-            ),
-          ]
-        : [];
-    }
-    return images
-      .filter(item => !!item.url && item.isLocal === 1)
-      .map(item =>
-        toMedia(
-          'image',
-          item.url as string,
-          item.url as string,
-          {
-            mdUrl: item.url as string,
-            fileType: 'image',
-            width: item.width,
-            height: item.height,
-            size: item.size,
-          },
-          {
-            tempFilePath: item.uri,
-            width: item.width,
-            height: item.height,
-            size: item.size,
-          },
-        ),
-      );
-  };
-
-  /** 删除已入素材库的媒体（对齐小程序 deleteMedia） */
-  const onRemoveImage = (item: UploadImage) => {
-    if (item.mdId) {
-      API.common.mediaDel({ mediaId: item.mdId }).catch(() => { });
-    }
-  };
-
+  /** 媒体列表：对齐后端 WqUserMediaLink 结构；全量传已上传（有 url）的媒体 */
   const onPublish = async () => {
     const activeTitle = activeTab === 'video' ? videoTitle : title;
     const activeContent = activeTab === 'video' ? videoBody : body;
@@ -587,7 +496,7 @@ export default function Publish() {
       Alert.alert('提示', '请先填写内容');
       return;
     }
-    if (activeTab === 'video' && !video) {
+    if (activeTab === 'video' && !videoUrl) {
       Alert.alert('提示', '请先上传视频');
       return;
     }
@@ -595,20 +504,12 @@ export default function Publish() {
       Alert.alert('提示', '标题最多20字');
       return;
     }
-    if (images.some(item => item.uploading)) {
-      Alert.alert('提示', '图片上传中，请稍候');
+    if (imgBusy) {
+      Alert.alert('提示', '图片上传中或存在上传失败，请稍候');
       return;
     }
-    if (images.some(item => item.failed)) {
-      Alert.alert('提示', '有图片上传失败，请重试或删除');
-      return;
-    }
-    if (video?.uploading) {
-      Alert.alert('提示', '视频上传中，请稍候');
-      return;
-    }
-    if (activeTab === 'video' && video && (!video.url || video.failed)) {
-      Alert.alert('提示', '视频上传失败，请删除后重试');
+    if (videoBusy) {
+      Alert.alert('提示', '视频上传中或存在上传失败，请稍候');
       return;
     }
     if (activeTab === 'video' && coverUploading) {
@@ -617,26 +518,53 @@ export default function Publish() {
     }
     if (publishing) return;
     setPublishing(true);
+
     try {
-      // 对齐小程序：发布走 /bbs/user/push（id 为预发布草稿 id，mediaList 只含新上传媒体）
-      await API.bbs.push({
-        id: bbsDraftId ?? undefined,
-        title: activeTitle.trim(),
-        content: activeContent.trim(),
-        mediaList: buildMediaList(),
-        isToLife: 1,
-      });
-      if (draftId) deleteDraft(draftId);
-      setBbsDraftId(null);
-      Alert.alert('发布成功', '企业用户发布后，需企业管理员审核', [
-        {
-          text: '知道了',
-          onPress: () => {
-            clearAll();
-            setAllowLeave(true);
+      let videoCoverUrl: string | undefined;
+      if (activeTab === 'video' && videoCover) {
+        videoCoverUrl = videoCover.startsWith('http')
+          ? videoCover
+          : await uploadToOss(videoCover, 'image/jpeg');
+      }
+      if (editBbsId) {
+        // 编辑已发布动态：走 /my/bbs/update（images 全量传 url，媒体全量替换）
+        const res = await API.bbs.update({
+          bbsId: editBbsId,
+          title: activeTitle.trim(),
+          content: activeContent.trim(),
+          images,
+          videos: activeTab === 'video' && videoUrl ? [videoUrl] : undefined,
+          videoCover: videoCoverUrl,
+          boardType: 0,
+          isToLife: 1,
+        });
+        Alert.alert('提示', res.data?.statusMsg || '修改成功', [
+          { text: '知道了', onPress: () => setAllowLeave(true) },
+        ]);
+      } else {
+        // 新发布：走 /bbs/user/push（id 为预发布草稿 id，mediaList 全量传已上传媒体）
+        await API.bbs.push({
+          id: bbsDraftId ?? undefined,
+          title: activeTitle.trim(),
+          content: activeContent.trim(),
+          images,
+          videos: activeTab === 'video' && videoUrl ? [videoUrl] : undefined,
+          videoCover: videoCoverUrl,
+          boardType: 0,
+          isToLife: 1,
+        });
+        if (draftId) deleteDraft(draftId);
+        setBbsDraftId(null);
+        Alert.alert('发布成功', '企业用户发布后，需企业管理员审核', [
+          {
+            text: '知道了',
+            onPress: () => {
+              clearAll();
+              setAllowLeave(true);
+            },
           },
-        },
-      ]);
+        ]);
+      }
     } catch (e: any) {
       Alert.alert('发布失败', e?.msg || '请稍后重试');
     } finally {
@@ -758,12 +686,14 @@ export default function Publish() {
     return (
       <View style={styles.videoRow}>
         <VideoUploader
-          value={video}
-          onChange={handleVideoChange}
+          value={videoUrl}
+          onChange={onVideoChange}
+          onPick={setVideoLocalUri}
+          onBusyChange={setVideoBusy}
           width={videoSize.width}
           height={videoSize.height}
         />
-        {video && (
+        {videoUrl && (
           <TouchableOpacity
             style={[styles.videoCoverTile, previewSize, hasCover && styles.videoCoverTileFilled]}
             activeOpacity={0.8}
@@ -1090,7 +1020,7 @@ export default function Publish() {
                   <ImageUploader
                     value={images}
                     onChange={setImages}
-                    onRemove={onRemoveImage}
+                    onBusyChange={setImgBusy}
                     maxCount={MAX_IMAGES}
                     style={styles.uploaderWrap}
                   />

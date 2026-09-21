@@ -79,6 +79,8 @@ export default function RootNavigator() {
   return (
     <NavigationContainer ref={navigationRef} theme={navTheme}>
       <Stack.Navigator
+        // TODO: 联调临时写死，进入 App 直达发布页（编辑动态 1012）
+        initialRouteName="publish"
         screenOptions={{
           headerTitleAlign: 'center',
           headerBackButtonDisplayMode: 'minimal',
@@ -131,6 +133,7 @@ export default function RootNavigator() {
         <Stack.Screen
           name="publish"
           component={Publish}
+          initialParams={{ editBbsId: 1012 }}
           options={{
             title: '统一发布',
             headerStyle: { backgroundColor: '#FFFFFF' },
