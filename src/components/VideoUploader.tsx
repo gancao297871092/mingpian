@@ -84,10 +84,12 @@ export default function VideoUploader({
     return next;
   };
 
-  // 外部回填（草稿/编辑回显）：value 变化且非本组件 emit 引起时重建
+  // 外部回填（草稿/编辑回显）：value 变化且非本组件 emit 引起时重建；
+  // 上传中/失败时不重建，避免回显竞态把进行中的视频冲掉
   useEffect(() => {
     if (value === lastEmittedRef.current) return;
     lastEmittedRef.current = value;
+    if (itemRef.current && (itemRef.current.uploading || itemRef.current.failed)) return;
     updateItem(value ? { uri: value, url: value, uploading: false } : null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);

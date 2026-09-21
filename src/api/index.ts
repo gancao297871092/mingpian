@@ -129,27 +129,35 @@ export namespace API {
     export function bbsDetail(params: { bbsId: number }) {
       return request.get<any>('/my/bbs/detail', { params });
     }
-    /** 发布动态（id 传预发布草稿 id；mediaList 全量传已上传媒体） */
+    /** 发布动态（/publish/submit；draftType 必填，视频动态传 videoUrl） */
     export function push(data: {
       id?: number;
+      draftType?: 0 | 1 | 2;
       content: string;
       title?: string;
       tags?: string;
       images?: string[];
+      videoUrl?: string;
       videos?: string[];
       videoCover?: string;
       boardType?: number;
       isToLife?: number;
+      aiConnectEnabled?: number;
+      declaration?: number;
+      visibility?: number;
+      commentScope?: number;
     }) {
       return request.post<any>('/publish/submit', data);
     }
-    /** 编辑动态（仅本人；images/videos 全量传已上传 url，媒体全量替换） */
+    /** 编辑动态（/publish/update；媒体全量替换语义，传了就覆盖） */
     export function update(data: {
       bbsId: number;
+      draftType?: 0 | 1 | 2;
       title?: string;
       content?: string;
       tags?: string;
       images?: string[];
+      videoUrl?: string;
       videos?: string[];
       videoCover?: string;
       aiConnectEnabled?: number;
@@ -159,7 +167,7 @@ export namespace API {
       boardType?: number;
       isToLife?: number;
     }) {
-      return request.post<any>('/my/bbs/update', data);
+      return request.post<any>('/publish/update', data);
     }
     /** 收藏/取消（status: 1收藏 0取消） */
     export function favorite(params: { bbsId: number; status: number }) {

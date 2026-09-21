@@ -83,11 +83,16 @@ export default function Uploader({
     return next;
   };
 
-  // 外部回填：value 变化且非本组件 emit 引起时重建
+  // 外部回填：value 变化且非本组件 emit 引起时按 url 合并——
+  // 以 value 顺序为准，保留已有 item 状态，上传中/失败的项继续保留
   useEffect(() => {
     if (urls === lastEmittedRef.current) return;
     lastEmittedRef.current = urls;
-    updateItems(() => urls.map(toItem));
+    updateItems(prev => {
+      const inFlight = prev.filter(i => !i.url);
+      const prevByUrl = new Map(prev.filter(i => !!i.url).map(i => [i.url as string, i]));
+      return [...urls.map(u => prevByUrl.get(u) ?? toItem(u)), ...inFlight];
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urls]);
 

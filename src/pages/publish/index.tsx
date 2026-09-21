@@ -101,6 +101,19 @@ const DECLARE_OPTION_LABEL: Record<DeclareOption, string> = {
   opinion: '个人观点，仅供参考',
 };
 
+/** 前端选项 → 后端字段值（见 /publish/submit 接口文档） */
+const VISIBILITY_MAP: Record<VisibilityKey, number> = { public: 0, mutual: 1, private: 2 };
+const COMMENT_MAP: Record<CommentKey, number> = { everyone: 0, fans: 1, mutual: 2, self: 3 };
+const DECLARATION_MAP: Record<DeclareOption, number> = {
+  none: 0,
+  'self-shot': 1,
+  reprint: 2,
+  fiction: 0,
+  ai: 3,
+  marketing: 4,
+  opinion: 0,
+};
+
 const ICONS = {
   add: require('@/assets/publish/add.png'),
   eye: require('@/assets/publish/eye.png'),
@@ -169,9 +182,8 @@ export default function Publish() {
   const [publishing, setPublishing] = useState(false);
   const [bodyEditing, setBodyEditing] = useState(false);
   const [draftId, setDraftId] = useState<string | null>(draftParam?.id ?? null);
-  const [bbsDraftId, setBbsDraftId] = useState<number | null>(null);
   const editBbsId = route.params?.editBbsId;
-
+  
   useEffect(() => {
     if (!draftParam) return;
     if (draftParam.draftType === 1) {
@@ -195,12 +207,11 @@ export default function Publish() {
   useEffect(() => {
     // 编辑动态：走详情回显（imageList/videoList 为已上传 url 列表）
     if (draftParam || !editBbsId) return;
-    API.square
+    API.bbs
       .bbsDetail({ bbsId: editBbsId })
       .then(res => {
         const d: any = res.data ?? {};
         const bbs = d.bbs ?? {};
-        setBbsDraftId(bbs.id ?? editBbsId);
         setTitle(bbs.title || '');
         setBody(bbs.content || '');
         const toUrl = (o: any) => (typeof o === 'string' ? o : (o?.mdUrl ?? o?.url ?? ''));
@@ -527,35 +538,40 @@ export default function Publish() {
           : await uploadToOss(videoCover, 'image/jpeg');
       }
       if (editBbsId) {
-        // 编辑已发布动态：走 /my/bbs/update（images 全量传 url，媒体全量替换）
+        // 编辑：/publish/update（媒体全量替换语义，传了就覆盖）
         const res = await API.bbs.update({
           bbsId: editBbsId,
           title: activeTitle.trim(),
           content: activeContent.trim(),
           images,
-          videos: activeTab === 'video' && videoUrl ? [videoUrl] : undefined,
+          videoUrl: activeTab === 'video' ? videoUrl ?? undefined : undefined,
           videoCover: videoCoverUrl,
           boardType: 0,
-          isToLife: 1,
+          visibility: VISIBILITY_MAP[visibility],
+          commentScope: COMMENT_MAP[commentWho],
+          declaration: declareOriginal ? 1 : DECLARATION_MAP[declareOption],
+          aiConnectEnabled: syncOn ? 1 : 0,
         });
         Alert.alert('提示', res.data?.statusMsg || '修改成功', [
           { text: '知道了', onPress: () => setAllowLeave(true) },
         ]);
       } else {
-        // 新发布：走 /bbs/user/push（id 为预发布草稿 id，mediaList 全量传已上传媒体）
-        await API.bbs.push({
-          id: bbsDraftId ?? undefined,
+        // 新发布：/publish/submit（draftType: 0图文/1视频）
+        const res = await API.bbs.push({
+          draftType: activeTab === 'video' ? 1 : 0,
           title: activeTitle.trim(),
           content: activeContent.trim(),
           images,
-          videos: activeTab === 'video' && videoUrl ? [videoUrl] : undefined,
+          videoUrl: activeTab === 'video' ? videoUrl ?? undefined : undefined,
           videoCover: videoCoverUrl,
           boardType: 0,
-          isToLife: 1,
+          visibility: VISIBILITY_MAP[visibility],
+          commentScope: COMMENT_MAP[commentWho],
+          declaration: declareOriginal ? 1 : DECLARATION_MAP[declareOption],
+          aiConnectEnabled: syncOn ? 1 : 0,
         });
         if (draftId) deleteDraft(draftId);
-        setBbsDraftId(null);
-        Alert.alert('发布成功', '企业用户发布后，需企业管理员审核', [
+        Alert.alert('提示', res.data?.statusMsg || '发布成功', [
           {
             text: '知道了',
             onPress: () => {
@@ -1011,21 +1027,20 @@ export default function Publish() {
 
           {activeTab === 'short' && (
             <>
-              {!bodyEditing && (
-                <Animated.View
-                  key="short-image-uploader"
-                  entering={FadeInUp.duration(260).delay(40).easing(Easing.out(Easing.cubic))}
-                  exiting={FadeOutUp.duration(180).easing(Easing.in(Easing.cubic))}
-                >
-                  <ImageUploader
-                    value={images}
-                    onChange={setImages}
-                    onBusyChange={setImgBusy}
-                    maxCount={MAX_IMAGES}
-                    style={styles.uploaderWrap}
-                  />
-                </Animated.View>
-              )}
+              <Animated.View
+                key="short-image-uploader"
+                entering={FadeInUp.duration(260).delay(40).easing(Easing.out(Easing.cubic))}
+                style={bodyEditing ? { opacity: 0, height: 0, overflow: 'hidden' } : undefined}
+                pointerEvents={bodyEditing ? 'none' : 'auto'}
+              >
+                <ImageUploader
+                  value={images}
+                  onChange={setImages}
+                  onBusyChange={setImgBusy}
+                  maxCount={MAX_IMAGES}
+                  style={styles.uploaderWrap}
+                />
+              </Animated.View>
               {renderTextFields(title, setTitle, body, setBody)}
             </>
           )}

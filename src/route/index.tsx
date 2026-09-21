@@ -133,7 +133,6 @@ export default function RootNavigator() {
         <Stack.Screen
           name="publish"
           component={Publish}
-          initialParams={{ editBbsId: 1012 }}
           options={{
             title: '统一发布',
             headerStyle: { backgroundColor: '#FFFFFF' },

@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -36,8 +36,9 @@ export interface UploadImage {
 }
 
 interface ImageUploaderProps {
-  value: UploadImage[];
-  onChange: (images: UploadImage[]) => void;
+  value: string[];
+  onChange: (urls: string[]) => void;
+  onBusyChange?: (busy: boolean) => void;
   maxCount?: number;
   itemSize?: number;
   gap?: number;
@@ -167,9 +168,19 @@ function SortableGrid({
   );
 }
 
+function urlsToUploadImages(urls: string[]): UploadImage[] {
+  return urls.map(url => ({
+    key: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${url.slice(-8)}`,
+    uri: url,
+    url,
+    uploading: false,
+  }));
+}
+
 export default function ImageUploader({
   value,
   onChange,
+  onBusyChange,
   maxCount = 9,
   itemSize = scaleSizeW(85),
   gap = scaleSizeW(10),
@@ -178,25 +189,40 @@ export default function ImageUploader({
   uploadFn = uploadToOss,
   style,
 }: ImageUploaderProps) {
-
-  console.log(value, 'value')
+  const [innerItems, setInnerItems] = useState<UploadImage[]>(() => urlsToUploadImages(value));
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
-  const latestRef = useRef<UploadImage[]>(value);
-  const lastSentRef = useRef<UploadImage[]>(value);
-  if (value !== lastSentRef.current) {
-    lastSentRef.current = value;
-    latestRef.current = value;
-  }
+  const valueRef = useRef(value);
+  valueRef.current = value;
 
-  const emitChange = (updater: (prev: UploadImage[]) => UploadImage[]) => {
-    const next = updater(latestRef.current);
-    latestRef.current = next;
-    lastSentRef.current = next;
-    onChange(next);
+  useEffect(() => {
+    const currentUrls = innerItems.map(i => i.url).filter(Boolean) as string[];
+    if (value.length !== currentUrls.length || !value.every((u, i) => u === currentUrls[i])) {
+      setInnerItems(urlsToUploadImages(value));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  const emitUrls = (nextItems: UploadImage[]) => {
+    const urls = nextItems.map(i => i.url).filter(Boolean) as string[];
+    onChange(urls);
+    const busy = nextItems.some(i => i.uploading || i.failed);
+    onBusyChange?.(busy);
+  };
+
+  const emitItems = (updater: (prev: UploadImage[]) => UploadImage[]) => {
+    setInnerItems(prev => {
+      const next = updater(prev);
+      emitUrls(next);
+      return next;
+    });
   };
 
   const updateImage = (key: string, patch: Partial<UploadImage>) => {
-    emitChange(prev => prev.map(item => (item.key === key ? { ...item, ...patch } : item)));
+    setInnerItems(prev => {
+      const next = prev.map(item => (item.key === key ? { ...item, ...patch } : item));
+      emitUrls(next);
+      return next;
+    });
   };
 
   const uploadImageItem = async (key: string, uri: string, mime?: string) => {
@@ -212,7 +238,7 @@ export default function ImageUploader({
 
   const pickImages = async () => {
     try {
-      const remain = maxCount - latestRef.current.length;
+      const remain = maxCount - innerItems.length;
       if (remain <= 0) return;
       const picked = await ImagePicker.openPicker({
         multiple: true,
@@ -238,7 +264,7 @@ export default function ImageUploader({
         uploading: true,
       }));
       if (!newItems.length) return;
-      emitChange(prev => [...prev, ...newItems].slice(0, maxCount));
+      emitItems(prev => [...prev, ...newItems].slice(0, maxCount));
       newItems.forEach((item, i) => {
         uploadImageItem(item.key, item.uri, valid[i]?.mime);
       });
@@ -248,22 +274,22 @@ export default function ImageUploader({
   };
 
   const removeImage = (key: string) => {
-    emitChange(prev => prev.filter(item => item.key !== key));
+    emitItems(prev => prev.filter(item => item.key !== key));
   };
 
   const handleDrop = (_id: string, _position: number, allPositions?: { [id: string]: number }) => {
     if (!allPositions) return;
-    emitChange(prev => [...prev].sort((a, b) => (allPositions[a.key] ?? 0) - (allPositions[b.key] ?? 0)));
+    emitItems(prev => [...prev].sort((a, b) => (allPositions[a.key] ?? 0) - (allPositions[b.key] ?? 0)));
   };
 
   return (
     <View style={[{ height: itemSize }, style]}>
       <SortableGrid
-        key={value.map(item => item.key).join('|')}
-        images={value}
+        key={innerItems.map(item => item.key).join('|')}
+        images={innerItems}
         itemSize={itemSize}
         gap={gap}
-        showAdd={value.length < maxCount}
+        showAdd={innerItems.length < maxCount}
         showCoverBadge={showCoverBadge}
         onAdd={pickImages}
         onRemove={removeImage}
@@ -282,7 +308,7 @@ export default function ImageUploader({
       >
         {previewIndex !== null && (
           <GestureViewer
-            data={value.map(item => item.uri)}
+            data={innerItems.map(item => item.uri)}
             initialIndex={previewIndex}
             renderItem={(uri: string) => (
               <Image source={{ uri }} style={styles.previewViewerImage} resizeMode="contain" />

@@ -26,6 +26,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import SafeView from '@/components/SafeView';
 import EmptyState from '@/components/EmptyState';
 import NavHeader from '@/components/NavHeader';
+import RichText from '@/components/RichText';
 import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText, SCREEN_WIDTH } from '@/utils/screenUtils';
 import { formatLikeCount } from '@/utils/format';
@@ -707,7 +708,7 @@ export default function BbsDetail() {
         )}
         <View style={styles.contentBox}>
           {!!detail.title && <Text style={styles.title}>{detail.title}</Text>}
-          {!!detail.content && <Text style={styles.body}>{detail.content}</Text>}
+          {!!detail.content && <RichText content={detail.content} style={styles.body} />}
           {detail.tags.length > 0 && <Text style={styles.tags}>{detail.tags.join('  ')}</Text>}
           <View style={styles.metaRow}>
             <Text style={styles.metaText}>
