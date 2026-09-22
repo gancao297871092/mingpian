@@ -573,9 +573,15 @@ export default function Publish() {
       Alert.alert('提示', '视频动态至少需要上传一个视频才能存草稿');
       return;
     }
-    if (activeTab === 'long' && !longTitle.trim() && !htmlHasContent(longHtml)) {
-      Alert.alert('提示', '长文至少需要填写标题或正文才能存草稿');
-      return;
+    if (activeTab === 'long') {
+      if (!longCover) {
+        Alert.alert('提示', '长文需要添加封面才能存草稿');
+        return;
+      }
+      if (!longTitle.trim() && !htmlHasContent(longHtml)) {
+        Alert.alert('提示', '长文至少需要填写标题或正文才能存草稿');
+        return;
+      }
     }
     const id = draftId ?? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     saveDraft({

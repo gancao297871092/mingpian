@@ -80,8 +80,6 @@ export default function RootNavigator() {
   return (
     <NavigationContainer ref={navigationRef} theme={navTheme}>
       <Stack.Navigator
-        // TODO: 联调临时写死，进入 App 直达发布页（编辑动态 1012）
-        initialRouteName="publish"
         screenOptions={{
           headerTitleAlign: 'center',
           headerBackButtonDisplayMode: 'minimal',

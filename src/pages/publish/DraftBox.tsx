@@ -94,6 +94,12 @@ export default function DraftBox() {
       }
       return null;
     }
+    if (draft.draftType === 2) {
+      if (draft.cover) {
+        return <Image source={{ uri: draft.cover }} style={[styles.cover, { height: COVER_TALL }]} resizeMode="cover" />;
+      }
+      return null;
+    }
     const first = draft.images[0];
     if (first) {
       return <Image source={{ uri: first }} style={[styles.cover, { height: COVER_TALL }]} resizeMode="cover" />;
@@ -126,9 +132,13 @@ export default function DraftBox() {
         ? draft.videoRatio === '16:9'
           ? COVER_SHORT
           : COVER_TALL
-        : draft.images.length > 0
-          ? COVER_TALL
-          : 0;
+        : draft.draftType === 2
+          ? draft.cover
+            ? COVER_TALL
+            : 0
+          : draft.images.length > 0
+            ? COVER_TALL
+            : 0;
     const target = heights[0] <= heights[1] ? 0 : 1;
     columns[target].push(draft);
     heights[target] += coverH + scaleSizeW(88) + scaleSizeW(4);
