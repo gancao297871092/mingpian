@@ -1,0 +1,60 @@
+diff --git a/node_modules/react-native-cn-quill/lib/typescript/editor/quill-editor.d.ts b/node_modules/react-native-cn-quill/lib/typescript/editor/quill-editor.d.ts
+index bf40ca8..4b5454c 100644
+--- a/node_modules/react-native-cn-quill/lib/typescript/editor/quill-editor.d.ts
++++ b/node_modules/react-native-cn-quill/lib/typescript/editor/quill-editor.d.ts
+@@ -53,6 +53,9 @@ export default class QuillEditor extends React.Component<EditorProps, EditorStat
+     disable: () => void;
+     update: () => void;
+     format: (name: string, value: any) => void;
++    undo: () => void;
++    redo: () => void;
++    setEmbedWidth: (index: number, width: string) => void;
+     deleteText: (index: number, length: number) => void;
+     removeFormat: (index: number, length: number) => Promise<unknown>;
+     getDimensions: () => Promise<any>;
+diff --git a/node_modules/react-native-cn-quill/src/constants/editor/editor_js.ts b/node_modules/react-native-cn-quill/src/constants/editor/editor_js.ts
+index f41409e..de8b76a 100644
+--- a/node_modules/react-native-cn-quill/src/constants/editor/editor_js.ts
++++ b/node_modules/react-native-cn-quill/src/constants/editor/editor_js.ts
+@@ -286,6 +286,18 @@ export const editor_js = `
+       case 'formatText':
+         formatText(msg.key, msg.index, msg.length, msg.formats, msg.source);
+         break;
++      case 'undo':
++        quill.history.undo();
++        break;
++      case 'redo':
++        quill.history.redo();
++        break;
++      case 'setEmbedWidth':
++        var embedLeafInfo = quill.getLeaf(msg.index);
++        if (embedLeafInfo && embedLeafInfo[0] && embedLeafInfo[0].domNode && embedLeafInfo[0].domNode.style) {
++          embedLeafInfo[0].domNode.style.width = msg.width || '';
++        }
++        break;
+       default:
+         break;
+     }
+diff --git a/node_modules/react-native-cn-quill/src/editor/quill-editor.tsx b/node_modules/react-native-cn-quill/src/editor/quill-editor.tsx
+index a34b433..c480969 100644
+--- a/node_modules/react-native-cn-quill/src/editor/quill-editor.tsx
++++ b/node_modules/react-native-cn-quill/src/editor/quill-editor.tsx
+@@ -277,6 +277,18 @@ export default class QuillEditor extends React.Component<
+     this.post({ command: 'format', name, value });
+   };
+ 
++  undo = () => {
++    this.post({ command: 'undo' });
++  };
++
++  redo = () => {
++    this.post({ command: 'redo' });
++  };
++
++  setEmbedWidth = (index: number, width: string) => {
++    this.post({ command: 'setEmbedWidth', index, width });
++  };
++
+   deleteText = (index: number, length: number) => {
+     this.post({ command: 'deleteText', index, length });
+   };

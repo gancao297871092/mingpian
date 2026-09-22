@@ -5,9 +5,11 @@ import {
   Easing,
   Keyboard,
   type KeyboardEvent,
+  Modal,
   Platform,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -35,7 +37,31 @@ const CUSTOM_JS = `
 var SizeStyle = Quill.import('attributors/style/size');
 SizeStyle.whitelist = ['13px','15px','17px','20px','24px'];
 Quill.register(SizeStyle, true);
+
+var BlockEmbed = Quill.import('blots/block/embed');
+class Mp4VideoBlot extends BlockEmbed {
+  static create(value) {
+    var node = document.createElement('video');
+    node.setAttribute('src', typeof value === 'string' ? value : value.url);
+    node.setAttribute('controls', 'controls');
+    node.setAttribute('playsinline', 'playsinline');
+    node.setAttribute('webkit-playsinline', 'webkit-playsinline');
+    node.style.width = '100%';
+    node.style.maxWidth = '100%';
+    return node;
+  }
+  static value(node) {
+    return node.getAttribute('src');
+  }
+}
+Mp4VideoBlot.blotName = 'mp4video';
+Mp4VideoBlot.tagName = 'video';
+Quill.register(Mp4VideoBlot, true);
 `;
+
+const CUSTOM_STYLES = ['.ql-editor img { max-width: 100%; } .ql-editor video { max-width: 100%; }'];
+
+const WIDTH_PRESETS = ['25%', '50%', '75%', '100%'];
 
 const SIZE_STOPS: { label: string; value: string | false }[] = [
   { label: '小', value: '13px' },
@@ -93,6 +119,17 @@ function RedoIcon({ color = '#999999' }: { color?: string }) {
     <Svg width={20} height={20} viewBox="0 0 20 20" fill="none">
       <Path
         d="M11.4165 2.74377L15.0615 6.38877L11.4165 10.0338L10.2378 8.85502L11.869 7.22127H9.34527C7.24652 7.22127 5.54902 8.90253 5.54902 10.9713C5.54902 13.0413 7.24652 14.7213 9.34527 14.7213H11.6665V16.3888H9.34527C6.33027 16.3888 3.88277 13.9663 3.88277 10.9725C3.88277 7.97878 6.33027 5.55502 9.34527 5.55502H11.8703L10.2378 3.92252L11.4165 2.74377Z"
+        fill={color}
+      />
+    </Svg>
+  );
+}
+
+function VideoIcon({ color = TEXT_MAIN }: { color?: string }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 20 20" fill="none">
+      <Path
+        d="M17.5 2.5H2.5C1.80833 2.5 1.25 3.05833 1.25 3.75V16.25C1.25 16.9417 1.80833 17.5 2.5 17.5H17.5C18.1917 17.5 18.75 16.9417 18.75 16.25V3.75C18.75 3.05833 18.1917 2.5 17.5 2.5ZM17.5 16.25H2.5V3.75H17.5V16.25ZM8.125 6.875L13.75 10L8.125 13.125V6.875Z"
         fill={color}
       />
     </Svg>
@@ -242,6 +279,9 @@ export default function LongTextEdit({ route, navigation }: Props) {
   const [plainLen, setPlainLen] = useState(() => htmlToPlainLength(initialHtml || ''));
   const [panelOpen, setPanelOpen] = useState(false);
   const [fmt, setFmt] = useState<FormatState>(DEFAULT_FORMAT);
+  const [embedTarget, setEmbedTarget] = useState<{ index: number; kind: 'image' | 'video' } | null>(null);
+  const [customWidth, setCustomWidth] = useState('');
+  const embedModalOpenRef = useRef(false);
   const insets = useSafeAreaInsets();
   const kbAnim = useRef(new Animated.Value(Platform.OS === 'ios' ? insets.bottom : 0)).current;
 
@@ -325,8 +365,8 @@ export default function LongTextEdit({ route, navigation }: Props) {
     }
   };
 
-  const onUndo = () => exec(() => (quillRef.current as any).commandDOM('$.history.undo()'));
-  const onRedo = () => exec(() => (quillRef.current as any).commandDOM('$.history.redo()'));
+  const onUndo = () => exec(() => quillRef.current.undo());
+  const onRedo = () => exec(() => quillRef.current.redo());
 
   const onInsertImage = async () => {
     try {
@@ -341,6 +381,67 @@ export default function LongTextEdit({ route, navigation }: Props) {
         Alert.alert('上传失败');
       }
     }
+  };
+
+  const onInsertVideo = async () => {
+    try {
+      const video = await ImagePicker.openPicker({
+        mediaType: 'video',
+      });
+      const url = await uploadToOss(video.path, video.mime || 'video/mp4');
+      const sel = await (quillRef.current as any).getSelection(true);
+      quillRef.current.insertEmbed(sel?.index || 0, 'mp4video', url);
+    } catch (e: any) {
+      if (e?.code !== 'E_PICKER_CANCELLED') {
+        Alert.alert('上传失败');
+      }
+    }
+  };
+
+  const onSelectionChange = async (data: any) => {
+    const range = data?.range;
+    if (!range || embedModalOpenRef.current) return;
+    const checkAt = async (index: number) => {
+      if (index < 0) return null;
+      try {
+        const contents = await (quillRef.current as any).getContents(index, 1);
+        const op = contents?.ops?.[0];
+        const insert = op?.insert;
+        if (insert && typeof insert === 'object') {
+          if (insert.image) return { index, kind: 'image' as const };
+          if (insert.mp4video) return { index, kind: 'video' as const };
+        }
+      } catch {
+        // ignore
+      }
+      return null;
+    };
+    const hit = (await checkAt(range.index)) ?? (await checkAt(range.index - 1));
+    if (hit) {
+      embedModalOpenRef.current = true;
+      setCustomWidth('');
+      setEmbedTarget(hit);
+    }
+  };
+
+  const closeEmbedModal = () => {
+    embedModalOpenRef.current = false;
+    setEmbedTarget(null);
+  };
+
+  const applyEmbedWidth = (width: string) => {
+    if (!embedTarget) return;
+    exec(() => quillRef.current.setEmbedWidth(embedTarget.index, width));
+    closeEmbedModal();
+  };
+
+  const applyCustomWidth = () => {
+    const n = parseInt(customWidth, 10);
+    if (!n || n < 1 || n > 100) {
+      Alert.alert('提示', '请输入 1-100 的百分比');
+      return;
+    }
+    applyEmbedWidth(`${n}%`);
   };
 
   const onInsertTopic = () => {
@@ -524,6 +625,8 @@ export default function LongTextEdit({ route, navigation }: Props) {
               modules: { toolbar: false },
             }}
             customJS={CUSTOM_JS}
+            customStyles={CUSTOM_STYLES}
+            onSelectionChange={onSelectionChange}
             theme={{
               background: '#ffffff',
               color: TEXT_MAIN,
@@ -550,6 +653,9 @@ export default function LongTextEdit({ route, navigation }: Props) {
             </TouchableOpacity>
             <TouchableOpacity style={styles.toolBtn} activeOpacity={0.8} onPress={onInsertImage}>
               <ImageIcon />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.toolBtn} activeOpacity={0.8} onPress={onInsertVideo}>
+              <VideoIcon />
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.toolBtn, panelOpen && styles.toolBtnPanelOpen]}
@@ -578,6 +684,51 @@ export default function LongTextEdit({ route, navigation }: Props) {
             </View>
           )}
         </View>
+
+        <Modal
+          visible={embedTarget !== null}
+          transparent
+          animationType="fade"
+          onRequestClose={closeEmbedModal}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>{embedTarget?.kind === 'video' ? '视频宽度' : '图片宽度'}</Text>
+              <View style={styles.widthPresets}>
+                {WIDTH_PRESETS.map(preset => (
+                  <TouchableOpacity
+                    key={preset}
+                    style={styles.widthPresetBtn}
+                    activeOpacity={0.8}
+                    onPress={() => applyEmbedWidth(preset)}
+                  >
+                    <Text style={styles.widthPresetText}>{preset}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <View style={styles.widthInputRow}>
+                <TextInput
+                  style={styles.widthInput}
+                  placeholder="自定义百分比（1-100）"
+                  placeholderTextColor={TEXT_SUB}
+                  keyboardType="number-pad"
+                  maxLength={3}
+                  value={customWidth}
+                  onChangeText={setCustomWidth}
+                />
+                <Text style={styles.widthPercent}>%</Text>
+              </View>
+              <View style={styles.modalActions}>
+                <TouchableOpacity style={styles.modalActionBtn} onPress={closeEmbedModal}>
+                  <Text style={styles.modalActionText}>取消</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.modalActionBtn} onPress={applyCustomWidth}>
+                  <Text style={[styles.modalActionText, styles.modalActionPrimary]}>确定</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </Animated.View>
     </SafeView>
   );
@@ -785,5 +936,83 @@ const styles = StyleSheet.create({
     width: scaleSizeW(10),
     height: scaleSizeW(10),
     borderRadius: scaleSizeW(5),
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: scaleSizeW(12),
+    width: '78%',
+    paddingTop: scaleSizeH(18),
+    overflow: 'hidden',
+  },
+  modalTitle: {
+    fontSize: scaleSizeW(16),
+    fontWeight: '600',
+    color: TEXT_MAIN,
+    textAlign: 'center',
+  },
+  widthPresets: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: scaleSizeW(8),
+    marginTop: scaleSizeH(16),
+    paddingHorizontal: scaleSizeW(16),
+  },
+  widthPresetBtn: {
+    flex: 1,
+    height: scaleSizeH(32),
+    borderRadius: scaleSizeW(8),
+    backgroundColor: TILE_BG,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  widthPresetText: {
+    fontSize: scaleSizeW(13),
+    color: TEXT_MAIN,
+  },
+  widthInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSizeW(6),
+    marginTop: scaleSizeH(12),
+    marginHorizontal: scaleSizeW(16),
+    height: scaleSizeH(40),
+    borderRadius: scaleSizeW(8),
+    backgroundColor: TILE_BG,
+    paddingHorizontal: scaleSizeW(12),
+  },
+  widthInput: {
+    flex: 1,
+    padding: 0,
+    fontSize: scaleSizeW(14),
+    color: TEXT_MAIN,
+  },
+  widthPercent: {
+    fontSize: scaleSizeW(14),
+    color: TEXT_SUB,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    marginTop: scaleSizeH(18),
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#eeeeee',
+  },
+  modalActionBtn: {
+    flex: 1,
+    paddingVertical: scaleSizeH(13),
+    alignItems: 'center',
+  },
+  modalActionText: {
+    fontSize: scaleSizeW(15),
+    color: TEXT_MAIN,
+  },
+  modalActionPrimary: {
+    color: PRIMARY,
+    fontWeight: '500',
   },
 });
