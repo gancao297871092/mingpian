@@ -6,7 +6,6 @@ import {
   Keyboard,
   type KeyboardEvent,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -19,7 +18,7 @@ import QuillEditor from 'react-native-cn-quill';
 import ImagePicker from 'react-native-image-crop-picker';
 import SafeView from '@/components/SafeView';
 import { setEditorResult } from '@/utils/editorBridge';
-import { API } from '@/api';
+import { uploadToOss } from '@/utils/ossUpload';
 import { scaleSizeH, scaleSizeW } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
 
@@ -334,17 +333,9 @@ export default function LongTextEdit({ route, navigation }: Props) {
       const image = await ImagePicker.openPicker({
         compressImageQuality: 0.8,
       });
-      const formData = new FormData();
-      formData.append('file', {
-        uri: image.path,
-        type: image.mime || 'image/jpeg',
-        name: image.filename || 'image.jpg',
-      } as any);
-      const res = await API.file.upload(formData);
-      if (res.code === '200' && res.data) {
-        const sel = await (quillRef.current as any).getSelection(true);
-        quillRef.current.insertEmbed(sel?.index || 0, 'image', res.data.url);
-      }
+      const url = await uploadToOss(image.path, image.mime || 'image/jpeg');
+      const sel = await (quillRef.current as any).getSelection(true);
+      quillRef.current.insertEmbed(sel?.index || 0, 'image', url);
     } catch (e: any) {
       if (e?.code !== 'E_PICKER_CANCELLED') {
         Alert.alert('上传失败');
@@ -523,11 +514,7 @@ export default function LongTextEdit({ route, navigation }: Props) {
   return (
     <SafeView backgroundColor="#fff">
       <Animated.View style={[styles.flex1, { paddingBottom: kbAnim }]}>
-        <ScrollView
-          style={styles.scroll}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
+        <View style={styles.scroll}>
           <QuillEditor
             ref={quillRef}
             initialHtml={initialHtml || '<p><br></p>'}
@@ -543,16 +530,14 @@ export default function LongTextEdit({ route, navigation }: Props) {
               placeholder: TEXT_SUB,
             }}
             container={false}
-            autoSize
             style={styles.editor}
             webview={{
-              scrollEnabled: false,
+              scrollEnabled: true,
               hideKeyboardAccessoryView: true,
               keyboardDisplayRequiresUserAction: false,
             }}
           />
-          <View style={{ height: scaleSizeH(24) }} />
-        </ScrollView>
+        </View>
 
         <View style={styles.bottomBar}>
           <Text style={[styles.counter, plainLen > LONG_BODY_LIMIT && styles.counterOver]}>
@@ -616,8 +601,8 @@ const styles = StyleSheet.create({
     paddingTop: scaleSizeH(16),
   },
   editor: {
+    flex: 1,
     backgroundColor: '#ffffff',
-    minHeight: scaleSizeH(300),
   },
   bottomBar: {
     paddingHorizontal: scaleSizeW(16),
