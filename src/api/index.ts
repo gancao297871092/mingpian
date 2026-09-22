@@ -144,6 +144,8 @@ export namespace API {
       isToLife?: number;
       aiConnectEnabled?: number;
       declaration?: number;
+      /** 转载来源（名称或链接，declaration=2 时传） */
+      source?: string;
       visibility?: number;
       commentScope?: number;
     }) {
@@ -162,6 +164,8 @@ export namespace API {
       videoCover?: string;
       aiConnectEnabled?: number;
       declaration?: number;
+      /** 转载来源（名称或链接，declaration=2 时传） */
+      source?: string;
       visibility?: number;
       commentScope?: number;
       boardType?: number;

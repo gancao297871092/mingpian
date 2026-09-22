@@ -42,12 +42,16 @@ var BlockEmbed = Quill.import('blots/block/embed');
 class Mp4VideoBlot extends BlockEmbed {
   static create(value) {
     var node = document.createElement('video');
-    node.setAttribute('src', typeof value === 'string' ? value : value.url);
+    var src = typeof value === 'string' ? value : value.url;
+    node.setAttribute('src', src);
+    node.setAttribute('poster', src + '?x-oss-process=video/snapshot,t_0,f_jpg,w_750,h_1000,m_fast');
     node.setAttribute('controls', 'controls');
     node.setAttribute('playsinline', 'playsinline');
     node.setAttribute('webkit-playsinline', 'webkit-playsinline');
+    node.setAttribute('preload', 'metadata');
     node.style.width = '100%';
     node.style.maxWidth = '100%';
+    node.style.backgroundColor = '#000';
     return node;
   }
   static value(node) {
@@ -397,6 +401,7 @@ export default function LongTextEdit({ route, navigation }: Props) {
   const onInsertImage = async () => {
     try {
       const image = await ImagePicker.openPicker({
+        mediaType: 'photo',
         compressImageQuality: 0.8,
       });
       const url = await uploadToOss(image.path, image.mime || 'image/jpeg');
@@ -683,9 +688,9 @@ export default function LongTextEdit({ route, navigation }: Props) {
             <TouchableOpacity style={styles.toolBtn} activeOpacity={0.8} onPress={onInsertImage}>
               <ImageIcon />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.toolBtn} activeOpacity={0.8} onPress={onInsertVideo}>
+            {/* <TouchableOpacity style={styles.toolBtn} activeOpacity={0.8} onPress={onInsertVideo}>
               <VideoIcon />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
             <TouchableOpacity
               style={[styles.toolBtn, panelOpen && styles.toolBtnPanelOpen]}
               activeOpacity={0.8}

@@ -70,10 +70,68 @@ function htmlToPlain(html: string): string {
   return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
 }
 
+/** HTML 是否有实际内容（含图片/视频等媒体，不仅看纯文本） */
+function htmlHasContent(html: string): boolean {
+  if (!html) return false;
+  if (/<(img|video)\b/i.test(html)) return true;
+  return !!htmlToPlain(html);
+}
+
+/** 长文回显预处理：video 标签替换为 OSS 截帧 img（render-html 不支持 video 标签） */
+function normalizeLongHtmlForPreview(html: string): string {
+  return html
+    .replace(/<video\b[^>]*>/gi, tag => {
+      const m = tag.match(/src=["']([^"']+)["']/i);
+      if (!m) return '';
+      const poster = `${m[1]}?x-oss-process=video/snapshot,t_0,f_jpg,w_750,h_1000,m_fast`;
+      return `<img class="ql-video-preview" src="${poster}" />`;
+    })
+    .replace(/<\/video>/gi, '');
+}
+
+/** 长文回显：视频截帧图固定尺寸渲染（带播放按钮标识），其余图片走默认渲染 */
+function LongImgRenderer({ tnode, InternalRenderer, ...props }: any) {
+  const cls = tnode?.attributes?.class || '';
+  if (cls.includes('ql-video-preview')) {
+    const src = tnode?.attributes?.src;
+    if (!src) return null;
+    return (
+      <View style={styles.longPreviewVideo}>
+        <Image source={{ uri: src }} style={styles.longPreviewVideoImg} resizeMode="cover" />
+        <View style={styles.longPreviewPlayBtn}>
+          <Svg width={scaleSizeW(22)} height={scaleSizeW(22)} viewBox="0 0 24 24">
+            <Path d="M9.5 6.8v10.4c0 .8.9 1.3 1.6.9l8.2-5.2c.6-.4.6-1.4 0-1.8l-8.2-5.2c-.7-.4-1.6.1-1.6.9z" fill="#1A1A1A" />
+          </Svg>
+        </View>
+      </View>
+    );
+  }
+  return <InternalRenderer tnode={tnode} {...props} />;
+}
+
+const longHtmlRenderers = { img: LongImgRenderer };
+
+/** 从 HTML 提取指定标签的 src（仅 http(s) 资源） */
+function extractMediaSrcs(html: string, tag: 'img' | 'video'): string[] {
+  const regex = new RegExp(`<${tag}[^>]+src=["']([^"']+)["']`, 'gi');
+  const out: string[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = regex.exec(html)) !== null) {
+    const src = m[1];
+    // 兜底：img 里混入视频资源时按视频归类
+    const isVideoSrc = /\.(mp4|mov|webm|m3u8)(\?|$)/i.test(src);
+    if (!/^https?:\/\//.test(src)) continue;
+    if (tag === 'img' && isVideoSrc) continue;
+    if (tag === 'video' && !isVideoSrc) continue;
+    out.push(src);
+  }
+  return out;
+}
+
 type PublishTab = 'short' | 'video' | 'long';
 type VisibilityKey = 'public' | 'mutual' | 'private';
 type CommentKey = 'everyone' | 'fans' | 'mutual' | 'self';
-type DeclareOption = 'none' | 'self-shot' | 'reprint' | 'fiction' | 'ai' | 'marketing' | 'opinion';
+type DeclareOption = 'none' | 'original' | 'reprint' | 'ai';
 
 const TABS: { key: PublishTab; label: string }[] = [
   { key: 'short', label: '短图文' },
@@ -101,12 +159,9 @@ const COMMENT_OPTIONS: { key: CommentKey; label: string; icon: number }[] = [
 
 const DECLARE_OPTION_LABEL: Record<DeclareOption, string> = {
   none: '无需声明',
-  'self-shot': '内容为自行拍摄',
+  original: '原创声明',
   reprint: '内容为转载',
-  fiction: '含虚构演绎内容',
   ai: '含 AI 合成内容',
-  marketing: '内容含营销信息',
-  opinion: '个人观点，仅供参考',
 };
 
 /** 前端选项 → 后端字段值（见 /publish/submit 接口文档） */
@@ -114,12 +169,9 @@ const VISIBILITY_MAP: Record<VisibilityKey, number> = { public: 0, mutual: 1, pr
 const COMMENT_MAP: Record<CommentKey, number> = { everyone: 0, fans: 1, mutual: 2, self: 3 };
 const DECLARATION_MAP: Record<DeclareOption, number> = {
   none: 0,
-  'self-shot': 1,
+  original: 1,
   reprint: 2,
-  fiction: 0,
   ai: 3,
-  marketing: 4,
-  opinion: 0,
 };
 
 const ICONS = {
@@ -234,11 +286,12 @@ export default function Publish() {
         const toUrl = (o: any) => (typeof o === 'string' ? o : (o?.mdUrl ?? o?.url ?? ''));
         const imageList: string[] = (d.imageList ?? []).map(toUrl).filter(Boolean);
         const videoList: string[] = (d.videoList ?? []).map(toUrl).filter(Boolean);
-        if (bbs.draftType === 2) {
+        if (bbs.draftType === 2 || /<\/?(p|img|video|strong|em|u|span|h[1-6])[ >]/i.test(bbs.content || '')) {
+          // 动态表无 draftType 字段，长文按正文是否含 HTML 标签识别
           setActiveTab('long');
           setLongTitle(bbs.title || '');
           setLongHtml(bbs.content || '');
-          setLongCover(bbs.coverUrl || imageList[0] || null);
+          setLongCover(bbs.coverUrl || null);
           return;
         }
         setImages(imageList);
@@ -277,7 +330,6 @@ export default function Publish() {
   );
 
   const [visibility, setVisibility] = useState<VisibilityKey>('public');
-  const [declareOriginal, setDeclareOriginal] = useState(false);
   const [declareOption, setDeclareOption] = useState<DeclareOption>('none');
   const [reprintSource, setReprintSource] = useState('');
   const [reprintDraft, setReprintDraft] = useState('');
@@ -293,7 +345,6 @@ export default function Publish() {
   const declareRef = useRef<BottomSheetModal>(null);
   const reprintRef = useRef<BottomSheetModal>(null);
   const commentRef = useRef<BottomSheetModal>(null);
-  const reprintConfirmedRef = useRef(false);
   const [entryDialog, setEntryDialog] = useState<'ask' | 'onConfirm' | 'offConfirm' | null>(null);
   const syncRowRef = useRef<View>(null);
   const [syncHole, setSyncHole] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
@@ -326,16 +377,9 @@ export default function Publish() {
   };
 
   const declareLabel = () => {
-    const parts: string[] = [];
-    if (declareOriginal) parts.push('原创声明');
-    if (declareOption !== 'none') {
-      parts.push(
-        declareOption === 'reprint' && reprintSource
-          ? `转载·${reprintSource}`
-          : DECLARE_OPTION_LABEL[declareOption],
-      );
-    }
-    return parts.length ? parts.join(' · ') : '无需声明';
+    if (declareOption === 'none') return '无需声明';
+    if (declareOption === 'reprint' && reprintSource) return `转载·${reprintSource}`;
+    return DECLARE_OPTION_LABEL[declareOption];
   };
 
   const onVideoChange = (url: string | null) => {
@@ -373,7 +417,7 @@ export default function Publish() {
     !!videoTitle.trim() ||
     !!videoBody.trim() ||
     !!longTitle.trim() ||
-    !!htmlToPlain(longHtml) ||
+    htmlHasContent(longHtml) ||
     !!longCover;
 
   const clearAll = () => {
@@ -529,7 +573,7 @@ export default function Publish() {
       Alert.alert('提示', '视频动态至少需要上传一个视频才能存草稿');
       return;
     }
-    if (activeTab === 'long' && !longTitle.trim() && !htmlToPlain(longHtml)) {
+    if (activeTab === 'long' && !longTitle.trim() && !htmlHasContent(longHtml)) {
       Alert.alert('提示', '长文至少需要填写标题或正文才能存草稿');
       return;
     }
@@ -564,7 +608,6 @@ export default function Publish() {
   };
 
   const confirmReprint = () => {
-    reprintConfirmedRef.current = true;
     setReprintSource(reprintDraft.trim());
     setDeclareOption('reprint');
     reprintRef.current?.dismiss();
@@ -595,12 +638,20 @@ export default function Publish() {
         Alert.alert('提示', '请填写标题');
         return;
       }
-      if (!htmlToPlain(longHtml)) {
+      if (!htmlHasContent(longHtml)) {
         Alert.alert('提示', '请填写正文');
         return;
       }
       if ([...htmlToPlain(longHtml)].length > LONG_BODY_LIMIT) {
         Alert.alert('提示', `正文最多${LONG_BODY_LIMIT}字`);
+        return;
+      }
+      if (extractMediaSrcs(longHtml, 'img').length > 20) {
+        Alert.alert('提示', '长文图片最多20张');
+        return;
+      }
+      if (extractMediaSrcs(longHtml, 'video').length > 5) {
+        Alert.alert('提示', '长文内嵌视频最多5个');
         return;
       }
     }
@@ -636,6 +687,9 @@ export default function Publish() {
           ? longCover
           : await uploadToOss(longCover, 'image/jpeg');
       }
+      // 长文：正文内嵌图片/视频提取后随 images/videos 上报（后端落媒体库 + 内容安全审核）
+      const submitImages = activeTab === 'long' ? extractMediaSrcs(longHtml, 'img') : images;
+      const submitVideos = activeTab === 'long' ? extractMediaSrcs(longHtml, 'video') : undefined;
       if (editBbsId) {
         // 编辑：/publish/update（媒体全量替换语义，传了就覆盖）
         const res = await API.bbs.update({
@@ -643,13 +697,15 @@ export default function Publish() {
           draftType: activeTab === 'video' ? 1 : activeTab === 'long' ? 2 : 0,
           title: activeTitle.trim(),
           content: activeContent.trim(),
-          images,
+          images: submitImages,
+          videos: submitVideos,
           videoUrl: activeTab === 'video' ? videoUrl ?? undefined : undefined,
           videoCover: activeTab === 'long' ? longCoverUrl : videoCoverUrl,
           boardType: 0,
           visibility: VISIBILITY_MAP[visibility],
           commentScope: COMMENT_MAP[commentWho],
-          declaration: declareOriginal ? 1 : DECLARATION_MAP[declareOption],
+          declaration: DECLARATION_MAP[declareOption],
+          source: declareOption === 'reprint' ? reprintSource.trim() || undefined : undefined,
           aiConnectEnabled: syncOn ? 1 : 0,
         });
         Alert.alert('提示', res.data?.statusMsg || '修改成功', [
@@ -661,13 +717,15 @@ export default function Publish() {
           draftType: activeTab === 'video' ? 1 : activeTab === 'long' ? 2 : 0,
           title: activeTitle.trim(),
           content: activeContent.trim(),
-          images: activeTab === 'long' ? [] : images,
+          images: submitImages,
+          videos: submitVideos,
           videoUrl: activeTab === 'video' ? videoUrl ?? undefined : undefined,
           videoCover: activeTab === 'long' ? longCoverUrl : videoCoverUrl,
           boardType: 0,
           visibility: VISIBILITY_MAP[visibility],
           commentScope: COMMENT_MAP[commentWho],
-          declaration: declareOriginal ? 1 : DECLARATION_MAP[declareOption],
+          declaration: DECLARATION_MAP[declareOption],
+          source: declareOption === 'reprint' ? reprintSource.trim() || undefined : undefined,
           aiConnectEnabled: syncOn ? 1 : 0,
         });
         if (draftId) deleteDraft(draftId);
@@ -782,7 +840,7 @@ export default function Publish() {
   };
 
   const renderLongSection = () => {
-    const hasLongBody = !!htmlToPlain(longHtml);
+    const hasLongBody = htmlHasContent(longHtml);
     return (
       <>
         <Animated.View
@@ -840,8 +898,9 @@ export default function Publish() {
             <>
               <RenderHtml
                 contentWidth={SCREEN_W - scaleSizeW(32)}
-                source={{ html: longHtml }}
+                source={{ html: normalizeLongHtmlForPreview(longHtml) }}
                 baseStyle={styles.longPreviewBase}
+                renderers={longHtmlRenderers as any}
               />
               {[...htmlToPlain(longHtml)].length > 200 && (
                 <View style={styles.longPreviewMask}>
@@ -1017,41 +1076,26 @@ export default function Publish() {
   const renderDeclareSheet = () => (
     <AppBottomSheet ref={declareRef}>
       <View style={[styles.sheetCard, { marginTop: scaleSizeH(20) }]}>
-        <View style={[styles.optionRow]}>
-          <Text style={styles.optionLabel}>原创声明</Text>
-          <View>
-            <Switch
-              value={declareOriginal}
-              onValueChange={setDeclareOriginal}
-              trackColor={{ false: '#E5E5E5', true: PRIMARY }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
-        </View>
-      </View>
-      <View style={styles.sheetCard}>
+        {renderOptionRow('原创声明', declareOption === 'original', () => {
+          setDeclareOption('original');
+        })}
         <TouchableOpacity
           style={[styles.optionRow, styles.optionRowDivider]}
           activeOpacity={0.7}
           onPress={openReprint}
         >
           <Text style={styles.optionLabel}>内容为转载</Text>
-          <ChevronRight />
+          <Text style={styles.reprintValue} numberOfLines={1}>
+            {declareOption === 'reprint' && reprintSource ? reprintSource : ''}
+          </Text>
+          {declareOption === 'reprint' ? <Image source={ICONS.check} style={styles.icon18} /> : <ChevronRight />}
         </TouchableOpacity>
-      </View>
-      <View style={styles.sheetCard}>
-        {(['fiction', 'ai', 'marketing', 'opinion'] as DeclareOption[]).map((key, i) => (
-          <React.Fragment key={key}>
-            {renderOptionRow(DECLARE_OPTION_LABEL[key], declareOption === key, () => {
-              setDeclareOption(key);
-            }, { showDivider: i > 0 })}
-          </React.Fragment>
-        ))}
-      </View>
-      <View style={styles.sheetCard}>
+        {renderOptionRow('含 AI 合成内容', declareOption === 'ai', () => {
+          setDeclareOption('ai');
+        }, { showDivider: true })}
         {renderOptionRow('无需声明', declareOption === 'none', () => {
           setDeclareOption('none');
-        })}
+        }, { showDivider: true })}
       </View>
     </AppBottomSheet>
   );
@@ -1060,10 +1104,7 @@ export default function Publish() {
     <AppBottomSheet
       ref={reprintRef}
       onClose={() => {
-        if (reprintConfirmedRef.current) {
-          reprintConfirmedRef.current = false;
-          return;
-        }
+        // 确认/返回/下滑关闭都回到声明弹窗
         declareRef.current?.present();
       }}
     >
@@ -1546,6 +1587,33 @@ const styles = StyleSheet.create({
     color: PRIMARY,
     paddingBottom: scaleSizeH(2),
   },
+  longPreviewVideo: {
+    width: '100%',
+    height: scaleSizeW(200),
+    backgroundColor: '#000000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  longPreviewVideoImg: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  longPreviewPlayBtn: {
+    width: scaleSizeW(46),
+    height: scaleSizeW(46),
+    borderRadius: scaleSizeW(23),
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000000',
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 5,
+  },
   settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1760,6 +1828,11 @@ const styles = StyleSheet.create({
     fontSize: scaleSizeW(14),
     fontWeight: '500',
     color: TEXT_MAIN,
+  },
+  reprintValue: {
+    maxWidth: '40%',
+    fontSize: scaleSizeW(12),
+    color: TEXT_SUB,
   },
   reprintHeader: {
     height: scaleSizeH(40),
