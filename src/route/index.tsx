@@ -19,6 +19,7 @@ import AddItem from '@/pages/editCard/AddItem';
 import RichTextEdit from '@/pages/common/RichTextEdit';
 import Publish from '@/pages/publish';
 import PublishCover from '@/pages/publish/CoverSelect';
+import LongTextEdit from '@/pages/publish/LongTextEdit';
 import DraftBox from '@/pages/publish/DraftBox';
 import BbsDetail from '@/pages/bbsDetail';
 import ReportBbs from '@/pages/report';
@@ -139,6 +140,16 @@ export default function RootNavigator() {
             headerTitleStyle: { color: '#000000' },
             headerShadowVisible: false,
             headerBackButtonMenuEnabled: false,
+          }}
+        />
+        <Stack.Screen
+          name="publishLongText"
+          component={LongTextEdit}
+          options={{
+            title: '编辑正文',
+            headerStyle: { backgroundColor: '#FFFFFF' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
           }}
         />
         <Stack.Screen

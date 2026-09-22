@@ -2,7 +2,7 @@ import { storageUtils } from './storage';
 
 export interface LocalDraft {
   id: string;
-  draftType: 0 | 1;
+  draftType: 0 | 1 | 2;
   title: string;
   content: string;
   /** 已上传图片 url 列表（与后端 images 字段一致） */
@@ -12,6 +12,8 @@ export interface LocalDraft {
   videoCover?: string;
   videoRatio?: '3:4' | '16:9';
   coverTransform?: { tx: number; ty: number; scale: number } | null;
+  /** 长文封面 url（draftType=2） */
+  cover?: string;
   updatedAt: number;
 }
 

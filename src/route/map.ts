@@ -9,6 +9,7 @@ export type RootStackParamList = {
   editCard: { id?: string | number };
   addItem: { itemId?: string | number; cardId?: string | number; userId?: string | number; pjId?: string | number };
   richTextEdit: { initialHtml?: string; placeholder?: string };
+  publishLongText: { initialHtml?: string; insertOnMount?: string } | undefined;
   publish: { draft?: LocalDraft; editBbsId?: number } | undefined;
   publishCover: { videoUri: string; ratio?: '3:4' | '16:9'; title?: string };
   draftBox: undefined;

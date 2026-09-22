@@ -22,12 +22,15 @@ import { useNavigation, useFocusEffect, useRoute, usePreventRemove, type RoutePr
 import { BottomSheetTextInput, type BottomSheetModal } from '@gorhom/bottom-sheet';
 import Animated, { FadeInUp, FadeOut, FadeOutUp, Easing } from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
+import RenderHtml from 'react-native-render-html';
+import ImagePicker from 'react-native-image-crop-picker';
 import { API } from '@/api';
 import SafeView from '@/components/SafeView';
 import AppBottomSheet from '@/components/AppBottomSheet';
 import ImageUploader from '@/components/ImageUploader';
 import VideoUploader from '@/components/VideoUploader';
 import { storageUtils } from '@/utils/storage';
+import { getEditorResult } from '@/utils/editorBridge';
 import { scaleSizeH, scaleSizeW } from '@/utils/screenUtils';
 import { getFeedCoverHeight } from '@/utils/feedLayout';
 import { uploadToOss } from '@/utils/ossUpload';
@@ -46,6 +49,7 @@ const INFO_BG = '#E3EDFF';
 const MAX_IMAGES = 18;
 const TITLE_LIMIT = 20;
 const BODY_LIMIT = 1000;
+const LONG_BODY_LIMIT = 10000;
 const GUIDE_SHOWN_KEY = 'publishGuideShown';
 const SYNC_ON_KEY = 'publishSyncOn';
 
@@ -60,6 +64,10 @@ function animateLayout() {
     update: { type: LayoutAnimation.Types.spring, springDamping: 0.85 },
     delete: { type: LayoutAnimation.Types.easeIn, property: LayoutAnimation.Properties.opacity },
   });
+}
+
+function htmlToPlain(html: string): string {
+  return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
 }
 
 type PublishTab = 'short' | 'video' | 'long';
@@ -178,6 +186,10 @@ export default function Publish() {
   const [coverTransform, setCoverTransform] = useState<{ tx: number; ty: number; scale: number } | null>(null);
   const [videoTitle, setVideoTitle] = useState('');
   const [videoBody, setVideoBody] = useState('');
+  const [longTitle, setLongTitle] = useState('');
+  const [longHtml, setLongHtml] = useState('');
+  const [longCover, setLongCover] = useState<string | null>(null);
+  const [longCoverUploading, setLongCoverUploading] = useState(false);
   const [exitMenuVisible, setExitMenuVisible] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [bodyEditing, setBodyEditing] = useState(false);
@@ -195,6 +207,11 @@ export default function Publish() {
       setVideoCover(draftParam.videoCover ?? null);
       if (draftParam.videoRatio) setVideoRatio(draftParam.videoRatio);
       setCoverTransform(draftParam.coverTransform ?? null);
+    } else if (draftParam.draftType === 2) {
+      setActiveTab('long');
+      setLongTitle(draftParam.title);
+      setLongHtml(draftParam.content);
+      setLongCover(draftParam.cover ?? null);
     } else {
       setActiveTab('short');
       setTitle(draftParam.title);
@@ -217,6 +234,13 @@ export default function Publish() {
         const toUrl = (o: any) => (typeof o === 'string' ? o : (o?.mdUrl ?? o?.url ?? ''));
         const imageList: string[] = (d.imageList ?? []).map(toUrl).filter(Boolean);
         const videoList: string[] = (d.videoList ?? []).map(toUrl).filter(Boolean);
+        if (bbs.draftType === 2) {
+          setActiveTab('long');
+          setLongTitle(bbs.title || '');
+          setLongHtml(bbs.content || '');
+          setLongCover(bbs.coverUrl || imageList[0] || null);
+          return;
+        }
         setImages(imageList);
         if (videoList.length > 0) {
           setActiveTab('video');
@@ -244,6 +268,10 @@ export default function Publish() {
       if (transform) {
         setCoverTransform(transform);
         storageUtils.remove(COVER_TRANSFORM_KEY);
+      }
+      const editorHtml = getEditorResult();
+      if (editorHtml !== null) {
+        setLongHtml(editorHtml);
       }
     }, []),
   );
@@ -343,7 +371,10 @@ export default function Publish() {
     !!title.trim() ||
     !!body.trim() ||
     !!videoTitle.trim() ||
-    !!videoBody.trim();
+    !!videoBody.trim() ||
+    !!longTitle.trim() ||
+    !!htmlToPlain(longHtml) ||
+    !!longCover;
 
   const clearAll = () => {
     setImages([]);
@@ -355,6 +386,9 @@ export default function Publish() {
     setBody('');
     setVideoTitle('');
     setVideoBody('');
+    setLongTitle('');
+    setLongHtml('');
+    setLongCover(null);
   };
 
   const [allowLeave, setAllowLeave] = useState(false);
@@ -362,6 +396,38 @@ export default function Publish() {
 
   const setActiveBody = activeTab === 'video' ? setVideoBody : setBody;
   const bodyInputRef = useRef<TextInput>(null);
+
+  const openLongEditor = (insertOnMount?: string) => {
+    Keyboard.dismiss();
+    (navigation as any).navigate('publishLongText', {
+      initialHtml: longHtml || undefined,
+      insertOnMount,
+    });
+  };
+
+  const onPickLongCover = async () => {
+    Keyboard.dismiss();
+    try {
+      const image = await ImagePicker.openPicker({
+        width: 600,
+        height: 800,
+        cropping: true,
+        compressImageQuality: 0.8,
+      });
+      const uri = image.path;
+      setLongCover(uri);
+      setLongCoverUploading(true);
+      uploadToOss(uri, image.mime || 'image/jpeg')
+        .then(url => setLongCover(prev => (prev === uri ? url : prev)))
+        .catch(() => {
+          setLongCover(prev => (prev === uri ? null : prev));
+          Alert.alert('提示', '封面上传失败，请重新选择');
+        })
+        .finally(() => setLongCoverUploading(false));
+    } catch {
+      // 用户取消选图
+    }
+  };
 
   const insertActiveBody = (insert: string) => {
     setActiveBody(prev => (prev.length >= BODY_LIMIT ? prev : prev + insert));
@@ -463,16 +529,21 @@ export default function Publish() {
       Alert.alert('提示', '视频动态至少需要上传一个视频才能存草稿');
       return;
     }
+    if (activeTab === 'long' && !longTitle.trim() && !htmlToPlain(longHtml)) {
+      Alert.alert('提示', '长文至少需要填写标题或正文才能存草稿');
+      return;
+    }
     const id = draftId ?? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     saveDraft({
       id,
-      draftType: activeTab === 'video' ? 1 : 0,
-      title: activeTab === 'video' ? videoTitle : title,
-      content: activeTab === 'video' ? videoBody : body,
+      draftType: activeTab === 'video' ? 1 : activeTab === 'long' ? 2 : 0,
+      title: activeTab === 'video' ? videoTitle : activeTab === 'long' ? longTitle : title,
+      content: activeTab === 'video' ? videoBody : activeTab === 'long' ? longHtml : body,
       images,
       videoUri: videoLocalUri ?? undefined,
       videoUrl: videoUrl ?? undefined,
       videoCover: videoCover ?? undefined,
+      cover: activeTab === 'long' ? longCover ?? undefined : undefined,
       videoRatio,
       coverTransform,
       updatedAt: Date.now(),
@@ -501,8 +572,8 @@ export default function Publish() {
 
   /** 媒体列表：对齐后端 WqUserMediaLink 结构；全量传已上传（有 url）的媒体 */
   const onPublish = async () => {
-    const activeTitle = activeTab === 'video' ? videoTitle : title;
-    const activeContent = activeTab === 'video' ? videoBody : body;
+    const activeTitle = activeTab === 'video' ? videoTitle : activeTab === 'long' ? longTitle : title;
+    const activeContent = activeTab === 'video' ? videoBody : activeTab === 'long' ? longHtml : body;
     if (activeTab === 'short' && !activeTitle.trim() && !activeContent.trim() && images.length === 0) {
       Alert.alert('提示', '请先填写内容');
       return;
@@ -510,6 +581,28 @@ export default function Publish() {
     if (activeTab === 'video' && !videoUrl) {
       Alert.alert('提示', '请先上传视频');
       return;
+    }
+    if (activeTab === 'long') {
+      if (!longCover) {
+        Alert.alert('提示', '请添加封面');
+        return;
+      }
+      if (longCoverUploading) {
+        Alert.alert('提示', '封面上传中，请稍候');
+        return;
+      }
+      if (!longTitle.trim()) {
+        Alert.alert('提示', '请填写标题');
+        return;
+      }
+      if (!htmlToPlain(longHtml)) {
+        Alert.alert('提示', '请填写正文');
+        return;
+      }
+      if ([...htmlToPlain(longHtml)].length > LONG_BODY_LIMIT) {
+        Alert.alert('提示', `正文最多${LONG_BODY_LIMIT}字`);
+        return;
+      }
     }
     if ([...activeTitle].length > TITLE_LIMIT) {
       Alert.alert('提示', '标题最多20字');
@@ -537,15 +630,22 @@ export default function Publish() {
           ? videoCover
           : await uploadToOss(videoCover, 'image/jpeg');
       }
+      let longCoverUrl: string | undefined;
+      if (activeTab === 'long' && longCover) {
+        longCoverUrl = longCover.startsWith('http')
+          ? longCover
+          : await uploadToOss(longCover, 'image/jpeg');
+      }
       if (editBbsId) {
         // 编辑：/publish/update（媒体全量替换语义，传了就覆盖）
         const res = await API.bbs.update({
           bbsId: editBbsId,
+          draftType: activeTab === 'video' ? 1 : activeTab === 'long' ? 2 : 0,
           title: activeTitle.trim(),
           content: activeContent.trim(),
           images,
           videoUrl: activeTab === 'video' ? videoUrl ?? undefined : undefined,
-          videoCover: videoCoverUrl,
+          videoCover: activeTab === 'long' ? longCoverUrl : videoCoverUrl,
           boardType: 0,
           visibility: VISIBILITY_MAP[visibility],
           commentScope: COMMENT_MAP[commentWho],
@@ -558,12 +658,12 @@ export default function Publish() {
       } else {
         // 新发布：/publish/submit（draftType: 0图文/1视频）
         const res = await API.bbs.push({
-          draftType: activeTab === 'video' ? 1 : 0,
+          draftType: activeTab === 'video' ? 1 : activeTab === 'long' ? 2 : 0,
           title: activeTitle.trim(),
           content: activeContent.trim(),
-          images,
+          images: activeTab === 'long' ? [] : images,
           videoUrl: activeTab === 'video' ? videoUrl ?? undefined : undefined,
-          videoCover: videoCoverUrl,
+          videoCover: activeTab === 'long' ? longCoverUrl : videoCoverUrl,
           boardType: 0,
           visibility: VISIBILITY_MAP[visibility],
           commentScope: COMMENT_MAP[commentWho],
@@ -675,6 +775,92 @@ export default function Publish() {
             onPress={() => bodyEditing ? exitBodyEditing() : enterBodyEditing()}
           >
             <ExpandIcon collapse={bodyEditing} />
+          </TouchableOpacity>
+        </View>
+      </>
+    );
+  };
+
+  const renderLongSection = () => {
+    const hasLongBody = !!htmlToPlain(longHtml);
+    return (
+      <>
+        <Animated.View
+          key="long-cover-section"
+          entering={FadeInUp.duration(250).delay(20).easing(Easing.out(Easing.cubic))}
+          exiting={FadeOutUp.duration(180).easing(Easing.in(Easing.cubic))}
+        >
+          <TouchableOpacity
+            style={styles.longCoverTile}
+            activeOpacity={0.8}
+            onPress={onPickLongCover}
+          >
+            {longCover ? (
+              <>
+                <Image source={{ uri: longCover }} style={styles.longCoverImage} resizeMode="cover" />
+                {longCoverUploading && (
+                  <View style={styles.coverLoading}>
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  </View>
+                )}
+              </>
+            ) : (
+              <>
+                <Image source={ICONS.add} style={styles.mediaAddIcon} />
+                <Text style={styles.videoCoverText}>添加封面</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </Animated.View>
+        <Animated.View
+          key="long-title-section"
+          entering={FadeInUp.duration(250).delay(20).easing(Easing.out(Easing.cubic))}
+          exiting={FadeOutUp.duration(180).easing(Easing.in(Easing.cubic))}
+        >
+          <View style={styles.titleRow}>
+            <TextInput
+              style={styles.titleInput}
+              placeholder="添加标题"
+              placeholderTextColor={TEXT_SUB}
+              value={longTitle}
+              onChangeText={setLongTitle}
+            />
+            <Text style={[styles.titleCount, [...longTitle].length > TITLE_LIMIT && styles.titleCountOver]}>
+              {[...longTitle].length}/{TITLE_LIMIT}
+            </Text>
+          </View>
+          <View style={styles.divider} />
+        </Animated.View>
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => openLongEditor()}
+          style={styles.longPreview}
+        >
+          {hasLongBody ? (
+            <RenderHtml
+              contentWidth={SCREEN_W - scaleSizeW(32)}
+              source={{ html: longHtml }}
+              baseStyle={styles.longPreviewBase}
+            />
+          ) : (
+            <Text style={styles.longPlaceholder}>添加正文...</Text>
+          )}
+        </TouchableOpacity>
+        <View style={styles.bodyToolbar}>
+          <TouchableOpacity
+            style={styles.toolBtn}
+            activeOpacity={0.8}
+            onPress={() => openLongEditor('#')}
+          >
+            <Text style={styles.toolBtnStrong}>#</Text>
+            <Text style={styles.toolBtnText}>话题</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.expandBtn}
+            activeOpacity={0.8}
+            onPress={() => openLongEditor()}
+          >
+            <ExpandIcon />
           </TouchableOpacity>
         </View>
       </>
@@ -1062,13 +1248,11 @@ export default function Publish() {
 
           {activeTab === 'long' && !bodyEditing && (
             <Animated.View
-              key="long-placeholder"
+              key="long-section"
               entering={FadeInUp.duration(260).delay(40).easing(Easing.out(Easing.cubic))}
               exiting={FadeOutUp.duration(180).easing(Easing.in(Easing.cubic))}
             >
-              <View style={styles.tabPlaceholder}>
-                <Text style={styles.tabPlaceholderText}>长文发布敬请期待</Text>
-              </View>
+              {renderLongSection()}
             </Animated.View>
           )}
 
@@ -1307,6 +1491,36 @@ const styles = StyleSheet.create({
   tabPlaceholderText: {
     fontSize: scaleSizeW(13),
     color: '#999999',
+  },
+  longPreview: {
+    minHeight: scaleSizeH(96),
+    marginTop: scaleSizeH(10),
+  },
+  longCoverTile: {
+    alignSelf: 'center',
+    width: scaleSizeW(162),
+    height: scaleSizeW(216),
+    borderRadius: scaleSizeW(10),
+    backgroundColor: TILE_BG,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: scaleSizeH(5),
+    marginTop: scaleSizeH(30),
+    overflow: 'hidden',
+  },
+  longCoverImage: {
+    width: '100%',
+    height: '100%',
+  },
+  longPreviewBase: {
+    fontSize: scaleSizeW(14),
+    lineHeight: scaleSizeH(24),
+    color: TEXT_MAIN,
+  },
+  longPlaceholder: {
+    fontSize: scaleSizeW(14),
+    lineHeight: scaleSizeH(24),
+    color: TEXT_SUB,
   },
   settingRow: {
     flexDirection: 'row',

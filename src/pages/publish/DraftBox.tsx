@@ -106,7 +106,7 @@ export default function DraftBox() {
       {renderCover(draft)}
       <View style={styles.cardBody}>
         <Text style={styles.cardTitle} numberOfLines={2}>
-          {draft.title || draft.content || '无内容'}
+          {draft.title || (draft.draftType === 2 ? draft.content.replace(/<[^>]*>/g, '').trim() : draft.content) || '无内容'}
         </Text>
         <View style={styles.cardFoot}>
           <Text style={styles.cardTime}>{formatDraftTime(draft.updatedAt)}</Text>
