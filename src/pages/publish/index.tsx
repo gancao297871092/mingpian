@@ -246,7 +246,7 @@ export default function Publish() {
   const [publishing, setPublishing] = useState(false);
   const [bodyEditing, setBodyEditing] = useState(false);
   const [draftId, setDraftId] = useState<string | null>(draftParam?.id ?? null);
-  const editBbsId = route.params?.editBbsId;
+  const [editBbsId] = useState<number | undefined>(route.params?.editBbsId ?? draftParam?.bbsId);
   
   useEffect(() => {
     if (!draftParam) return;
@@ -596,6 +596,7 @@ export default function Publish() {
       videoUrl: videoUrl ?? undefined,
       videoCover: videoCover ?? undefined,
       cover: activeTab === 'long' ? longCover ?? undefined : undefined,
+      bbsId: editBbsId,
       videoRatio,
       coverTransform,
       updatedAt: Date.now(),
@@ -716,6 +717,7 @@ export default function Publish() {
           source: declareOption === 'reprint' ? reprintSource.trim() || undefined : undefined,
           aiConnectEnabled: syncOn ? 1 : 0,
         });
+        if (draftId) deleteDraft(draftId);
         Alert.alert('提示', res.data?.statusMsg || '修改成功', [
           { text: '知道了', onPress: () => setAllowLeave(true) },
         ]);

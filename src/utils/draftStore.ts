@@ -14,6 +14,8 @@ export interface LocalDraft {
   coverTransform?: { tx: number; ty: number; scale: number } | null;
   /** 长文封面 url（draftType=2） */
   cover?: string;
+  /** 来源动态 id（编辑动态时存入，从草稿发布走更新） */
+  bbsId?: number;
   updatedAt: number;
 }
 
