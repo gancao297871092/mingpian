@@ -377,6 +377,12 @@ export default function LongTextEdit({ route, navigation }: Props) {
     }
   };
 
+  const onCollapseKeyboard = () => {
+    // 键盘焦点在 WebView 内，需先让 quill 失焦才能收起键盘
+    exec(() => quillRef.current.blur());
+    Keyboard.dismiss();
+  };
+
   const onUndo = () => {
     if (!canUndo) return;
     exec(() => quillRef.current.undo());
@@ -694,7 +700,7 @@ export default function LongTextEdit({ route, navigation }: Props) {
               <RedoIcon color={canRedo ? TEXT_MAIN : '#999999'} />
             </TouchableOpacity>
             <View style={styles.flex1} />
-            <TouchableOpacity style={styles.toolBtn} activeOpacity={0.8} onPress={Keyboard.dismiss}>
+            <TouchableOpacity style={styles.toolBtn} activeOpacity={0.8} onPress={onCollapseKeyboard}>
               <CollapseIcon />
             </TouchableOpacity>
           </View>
