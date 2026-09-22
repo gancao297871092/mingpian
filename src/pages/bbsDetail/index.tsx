@@ -23,10 +23,12 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { GestureViewer, GestureTrigger, useGestureViewerState } from 'react-native-gesture-image-viewer';
 import Svg, { Circle, Path } from 'react-native-svg';
+import Video from 'react-native-video';
 import SafeView from '@/components/SafeView';
 import EmptyState from '@/components/EmptyState';
 import NavHeader from '@/components/NavHeader';
 import RichText from '@/components/RichText';
+import LongHtmlView from '@/components/LongHtmlView';
 import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText, SCREEN_WIDTH } from '@/utils/screenUtils';
 import { formatLikeCount } from '@/utils/format';
@@ -103,6 +105,7 @@ interface DetailData {
   mediaHeight: number;
   isVideo: boolean;
   posterUrl: string;
+  videoUrl: string;
 }
 
 function ossVideoSnapshot(videoUrl: string): string {
@@ -192,8 +195,54 @@ function transformDetail(bbs: any): DetailData {
     mediaHeight: Number(firstMedia?.height) || 0,
     isVideo: firstMedia?.fileType === 'video',
     posterUrl: bbs.posterUrl || '',
+    videoUrl: firstMedia?.fileType === 'video' ? firstMedia?.mdUrl || '' : '',
   };
 }
+
+const VideoCoverPlayer = React.memo(function VideoCoverPlayerInner({
+  poster,
+  videoUrl,
+  height,
+}: {
+  poster: string;
+  videoUrl: string;
+  height: number;
+}) {
+  const [playing, setPlaying] = useState(false);
+  if (playing) {
+    return (
+      <Video
+        source={{ uri: videoUrl }}
+        style={{ width: SCREEN_WIDTH, height }}
+        controls
+        paused={false}
+        resizeMode="contain"
+      />
+    );
+  }
+  return (
+    <TouchableOpacity activeOpacity={0.9} onPress={() => setPlaying(true)}>
+      <ExpoImage
+        source={{ uri: poster }}
+        style={{ width: SCREEN_WIDTH, height }}
+        contentFit="cover"
+        transition={200}
+        cachePolicy="memory-disk"
+        recyclingKey={poster}
+      />
+      <View style={styles.videoPlayOverlay}>
+        <View style={styles.videoPlayBtn}>
+          <Svg width={scaleSizeW(22)} height={scaleSizeW(22)} viewBox="0 0 24 24">
+            <Path
+              d="M9.5 6.8v10.4c0 .8.9 1.3 1.6.9l8.2-5.2c.6-.4.6-1.4 0-1.8l-8.2-5.2c-.7-.4-1.6.1-1.6.9z"
+              fill="#1A1A1A"
+            />
+          </Svg>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+});
 
 function VerifiedBadge() {
   return (
@@ -667,41 +716,47 @@ export default function BbsDetail() {
 
   const renderHeader = () => {
     if (!detail) return null;
+    // 长文按正文是否含 HTML 标签识别（动态表无 draftType 字段）
+    const isLongForm = /<\/?(p|img|video|strong|em|u|span|h[1-6])[ >]/i.test(detail.content || '');
     return (
       <View>
-        {detail.images.length > 0 && (
+        {detail.images.length > 0 && !isLongForm && (
           <View>
-            <Carousel
-              data={detail.images}
-              loop={true}
-              autoplay={false}
-              onSnapToItem={onSnapToItem}
-              style={{ width: SCREEN_WIDTH, height: imgHeight }}
-              itemSize={SCREEN_WIDTH}
-              renderWindowSize={SCREEN_WIDTH}
-              renderItem={({ item, index }) => (
-                <GestureTrigger index={index} onPress={() => setPreviewIndex(index)}>
-                  <TapView>
-                    <ExpoImage
-                      source={{ uri: item }}
-                      style={{ width: SCREEN_WIDTH, height: imgHeight }}
-                      contentFit="cover"
-                      transition={200}
-                      cachePolicy="memory-disk"
-                      recyclingKey={item}
-                    />
-                  </TapView>
-                </GestureTrigger>
-              )}
-            />
-            {detail.images.length > 1 && (
+            {detail.isVideo && detail.videoUrl ? (
+              <VideoCoverPlayer poster={detail.images[0]} videoUrl={detail.videoUrl} height={imgHeight} />
+            ) : (
+              <Carousel
+                data={detail.images}
+                loop={true}
+                autoplay={false}
+                onSnapToItem={onSnapToItem}
+                style={{ width: SCREEN_WIDTH, height: imgHeight }}
+                itemSize={SCREEN_WIDTH}
+                renderWindowSize={SCREEN_WIDTH}
+                renderItem={({ item, index }) => (
+                  <GestureTrigger index={index} onPress={() => setPreviewIndex(index)}>
+                    <TapView>
+                      <ExpoImage
+                        source={{ uri: item }}
+                        style={{ width: SCREEN_WIDTH, height: imgHeight }}
+                        contentFit="cover"
+                        transition={200}
+                        cachePolicy="memory-disk"
+                        recyclingKey={item}
+                      />
+                    </TapView>
+                  </GestureTrigger>
+                )}
+              />
+            )}
+            {detail.images.length > 1 && !detail.isVideo && (
               <View style={styles.pageBadge}>
                 <Text style={styles.pageBadgeText}>{imgIndex + 1}/{detail.images.length}</Text>
               </View>
             )}
           </View>
         )}
-        {detail.images.length > 1 && (
+        {detail.images.length > 1 && !isLongForm && !detail.isVideo && (
           <View style={styles.dotsRow}>
             {detail.images.map((uri, i) => (
               <View key={uri} style={[styles.dot, i === imgIndex && styles.dotActive]} />
@@ -710,7 +765,7 @@ export default function BbsDetail() {
         )}
         <View style={styles.contentBox}>
           {!!detail.title && <Text style={styles.title}>{detail.title}</Text>}
-          {!!detail.content && <RichText content={detail.content} style={styles.body} />}
+          {!isLongForm && !!detail.content && <RichText content={detail.content} style={styles.body} />}
           {detail.tags.length > 0 && <Text style={styles.tags}>{detail.tags.join('  ')}</Text>}
           <View style={styles.metaRow}>
             <Text style={styles.metaText}>
@@ -718,6 +773,13 @@ export default function BbsDetail() {
             </Text>
             {detail.declaration && <Text style={styles.declarationText}>已声明原创</Text>}
           </View>
+          {isLongForm && !!detail.content && (
+            <LongHtmlView
+              contentWidth={SCREEN_WIDTH - scaleSizeW(32)}
+              html={detail.content}
+              baseStyle={styles.body}
+            />
+          )}
           <View style={styles.divider} />
           <Text style={styles.commentCount}>共 {commentCount} 条评论</Text>
           <View style={styles.commentInputRow}>
@@ -1008,6 +1070,28 @@ const styles = StyleSheet.create({
   },
   dotActive: {
     backgroundColor: BLUE,
+  },
+  videoPlayOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  videoPlayBtn: {
+    width: scaleSizeW(52),
+    height: scaleSizeW(52),
+    borderRadius: scaleSizeW(26),
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000000',
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 5,
   },
   contentBox: {
     paddingHorizontal: scaleSizeW(16),

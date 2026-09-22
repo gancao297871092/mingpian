@@ -22,7 +22,7 @@ import { useNavigation, useFocusEffect, useRoute, usePreventRemove, type RoutePr
 import { BottomSheetTextInput, type BottomSheetModal } from '@gorhom/bottom-sheet';
 import Animated, { FadeInUp, FadeOut, FadeOutUp, Easing } from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
-import RenderHtml from 'react-native-render-html';
+import LongHtmlView from '@/components/LongHtmlView';
 import ImagePicker from 'react-native-image-crop-picker';
 import { API } from '@/api';
 import SafeView from '@/components/SafeView';
@@ -77,39 +77,6 @@ function htmlHasContent(html: string): boolean {
   return !!htmlToPlain(html);
 }
 
-/** 长文回显预处理：video 标签替换为 OSS 截帧 img（render-html 不支持 video 标签） */
-function normalizeLongHtmlForPreview(html: string): string {
-  return html
-    .replace(/<video\b[^>]*>/gi, tag => {
-      const m = tag.match(/src=["']([^"']+)["']/i);
-      if (!m) return '';
-      const poster = `${m[1]}?x-oss-process=video/snapshot,t_0,f_jpg,w_750,h_1000,m_fast`;
-      return `<img class="ql-video-preview" src="${poster}" />`;
-    })
-    .replace(/<\/video>/gi, '');
-}
-
-/** 长文回显：视频截帧图固定尺寸渲染（带播放按钮标识），其余图片走默认渲染 */
-function LongImgRenderer({ tnode, InternalRenderer, ...props }: any) {
-  const cls = tnode?.attributes?.class || '';
-  if (cls.includes('ql-video-preview')) {
-    const src = tnode?.attributes?.src;
-    if (!src) return null;
-    return (
-      <View style={styles.longPreviewVideo}>
-        <Image source={{ uri: src }} style={styles.longPreviewVideoImg} resizeMode="cover" />
-        <View style={styles.longPreviewPlayBtn}>
-          <Svg width={scaleSizeW(22)} height={scaleSizeW(22)} viewBox="0 0 24 24">
-            <Path d="M9.5 6.8v10.4c0 .8.9 1.3 1.6.9l8.2-5.2c.6-.4.6-1.4 0-1.8l-8.2-5.2c-.7-.4-1.6.1-1.6.9z" fill="#1A1A1A" />
-          </Svg>
-        </View>
-      </View>
-    );
-  }
-  return <InternalRenderer tnode={tnode} {...props} />;
-}
-
-const longHtmlRenderers = { img: LongImgRenderer };
 
 /** 从 HTML 提取指定标签的 src（仅 http(s) 资源） */
 function extractMediaSrcs(html: string, tag: 'img' | 'video'): string[] {
@@ -906,11 +873,10 @@ export default function Publish() {
         >
           {hasLongBody ? (
             <>
-              <RenderHtml
+              <LongHtmlView
                 contentWidth={SCREEN_W - scaleSizeW(32)}
-                source={{ html: normalizeLongHtmlForPreview(longHtml) }}
+                html={longHtml}
                 baseStyle={styles.longPreviewBase}
-                renderers={longHtmlRenderers as any}
               />
               {[...htmlToPlain(longHtml)].length > 200 && (
                 <View style={styles.longPreviewMask}>
@@ -1596,33 +1562,6 @@ const styles = StyleSheet.create({
     fontSize: scaleSizeW(12),
     color: PRIMARY,
     paddingBottom: scaleSizeH(2),
-  },
-  longPreviewVideo: {
-    width: '100%',
-    height: scaleSizeW(200),
-    backgroundColor: '#000000',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  longPreviewVideoImg: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  longPreviewPlayBtn: {
-    width: scaleSizeW(46),
-    height: scaleSizeW(46),
-    borderRadius: scaleSizeW(23),
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000000',
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
   },
   settingRow: {
     flexDirection: 'row',
