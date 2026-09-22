@@ -282,6 +282,18 @@ export default function LongTextEdit({ route, navigation }: Props) {
   const [embedTarget, setEmbedTarget] = useState<{ index: number; kind: 'image' | 'video' } | null>(null);
   const [customWidth, setCustomWidth] = useState('');
   const embedModalOpenRef = useRef(false);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  const refreshHistory = useCallback(async () => {
+    try {
+      const h = await quillRef.current.getHistory();
+      setCanUndo(h.undo > 0);
+      setCanRedo(h.redo > 0);
+    } catch {
+      // ignore
+    }
+  }, []);
   const insets = useSafeAreaInsets();
   const kbAnim = useRef(new Animated.Value(Platform.OS === 'ios' ? insets.bottom : 0)).current;
 
@@ -365,8 +377,16 @@ export default function LongTextEdit({ route, navigation }: Props) {
     }
   };
 
-  const onUndo = () => exec(() => quillRef.current.undo());
-  const onRedo = () => exec(() => quillRef.current.redo());
+  const onUndo = () => {
+    if (!canUndo) return;
+    exec(() => quillRef.current.undo());
+    setTimeout(refreshHistory, 150);
+  };
+  const onRedo = () => {
+    if (!canRedo) return;
+    exec(() => quillRef.current.redo());
+    setTimeout(refreshHistory, 150);
+  };
 
   const onInsertImage = async () => {
     try {
@@ -619,7 +639,10 @@ export default function LongTextEdit({ route, navigation }: Props) {
           <QuillEditor
             ref={quillRef}
             initialHtml={initialHtml || '<p><br></p>'}
-            onHtmlChange={(data) => setPlainLen(htmlToPlainLength(data.html || ''))}
+            onHtmlChange={(data) => {
+              setPlainLen(htmlToPlainLength(data.html || ''));
+              refreshHistory();
+            }}
             quill={{
               placeholder: '添加正文...',
               modules: { toolbar: false },
@@ -665,10 +688,10 @@ export default function LongTextEdit({ route, navigation }: Props) {
               <StyleIcon color={panelOpen ? PRIMARY : TEXT_MAIN} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.toolBtn} activeOpacity={0.8} onPress={onUndo}>
-              <UndoIcon />
+              <UndoIcon color={canUndo ? TEXT_MAIN : '#999999'} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.toolBtn} activeOpacity={0.8} onPress={onRedo}>
-              <RedoIcon />
+              <RedoIcon color={canRedo ? TEXT_MAIN : '#999999'} />
             </TouchableOpacity>
             <View style={styles.flex1} />
             <TouchableOpacity style={styles.toolBtn} activeOpacity={0.8} onPress={Keyboard.dismiss}>

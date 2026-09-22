@@ -837,11 +837,18 @@ export default function Publish() {
           style={styles.longPreview}
         >
           {hasLongBody ? (
-            <RenderHtml
-              contentWidth={SCREEN_W - scaleSizeW(32)}
-              source={{ html: longHtml }}
-              baseStyle={styles.longPreviewBase}
-            />
+            <>
+              <RenderHtml
+                contentWidth={SCREEN_W - scaleSizeW(32)}
+                source={{ html: longHtml }}
+                baseStyle={styles.longPreviewBase}
+              />
+              {[...htmlToPlain(longHtml)].length > 200 && (
+                <View style={styles.longPreviewMask}>
+                  <Text style={styles.longPreviewMore}>查看全文</Text>
+                </View>
+              )}
+            </>
           ) : (
             <Text style={styles.longPlaceholder}>添加正文...</Text>
           )}
@@ -1494,6 +1501,8 @@ const styles = StyleSheet.create({
   },
   longPreview: {
     minHeight: scaleSizeH(96),
+    maxHeight: scaleSizeH(280),
+    overflow: 'hidden',
     marginTop: scaleSizeH(10),
   },
   longCoverTile: {
@@ -1521,6 +1530,21 @@ const styles = StyleSheet.create({
     fontSize: scaleSizeW(14),
     lineHeight: scaleSizeH(24),
     color: TEXT_SUB,
+  },
+  longPreviewMask: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: scaleSizeH(48),
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.85)',
+  },
+  longPreviewMore: {
+    fontSize: scaleSizeW(12),
+    color: PRIMARY,
+    paddingBottom: scaleSizeH(2),
   },
   settingRow: {
     flexDirection: 'row',
