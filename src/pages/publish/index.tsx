@@ -286,18 +286,20 @@ export default function Publish() {
         const toUrl = (o: any) => (typeof o === 'string' ? o : (o?.mdUrl ?? o?.url ?? ''));
         const imageList: string[] = (d.imageList ?? []).map(toUrl).filter(Boolean);
         const videoList: string[] = (d.videoList ?? []).map(toUrl).filter(Boolean);
+        const coverUrl = bbs.coverUrl || bbs.posterUrl || null;
         if (bbs.draftType === 2 || /<\/?(p|img|video|strong|em|u|span|h[1-6])[ >]/i.test(bbs.content || '')) {
           // 动态表无 draftType 字段，长文按正文是否含 HTML 标签识别
           setActiveTab('long');
           setLongTitle(bbs.title || '');
           setLongHtml(bbs.content || '');
-          setLongCover(bbs.coverUrl || null);
+          setLongCover(coverUrl);
           return;
         }
         setImages(imageList);
         if (videoList.length > 0) {
           setActiveTab('video');
           setVideoUrl(videoList[0]);
+          setVideoCover(coverUrl);
         }
       })
       .catch(() => { });

@@ -516,6 +516,8 @@ export default function BbsDetail() {
         pendingActionRef.current = 'report';
       } else if (action === 'permission') {
         pendingActionRef.current = 'visibility';
+      } else if (action === 'edit') {
+        navigation.navigate('publish', { editBbsId: Number(route.params.id) });
       } else if (action === 'pin' && selectedComment) {
         onToggleTop(selectedComment.id);
       } else if (action === 'delete' && selectedComment) {
@@ -526,7 +528,7 @@ export default function BbsDetail() {
       }
       actionSheetRef.current?.dismiss();
     },
-    [selectedComment, onToggleTop, onDeleteComment],
+    [selectedComment, onToggleTop, onDeleteComment, navigation, route.params.id],
   );
 
   const onActionSheetClose = useCallback(() => {
