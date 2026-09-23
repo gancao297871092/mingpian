@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
+  Animated,
+  Easing,
   FlatList,
   Image as RNImage,
   Modal,
@@ -34,6 +35,7 @@ import { scaleSizeH, scaleSizeW, setSpText, SCREEN_WIDTH } from '@/utils/screenU
 import { formatLikeCount } from '@/utils/format';
 import { useUserStore } from '@/store/user';
 import { useBbsInteractionStore } from '@/store/bbsInteraction';
+import { getDetailCache } from '@/utils/detailCache';
 import CommentInputSheet from './CommentInputSheet';
 import CommentActionSheet, { type CommentAction } from './CommentActionSheet';
 import CommentReportSheet from './CommentReportSheet';
@@ -197,6 +199,50 @@ function transformDetail(bbs: any): DetailData {
     posterUrl: bbs.posterUrl || '',
     videoUrl: firstMedia?.fileType === 'video' ? firstMedia?.mdUrl || '' : '',
   };
+}
+
+const PROGRESS_W = scaleSizeW(120);
+
+/** 顶部不定进度条（缓存渲染 + 接口在途时提示数据更新中） */
+function TopProgressBar() {
+  const anim = React.useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(anim, {
+        toValue: 1,
+        duration: 1200,
+        easing: Easing.inOut(Easing.ease),
+        useNativeDriver: true,
+      }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [anim]);
+  const translateX = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-PROGRESS_W, SCREEN_WIDTH],
+  });
+  return (
+    <View style={styles.progressTrack} pointerEvents="none">
+      <Animated.View style={[styles.progressBar, { transform: [{ translateX }] }]} />
+    </View>
+  );
+}
+
+/** 无缓存时的详情骨架屏 */
+function DetailSkeleton() {
+  return (
+    <View>
+      <View style={[styles.skeletonBlock, { height: SCREEN_WIDTH * (535 / 402) }]} />
+      <View style={styles.skeletonBody}>
+        <View style={[styles.skeletonLine, styles.skeletonTitle]} />
+        <View style={styles.skeletonLine} />
+        <View style={[styles.skeletonLine, styles.skeletonLine92]} />
+        <View style={[styles.skeletonLine, styles.skeletonLine70]} />
+        <View style={[styles.skeletonLine, styles.skeletonMeta]} />
+      </View>
+    </View>
+  );
 }
 
 const VideoCoverPlayer = React.memo(function VideoCoverPlayerInner({
@@ -428,6 +474,7 @@ export default function BbsDetail() {
   const currentAvatar = useUserStore(s => s.userInfo?.wqUser?.avatar);
 
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(true);
   const [detail, setDetail] = useState<DetailData | null>(null);
   const [commentCount, setCommentCount] = useState(0);
   const [comments, setComments] = useState<CommentData[]>([]);
@@ -601,6 +648,19 @@ export default function BbsDetail() {
 
   useEffect(() => {
     let mounted = true;
+    // 优先用列表带过来的缓存数据渲染，详情接口返回后再更新
+    const cached = getDetailCache(route.params.id);
+    if (cached) {
+      const d = transformDetail(cached);
+      setDetail(d);
+      setLiked(d.isLiked);
+      setFaved(d.isFaved);
+      setFollowing(d.isFollowed || route.params.isFollowed === true);
+      setVisibility(d.visibility === 2 ? 'private' : d.visibility === 1 ? 'mutual' : 'public');
+      setLikeCount(d.likeCount);
+      setFavCount(d.favCount);
+      setLoading(false);
+    }
     API.square
       .bbsDetail({ bbsId: route.params.id })
       .then(res => {
@@ -618,7 +678,10 @@ export default function BbsDetail() {
       })
       .catch(() => { })
       .finally(() => {
-        if (mounted) setLoading(false);
+        if (mounted) {
+          setLoading(false);
+          setRefreshing(false);
+        }
       });
     return () => {
       mounted = false;
@@ -630,42 +693,58 @@ export default function BbsDetail() {
   }, [loadComments]);
 
   const onToggleFollow = useCallback(() => {
-    if (!detail) return;
+    if (!detail || refreshing) return;
     const next = !following;
     setFollowing(next);
     API.user
       .followOperate({ targetUserId: detail.authorId, isFollow: next ? 1 : 0 })
       .catch(() => setFollowing(!next));
-  }, [detail, following]);
+  }, [detail, following, refreshing]);
 
   const DEFAULT_IMG_HEIGHT = SCREEN_WIDTH * (535 / 402);
   const [imgHeight, setImgHeight] = useState(DEFAULT_IMG_HEIGHT);
+  const [mediaReady, setMediaReady] = useState(false);
+
+  useEffect(() => {
+    setMediaReady(false);
+  }, [route.params.id]);
 
   useEffect(() => {
     if (!detail) return;
+    if (detail.images.length === 0) {
+      setMediaReady(true);
+      return;
+    }
     const maxHeight = (SCREEN_WIDTH * 4) / 3;
     const minHeight = SCREEN_WIDTH * 0.5;
     const applySize = (width: number, height: number) => {
-      if (!width || !height) return;
-      const scale = SCREEN_WIDTH / width;
-      setImgHeight(Math.min(Math.max(height * scale, minHeight), maxHeight));
+      if (width && height) {
+        const scale = SCREEN_WIDTH / width;
+        setImgHeight(prev => {
+          const next = Math.min(Math.max(height * scale, minHeight), maxHeight);
+          return Math.abs(next - prev) < 1 ? prev : next;
+        });
+      }
+      setMediaReady(true);
     };
-    if (detail.isVideo && detail.posterUrl) {
-      let cancelled = false;
-      RNImage.getSize(
-        detail.posterUrl,
-        (w, h) => {
-          if (!cancelled) applySize(w, h);
-        },
-        () => {
-          if (!cancelled) applySize(detail.mediaWidth, detail.mediaHeight);
-        },
-      );
-      return () => {
-        cancelled = true;
-      };
+    // 优先用接口媒体宽高；缺失时用首图实测（列表已预热过图片缓存，解析很快）
+    if (detail.mediaWidth && detail.mediaHeight) {
+      applySize(detail.mediaWidth, detail.mediaHeight);
+      return;
     }
-    applySize(detail.mediaWidth, detail.mediaHeight);
+    let cancelled = false;
+    RNImage.getSize(
+      detail.isVideo && detail.posterUrl ? detail.posterUrl : detail.images[0],
+      (w, h) => {
+        if (!cancelled) applySize(w, h);
+      },
+      () => {
+        if (!cancelled) applySize(0, 0);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
   }, [detail]);
 
   const renderPreviewImage = useCallback(
@@ -678,6 +757,7 @@ export default function BbsDetail() {
   }, []);
 
   const onToggleLike = () => {
+    if (refreshing) return;
     const next = !liked;
     setLiked(next);
     setLikeCount(c => {
@@ -696,6 +776,7 @@ export default function BbsDetail() {
       });
   };
   const onToggleFav = () => {
+    if (refreshing) return;
     const next = !faved;
     setFaved(next);
     setFavCount(c => {
@@ -720,7 +801,10 @@ export default function BbsDetail() {
     const isLongForm = /<\/?(p|img|video|strong|em|u|span|h[1-6])[ >]/i.test(detail.content || '');
     return (
       <View>
-        {detail.images.length > 0 && !isLongForm && (
+        {detail.images.length > 0 && !isLongForm && !mediaReady && (
+          <View style={[styles.mediaPlaceholder, { height: DEFAULT_IMG_HEIGHT }]} />
+        )}
+        {detail.images.length > 0 && !isLongForm && mediaReady && (
           <View>
             {detail.isVideo && detail.videoUrl ? (
               <VideoCoverPlayer poster={detail.images[0]} videoUrl={detail.videoUrl} height={imgHeight} />
@@ -820,7 +904,8 @@ export default function BbsDetail() {
             {!isBbsAuthor && (
               <TouchableOpacity
                 activeOpacity={0.7}
-                style={[styles.followBtn, following && styles.followedBtn]}
+                disabled={refreshing}
+                style={[styles.followBtn, following && styles.followedBtn, refreshing && styles.actionDisabled]}
                 onPress={onToggleFollow}
               >
                 <Text style={[styles.followText, following && styles.followedText]}>{following ? '已关注' : '关注'}</Text>
@@ -841,11 +926,11 @@ export default function BbsDetail() {
           </>
         }
       />
-      {loading ? (
-        <View style={styles.loadingBox}>
-          <ActivityIndicator color={BLUE} />
-        </View>
-      ) : (
+      <View style={styles.flex1}>
+        {refreshing && detail && <TopProgressBar />}
+        {loading && !detail ? (
+          <DetailSkeleton />
+        ) : (
         <FlatList
           data={comments}
           keyExtractor={item => item.id}
@@ -890,13 +975,13 @@ export default function BbsDetail() {
               <Text style={styles.commentInputText}>留下你的看法</Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity activeOpacity={0.7} hitSlop={6} style={styles.bottomAction} onPress={onToggleLike}>
+          <TouchableOpacity activeOpacity={0.7} hitSlop={6} disabled={refreshing} style={[styles.bottomAction, refreshing && styles.actionDisabled]} onPress={onToggleLike}>
             <Svg width={scaleSizeW(20)} height={scaleSizeW(21)} viewBox="0 0 20 21">
               <Path d={THUMB_PATH} fill={liked ? LIKE_RED : '#000000'} />
             </Svg>
             <Text style={[styles.bottomActionText, { color: liked ? LIKE_RED : '#000000' }]}>{formatLikeCount(likeCount)}</Text>
           </TouchableOpacity>
-          <TouchableOpacity activeOpacity={0.7} hitSlop={6} style={styles.bottomAction} onPress={onToggleFav}>
+          <TouchableOpacity activeOpacity={0.7} hitSlop={6} disabled={refreshing} style={[styles.bottomAction, refreshing && styles.actionDisabled]} onPress={onToggleFav}>
             <Svg width={scaleSizeW(22)} height={scaleSizeW(21)} viewBox="0 0 22 21">
               <Path d={STAR_PATH} fill={faved ? '#FFB800' : '#000000'} />
             </Svg>
@@ -912,6 +997,7 @@ export default function BbsDetail() {
             <Text style={styles.bottomActionText}>{formatLikeCount(commentCount)}</Text>
           </TouchableOpacity>
         </View>
+      </View>
       </View>
       <CommentInputSheet
         ref={inputSheetRef}
@@ -955,6 +1041,56 @@ export default function BbsDetail() {
 }
 
 const styles = StyleSheet.create({
+  flex1: {
+    flex: 1,
+  },
+  progressTrack: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 2,
+    zIndex: 10,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    width: PROGRESS_W,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: BLUE,
+  },
+  skeletonBlock: {
+    width: SCREEN_WIDTH,
+    backgroundColor: '#F5F5F5',
+  },
+  skeletonBody: {
+    paddingHorizontal: scaleSizeW(16),
+    paddingTop: scaleSizeH(16),
+    gap: scaleSizeH(10),
+  },
+  skeletonLine: {
+    height: scaleSizeH(12),
+    borderRadius: scaleSizeW(4),
+    backgroundColor: '#F5F5F5',
+    width: '100%',
+  },
+  skeletonTitle: {
+    width: '55%',
+    height: scaleSizeH(18),
+  },
+  skeletonLine92: {
+    width: '92%',
+  },
+  skeletonLine70: {
+    width: '70%',
+  },
+  skeletonMeta: {
+    width: '35%',
+    marginTop: scaleSizeH(12),
+  },
+  actionDisabled: {
+    opacity: 0.4,
+  },
   loadingBox: {
     flex: 1,
     alignItems: 'center',
@@ -1070,6 +1206,10 @@ const styles = StyleSheet.create({
   },
   dotActive: {
     backgroundColor: BLUE,
+  },
+  mediaPlaceholder: {
+    width: SCREEN_WIDTH,
+    backgroundColor: '#F5F5F5',
   },
   videoPlayOverlay: {
     position: 'absolute',

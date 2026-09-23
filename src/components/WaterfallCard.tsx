@@ -25,6 +25,8 @@ export interface WaterfallItem {
   isFollowed?: boolean;
   isFaved?: boolean;
   favCount?: number;
+  /** 列表项原始数据（跳转详情时写入缓存，详情页优先渲染） */
+  raw?: any;
 }
 
 export const CARD_WIDTH = scaleSizeW(194);

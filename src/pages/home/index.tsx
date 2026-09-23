@@ -16,6 +16,7 @@ import WaterfallSkeleton from './WaterfallSkeleton';
 import EmptyState from '@/components/EmptyState';
 import { API } from '@/api';
 import { useBbsInteractionStore } from '@/store/bbsInteraction';
+import { setDetailCache } from '@/utils/detailCache';
 import { usePageList } from '@/hooks/usePageList';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { PageList } from '@/utils/request';
@@ -56,6 +57,7 @@ function transformBbsToItem(bbs: any): WaterfallItem {
     isFollowed: Number(bbs.isFollow ?? bbs.currentUserIsFollow) === 1,
     isFaved: bbs.userIsFavorites === 1,
     favCount: bbs.countFavorite || 0,
+    raw: bbs,
   };
 }
 
@@ -197,7 +199,7 @@ export default function Home() {
           masonry
           numColumns={2}
           renderItem={({ item }: { item: WaterfallItem }) => (
-            <WaterfallCard item={item} onToggleLike={onToggleLike} onPress={(id) => navigation.navigate('bbsDetail', { id, isFollowed: item.isFollowed })} />
+            <WaterfallCard item={item} onToggleLike={onToggleLike} onPress={(id) => { setDetailCache(id, item.raw); navigation.navigate('bbsDetail', { id, isFollowed: item.isFollowed }); }} />
           )}
           showsVerticalScrollIndicator={false}
           refreshing={fetching && list.length > 0}
