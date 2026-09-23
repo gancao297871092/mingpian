@@ -857,7 +857,7 @@ export default function BbsDetail() {
               onLoadReplies={fetchReplies}
             />
           )}
-          ListHeaderComponent={renderHeader}
+          ListHeaderComponent={renderHeader()}
           ListEmptyComponent={
             <EmptyState variant="comment" title="暂无评论" style={styles.emptyComment} />
           }
