@@ -147,7 +147,7 @@ export default function SearchPage() {
   );
 
   return (
-    <SafeView backgroundColor="#F6F7FB" disableTop={false}>
+    <SafeView backgroundColor="#FFFFFF" disableTop={false}>
       <View style={styles.header}>
         <NavBackButton onPress={() => navigation.goBack()} />
         <View style={styles.searchBar}>
@@ -174,8 +174,9 @@ export default function SearchPage() {
           disabled={!searched}
           style={[styles.filterBtn, !searched && styles.filterBtnDisabled]}
           onPress={() => {
-            setPanel(null);
-            setFilterVisible(v => !v);
+            Keyboard.dismiss();
+            setFilterVisible(true);
+            setPanel(prev => (prev?.type === 'tree' && prev.tab === 0 ? null : { type: 'tree', tab: 0 }));
           }}
         >
           <FilterIcon color={searched ? '#000000' : '#999999'} />
@@ -294,7 +295,7 @@ const styles = StyleSheet.create({
     height: scaleSizeH(44),
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F5F5F5',
     borderRadius: scaleSizeW(90),
     paddingLeft: scaleSizeW(14),
     paddingRight: scaleSizeW(6),
@@ -349,6 +350,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: scaleSizeW(16),
     paddingVertical: scaleSizeH(12),
     backgroundColor: 'rgba(255,255,255,0.8)',
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEEEEE',
   },
   filterTab: {
     flexDirection: 'row',
@@ -402,7 +405,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: scaleSizeW(5),
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F5F5F5',
     borderRadius: scaleSizeW(90),
     paddingHorizontal: scaleSizeW(12),
     paddingVertical: scaleSizeH(6),
