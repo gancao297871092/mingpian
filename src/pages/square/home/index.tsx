@@ -175,7 +175,7 @@ export default function Home() {
             </View>
           </TouchableOpacity>
         </View>
-        <TouchableOpacity activeOpacity={0.7} style={styles.msgBtn}>
+        <TouchableOpacity activeOpacity={0.7} style={styles.msgBtn} onPress={() => navigation.navigate('search')}>
           <Image source={require('@/assets/tab-icons/search-icon.png')} style={styles.msgIcon} resizeMode="contain" />
         </TouchableOpacity>
       </View>

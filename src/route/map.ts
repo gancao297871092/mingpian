@@ -15,6 +15,7 @@ export type RootStackParamList = {
   draftBox: undefined;
   bbsDetail: { id: string; isFollowed?: boolean };
   bbsShareImage: { id: string };
+  search: undefined;
   reportBbs: { id: string };
   companyPage: { id: string | number; userId?: string | number };
   certification: { openIndex?: number };

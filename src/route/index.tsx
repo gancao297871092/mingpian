@@ -23,6 +23,7 @@ import LongTextEdit from '@/pages/square/publish/LongTextEdit';
 import DraftBox from '@/pages/square/publish/DraftBox';
 import BbsDetail from '@/pages/square/bbsDetail';
 import BbsShareImage from '@/pages/square/bbsShareImage';
+import SearchPage from '@/pages/square/search';
 import ReportBbs from '@/pages/square/report';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -181,6 +182,11 @@ export default function RootNavigator() {
             headerTintColor: '#FFFFFF',
             headerShadowVisible: false,
           }}
+        />
+        <Stack.Screen
+          name="search"
+          component={SearchPage}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="reportBbs"
