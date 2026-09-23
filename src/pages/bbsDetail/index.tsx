@@ -487,6 +487,7 @@ export default function BbsDetail() {
   const [favCount, setFavCount] = useState(0);
   const [imgIndex, setImgIndex] = useState(0);
   const [previewIndex, setPreviewIndex] = useState(-1);
+  const [previewImages, setPreviewImages] = useState<string[] | null>(null);
   const [visibility, setVisibility] = useState<VisibilityKey>('public');
   const likeNextRef = useRef({ isLiked: false, likeCount: 0 });
   const favNextRef = useRef({ isFaved: false, favCount: 0 });
@@ -756,6 +757,16 @@ export default function BbsDetail() {
     setImgIndex(index);
   }, []);
 
+  const onRichImagePress = useCallback((urls: string[], index: number) => {
+    setPreviewImages(urls);
+    setPreviewIndex(index);
+  }, []);
+
+  const closePreview = useCallback(() => {
+    setPreviewIndex(-1);
+    setPreviewImages(null);
+  }, []);
+
   const onToggleLike = () => {
     if (refreshing) return;
     const next = !liked;
@@ -862,6 +873,7 @@ export default function BbsDetail() {
               contentWidth={SCREEN_WIDTH - scaleSizeW(32)}
               html={detail.content}
               baseStyle={styles.body}
+              onImagePress={onRichImagePress}
             />
           )}
           <View style={styles.divider} />
@@ -1021,16 +1033,16 @@ export default function BbsDetail() {
           visibilitySheetRef.current?.dismiss();
         }}
       />
-      <Modal transparent visible={previewIndex >= 0} onRequestClose={() => setPreviewIndex(-1)}>
+      <Modal transparent visible={previewIndex >= 0} onRequestClose={closePreview}>
         {detail && previewIndex >= 0 && (
           <>
             <GestureViewer
-              data={detail.images}
+              data={previewImages ?? detail.images}
               initialIndex={previewIndex}
               renderItem={renderPreviewImage}
               ListComponent={ScrollView}
-              onDismiss={() => setPreviewIndex(-1)}
-              onSingleTap={() => setPreviewIndex(-1)}
+              onDismiss={closePreview}
+              onSingleTap={closePreview}
             />
             <PreviewBadge />
           </>
