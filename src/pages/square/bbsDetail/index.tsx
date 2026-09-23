@@ -86,6 +86,8 @@ interface ReplyTarget {
   name: string;
   commentId: string;
   replyToUserId: number;
+  /** 仅回复二级评论时带（用于展示"回复 xx"）；回复一级评论为空 */
+  replyToName?: string;
 }
 
 function transformReply(c: any): ReplyData {
@@ -358,11 +360,11 @@ function CommentItem({
             <Text style={styles.topBadgeText}>置顶评论</Text>
           </View>
         )}
-        {visibleReplies.map(r => (
+          {visibleReplies.map(r => (
           <ReplyRow
             key={r.id}
             reply={r}
-            onReply={(name, userId) => onReply?.({ name, commentId: item.id, replyToUserId: userId })}
+            onReply={(name, userId) => onReply?.({ name, commentId: item.id, replyToUserId: userId, replyToName: name })}
           />
         ))}
         {item.replyCount > 1 && (
@@ -385,6 +387,7 @@ export default function BbsDetail() {
   const route = useRoute<RouteProp<RootStackParamList, 'bbsDetail'>>();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const currentAvatar = useUserStore(s => s.userInfo?.wqUser?.avatar);
+  const currentName = useUserStore(s => s.userInfo?.wqUser?.nameZh || s.userInfo?.wqUser?.username);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(true);
@@ -480,6 +483,11 @@ export default function BbsDetail() {
         .then(res => {
           if (replyTarget) {
             const reply = transformReply(res.data ?? {});
+            // 新增接口不回传 replyToNickname / userInfoVo，本地回填，避免刷新前昵称头像空白；
+            // 仅回复二级评论时展示"回复 xx"（与列表接口口径一致）
+            if (!reply.replyTo && replyTarget.replyToName) reply.replyTo = replyTarget.replyToName;
+            if (!reply.userName && currentName) reply.userName = currentName;
+            if (!reply.avatar && currentAvatar) reply.avatar = currentAvatar;
             setComments(prev =>
               prev.map(c =>
                 c.id === replyTarget.commentId
@@ -494,7 +502,7 @@ export default function BbsDetail() {
         })
         .catch(() => { });
     },
-    [replyTarget, route.params.id, loadComments],
+    [replyTarget, route.params.id, loadComments, currentName, currentAvatar],
   );
 
   const onToggleTop = useCallback(
