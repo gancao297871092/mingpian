@@ -10,6 +10,8 @@ export interface DetailData {
   location: string;
   declaration: boolean;
   visibility: number;
+  /** 评论权限：0所有人 1粉丝 2互关 3仅自己 */
+  commentScope: number;
   images: string[];
   authorName: string;
   authorCompany: string;
@@ -74,6 +76,7 @@ export function transformDetail(bbs: any): DetailData {
     location: joinRegion(bbs.province, bbs.city) || bbs.ipLocation || '',
     declaration: Number(bbs.declaration) === 1,
     visibility: bbs.visibility ?? 0,
+    commentScope: bbs.commentScope ?? 0,
     images,
     authorName: bbs.userInfoVo?.nickname || bbs.userInfoVo?.username || '',
     authorCompany: bbs.userInfoVo?.cpName || '',

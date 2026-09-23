@@ -407,6 +407,16 @@ export default function BbsDetail() {
 
   const myId = useUserStore(s => s.userInfo?.wqUser?.id);
   const isBbsAuthor = !!detail && !!myId && detail.authorId === myId;
+  // commentScope：0所有人 1粉丝 2互关 3仅自己；不满足条件时评论区锁定
+  const commentLockText = (() => {
+    if (!detail || isBbsAuthor) return '';
+    const scope = detail.commentScope;
+    if (scope === 3) return '作者已关闭评论';
+    if (scope === 2) return following ? '' : '作者仅允许互关好友评论';
+    if (scope === 1) return following ? '' : '作者仅允许粉丝评论';
+    return '';
+  })();
+  const commentRestricted = commentLockText !== '';
 
   const inputSheetRef = useRef<BottomSheetModal>(null);
   const actionSheetRef = useRef<BottomSheetModal>(null);
@@ -423,6 +433,7 @@ export default function BbsDetail() {
       return API.bbsComment
         .list({ bbsId: Number(route.params.id), pageNum: page, pageSize: 20 })
         .then(res => {
+          console.log(res)
           const mapped = (res.data?.list ?? []).map(transformComment);
           setComments(prev => (page === 1 ? mapped : [...prev, ...mapped]));
           setCommentPage(page);
@@ -440,9 +451,13 @@ export default function BbsDetail() {
   }, []);
 
   const openCommentInput = useCallback((target?: ReplyTarget) => {
+    if (commentRestricted) {
+      Toast.show({ type: 'info', text1: commentLockText });
+      return;
+    }
     setReplyTarget(target ?? null);
     inputSheetRef.current?.present();
-  }, []);
+  }, [commentRestricted, commentLockText]);
 
   const openCommentActions = useCallback((item: CommentData) => {
     setSelectedComment(item);
@@ -605,8 +620,8 @@ export default function BbsDetail() {
   }, [route.params.id, route.params.isFollowed]);
 
   useEffect(() => {
-    loadComments(1);
-  }, [loadComments]);
+    if (!commentRestricted) loadComments(1);
+  }, [loadComments, commentRestricted]);
 
   const onToggleFollow = useCallback(() => {
     if (!detail || refreshing) return;
@@ -791,8 +806,12 @@ export default function BbsDetail() {
               onImagePress={onRichImagePress}
             />
           )}
-          <View style={styles.divider} />
-          <Text style={styles.commentCount}>共 {commentCount} 条评论</Text>
+          {!commentRestricted && (
+            <>
+              <View style={styles.divider} />
+              <Text style={styles.commentCount}>共 {commentCount} 条评论</Text>
+            </>
+          )}
           <View style={styles.commentInputRow}>
             <ExpoImage
               source={{ uri: currentAvatar || 'https://i.pravatar.cc/100?img=8' }}
@@ -801,7 +820,9 @@ export default function BbsDetail() {
               transition={150}
             />
             <TouchableOpacity activeOpacity={0.7} style={styles.commentInput} onPress={() => openCommentInput()}>
-              <Text style={styles.commentInputText}>留下你的看法</Text>
+              <Text style={styles.commentInputText}>
+                {commentRestricted ? commentLockText : '留下你的看法'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -859,7 +880,7 @@ export default function BbsDetail() {
           <DetailSkeleton />
         ) : (
         <FlatList
-          data={comments}
+          data={commentRestricted ? [] : comments}
           keyExtractor={item => item.id}
           renderItem={({ item }) => (
             <CommentItem
@@ -871,7 +892,18 @@ export default function BbsDetail() {
           )}
           ListHeaderComponent={renderHeader()}
           ListEmptyComponent={
-            <EmptyState variant="comment" title="暂无评论" style={styles.emptyComment} />
+            commentRestricted ? (
+              <View style={styles.restrictedEmpty}>
+                <RNImage
+                  source={require('@/assets/empty-state/comment-restricted.png')}
+                  style={styles.restrictedImage}
+                  resizeMode="contain"
+                />
+                <Text style={styles.restrictedText}>{commentLockText}</Text>
+              </View>
+            ) : (
+              <EmptyState variant="comment" title="暂无评论" style={styles.emptyComment} />
+            )
           }
           onEndReachedThreshold={0.3}
           onEndReached={() => {
@@ -899,7 +931,9 @@ export default function BbsDetail() {
             </>
           ) : (
             <TouchableOpacity activeOpacity={0.7} style={styles.bottomInput} onPress={() => openCommentInput()}>
-              <Text style={styles.commentInputText}>留下你的看法</Text>
+              <Text style={styles.commentInputText}>
+                {commentRestricted ? commentLockText : '留下你的看法'}
+              </Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity activeOpacity={0.7} hitSlop={6} disabled={refreshing} style={[styles.bottomAction, refreshing && styles.actionDisabled]} onPress={onToggleLike}>
@@ -1241,6 +1275,21 @@ const styles = StyleSheet.create({
   },
   emptyComment: {
     paddingVertical: scaleSizeH(60),
+  },
+  restrictedEmpty: {
+    alignItems: 'center',
+    paddingVertical: scaleSizeH(30),
+  },
+  restrictedImage: {
+    width: scaleSizeW(122),
+    height: scaleSizeW(129),
+    opacity: 0.3,
+  },
+  restrictedText: {
+    fontSize: setSpText(14),
+    fontWeight: '400',
+    color: '#C1C1C1',
+    lineHeight: scaleSizeH(19),
   },
   commentRow: {
     flexDirection: 'row',
