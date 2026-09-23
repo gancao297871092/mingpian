@@ -14,6 +14,7 @@ export type RootStackParamList = {
   publishCover: { videoUri: string; ratio?: '3:4' | '16:9'; title?: string };
   draftBox: undefined;
   bbsDetail: { id: string; isFollowed?: boolean };
+  bbsShareImage: { id: string };
   reportBbs: { id: string };
   companyPage: { id: string | number; userId?: string | number };
   certification: { openIndex?: number };

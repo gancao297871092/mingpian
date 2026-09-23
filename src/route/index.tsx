@@ -22,6 +22,7 @@ import PublishCover from '@/pages/publish/CoverSelect';
 import LongTextEdit from '@/pages/publish/LongTextEdit';
 import DraftBox from '@/pages/publish/DraftBox';
 import BbsDetail from '@/pages/bbsDetail';
+import BbsShareImage from '@/pages/bbsShareImage';
 import ReportBbs from '@/pages/report';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -169,6 +170,17 @@ export default function RootNavigator() {
           name="bbsDetail"
           component={BbsDetail}
           options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="bbsShareImage"
+          component={BbsShareImage}
+          options={{
+            title: '生成分享图',
+            headerStyle: { backgroundColor: '#000000' },
+            headerTitleStyle: { color: '#FFFFFF' },
+            headerTintColor: '#FFFFFF',
+            headerShadowVisible: false,
+          }}
         />
         <Stack.Screen
           name="reportBbs"
