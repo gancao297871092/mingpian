@@ -1,10 +1,11 @@
-import React from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Image, InteractionManager, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import RenderHtml, { type MixedStyleDeclaration } from 'react-native-render-html';
 import Svg, { Path } from 'react-native-svg';
-import { scaleSizeW } from '@/utils/screenUtils';
+import Video from 'react-native-video';
+import { scaleSizeH, scaleSizeW } from '@/utils/screenUtils';
 
-/** video 标签替换为 OSS 截帧 img（render-html 不支持 video 标签） */
+/** video 标签替换为 OSS 截帧 img（render-html 不支持 video 标签）；img 统一加 OSS 缩放参数避免加载原图 */
 export function normalizeLongHtmlForPreview(html: string): string {
   return html
     .replace(/<video\b[^>]*>/gi, tag => {
@@ -13,17 +14,35 @@ export function normalizeLongHtmlForPreview(html: string): string {
       const poster = `${m[1]}?x-oss-process=video/snapshot,t_0,f_jpg,w_750,h_1000,m_fast`;
       return `<img class="ql-video-preview" src="${poster}" />`;
     })
-    .replace(/<\/video>/gi, '');
+    .replace(/<\/video>/gi, '')
+    .replace(/(<img\b[^>]*src=["'])([^"']+)(["'][^>]*>)/gi, (match, prefix, src, suffix) => {
+      // 视频截帧图已带处理参数；其余图片按屏宽缩放+压缩，不加载原图
+      if (/x-oss-process=/.test(src)) return match;
+      if (!/^https?:\/\//.test(src)) return match;
+      const sep = src.includes('?') ? '&' : '?';
+      return `${prefix}${src}${sep}x-oss-process=image/resize,w_1080/quality,q_80${suffix}`;
+    });
 }
 
-function LongImgRenderer({ tnode, InternalRenderer, ...props }: any) {
-  const cls = tnode?.attributes?.class || '';
-  if (cls.includes('ql-video-preview')) {
-    const src = tnode?.attributes?.src;
-    if (!src) return null;
+/** 视频截帧图 → 点击内联播放 */
+function RichVideoBox({ poster }: { poster: string }) {
+  const [playing, setPlaying] = useState(false);
+  const videoSrc = poster.replace(/\?x-oss-process=.*$/, '');
+  if (playing) {
     return (
+      <Video
+        source={{ uri: videoSrc }}
+        style={styles.videoBox}
+        controls
+        paused={false}
+        resizeMode="contain"
+      />
+    );
+  }
+  return (
+    <TouchableOpacity activeOpacity={0.9} onPress={() => setPlaying(true)}>
       <View style={styles.videoBox}>
-        <Image source={{ uri: src }} style={styles.videoImg} resizeMode="cover" />
+        <Image source={{ uri: poster }} style={styles.videoImg} resizeMode="cover" />
         <View style={styles.playBtn}>
           <Svg width={scaleSizeW(22)} height={scaleSizeW(22)} viewBox="0 0 24 24">
             <Path
@@ -33,26 +52,87 @@ function LongImgRenderer({ tnode, InternalRenderer, ...props }: any) {
           </Svg>
         </View>
       </View>
-    );
-  }
-  return <InternalRenderer tnode={tnode} {...props} />;
+    </TouchableOpacity>
+  );
 }
-
-const renderers = { img: LongImgRenderer };
 
 interface LongHtmlViewProps {
   html: string;
   contentWidth: number;
   baseStyle?: MixedStyleDeclaration;
+  /** 点击富文本图片（查看大图） */
+  onImagePress?: (urls: string[], index: number) => void;
 }
 
-function LongHtmlView({ html, contentWidth, baseStyle }: LongHtmlViewProps) {
+function LongHtmlView({ html, contentWidth, baseStyle, onImagePress }: LongHtmlViewProps) {
+  // 富文本构建整棵文档树会阻塞 JS 线程：先出纯文本轮廓，转场结束后再挂载完整渲染
+  const [ready, setReady] = useState(false);
+  const normalized = useMemo(() => normalizeLongHtmlForPreview(html), [html]);
+  const plainPreview = useMemo(
+    () => html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim(),
+    [html],
+  );
+  const imageUrls = useMemo(() => {
+    const urls: string[] = [];
+    const regex = /<img\b[^>]*src=["']([^"']+)["'][^>]*>/gi;
+    let m: RegExpExecArray | null;
+    while ((m = regex.exec(normalized)) !== null) {
+      if (!/ql-video-preview/.test(m[0])) urls.push(m[1]);
+    }
+    return urls;
+  }, [normalized]);
+
+  const renderers = useMemo(
+    () => ({
+      img: ({ tnode, InternalRenderer, ...props }: any) => {
+        const cls = tnode?.attributes?.class || '';
+        if (cls.includes('ql-video-preview')) {
+          const src = tnode?.attributes?.src;
+          if (!src) return null;
+          return <RichVideoBox poster={src} />;
+        }
+        const src = tnode?.attributes?.src;
+        return (
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => {
+              if (!src || !onImagePress) return;
+              const index = imageUrls.indexOf(src);
+              onImagePress(imageUrls, index >= 0 ? index : 0);
+            }}
+          >
+            <InternalRenderer tnode={tnode} {...props} />
+          </TouchableOpacity>
+        );
+      },
+    }),
+    [imageUrls, onImagePress],
+  );
+
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => setReady(true));
+    return () => task.cancel();
+  }, []);
+
+  if (!ready) {
+    return (
+      <Text style={[baseStyle as any, styles.previewText]} numberOfLines={8}>
+        {plainPreview}
+      </Text>
+    );
+  }
+
   return (
     <RenderHtml
       contentWidth={contentWidth}
-      source={{ html: normalizeLongHtmlForPreview(html) }}
+      source={{ html: normalized }}
       baseStyle={baseStyle}
       renderers={renderers as any}
+      renderersProps={{
+        img: {
+          initialDimensions: { width: contentWidth, height: Math.round(contentWidth * 0.75) },
+        },
+      }}
     />
   );
 }
@@ -60,6 +140,9 @@ function LongHtmlView({ html, contentWidth, baseStyle }: LongHtmlViewProps) {
 export default React.memo(LongHtmlView);
 
 const styles = StyleSheet.create({
+  previewText: {
+    lineHeight: scaleSizeH(24),
+  },
   videoBox: {
     width: '100%',
     height: scaleSizeW(200),
