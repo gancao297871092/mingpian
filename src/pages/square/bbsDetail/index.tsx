@@ -69,6 +69,8 @@ interface ReplyData {
   userName: string;
   isAuthor?: boolean;
   replyTo?: string;
+  replyToUserId: number;
+  isLike: boolean;
   content: string;
   time: string;
   location: string;
@@ -99,11 +101,18 @@ function transformReply(c: any): ReplyData {
     userName: [info.nickname || info.username, info.cpName].filter(Boolean).join('·'),
     isAuthor: !!c.isAuthor,
     replyTo: c.replyToNickname || '',
+    replyToUserId: c.replyToUserId || 0,
+    isLike: !!c.isLike,
     content: c.content || '',
     time: formatPushTime(c.createTime),
     location: joinRegion(info.province, info.city),
     likeCount: c.likeCount || 0,
   };
+}
+
+/** 回复一级评论本身（replyToUserId=一级评论作者）不展示"回复 xx"；回复二级才展示 */
+function applyReplyToRule(reply: ReplyData, commentUserId: number): ReplyData {
+  return reply.replyToUserId === commentUserId ? { ...reply, replyTo: '' } : reply;
 }
 
 function transformComment(c: any): CommentData {
@@ -112,7 +121,7 @@ function transformComment(c: any): CommentData {
     isTop: Number(c.isTop) === 1,
     replyCount: c.replyCount || 0,
     authorReplied: !!c.authorReplied,
-    replies: (c.firstReplies ?? []).map(transformReply),
+    replies: (c.firstReplies ?? []).map((r: any) => applyReplyToRule(transformReply(r), c.userId)),
   };
 }
 
@@ -250,16 +259,33 @@ const TapView = React.forwardRef<View, TapViewProps>(({ onPress, children, ...re
 });
 TapView.displayName = 'TapView';
 
-function CommentLike({ count, showCount = true }: { count: number; showCount?: boolean }) {
-  const [liked, setLiked] = useState(false);
+function CommentLike({
+  commentId,
+  count,
+  isLike,
+  showCount = true,
+}: {
+  commentId: string;
+  count: number;
+  isLike: boolean;
+  showCount?: boolean;
+}) {
+  const [liked, setLiked] = useState(isLike);
+  useEffect(() => setLiked(isLike), [isLike]);
+  const delta = liked === isLike ? 0 : liked ? 1 : -1;
+  const onPress = () => {
+    const next = !liked;
+    setLiked(next);
+    API.bbsComment.like({ commentId: Number(commentId), status: next ? 1 : 0 }).catch(() => setLiked(!next));
+  };
   return (
-    <TouchableOpacity activeOpacity={0.7} hitSlop={8} style={styles.commentLike} onPress={() => setLiked(v => !v)}>
+    <TouchableOpacity activeOpacity={0.7} hitSlop={8} style={styles.commentLike} onPress={onPress}>
       <Svg width={scaleSizeW(13)} height={scaleSizeW(14)} viewBox="0 0 13 14">
         <Path d={THUMB_SMALL_PATH} fill={liked ? LIKE_RED : '#666666'} />
       </Svg>
       {showCount && (
         <Text style={[styles.commentLikeCount, liked && styles.commentLikeCountActive]}>
-          {formatLikeCount(count + (liked ? 1 : 0))}
+          {formatLikeCount(count + delta)}
         </Text>
       )}
     </TouchableOpacity>
@@ -298,7 +324,7 @@ function ReplyRow({
               <Text style={styles.commentReplyText}>回复</Text>
             </TouchableOpacity>
           </View>
-          <CommentLike count={reply.likeCount} showCount={false} />
+          <CommentLike commentId={reply.id} count={reply.likeCount} isLike={reply.isLike} showCount={false} />
         </View>
       </View>
       </View>
@@ -311,37 +337,22 @@ function CommentItem({
   onReply,
   onLongPress,
   onLongPressReply,
-  onLoadReplies,
+  onExpandReplies,
 }: {
   item: CommentData;
   onReply?: (target: ReplyTarget) => void;
   onLongPress?: (item: CommentData) => void;
   onLongPressReply?: (reply: ReplyData) => void;
-  onLoadReplies?: (commentId: string) => Promise<ReplyData[]>;
+  onExpandReplies?: (item: CommentData) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const [replies, setReplies] = useState(item.replies);
-  const loadingRepliesRef = useRef(false);
-  const loadedAllRef = useRef(false);
-  const visibleReplies = expanded ? replies : replies.slice(0, 1);
+  const visibleReplies = expanded ? item.replies : item.replies.slice(0, 1);
   const hiddenCount = item.replyCount - visibleReplies.length;
 
-  useEffect(() => {
-    if (!loadedAllRef.current) setReplies(item.replies);
-  }, [item.replies]);
-
   const onToggleExpand = () => {
-    if (!expanded && item.replyCount > replies.length && !loadingRepliesRef.current) {
-      loadingRepliesRef.current = true;
-      onLoadReplies?.(item.id)
-        .then(list => {
-          loadedAllRef.current = true;
-          setReplies(list);
-        })
-        .catch(() => { })
-        .finally(() => {
-          loadingRepliesRef.current = false;
-        });
+    // 展开且本地数据不足时拉取全量回复（写入 comments 单一数据源）
+    if (!expanded && item.replyCount > item.replies.length) {
+      onExpandReplies?.(item);
     }
     setExpanded(v => !v);
   };
@@ -365,7 +376,7 @@ function CommentItem({
               <Text style={styles.commentReplyText}>回复</Text>
             </TouchableOpacity>
           </View>
-          <CommentLike count={item.likeCount} />
+          <CommentLike commentId={item.id} count={item.likeCount} isLike={item.isLike} />
         </View>
         {item.isTop && (
           <View style={styles.topBadge}>
@@ -463,10 +474,25 @@ export default function BbsDetail() {
     [route.params.id],
   );
 
-  const fetchReplies = useCallback(async (commentId: string): Promise<ReplyData[]> => {
+  const fetchReplies = useCallback(async (commentId: string, commentUserId: number): Promise<ReplyData[]> => {
     const res = await API.bbsComment.replyList({ commentId: Number(commentId), pageNum: 1, pageSize: 50 });
-    return (res.data?.list ?? []).map(transformReply);
+    return (res.data?.list ?? []).map((r: any) => applyReplyToRule(transformReply(r), commentUserId));
   }, []);
+
+  const expandingRef = useRef<Set<string>>(new Set());
+  const expandReplies = useCallback(
+    (item: CommentData) => {
+      if (expandingRef.current.has(item.id)) return;
+      expandingRef.current.add(item.id);
+      fetchReplies(item.id, item.userId)
+        .then(list => {
+          setComments(prev => prev.map(c => (c.id === item.id ? { ...c, replies: list } : c)));
+        })
+        .catch(() => { })
+        .finally(() => expandingRef.current.delete(item.id));
+    },
+    [fetchReplies],
+  );
 
   const openCommentInput = useCallback((target?: ReplyTarget) => {
     if (commentRestricted) {
@@ -504,28 +530,39 @@ export default function BbsDetail() {
       API.bbsComment
         .add(data)
         .then(res => {
+          const mine = transformReply(res.data ?? {});
+          // 接口可能不回传完整数据，本地回填，保证立即展示
+          if (!mine.id || mine.id === 'undefined') mine.id = `local-${Date.now()}`;
+          if (!mine.content) mine.content = text;
+          if (!mine.time) mine.time = '刚刚';
+          if (!mine.userName && currentName) mine.userName = currentName;
+          if (!mine.avatar && currentAvatar) mine.avatar = currentAvatar;
           if (replyTarget) {
-            const reply = transformReply(res.data ?? {});
-            // 新增接口不回传 replyToNickname / userInfoVo，本地回填，避免刷新前昵称头像空白；
             // 仅回复二级评论时展示"回复 xx"（与列表接口口径一致）
-            if (!reply.replyTo && replyTarget.replyToName) reply.replyTo = replyTarget.replyToName;
-            if (!reply.userName && currentName) reply.userName = currentName;
-            if (!reply.avatar && currentAvatar) reply.avatar = currentAvatar;
+            if (!mine.replyTo && replyTarget.replyToName) mine.replyTo = replyTarget.replyToName;
             setComments(prev =>
               prev.map(c =>
                 c.id === replyTarget.commentId
-                  ? { ...c, replyCount: c.replyCount + 1, replies: [...c.replies, reply] }
+                  ? { ...c, replyCount: c.replyCount + 1, replies: [...c.replies, mine] }
                   : c,
               ),
             );
-            setCommentCount(c => c + 1);
           } else {
-            loadComments(1);
+            // 列表按权重排序，新评论直接在本地置顶插入，避免刷新后看不到
+            const newComment: CommentData = {
+              ...mine,
+              isTop: false,
+              replyCount: 0,
+              authorReplied: false,
+              replies: [],
+            };
+            setComments(prev => [newComment, ...prev]);
           }
+          setCommentCount(c => c + 1);
         })
         .catch(() => { });
     },
-    [replyTarget, route.params.id, loadComments, currentName, currentAvatar],
+    [replyTarget, route.params.id, currentName, currentAvatar],
   );
 
   const onToggleTop = useCallback(
@@ -555,15 +592,35 @@ export default function BbsDetail() {
           text: '删除',
           style: 'destructive',
           onPress: () => {
+            // 本地即时移除：一级整条（含级联回复），二级从父评论移除
+            const top = comments.find(c => c.id === commentId);
+            const removed = top ? 1 + top.replyCount : 1;
             API.bbsComment
               .del({ commentId: Number(commentId) })
-              .then(() => loadComments(1))
+              .then(() => {
+                if (top) {
+                  setComments(prev => prev.filter(c => c.id !== commentId));
+                } else {
+                  setComments(prev =>
+                    prev.map(c =>
+                      c.replies.some(r => r.id === commentId)
+                        ? {
+                            ...c,
+                            replyCount: Math.max(0, c.replyCount - 1),
+                            replies: c.replies.filter(r => r.id !== commentId),
+                          }
+                        : c,
+                    ),
+                  );
+                }
+                setCommentCount(c => Math.max(0, c - removed));
+              })
               .catch(() => { });
           },
         },
       ]);
     },
-    [loadComments],
+    [comments],
   );
 
   const onCommentAction = useCallback(
@@ -919,7 +976,7 @@ export default function BbsDetail() {
               onReply={openCommentInput}
               onLongPress={openCommentActions}
               onLongPressReply={openReplyActions}
-              onLoadReplies={fetchReplies}
+              onExpandReplies={expandReplies}
             />
           )}
           ListHeaderComponent={renderHeader()}

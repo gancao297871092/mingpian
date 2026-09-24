@@ -212,6 +212,10 @@ export namespace API {
     export function del(params: { commentId: number }) {
       return request.get<any>('/bbs/comment/del', { params });
     }
+    /** 评论/回复点赞（status: 1点赞 0取消） */
+    export function like(params: { commentId: number; status: number }) {
+      return request.get<any>('/bbs/comment/like', { params });
+    }
     /** 置顶/取消置顶（仅动态作者；已有置顶返回 needConfirm，确认后 force=1 重调） */
     export function top(params: { commentId: number; force?: number }) {
       return request.get<{ isTop?: number; needConfirm?: boolean; msg?: string }>(
