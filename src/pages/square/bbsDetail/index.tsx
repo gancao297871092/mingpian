@@ -653,6 +653,22 @@ export default function BbsDetail() {
     pendingActionRef.current = null;
   }, []);
 
+  const onReportComment = useCallback(
+    (reportType: number) => {
+      reportSheetRef.current?.dismiss();
+      if (!selectedComment) return;
+      API.bbs
+        .reportSubmit({
+          reportedTargetId: Number(selectedComment.id),
+          reportedTargetType: 4,
+          reportType,
+        })
+        .then(() => Toast.show({ type: 'success', text1: '举报成功，我们会尽快处理' }))
+        .catch(err => Toast.show({ type: 'error', text1: err?.msg || '提交失败，请稍后重试' }));
+    },
+    [selectedComment],
+  );
+
   const onMoreAction = useCallback(
     (action: MoreAction) => {
       moreSheetRef.current?.dismiss();
@@ -1062,7 +1078,7 @@ export default function BbsDetail() {
         onAction={onCommentAction}
         onClose={onActionSheetClose}
       />
-      <CommentReportSheet ref={reportSheetRef} onSubmit={() => reportSheetRef.current?.dismiss()} />
+      <CommentReportSheet ref={reportSheetRef} onSubmit={onReportComment} />
       <MoreActionSheet ref={moreSheetRef} onAction={onMoreAction} />
       <VisibilitySheet
         ref={visibilitySheetRef}

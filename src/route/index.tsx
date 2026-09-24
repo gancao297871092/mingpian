@@ -1,4 +1,5 @@
 import React from 'react';
+import { Text } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -11,6 +12,9 @@ import Home from '@/pages/square/home';
 import LinkPage from '@/pages/link';
 import MessagePage from '@/pages/message';
 import My from '@/pages/my';
+import EditProfile from '@/pages/my/EditProfile';
+import EditName from '@/pages/my/EditName';
+import EditBio from '@/pages/my/EditBio';
 import LoginHome from '@/pages/login';
 import OtherNumberLogin from '@/pages/login/OtherNumberLogin';
 import AgreementPage from '@/pages/login/AgreementPage';
@@ -71,7 +75,7 @@ function MainTabs() {
       <Tab.Screen
         name="my"
         component={My}
-        options={{ title: '我的' }}
+        options={{ title: '我的', headerShown: false }}
       />
     </Tab.Navigator>
   );
@@ -187,6 +191,41 @@ export default function RootNavigator() {
           name="search"
           component={SearchPage}
           options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="editProfile"
+          component={EditProfile}
+          options={({ navigation }) => ({
+            title: '编辑资料',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+            headerRight: () => (
+              <Text style={{ fontSize: 15, fontWeight: '500', color: '#000000' }} onPress={() => navigation.goBack()}>
+                预览
+              </Text>
+            ),
+          })}
+        />
+        <Stack.Screen
+          name="editName"
+          component={EditName}
+          options={{
+            title: '编辑名字',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="editBio"
+          component={EditBio}
+          options={{
+            title: '编辑简介',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
         />
         <Stack.Screen
           name="reportBbs"

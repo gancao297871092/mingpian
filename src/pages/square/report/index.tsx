@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
 import Uploader from '@/components/capabilities/Uploader';
 import { API } from '@/api';
@@ -44,7 +45,9 @@ export default function ReportBbs() {
           { text: '确定', onPress: () => navigation.goBack() },
         ]);
       })
-      .catch(() => { })
+      .catch(err => {
+        Toast.show({ type: 'error', text1: err?.msg || '提交失败，请稍后重试' });
+      })
       .finally(() => setSubmitting(false));
   };
 

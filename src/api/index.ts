@@ -43,6 +43,49 @@ export namespace API {
     export function followOperate(data: { targetUserId: number; isFollow: number }) {
       return request.post<any>('/user/follow/operate', data);
     }
+    /** 用户主页信息（关注/粉丝/动态数 + 是否已关注） */
+    export function homeInfo(data: { targetUserId: number }) {
+      return request.post<any>('/user/home/info', data);
+    }
+    /** 个人资料修改（昵称≤20字，简介≤100字；birthday 后端暂不持久化） */
+    export function updateInfo(data: {
+      nickname?: string;
+      username?: string;
+      gender?: number;
+      birthday?: number;
+      province?: string;
+      city?: string;
+      district?: string;
+      address?: string;
+      des?: string;
+      avatar?: string;
+    }) {
+      return request.post<any>('/user/info/base/update', data);
+    }
+  }
+
+  export namespace my {
+    /** 我的动态列表（发布 tab；statusTab: all/publishing/published/rejected） */
+    export function bbsList(data: { statusTab?: string; boardType?: number; pageNum?: number; pageSize?: number }) {
+      return request.post<{ list: any[]; total: number; pageNum: number; pages: number }>('/my/bbs/list', data);
+    }
+    /** 点赞/收藏的动态列表（type: 1点赞 2收藏） */
+    export function likeFavoritesList(data: { targetUserId: number; type: 1 | 2; pageNum?: number; pageSize?: number }) {
+      return request.post<{ list: any[]; total: number; pageNum: number; pages: number }>(
+        '/bbs/user/like-favorites/list',
+        data,
+      );
+    }
+  }
+
+  export namespace interaction {
+    /** 我收到的评论（我的动态下他人评论，含楼中楼） */
+    export function commentList(params: { pageNum?: number; pageSize?: number }) {
+      return request.get<{ list: any[]; total: number; pageNum: number; pages: number }>(
+        '/interaction/comment/list',
+        { params },
+      );
+    }
   }
 
   export namespace square {
@@ -177,7 +220,7 @@ export namespace API {
     export function favorite(params: { bbsId: number; status: number }) {
       return request.get<any>('/bbs/favorite', { params });
     }
-    /** 举报（reportedTargetType: 1=用户，2=动态，3=店铺；reportType: 1-6） */
+    /** 举报（reportedTargetType: 1=用户，2=动态，3=店铺，4=评论；reportType: 1-6） */
     export function reportSubmit(data: {
       reportedTargetId: number;
       reportedTargetType: number;

@@ -16,6 +16,9 @@ export type RootStackParamList = {
   bbsDetail: { id: string; isFollowed?: boolean };
   bbsShareImage: { id: string };
   search: undefined;
+  editProfile: undefined;
+  editName: undefined;
+  editBio: undefined;
   reportBbs: { id: string };
   companyPage: { id: string | number; userId?: string | number };
   certification: { openIndex?: number };

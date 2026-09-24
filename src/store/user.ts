@@ -11,6 +11,7 @@ const mmkvStorage = {
 export interface WqUser {
   id?: number;
   username?: string;
+  nickname?: string;
   avatar?: string;
   des?: string;
   authRealCard?: boolean;
@@ -26,6 +27,10 @@ export interface WqUser {
   position?: string;
   nameZh?: string;
   nameEn?: string;
+  /** 性别：0未知 1男 2女 */
+  gender?: number;
+  /** 生日（秒级时间戳，后端暂不持久化修改） */
+  birthday?: number;
   cpId?: number;
   cpName?: string;
 }

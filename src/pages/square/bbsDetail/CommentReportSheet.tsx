@@ -7,23 +7,11 @@ import { TipIcon } from './sheetIcons';
 
 const BLUE = '#2962D4';
 
-const REASONS = [
-  '色情低俗',
-  '政治敏感',
-  '煽动对立',
-  '导流到站外',
-  '诈骗信息',
-  '不友善',
-  '低质广告',
-  '违法违规',
-  '网络暴力',
-  '涉未成年人',
-  '内容不相关',
-  '其他',
-];
+const REASONS = ['色情低俗', '垃圾广告', '违法违规', '未成年保护', '辱骂攻击', '其他'];
 
 export interface CommentReportSheetProps {
-  onSubmit?: (reason: string) => void;
+  /** reportType：1-6，与 REASONS 下标一一对应 */
+  onSubmit?: (reportType: number) => void;
   onClose?: () => void;
 }
 
@@ -63,7 +51,7 @@ const CommentReportSheet = forwardRef<BottomSheetModal, CommentReportSheetProps>
         style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
         onPress={() => {
           if (!canSubmit) return;
-          onSubmit?.(REASONS[selected]);
+          onSubmit?.(selected + 1);
         }}
       >
         <Text style={styles.submitText}>提交</Text>
