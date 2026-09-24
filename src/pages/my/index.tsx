@@ -49,6 +49,7 @@ import {
 } from './myIcons';
 import type { RootStackParamList } from '@/route/map';
 import { FlashList } from '@shopify/flash-list';
+import { RefreshHeader } from '@/components/capabilities';
 
 const BLUE = '#2962D4';
 const CARD_W = scaleSizeW(194);
@@ -401,39 +402,29 @@ export default function My() {
     );
   };
 
+
   return (
-    <SafeView backgroundColor="#F6F7FB" disableTop={true}>
-      <View
-        style={{
-          height: insets.top, overflow: 'hidden', width: '100%',
-          zIndex: 2, backgroundColor: 'red'
-        }} >
+    <SafeView backgroundColor="#F6F7FB" >
+      <View style={[StyleSheet.absoluteFill, { paddingBottom: scaleSizeH(80) }]}>
         <ExpoImage
           source={require('@/assets/my/my/header_bg.png')}
           style={{
-            height: scaleSizeH(332),
+            height: scaleSizeH(800),
             width: '100%',
-
           }}
         />
       </View>
+      <View style={{
+        height: insets.top,
+      }} />
       <FlatList
         data={[]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         style={{
           flex: 1,
-          backgroundColor: 'transparent'
         }}
         ListHeaderComponent={() => {
           return <View style={{ position: 'relative' }}>
-            <ExpoImage
-              source={require('@/assets/my/my/header_bg.png')}
-              style={{
-                height: scaleSizeH(332) - insets.top,
-                width: '100%',
-                position: 'absolute',
-                top: 0
-              }}
-            />
             <View style={styles.headerIcons}>
               <TouchableOpacity activeOpacity={0.7} style={styles.headerIconBtn} onPress={onSettings}>
                 <SettingsIcon />
@@ -529,51 +520,17 @@ export default function My() {
             </View>
           </View>
         }}
+        ListFooterComponent={()=>{
+          return <View style={{flex: 1, backgroundColor:'#F6F7FB', width: '100%', height: 100}}>
+
+          </View>
+        }}
         renderItem={() => <View>
-          
+
         </View>}
       >
 
       </FlatList>
-
-      {/* <ScrollView
-          style={styles.flex1}
-          stickyHeaderIndices={[1]}
-          onScroll={onScroll}
-          scrollEventThrottle={16}
-          showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFFFFF" />}
-        >
-          <View onLayout={e => setHeaderH(e.nativeEvent.layout.height)}>
- 
-          
-          </View>
-
-          <View style={styles.tabBar}>
-            {TABS.map(t => {
-              const active = t.key === activeTab;
-              return (
-                <TouchableOpacity key={t.key} activeOpacity={0.7} style={styles.tabItem} onPress={() => setActiveTab(t.key)}>
-                  {TAB_ICONS[t.key](active ? '#000000' : '#6C6C6C')}
-                  <Text style={[styles.tabText, active && styles.tabTextActive]}>{t.label}</Text>
-                  {active && <View style={styles.tabIndicator} />}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {renderTabContent()}
-        </ScrollView> */}
-
-      {/* 吸顶后的顶部栏（101：昵称 + 图标） */}
-      <Animated.View style={[styles.stickyBar, { opacity: stickyOpacity }]} pointerEvents="none">
-        <Text style={styles.stickyName}>{wqUser?.nickname || wqUser?.username || ''}</Text>
-        <View style={styles.stickyIcons}>
-          <ServiceIcon color="#000000" />
-          <MessageIcon color="#000000" />
-          <SettingsIcon color="#000000" />
-        </View>
-      </Animated.View>
     </SafeView>
   );
 }
@@ -676,7 +633,7 @@ const styles = StyleSheet.create({
     marginTop: scaleSizeH(2),
   },
   profileCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F6F7FB',
     borderTopLeftRadius: scaleSizeW(20),
     borderTopRightRadius: scaleSizeW(20),
     marginTop: scaleSizeH(20),
