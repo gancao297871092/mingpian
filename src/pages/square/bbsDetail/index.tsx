@@ -266,9 +266,18 @@ function CommentLike({ count, showCount = true }: { count: number; showCount?: b
   );
 }
 
-function ReplyRow({ reply, onReply }: { reply: ReplyData; onReply?: (name: string, userId: number) => void }) {
+function ReplyRow({
+  reply,
+  onReply,
+  onLongPress,
+}: {
+  reply: ReplyData;
+  onReply?: (name: string, userId: number) => void;
+  onLongPress?: () => void;
+}) {
   return (
-    <View style={styles.replyRow}>
+    <TouchableOpacity activeOpacity={1} onLongPress={onLongPress} delayLongPress={350}>
+      <View style={styles.replyRow}>
       <ExpoImage source={{ uri: reply.avatar }} style={styles.replyAvatar} contentFit="cover" transition={150} recyclingKey={reply.avatar} />
       <View style={styles.replyBody}>
         <View style={styles.replyNameRow}>
@@ -292,7 +301,8 @@ function ReplyRow({ reply, onReply }: { reply: ReplyData; onReply?: (name: strin
           <CommentLike count={reply.likeCount} showCount={false} />
         </View>
       </View>
-    </View>
+      </View>
+    </TouchableOpacity>
   );
 }
 
@@ -300,11 +310,13 @@ function CommentItem({
   item,
   onReply,
   onLongPress,
+  onLongPressReply,
   onLoadReplies,
 }: {
   item: CommentData;
   onReply?: (target: ReplyTarget) => void;
   onLongPress?: (item: CommentData) => void;
+  onLongPressReply?: (reply: ReplyData) => void;
   onLoadReplies?: (commentId: string) => Promise<ReplyData[]>;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -365,6 +377,7 @@ function CommentItem({
             key={r.id}
             reply={r}
             onReply={(name, userId) => onReply?.({ name, commentId: item.id, replyToUserId: userId, replyToName: name })}
+            onLongPress={() => onLongPressReply?.(r)}
           />
         ))}
         {item.replyCount > 1 && (
@@ -428,8 +441,10 @@ export default function BbsDetail() {
   const visibilitySheetRef = useRef<BottomSheetModal>(null);
   const pendingActionRef = useRef<'report' | 'visibility' | null>(null);
   const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null);
-  const [selectedComment, setSelectedComment] = useState<CommentData | null>(null);
+  const [selectedComment, setSelectedComment] = useState<CommentData | ReplyData | null>(null);
   const [actionVariant, setActionVariant] = useState<'user' | 'author' | 'manage'>('user');
+  // 二级回复可弹出操作层但不提供置顶
+  const [canPin, setCanPin] = useState(true);
 
   const loadComments = useCallback(
     (page: number) => {
@@ -464,6 +479,14 @@ export default function BbsDetail() {
 
   const openCommentActions = useCallback((item: CommentData) => {
     setSelectedComment(item);
+    setCanPin(true);
+    setActionVariant(isBbsAuthor ? 'author' : 'user');
+    actionSheetRef.current?.present();
+  }, [isBbsAuthor]);
+
+  const openReplyActions = useCallback((reply: ReplyData) => {
+    setSelectedComment(reply);
+    setCanPin(false);
     setActionVariant(isBbsAuthor ? 'author' : 'user');
     actionSheetRef.current?.present();
   }, [isBbsAuthor]);
@@ -895,6 +918,7 @@ export default function BbsDetail() {
               item={item}
               onReply={openCommentInput}
               onLongPress={openCommentActions}
+              onLongPressReply={openReplyActions}
               onLoadReplies={fetchReplies}
             />
           )}
@@ -976,7 +1000,8 @@ export default function BbsDetail() {
       <CommentActionSheet
         ref={actionSheetRef}
         variant={actionVariant}
-        isTop={selectedComment?.isTop}
+        isTop={selectedComment && 'isTop' in selectedComment ? selectedComment.isTop : false}
+        canPin={canPin}
         onAction={onCommentAction}
         onClose={onActionSheetClose}
       />

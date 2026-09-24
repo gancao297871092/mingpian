@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
     gap: scaleSizeW(3),
   },
   filterBtnDisabled: {
-    opacity: 0.5,
+    opacity: 0.8,
   },
   filterBtnText: {
     fontSize: setSpText(14),

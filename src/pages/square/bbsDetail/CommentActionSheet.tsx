@@ -20,6 +20,8 @@ export type CommentAction = 'pin' | 'copy' | 'report' | 'delete' | 'edit' | 'per
 export interface CommentActionSheetProps {
   variant?: 'user' | 'author' | 'manage';
   isTop?: boolean;
+  /** 二级回复不展示置顶/取消置顶 */
+  canPin?: boolean;
   onAction?: (action: CommentAction) => void;
   onClose?: () => void;
 }
@@ -33,11 +35,11 @@ interface Row {
 }
 
 const CommentActionSheet = forwardRef<BottomSheetModal, CommentActionSheetProps>(function Sheet(
-  { variant = 'user', isTop = false, onAction, onClose },
+  { variant = 'user', isTop = false, canPin = true, onAction, onClose },
   ref,
 ) {
   const pinLabel = isTop ? '取消置顶' : '置顶';
-  const rows: Row[] =
+  const allRows: Row[] =
     variant === 'manage'
       ? [
           { key: 'edit', label: '编辑', icon: <EditIcon /> },
@@ -56,6 +58,7 @@ const CommentActionSheet = forwardRef<BottomSheetModal, CommentActionSheetProps>
             { key: 'copy', label: '复制', icon: <CopyIcon /> },
             { key: 'report', label: '举报', icon: <ReportIcon />, chevron: true },
           ];
+  const rows = canPin ? allRows : allRows.filter(row => row.key !== 'pin');
 
   return (
     <AppBottomSheet ref={ref} onClose={onClose}>
