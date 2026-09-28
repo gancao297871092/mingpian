@@ -240,8 +240,13 @@ export default function My() {
 
   /** 内层列表不滚动，需保证内容够长让外层可滚动（吸顶才能触发） */
   const minPagerHeight = Math.max(contentH - insets.top - tabBarH, 0);
+  /** 点赞 tab（figma 88 动态/评论子列表）内容常较短，用较小的下限避免整屏空白滚动区 */
+  const pagerHeightFor = useCallback(
+    (tab: TabKey) => Math.max(listHeights[tab] || 0, tab === 'like' ? scaleSizeH(500) : minPagerHeight),
+    [listHeights, minPagerHeight],
+  );
   /** 分页器高度跟随已停稳 tab 的内容高度（自己是自己的高度） */
-  const pagerHeight = Math.max(listHeights[settledTab], minPagerHeight);
+  const pagerHeight = pagerHeightFor(settledTab);
 
   // 横向滑动停稳：切高度、恢复该 tab 自己的滚动位置（夹紧到当前内容最大滚动范围，避免空白）
   const onSwiperMomentumEnd = useCallback(
@@ -252,13 +257,13 @@ export default function My() {
       tabRefs[tab]?.ensureLoaded?.();
       const saved = scrollOffsetsRef[tab] || 0;
       const viewportH = contentH - insets.top;
-      const nextPagerH = Math.max(listHeights[tab], minPagerHeight);
+      const nextPagerH = pagerHeightFor(tab);
       const totalH = headerH + STICKY_NICK_H + tabBarH + nextPagerH + scaleSizeH(100);
       const maxOffset = Math.max(totalH - viewportH, 0);
       setSettledIndex(i);
       outerRef.current?.scrollToOffset({ offset: Math.min(saved, maxOffset), animated: false });
     },
-    [windowWidth, tabRefs, scrollOffsetsRef, contentH, insets.top, listHeights, minPagerHeight, headerH, tabBarH],
+    [windowWidth, tabRefs, scrollOffsetsRef, contentH, insets.top, pagerHeightFor, headerH, tabBarH],
   );
 
   const renderTabPage = (tab: TabKey) => (
