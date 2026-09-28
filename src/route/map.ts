@@ -37,6 +37,7 @@ export type RootStackParamList = {
   reportBbs: { id: string };
   companyPage: { id: string | number; userId?: string | number };
   certification: { openIndex?: number };
+  follows: { tab?: 'mutual' | 'follow' | 'fans' } | undefined;
 };
 
 export type MainTabParamList = {

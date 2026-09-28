@@ -181,11 +181,11 @@ export default function My() {
 
   const todo = () => Toast.show({ type: 'info', text1: '功能开发中' });
 
-  const stats: { num: string | number; label: string }[] = [
+  const stats: { num: string | number; label: string; tab?: 'mutual' | 'follow' | 'fans' }[] = [
     { num: userInfo?.likeCount ?? 0, label: '获赞' },
-    { num: '-', label: '互关' },
-    { num: userInfo?.followCount ?? 0, label: '关注' },
-    { num: userInfo?.fansCount ?? 0, label: '粉丝' },
+    { num: userInfo?.mutualCount ?? '-', label: '互关', tab: 'mutual' },
+    { num: userInfo?.followCount ?? 0, label: '关注', tab: 'follow' },
+    { num: userInfo?.fansCount ?? 0, label: '粉丝', tab: 'fans' },
   ];
 
   const entries: { label: string; icon: React.ReactNode; badge?: number; onPress: () => void }[] = [
@@ -365,10 +365,16 @@ export default function My() {
               <View style={styles.profileCard}>
                 <View style={styles.statsRow}>
                   {stats.map(s => (
-                    <View key={s.label} style={styles.statItem}>
+                    <TouchableOpacity
+                      key={s.label}
+                      activeOpacity={s.tab ? 0.7 : 1}
+                      style={styles.statItem}
+                      disabled={!s.tab}
+                      onPress={() => s.tab && navigation.navigate('follows', { tab: s.tab })}
+                    >
                       <Text style={styles.statNum}>{s.num}</Text>
                       <Text style={styles.statLabel}>{s.label}</Text>
-                    </View>
+                    </TouchableOpacity>
                   ))}
                   <TouchableOpacity activeOpacity={0.7} style={styles.editBtn} onPress={() => navigation.navigate('editProfile')}>
                     <Text style={styles.editBtnText}>编辑主页</Text>

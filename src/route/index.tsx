@@ -30,6 +30,7 @@ import WechatBoundOther from '@/pages/my/settings/WechatBoundOther';
 import WechatBindSuccess from '@/pages/my/settings/WechatBindSuccess';
 import EditName from '@/pages/my/EditName';
 import EditBio from '@/pages/my/EditBio';
+import Follows from '@/pages/my/follows';
 import LoginHome from '@/pages/login';
 import OtherNumberLogin from '@/pages/login/OtherNumberLogin';
 import AgreementPage from '@/pages/login/AgreementPage';
@@ -390,6 +391,16 @@ export default function RootNavigator() {
           options={{
             title: '举报动态',
             headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="follows"
+          component={Follows}
+          options={{
+            title: '',
+            headerStyle: { backgroundColor: '#FFFFFF' },
             headerTitleStyle: { color: '#000000' },
             headerShadowVisible: false,
           }}

@@ -39,6 +39,8 @@ export interface UserInfo {
   wqUser?: WqUser;
   followCount?: number;
   fansCount?: number;
+  /** 互关数（后端暂未返回时前端展示 '-'） */
+  mutualCount?: number;
   bbsCount?: number;
   likeCount?: number;
   favoriteCount?: number;

@@ -43,6 +43,13 @@ export namespace API {
     export function followOperate(data: { targetUserId: number; isFollow: number }) {
       return request.post<any>('/user/follow/operate', data);
     }
+    /** 互关/关注/粉丝列表（字段为预设，待后端联调确认） */
+    export function followList(data: { type: 'mutual' | 'follow' | 'fans'; pageNum?: number; pageSize?: number }) {
+      return request.post<{ list: any[]; total: number; pageNum: number; pages: number }>(
+        '/user/follow/list',
+        data,
+      );
+    }
     /** 用户主页信息（关注/粉丝/动态数 + 是否已关注） */
     export function homeInfo(data: { targetUserId: number }) {
       return request.post<any>('/user/home/info', data);
