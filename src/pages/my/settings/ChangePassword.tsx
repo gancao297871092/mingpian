@@ -41,11 +41,11 @@ export default function ChangePassword() {
     try {
       await API.setting.updatePassword({ oldPassword: hasPassword ? oldPwd : undefined, newPassword: newPwd });
       Toast.show({ type: 'success', text1: hasPassword ? '密码修改成功' : '密码设置成功' });
-      navigation.goBack();
+      navigation.popTo('accountSecurity');
     } catch (e: any) {
       // TODO 联调后失败时不放行
       Toast.show({ type: 'info', text1: e?.msg || '接口未联调，模拟修改成功' });
-      navigation.goBack();
+      navigation.popTo('accountSecurity');
     } finally {
       setLoading(false);
     }
@@ -71,7 +71,7 @@ export default function ChangePassword() {
               </View>
             </>
           )}
-          <Text style={styles.sectionLabel}>{hasPassword ? '设置新密码' : '设置密码'}</Text>
+          <Text style={[styles.sectionLabel, styles.sectionLabelGap]}>{hasPassword ? '设置新密码' : '设置密码'}</Text>
           <View style={styles.inputCard}>
             <TextInput
               style={styles.input}
@@ -123,7 +123,9 @@ const styles = StyleSheet.create({
     lineHeight: scaleSizeH(14),
     marginHorizontal: scaleSizeW(16),
     marginBottom: scaleSizeH(10),
-    marginTop: scaleSizeH(4),
+  },
+  sectionLabelGap: {
+    marginTop: scaleSizeH(20),
   },
   inputCard: {
     marginHorizontal: scaleSizeW(16),

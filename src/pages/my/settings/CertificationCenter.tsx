@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Toast from 'react-native-toast-message';
+import LinearGradient from 'react-native-linear-gradient';
 import SafeView from '@/components/SafeView';
 import { useUserStore } from '@/store/user';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
@@ -9,25 +9,49 @@ import { CertCompanyIcon, CertJobIcon, CertPerkIcon, CertRealIcon } from './subI
 
 const PERKS = ['独有标识', '一步认证', '职刻点亮', '权威背书'];
 
+type CertKey = 'authRealCard' | 'authPosition' | 'authCompany';
+
 interface CertItem {
-  key: 'authRealCard' | 'authPosition' | 'authCompany';
+  key: CertKey;
   label: string;
   color: string;
   icon: React.ReactNode;
+  /** 展开后的占位说明文字（待手动调整） */
+  expandText: string;
 }
 
 /** 76.认证中心 */
 export default function CertificationCenter() {
   const userInfo = useUserStore(s => s.userInfo);
   const wqUser = userInfo?.wqUser;
+  const [expandedKey, setExpandedKey] = useState<CertKey | null>(null);
 
   const items: CertItem[] = [
-    { key: 'authRealCard', label: '实名认证', color: '#36BE69', icon: <CertRealIcon /> },
-    { key: 'authPosition', label: '职业认证', color: '#F2722C', icon: <CertJobIcon /> },
-    { key: 'authCompany', label: '企业认证', color: '#2962D4', icon: <CertCompanyIcon /> },
+    {
+      key: 'authRealCard',
+      label: '实名认证',
+      color: '#36BE69',
+      icon: <CertRealIcon />,
+      expandText:
+        '实名认证后，将自动显示您的真实姓名，显著提升名片的可信度与辨识度，为拓展人脉奠定坚实基础。（占位文字，待调整）',
+    },
+    {
+      key: 'authPosition',
+      label: '职业认证',
+      color: '#F2722C',
+      icon: <CertJobIcon />,
+      expandText: '职业认证说明占位文字：认证后可展示职业身份标识，提升专业形象与合作信任度。（待调整）',
+    },
+    {
+      key: 'authCompany',
+      label: '企业认证',
+      color: '#2962D4',
+      icon: <CertCompanyIcon />,
+      expandText: '企业认证说明占位文字：认证后可获得企业官方标识，解锁企业名片与企业动态等能力。（待调整）',
+    },
   ];
 
-  const realName = wqUser?.nameZh || wqUser?.nickname || '';
+  const toggle = (key: CertKey) => setExpandedKey(prev => (prev === key ? null : key));
 
   return (
     <SafeView backgroundColor="#E8EFFF">
@@ -41,51 +65,44 @@ export default function CertificationCenter() {
           </View>
         </View>
 
-        <View style={styles.perkCard}>
+        <LinearGradient
+          colors={['#FEF4E8', '#FFE4C2']}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={styles.perkCard}
+        >
           {PERKS.map(p => (
             <View key={p} style={styles.perkItem}>
               <CertPerkIcon />
               <Text style={styles.perkText}>{p}</Text>
             </View>
           ))}
-        </View>
+        </LinearGradient>
 
         <View style={styles.certCard}>
-          {items.map((item, i) => (
-            <React.Fragment key={item.key}>
-              {i > 0 && <View style={styles.divider} />}
-              <TouchableOpacity
-                activeOpacity={0.7}
-                style={styles.certRow}
-                onPress={() => Toast.show({ type: 'info', text1: '认证申请流程开发中' })}
-              >
-                <View style={[styles.certIconWrap, { backgroundColor: item.color }]}>{item.icon}</View>
-                <Text style={styles.certLabel}>{item.label}</Text>
-                <View style={styles.certRight}>
-                  <Text style={styles.certStatus}>{wqUser?.[item.key] ? '已认证' : '未认证'}</Text>
-                  <SettingArrowIcon color="#6C6C6C" />
-                </View>
-              </TouchableOpacity>
-              {item.key === 'authRealCard' && !!wqUser?.authRealCard && (
-                <View style={styles.realInfoCard}>
-                  <View style={styles.realInfoRow}>
-                    <Text style={styles.realInfoLabel}>姓名</Text>
-                    <Text style={styles.realInfoValue}>{realName}</Text>
+          {items.map((item, i) => {
+            const expanded = expandedKey === item.key;
+            return (
+              <React.Fragment key={item.key}>
+                {i > 0 && <View style={styles.divider} />}
+                <TouchableOpacity activeOpacity={0.7} style={styles.certRow} onPress={() => toggle(item.key)}>
+                  <View style={[styles.certIconWrap, { backgroundColor: item.color }]}>{item.icon}</View>
+                  <Text style={styles.certLabel}>{item.label}</Text>
+                  <View style={styles.certRight}>
+                    <Text style={styles.certStatus}>{wqUser?.[item.key] ? '已认证' : '未认证'}</Text>
+                    <View style={[styles.arrow, expanded && styles.arrowExpanded]}>
+                      <SettingArrowIcon color="#6C6C6C" />
+                    </View>
                   </View>
-                  <View style={styles.realInfoRow}>
-                    <Text style={styles.realInfoLabel}>认证方式</Text>
-                    <Text style={styles.realInfoValue}>阿里云三要素核验，安全快捷</Text>
+                </TouchableOpacity>
+                {expanded && (
+                  <View style={styles.expandCard}>
+                    <Text style={styles.expandText}>{item.expandText}</Text>
                   </View>
-                  <View style={styles.realInfoRow}>
-                    <Text style={styles.realInfoLabel}>认证价值</Text>
-                    <Text style={[styles.realInfoValue, styles.realInfoFlex]}>
-                      实名认证后，将自动显示您的真实姓名，显著提升名片的可信度与辨识度，为拓展人脉奠定坚实基础。
-                    </Text>
-                  </View>
-                </View>
-              )}
-            </React.Fragment>
-          ))}
+                )}
+              </React.Fragment>
+            );
+          })}
         </View>
       </ScrollView>
     </SafeView>
@@ -142,7 +159,6 @@ const styles = StyleSheet.create({
     borderRadius: scaleSizeW(10),
     borderWidth: 1,
     borderColor: '#FFFFFF',
-    backgroundColor: '#FEF4E8',
   },
   perkItem: {
     flexDirection: 'row',
@@ -198,30 +214,22 @@ const styles = StyleSheet.create({
     color: '#6C6C6C',
     lineHeight: scaleSizeH(18),
   },
-  realInfoCard: {
+  arrow: {
+    transform: [{ rotate: '0deg' }],
+  },
+  arrowExpanded: {
+    transform: [{ rotate: '90deg' }],
+  },
+  expandCard: {
     marginHorizontal: scaleSizeW(14),
     marginBottom: scaleSizeH(10),
     backgroundColor: '#F5F5F5',
     borderRadius: scaleSizeW(10),
     padding: scaleSizeW(14),
-    gap: scaleSizeH(10),
   },
-  realInfoRow: {
-    flexDirection: 'row',
-    gap: scaleSizeW(24),
-  },
-  realInfoLabel: {
-    fontSize: setSpText(12),
-    color: '#6C6C6C',
-    lineHeight: scaleSizeH(20),
-    width: scaleSizeW(48),
-  },
-  realInfoValue: {
+  expandText: {
     fontSize: setSpText(12),
     color: '#000000',
     lineHeight: scaleSizeH(20),
-  },
-  realInfoFlex: {
-    flex: 1,
   },
 });

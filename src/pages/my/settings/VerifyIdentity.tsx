@@ -19,7 +19,7 @@ export default function VerifyIdentity() {
           <SettingRow
             label="手机验证码验证"
             icon={<VerifyPhoneIcon />}
-            onPress={() => navigation.navigate('changePhoneVerify', {})}
+            onPress={() => navigation.navigate('changePhoneVerify', { scene: 'resetPassword' })}
           />
         </View>
         <View style={styles.optionCard}>

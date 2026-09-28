@@ -19,8 +19,8 @@ export type RootStackParamList = {
   editProfile: undefined;
   settings: undefined;
   accountSecurity: undefined;
-  verifyIdentity: undefined;
-  changePhoneVerify: { ticket?: string } | undefined;
+  verifyIdentity: { scene?: 'changePhone' | 'resetPassword' } | undefined;
+  changePhoneVerify: { scene?: 'changePhone' | 'resetPassword' } | undefined;
   bindPhone: { ticket?: string } | undefined;
   changePassword: { hasPassword?: boolean } | undefined;
   certificationCenter: undefined;

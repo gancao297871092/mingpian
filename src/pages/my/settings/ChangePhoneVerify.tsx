@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Keyboard, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
@@ -100,15 +100,17 @@ const formStyles = StyleSheet.create({
   },
 });
 
-/** 72.更改手机号-原手机号验证 */
+/** 72.手机验证码验证（scene=changePhone 换绑手机 / resetPassword 重置密码前的身份核验） */
 export default function ChangePhoneVerify() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const route = useRoute<RouteProp<RootStackParamList, 'changePhoneVerify'>>();
+  const scene = route.params?.scene ?? 'changePhone';
   const originPhone = useUserStore(s => s.userInfo?.wqUser?.phone) || '';
   const masked = originPhone.replace(/^(\d{3})\d{4}(\d{4})$/, '$1****$2');
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
-  const { authCode, countdown, sendCode } = useSmsCode('changePhoneOld');
+  const { authCode, countdown, sendCode } = useSmsCode(scene === 'changePhone' ? 'changePhoneOld' : 'resetPassword');
 
   const isPhoneValid = /^1\d{10}$/.test(phone);
   const canSubmit = isPhoneValid && code.length >= 4 && !loading;
@@ -126,7 +128,11 @@ export default function ChangePhoneVerify() {
     } finally {
       setLoading(false);
     }
-    navigation.navigate('bindPhone', { ticket });
+    if (scene === 'changePhone') {
+      navigation.navigate('bindPhone', { ticket });
+    } else {
+      navigation.navigate('changePassword', { hasPassword: false });
+    }
   };
 
   return (

@@ -66,7 +66,7 @@ export default function AccountSecurity() {
           <SettingRow
             label="登录密码"
             value={info.hasPassword ? '已设置' : '未设置'}
-            onPress={() => navigation.navigate('changePassword', { hasPassword: !!info.hasPassword })}
+            onPress={() => navigation.navigate('verifyIdentity', { scene: 'resetPassword' })}
           />
         </SettingCard>
         <View style={styles.gap} />
@@ -98,7 +98,7 @@ export default function AccountSecurity() {
               activeOpacity={0.85}
               onPress={() => {
                 setPhoneTipVisible(false);
-                navigation.navigate('verifyIdentity');
+                navigation.navigate('changePhoneVerify', { scene: 'changePhone' });
               }}
             >
               <Text style={styles.modalPrimaryText}>继续更换</Text>
