@@ -268,6 +268,101 @@ export namespace API {
     }
   }
 
+  /** 设置相关接口：字段为预设，待后端联调确认 */
+  export namespace setting {
+    /** 账号与安全信息 */
+    export interface AccountSecurityInfo {
+      /** 已绑定手机号（完整号，前端自行脱敏） */
+      phone?: string;
+      /** 是否已设置登录密码 */
+      hasPassword?: boolean;
+      /** 是否已绑定微信 */
+      wechatBound?: boolean;
+      /** 绑定的微信昵称 */
+      wechatNickname?: string;
+      /** 实名认证状态 */
+      authReal?: boolean;
+      /** 职业认证状态 */
+      authPosition?: boolean;
+      /** 企业认证状态 */
+      authCompany?: boolean;
+    }
+    export function accountSecurity() {
+      return request.get<AccountSecurityInfo>('/setting/account/security');
+    }
+
+    /** 发送短信验证码（scene: changePhoneOld/changePhoneNew/bindPhone 等） */
+    export function smsSend(data: { phone: string; scene: string }) {
+      return request.post<{ authCode: string }>('/setting/sms/send', data);
+    }
+
+    /** 原手机号验证，成功后返回换绑票据 ticket */
+    export function verifyOldPhone(data: { phone: string; authCode: string; code: string }) {
+      return request.post<{ ticket: string }>('/setting/phone/verifyOld', data);
+    }
+
+    /** 绑定/更换为新手机号 */
+    export function changePhone(data: { ticket: string; phone: string; authCode: string; code: string }) {
+      return request.post<any>('/setting/phone/change', data);
+    }
+
+    /** 修改/设置登录密码（未设置时 oldPassword 可不传） */
+    export function updatePassword(data: { oldPassword?: string; newPassword: string }) {
+      return request.post<any>('/setting/password/update', data);
+    }
+
+    /** 通用/隐私偏好设置 */
+    export interface PreferenceSettings {
+      /** 打开视频时默认静音 */
+      videoMuted?: boolean;
+      /** 默认首页：square 广场 / link 链接 */
+      defaultHome?: 'square' | 'link';
+      /** 资料公开：我的动态 */
+      publicBbs?: boolean;
+      /** 资料公开：我的点赞 */
+      publicLike?: boolean;
+      /** 资料公开：我的收藏 */
+      publicFavorite?: boolean;
+      /** 资料公开：我的关注 */
+      publicFollow?: boolean;
+      /** 资料公开：我的粉丝 */
+      publicFans?: boolean;
+      /** AI 产业连接（新发动态默认参与分析） */
+      aiConnect?: boolean;
+      /** 分析我的公开动态 */
+      analyzeBbs?: boolean;
+      /** 为我推荐企业与机会 */
+      recommendCompany?: boolean;
+    }
+    export function preference() {
+      return request.get<PreferenceSettings>('/setting/preference');
+    }
+    export function preferenceSave(data: PreferenceSettings) {
+      return request.post<any>('/setting/preference/save', data);
+    }
+
+    /** 微信绑定状态（授权回调后查询） */
+    export interface WechatBindInfo {
+      /** 微信昵称 */
+      nickname?: string;
+      /** 微信头像 */
+      avatar?: string;
+      /** 该微信是否已绑定其他账号 */
+      boundOther?: boolean;
+      /** 原绑定账号昵称（boundOther 时返回） */
+      otherNickname?: string;
+      /** 原绑定账号头像 */
+      otherAvatar?: string;
+    }
+    export function wechatBindInfo(params: { code: string }) {
+      return request.get<WechatBindInfo>('/setting/wechat/bindInfo', { params });
+    }
+    /** 确认绑定微信（rebind=1 表示换绑） */
+    export function wechatBind(data: { code: string; rebind?: number }) {
+      return request.post<any>('/setting/wechat/bind', data);
+    }
+  }
+
   export namespace file {
     /** 图片上传 */
     export function upload(data: FormData) {

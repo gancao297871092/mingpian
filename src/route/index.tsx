@@ -14,6 +14,20 @@ import MessagePage from '@/pages/message';
 import My from '@/pages/my';
 import EditProfile from '@/pages/my/EditProfile';
 import Settings from '@/pages/my/settings';
+import AccountSecurity from '@/pages/my/settings/AccountSecurity';
+import VerifyIdentity from '@/pages/my/settings/VerifyIdentity';
+import ChangePhoneVerify from '@/pages/my/settings/ChangePhoneVerify';
+import BindPhone from '@/pages/my/settings/BindPhone';
+import ChangePassword from '@/pages/my/settings/ChangePassword';
+import CertificationCenter from '@/pages/my/settings/CertificationCenter';
+import GeneralSettings from '@/pages/my/settings/GeneralSettings';
+import DefaultHomeSetting from '@/pages/my/settings/DefaultHomeSetting';
+import PrivacySettings from '@/pages/my/settings/PrivacySettings';
+import HelpCenter from '@/pages/my/settings/HelpCenter';
+import AboutUs from '@/pages/my/settings/AboutUs';
+import WechatAuth from '@/pages/my/settings/WechatAuth';
+import WechatBoundOther from '@/pages/my/settings/WechatBoundOther';
+import WechatBindSuccess from '@/pages/my/settings/WechatBindSuccess';
 import EditName from '@/pages/my/EditName';
 import EditBio from '@/pages/my/EditBio';
 import LoginHome from '@/pages/login';
@@ -215,6 +229,139 @@ export default function RootNavigator() {
             title: '设置',
             headerStyle: { backgroundColor: '#F6F7FB' },
             headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="accountSecurity"
+          component={AccountSecurity}
+          options={{
+            title: '账号与安全',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="verifyIdentity"
+          component={VerifyIdentity}
+          options={{
+            headerTitle: '',
+            headerStyle: { backgroundColor: '#FFFFFF' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="changePhoneVerify"
+          component={ChangePhoneVerify}
+          options={{
+            headerTitle: '',
+            headerStyle: { backgroundColor: '#FFFFFF' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="bindPhone"
+          component={BindPhone}
+          options={{
+            headerTitle: '',
+            headerStyle: { backgroundColor: '#FFFFFF' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="changePassword"
+          component={ChangePassword}
+          options={{
+            title: '修改密码',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="certificationCenter"
+          component={CertificationCenter}
+          options={{
+            title: '',
+            headerStyle: { backgroundColor: '#E8EFFF' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="generalSettings"
+          component={GeneralSettings}
+          options={{
+            title: '通用设置',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="defaultHomeSetting"
+          component={DefaultHomeSetting}
+          options={{
+            title: '默认首页设置',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="privacySettings"
+          component={PrivacySettings}
+          options={{
+            title: '隐私与权限',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="helpCenter"
+          component={HelpCenter}
+          options={{
+            title: '帮助与客服',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="aboutUs"
+          component={AboutUs}
+          options={{
+            title: '关于我们',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="wechatAuth"
+          component={WechatAuth}
+          options={{
+            headerTitle: '',
+            headerStyle: { backgroundColor: '#FFFFFF' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="wechatBoundOther"
+          component={WechatBoundOther}
+          options={{
+            headerTitle: '',
+            headerStyle: { backgroundColor: '#FFFFFF' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="wechatBindSuccess"
+          component={WechatBindSuccess}
+          options={{
+            headerTitle: '',
+            headerStyle: { backgroundColor: '#FFFFFF' },
             headerShadowVisible: false,
           }}
         />

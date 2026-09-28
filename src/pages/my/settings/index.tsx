@@ -54,6 +54,29 @@ export default function Settings() {
 
   const todo = () => Toast.show({ type: 'info', text1: '功能开发中' });
 
+  const onClearCache = () => {
+    Alert.alert('清理缓存', '确定要清理本地缓存吗？', [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '确定',
+        onPress: () => Toast.show({ type: 'success', text1: '缓存已清理' }),
+      },
+    ]);
+  };
+
+  const onSwitchAccount = () => {
+    Alert.alert('切换账号', '确定要切换账号吗？', [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '确定',
+        onPress: () => {
+          logout();
+          navigation.reset({ index: 0, routes: [{ name: 'login' }] });
+        },
+      },
+    ]);
+  };
+
   const onLogout = () => {
     Alert.alert('退出登录', '确定要退出当前账号吗？', [
       { text: '取消', style: 'cancel' },
@@ -74,29 +97,29 @@ export default function Settings() {
         <Section
           title="账号"
           rows={[
-            { label: '账号与安全', icon: <SettingAccountIcon />, onPress: todo },
-            { label: '通用设置', icon: <SettingGeneralIcon />, onPress: todo },
-            { label: '隐私与权限', icon: <SettingPrivacyIcon />, onPress: todo },
+            { label: '账号与安全', icon: <SettingAccountIcon />, onPress: () => navigation.navigate('accountSecurity') },
+            { label: '通用设置', icon: <SettingGeneralIcon />, onPress: () => navigation.navigate('generalSettings') },
+            { label: '隐私与权限', icon: <SettingPrivacyIcon />, onPress: () => navigation.navigate('privacySettings') },
           ]}
         />
         <Section
           title="通用"
           rows={[
-            { label: '通用设置', icon: <SettingGeneralIcon />, onPress: todo },
+            { label: '通用设置', icon: <SettingGeneralIcon />, onPress: () => navigation.navigate('generalSettings') },
             { label: '机会偏好调节', icon: <SettingChanceIcon />, onPress: todo },
-            { label: '清理缓存', icon: <SettingClearIcon />, onPress: todo },
+            { label: '清理缓存', icon: <SettingClearIcon />, onPress: onClearCache },
           ]}
         />
         <Section
           title="关于"
           rows={[
-            { label: '帮助与客服', icon: <SettingHelpIcon />, onPress: todo },
-            { label: '关于联诚采信', icon: <SettingAboutIcon />, onPress: todo },
+            { label: '帮助与客服', icon: <SettingHelpIcon />, onPress: () => navigation.navigate('helpCenter') },
+            { label: '关于联诚采信', icon: <SettingAboutIcon />, onPress: () => navigation.navigate('aboutUs') },
           ]}
         />
         <Section
           rows={[
-            { label: '切换账号', icon: <SettingSwitchIcon />, onPress: todo },
+            { label: '切换账号', icon: <SettingSwitchIcon />, onPress: onSwitchAccount },
             { label: '退出登录', icon: <SettingLogoutIcon />, onPress: onLogout },
           ]}
         />
