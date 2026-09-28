@@ -1,39 +1,30 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
-  FlatList,
   RefreshControl,
-  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  useWindowDimensions,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
-import LinearGradient from 'react-native-linear-gradient';
 import Toast from 'react-native-toast-message';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SafeView from '@/components/SafeView';
-import EmptyState from '@/components/EmptyState';
-import ListFooter from '@/components/ListFooter';
 import { API } from '@/api';
 import { useUserStore } from '@/store/user';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
-import { formatLikeCount } from '@/utils/format';
-import { setDetailCache } from '@/utils/detailCache';
 import { listDrafts } from '@/utils/draftStore';
-import { formatPushTime } from '@/pages/square/bbsDetail/detailTransform';
 import {
   CardBoxIcon,
-  CardLikeIcon,
   CompanyIcon,
-  DraftIcon,
   EntryCertIcon,
   EntryChanceIcon,
   EntryCompanyIcon,
@@ -47,15 +38,18 @@ import {
   TabFavIcon,
   TabLikeIcon,
 } from './myIcons';
+import WaterfallTab from './tabs/WaterfallTab';
+import CommentTab from './tabs/CommentTab';
+import type { TabHandle } from './tabs/common';
 import type { RootStackParamList } from '@/route/map';
-import { FlashList } from '@shopify/flash-list';
-import { RefreshHeader } from '@/components/capabilities';
 
 const BLUE = '#2962D4';
-const CARD_W = scaleSizeW(194);
-const PAGE_SIZE = 10;
+/** 吸顶后顶部昵称栏高度（figma 101） */
+const STICKY_NICK_H = 46;
 
 type TabKey = 'post' | 'comment' | 'fav' | 'like';
+
+const TAB_KEYS: TabKey[] = ['post', 'comment', 'fav', 'like'];
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'post', label: '发布' },
@@ -71,193 +65,57 @@ const TAB_ICONS: Record<TabKey, (color: string) => React.ReactNode> = {
   like: color => <TabLikeIcon color={color} />,
 };
 
-interface PostCardData {
-  id: string;
-  imageUrl: string;
-  imageHeight: number;
-  title: string;
-  date: string;
-  likeCount: number;
-  raw?: any;
-}
-
-interface CommentCardData {
-  id: string;
-  bbsId: number;
-  avatar: string;
-  name: string;
-  company: string;
-  content: string;
-  time: string;
-  bbsTitle: string;
-}
-
-interface TabState {
-  list: any[];
-  page: number;
-  pages: number;
-  loading: boolean;
-  loaded: boolean;
-}
-
-const initialTabState = (): Record<TabKey, TabState> => ({
-  post: { list: [], page: 0, pages: 1, loading: false, loaded: false },
-  comment: { list: [], page: 0, pages: 1, loading: false, loaded: false },
-  fav: { list: [], page: 0, pages: 1, loading: false, loaded: false },
-  like: { list: [], page: 0, pages: 1, loading: false, loaded: false },
-});
-
-function ossVideoSnapshot(videoUrl: string): string {
-  if (!videoUrl) return '';
-  return `${videoUrl}?x-oss-process=video/snapshot,t_0,f_jpg,w_388,h_640,m_fast`;
-}
-
-function mapPost(bbs: any): PostCardData {
-  const media = bbs.mediaLinkList?.[0]?.media;
-  const isVideo = media?.fileType === 'video';
-  const imageUrl = isVideo
-    ? bbs.posterUrl || bbs.coverUrl || ossVideoSnapshot(media?.mdUrl || '')
-    : media?.mdUrl || bbs.posterUrl || bbs.coverUrl || '';
-  const w = media?.width ? parseInt(media.width, 10) : 194;
-  const h = media?.height ? parseInt(media.height, 10) : 237;
-  const imageHeight = Math.min(Math.round((194 * h) / w), 320);
-  return {
-    id: String(bbs.id),
-    imageUrl,
-    imageHeight,
-    title: bbs.title || (bbs.content || '').replace(/<[^>]*>/g, '').slice(0, 50),
-    date: formatPushTime(bbs.pushTime || bbs.createTime).slice(0, 5),
-    likeCount: bbs.countLike || 0,
-    raw: bbs,
-  };
-}
-
-function mapComment(c: any): CommentCardData {
-  const info = c.userInfoVo ?? {};
-  return {
-    id: String(c.id),
-    bbsId: c.bbsId,
-    avatar: info.avatar || '',
-    name: info.nickname || info.username || '',
-    company: info.cpName || '',
-    content: c.content || '',
-    time: formatPushTime(c.createTime),
-    bbsTitle: c.bbsTitle || '',
-  };
-}
-
-function PostCard({ item, onPress }: { item: PostCardData; onPress: () => void }) {
-  return (
-    <TouchableOpacity activeOpacity={0.9} style={styles.postCard} onPress={onPress}>
-      {!!item.imageUrl && (
-        <ExpoImage
-          source={{ uri: item.imageUrl }}
-          style={[styles.postImage, { height: scaleSizeH(item.imageHeight) }]}
-          contentFit="cover"
-          transition={200}
-          cachePolicy="memory-disk"
-          recyclingKey={item.imageUrl}
-        />
-      )}
-      <View style={styles.postBody}>
-        <Text style={styles.postTitle} numberOfLines={2}>
-          {item.title}
-        </Text>
-        <View style={styles.postMeta}>
-          <Text style={styles.postDate}>{item.date}</Text>
-          <View style={styles.postLike}>
-            <CardLikeIcon />
-            <Text style={styles.postDate}>{formatLikeCount(item.likeCount)}</Text>
-          </View>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-function CommentCard({ item, onPress }: { item: CommentCardData; onPress: () => void }) {
-  return (
-    <TouchableOpacity activeOpacity={0.8} style={styles.commentCard} onPress={onPress}>
-      <View style={styles.commentHead}>
-        <ExpoImage source={{ uri: item.avatar }} style={styles.commentAvatar} contentFit="cover" transition={150} />
-        <View style={styles.commentHeadText}>
-          <Text style={styles.commentName} numberOfLines={1}>{item.name}</Text>
-          {!!item.company && <Text style={styles.commentCompany} numberOfLines={1}>{item.company}</Text>}
-        </View>
-        <Text style={styles.commentTime}>{item.time}</Text>
-      </View>
-      <Text style={styles.commentContent} numberOfLines={2}>{item.content}</Text>
-      {!!item.bbsTitle && (
-        <View style={styles.commentOrigin}>
-          <Text style={styles.commentOriginText} numberOfLines={1}>{item.bbsTitle}</Text>
-        </View>
-      )}
-    </TouchableOpacity>
-  );
-}
-
 export default function My() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
   const { token, userInfo, setUserInfo, logout } = useUserStore();
   const wqUser = userInfo?.wqUser;
   const myId = wqUser?.id ?? 0;
 
-  const [activeTab, setActiveTab] = useState<TabKey>('post');
-  const [tabData, setTabData] = useState<Record<TabKey, TabState>>(initialTabState);
+  const [pageIndex, setPageIndex] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [draftCount, setDraftCount] = useState(0);
   const [headerH, setHeaderH] = useState(0);
+  const [contentH, setContentH] = useState(0);
+  const [tabBarH, setTabBarH] = useState(0);
+  const [tabLayouts, setTabLayouts] = useState<{ x: number; w: number }[]>([]);
+  /** 各 tab 列表内容高度（内层列表不滚动，由最外层 FlatList 统一滚动） */
+  const [listHeights, setListHeights] = useState<Record<TabKey, number>>({
+    post: 0,
+    comment: 0,
+    fav: 0,
+    like: 0,
+  });
   const scrollY = useRef(new Animated.Value(0)).current;
-  const tabDataRef = useRef(tabData);
-  tabDataRef.current = tabData;
-  const activeTabRef = useRef(activeTab);
-  activeTabRef.current = activeTab;
+  const scrollX = useRef(new Animated.Value(0)).current;
+  /** JS 侧副本，驱动标签颜色/图标跟手渐变（原生驱动只用于下指示器位移） */
+  const scrollXJS = useRef(new Animated.Value(0)).current;
+  const swiperRef = useRef<any>(null);
+  const barDarkRef = useRef(false);
+  const pageIndexRef = useRef(pageIndex);
+  pageIndexRef.current = pageIndex;
+  /** 各 tab 列表的刷新/加载句柄（guideHome 同款 ref 转发） */
+  const tabRefs = useRef<Record<TabKey, TabHandle | null>>({
+    post: null,
+    comment: null,
+    fav: null,
+    like: null,
+  }).current;
 
-  const fetchTab = useCallback(
-    async (tab: TabKey, pageNum: number): Promise<{ list: any[]; pages: number }> => {
-      if (tab === 'post') {
-        const res = await API.my.bbsList({ pageNum, pageSize: PAGE_SIZE });
-        return { list: (res.data?.list ?? []).map(mapPost), pages: res.data?.pages ?? 1 };
-      }
-      if (tab === 'fav' || tab === 'like') {
-        const res = await API.my.likeFavoritesList({ targetUserId: myId, type: tab === 'fav' ? 2 : 1, pageNum, pageSize: PAGE_SIZE });
-        return { list: (res.data?.list ?? []).map(mapPost), pages: res.data?.pages ?? 1 };
-      }
-      const res = await API.interaction.commentList({ pageNum, pageSize: 20 });
-      return { list: (res.data?.list ?? []).map(mapComment), pages: res.data?.pages ?? 1 };
-    },
-    [myId],
-  );
+  const activeTab = TAB_KEYS[pageIndex];
 
-  const loadTab = useCallback(
-    (tab: TabKey, pageNum: number) => {
-      const state = tabDataRef.current[tab];
-      if (state.loading) return;
-      setTabData(prev => ({ ...prev, [tab]: { ...prev[tab], loading: true } }));
-      fetchTab(tab, pageNum)
-        .then(({ list, pages }) => {
-          setTabData(prev => ({
-            ...prev,
-            [tab]: {
-              list: pageNum === 1 ? list : [...prev[tab].list, ...list],
-              page: pageNum,
-              pages,
-              loading: false,
-              loaded: true,
-            },
-          }));
-        })
-        .catch(() => {
-          setTabData(prev => ({ ...prev, [tab]: { ...prev[tab], loading: false, loaded: true } }));
-        });
-    },
-    [fetchTab],
-  );
-
+  // 左右滑动 -> 页码（驱动对应列表懒加载）
   useEffect(() => {
-    if (!tabData[activeTab].loaded) loadTab(activeTab, 1);
-  }, [activeTab, tabData, loadTab]);
+    const id = scrollX.addListener(({ value }) => {
+      scrollXJS.setValue(value);
+      const i = Math.round(value / windowWidth);
+      if (i >= 0 && i < TAB_KEYS.length && i !== pageIndexRef.current) {
+        setPageIndex(i);
+      }
+    });
+    return () => scrollX.removeListener(id);
+  }, [scrollX, scrollXJS, windowWidth]);
 
   // 每次进入页面刷新资料与草稿数
   useFocusEffect(
@@ -271,9 +129,10 @@ export default function My() {
     }, [token, setUserInfo]),
   );
 
-  // 无系统头：状态栏直接压在渐变背景上，需白色图标
+  // 无系统头：状态栏直接压在背景图上，需白色图标；吸顶后背景变白切回深色
   useFocusEffect(
     useCallback(() => {
+      barDarkRef.current = false;
       StatusBar.setBarStyle('light-content');
       return () => StatusBar.setBarStyle('dark-content');
     }, []),
@@ -281,58 +140,31 @@ export default function My() {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    loadTab(activeTabRef.current, 1);
+    const tasks: Promise<unknown>[] = [];
+    const handle = tabRefs[TAB_KEYS[pageIndexRef.current]];
+    if (handle) tasks.push(handle.onRefresh());
     if (token) {
-      API.user.info()
-        .then(res => res.data && setUserInfo(res.data))
-        .catch(() => { })
-        .finally(() => setRefreshing(false));
-    } else {
-      setRefreshing(false);
+      tasks.push(
+        API.user.info()
+          .then(res => res.data && setUserInfo(res.data))
+          .catch(() => { }),
+      );
     }
-  }, [token, setUserInfo, loadTab]);
+    Promise.all(tasks).finally(() => setRefreshing(false));
+  }, [token, setUserInfo, tabRefs]);
 
   const onScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
-      scrollY.setValue(contentOffset.y);
-      if (contentOffset.y + layoutMeasurement.height >= contentSize.height - 200) {
-        const tab = activeTabRef.current;
-        const state = tabDataRef.current[tab];
-        if (!state.loading && state.loaded && state.page < state.pages) {
-          loadTab(tab, state.page + 1);
-        }
+      const y = e.nativeEvent.contentOffset.y;
+      scrollY.setValue(y);
+      const dark = headerH > 0 && y >= headerH - STICKY_NICK_H;
+      if (dark !== barDarkRef.current) {
+        barDarkRef.current = dark;
+        StatusBar.setBarStyle(dark ? 'dark-content' : 'light-content');
       }
     },
-    [scrollY, loadTab],
+    [scrollY, headerH],
   );
-
-  const openDetail = useCallback(
-    (item: PostCardData) => {
-      if (item.raw) setDetailCache(item.id, item.raw);
-      navigation.navigate('bbsDetail', { id: item.id });
-    },
-    [navigation],
-  );
-
-  // 瀑布流双列（按累计高度均衡）
-  const postColumns = useMemo(() => {
-    const source: PostCardData[] = tabData[activeTab].list;
-    const cols: PostCardData[][] = [[], []];
-    const heights = [0, 0];
-    source.forEach(card => {
-      const i = heights[0] <= heights[1] ? 0 : 1;
-      cols[i].push(card);
-      heights[i] += card.imageHeight + 88;
-    });
-    return cols;
-  }, [tabData, activeTab]);
-
-  const stickyOpacity = scrollY.interpolate({
-    inputRange: [Math.max(headerH - 60, 0), Math.max(headerH - 20, 1)],
-    outputRange: [0, 1],
-    extrapolate: 'clamp',
-  });
 
   const onSettings = () => {
     Alert.alert('设置', '', [
@@ -360,177 +192,278 @@ export default function My() {
 
   const regionText = [wqUser?.province, wqUser?.city].filter(Boolean).join('·');
 
-  const renderTabContent = () => {
-    const state = tabData[activeTab];
-    if (!state.loaded && state.loading) {
-      return <View style={styles.contentPad} />;
-    }
-    if (state.loaded && state.list.length === 0 && !(activeTab === 'post' && draftCount > 0)) {
-      return <EmptyState variant="content" title="暂无内容" style={styles.emptyBox} />;
-    }
-    if (activeTab === 'comment') {
-      return (
-        <View style={styles.commentList}>
-          {(state.list as CommentCardData[]).map(item => (
-            <CommentCard key={item.id} item={item} onPress={() => navigation.navigate('bbsDetail', { id: String(item.bbsId) })} />
-          ))}
-          <ListFooter fetching={state.loading} isLastPage={state.page >= state.pages} listLength={state.list.length} />
-        </View>
-      );
-    }
-    return (
-      <View style={styles.waterfallWrap}>
-        {activeTab === 'post' && draftCount > 0 && (
-          <TouchableOpacity activeOpacity={0.9} style={styles.draftCard} onPress={() => navigation.navigate('draftBox')}>
-            <View style={styles.draftBadge}>
-              <DraftIcon />
-              <Text style={styles.draftBadgeText}>草稿箱 · {draftCount}</Text>
-            </View>
-          </TouchableOpacity>
-        )}
-        <View style={styles.waterfallRow}>
-          {postColumns.map((col, ci) => (
-            <View key={ci} style={styles.waterfallCol}>
-              {col.map(item => (
-                <PostCard key={item.id} item={item} onPress={() => openDetail(item)} />
-              ))}
-            </View>
-          ))}
-        </View>
-        <ListFooter fetching={state.loading} isLastPage={state.page >= state.pages} listLength={state.list.length} />
-      </View>
-    );
-  };
+  // ---- 吸顶动画：滚动经过头部时展开昵称栏（figma 101），tab 行圆角收平 ----
+  const stickRange: [number, number] = [Math.max(headerH - STICKY_NICK_H, 0), Math.max(headerH, 1)];
+  const nickHeight = scrollY.interpolate({
+    inputRange: stickRange,
+    outputRange: [0, STICKY_NICK_H],
+    extrapolate: 'clamp',
+  });
+  const tabRadius = scrollY.interpolate({
+    inputRange: stickRange,
+    outputRange: [scaleSizeW(20), 0],
+    extrapolate: 'clamp',
+  });
 
+  // ---- 下指示器与标签颜色：跟随横向滚动（跟手） ----
+  const position = Animated.divide(scrollX, windowWidth);
+  const onTabPress = (i: number) => {
+    swiperRef.current?.scrollToOffset({ offset: i * windowWidth, animated: true });
+  };
+  const indicatorTranslate =
+    tabLayouts.length === TAB_KEYS.length
+      ? position.interpolate({
+        inputRange: TAB_KEYS.map((_, i) => i),
+        outputRange: tabLayouts.map(l => l.x + scaleSizeW(3)),
+        extrapolate: 'clamp',
+      })
+      : 0;
+
+  const onListHeight = useCallback(
+    (tab: TabKey) => (h: number) => {
+      setListHeights(prev => (prev[tab] === h ? prev : { ...prev, [tab]: h }));
+    },
+    [],
+  );
+
+  /** 内层列表不滚动，需保证内容够长让外层可滚动（吸顶才能触发） */
+  const minPagerHeight = Math.max(contentH - insets.top - tabBarH, 0);
+
+  const renderTabPage = (tab: TabKey) => (
+    <View style={{ width: windowWidth, height: Math.max(listHeights[tab], minPagerHeight) }}>
+      {tab === 'comment' ? (
+        <CommentTab
+          ref={h => { tabRefs.comment = h; }}
+          active={activeTab === 'comment'}
+          onHeight={onListHeight('comment')}
+        />
+      ) : (
+        <WaterfallTab
+          ref={h => { tabRefs[tab] = h; }}
+          tab={tab}
+          myId={myId}
+          active={activeTab === tab}
+          draftCount={draftCount}
+          onHeight={onListHeight(tab)}
+        />
+      )}
+    </View>
+  );
 
   return (
-    <SafeView backgroundColor="#F6F7FB" >
-      <View style={[StyleSheet.absoluteFill, { paddingBottom: scaleSizeH(80) }]}>
-        <ExpoImage
-          source={require('@/assets/my/my/header_bg.png')}
-          style={{
-            height: scaleSizeH(800),
-            width: '100%',
-          }}
-        />
-      </View>
-      <View style={{
-        height: insets.top,
-      }} />
-      <FlatList
-        data={[]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        style={{
-          flex: 1,
-        }}
-        ListHeaderComponent={() => {
-          return <View style={{ position: 'relative' }}>
-            <View style={styles.headerIcons}>
-              <TouchableOpacity activeOpacity={0.7} style={styles.headerIconBtn} onPress={onSettings}>
-                <SettingsIcon />
-              </TouchableOpacity>
-              <TouchableOpacity activeOpacity={0.7} style={styles.headerIconBtn} onPress={todo}>
-                <MessageIcon />
-              </TouchableOpacity>
-              <TouchableOpacity activeOpacity={0.7} style={styles.headerIconBtn} onPress={todo}>
-                <ServiceIcon />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.profileRow}>
-              <ExpoImage
-                source={{ uri: wqUser?.avatar || 'https://i.pravatar.cc/100?img=8' }}
-                style={styles.avatar}
-                contentFit="cover"
-                transition={150}
-              />
-              <View style={styles.profileText}>
-                <Text style={styles.nickname}>{wqUser?.nickname || wqUser?.username || '未登录'}</Text>
-                {!!wqUser?.cpName && (
-                  <View style={styles.companyRow}>
-                    <Text style={styles.companyText} numberOfLines={1}>{wqUser.cpName}</Text>
-                    <CompanyIcon />
-                  </View>
-                )}
-              </View>
-            </View>
-            <View style={styles.entryCards}>
-              <TouchableOpacity activeOpacity={0.8} style={styles.entryCard} onPress={() => navigation.navigate('editCard', {})}>
-                <View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <MyCardIcon />
-                    <Text style={styles.entryCardTitle}>我的名片</Text>
-                  </View>
-                  <Text style={styles.entryCardSub}>个人名片3/5 · 企业名片</Text>
-                </View>
-              </TouchableOpacity>
-              <TouchableOpacity activeOpacity={0.8} style={styles.entryCard} onPress={todo}>
-                <View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <CardBoxIcon />
-                    <Text style={styles.entryCardTitle}>名片夹</Text>
-                  </View>
-                  <Text style={styles.entryCardSub}>已存3张名片</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.profileCard}>
-              <View style={styles.statsRow}>
-                {stats.map(s => (
-                  <View key={s.label} style={styles.statItem}>
-                    <Text style={styles.statNum}>{s.num}</Text>
-                    <Text style={styles.statLabel}>{s.label}</Text>
-                  </View>
-                ))}
-                <TouchableOpacity activeOpacity={0.7} style={styles.editBtn} onPress={() => navigation.navigate('editProfile')}>
-                  <Text style={styles.editBtnText}>编辑主页</Text>
+    <SafeView backgroundColor="#F6F7FB">
+      <View style={styles.flex1} onLayout={e => setContentH(e.nativeEvent.layout.height)}>
+        <View style={[StyleSheet.absoluteFill, { paddingBottom: scaleSizeH(80) }]}>
+          <ExpoImage
+            source={require('@/assets/my/my/header_bg.png')}
+            style={{
+              height: scaleSizeH(800),
+              width: '100%',
+            }}
+          />
+        </View>
+        <View style={{
+          height: insets.top,
+        }} />
+        <Animated.FlatList
+          style={styles.flex1}
+          data={[0, 1, 2]}
+          keyExtractor={(i: number) => String(i)}
+          stickyHeaderIndices={[1]}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          onEndReached={() => tabRefs[TAB_KEYS[pageIndexRef.current]]?.onEndReached()}
+          onEndReachedThreshold={0.3}
+          renderItem={({ index }: { index: number }) => index === 0 ? (
+            <View style={{ position: 'relative' }} onLayout={e => setHeaderH(e.nativeEvent.layout.height)}>
+              <View style={styles.headerIcons}>
+                <TouchableOpacity activeOpacity={0.7} style={styles.headerIconBtn} onPress={onSettings}>
+                  <SettingsIcon />
+                </TouchableOpacity>
+                <TouchableOpacity activeOpacity={0.7} style={styles.headerIconBtn} onPress={todo}>
+                  <MessageIcon />
+                </TouchableOpacity>
+                <TouchableOpacity activeOpacity={0.7} style={styles.headerIconBtn} onPress={todo}>
+                  <ServiceIcon />
                 </TouchableOpacity>
               </View>
-              {!!wqUser?.des && <Text style={styles.signature}>{wqUser.des}</Text>}
-              <View style={styles.chipsRow}>
-                {!!regionText && (
+              <View style={styles.profileRow}>
+                <ExpoImage
+                  source={{ uri: wqUser?.avatar || 'https://i.pravatar.cc/100?img=8' }}
+                  style={styles.avatar}
+                  contentFit="cover"
+                  transition={150}
+                />
+                <View style={styles.profileText}>
+                  <Text style={styles.nickname}>{wqUser?.nickname || wqUser?.username || '未登录'}</Text>
+                  {!!wqUser?.cpName && (
+                    <View style={styles.companyRow}>
+                      <Text style={styles.companyText} numberOfLines={1}>{wqUser.cpName}</Text>
+                      <CompanyIcon />
+                    </View>
+                  )}
+                </View>
+              </View>
+              <View style={styles.entryCards}>
+                <TouchableOpacity activeOpacity={0.8} style={styles.entryCard} onPress={() => navigation.navigate('editCard', {})}>
+                  <View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <MyCardIcon />
+                      <Text style={styles.entryCardTitle}>我的名片</Text>
+                    </View>
+                    <Text style={styles.entryCardSub}>个人名片3/5 · 企业名片</Text>
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity activeOpacity={0.8} style={styles.entryCard} onPress={todo}>
+                  <View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <CardBoxIcon />
+                      <Text style={styles.entryCardTitle}>名片夹</Text>
+                    </View>
+                    <Text style={styles.entryCardSub}>已存3张名片</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.profileCard}>
+                <View style={styles.statsRow}>
+                  {stats.map(s => (
+                    <View key={s.label} style={styles.statItem}>
+                      <Text style={styles.statNum}>{s.num}</Text>
+                      <Text style={styles.statLabel}>{s.label}</Text>
+                    </View>
+                  ))}
+                  <TouchableOpacity activeOpacity={0.7} style={styles.editBtn} onPress={() => navigation.navigate('editProfile')}>
+                    <Text style={styles.editBtnText}>编辑主页</Text>
+                  </TouchableOpacity>
+                </View>
+                {!!wqUser?.des && <Text style={styles.signature}>{wqUser.des}</Text>}
+                <View style={styles.chipsRow}>
+                  {!!regionText && (
+                    <View style={styles.chip}>
+                      <Text style={styles.chipText}>{regionText}</Text>
+                    </View>
+                  )}
                   <View style={styles.chip}>
                     <Text style={styles.chipText}>{regionText}</Text>
                   </View>
-                )}
-                <View style={styles.chip}>
-                  <Text style={styles.chipText}>{regionText}</Text>
-                </View>
-                {wqUser?.authRealCard && (
-                  <View style={styles.chip}>
-                    <Text style={styles.chipText}>已实名</Text>
-                  </View>
-                )}
-              </View>
-              <View style={styles.entriesRow}>
-                {entries.map(e => (
-                  <TouchableOpacity key={e.label} activeOpacity={0.7} style={styles.entryItem} onPress={e.onPress}>
-                    <View style={{ position: 'relative' }}>
-                      {e.icon}
-                      {!!e.badge && (
-                        <View style={styles.entryBadge}>
-                          <Text style={styles.entryBadgeText}>{e.badge}</Text>
-                        </View>
-                      )}
+                  {wqUser?.authRealCard && (
+                    <View style={styles.chip}>
+                      <Text style={styles.chipText}>已实名</Text>
                     </View>
-                    <Text style={styles.entryText}>{e.label}</Text>
-                  </TouchableOpacity>
-                ))}
+                  )}
+                </View>
+                <View style={styles.entriesRow}>
+                  {entries.map(e => (
+                    <TouchableOpacity key={e.label} activeOpacity={0.7} style={styles.entryItem} onPress={e.onPress}>
+                      <View style={{ position: 'relative' }}>
+                        {e.icon}
+                        {!!e.badge && (
+                          <View style={styles.entryBadge}>
+                            <Text style={styles.entryBadgeText}>{e.badge}</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.entryText}>{e.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
             </View>
-          </View>
-        }}
-        ListFooterComponent={()=>{
-          return <View style={{flex: 1, backgroundColor:'#F6F7FB', width: '100%', height: 100}}>
-
-          </View>
-        }}
-        renderItem={() => <View>
-
-        </View>}
-      >
-
-      </FlatList>
+          ) : index === 1 ? (
+            /* 吸顶单元：昵称栏（吸顶后展开，figma 101）+ tab 行 */
+            <Animated.View>
+              <Animated.View style={[styles.stickyNick, { height: nickHeight }]}>
+                <View style={styles.stickyNickInner}>
+                  <Text style={styles.stickyName} numberOfLines={1}>
+                    {wqUser?.nickname || wqUser?.username || ''}
+                  </Text>
+                  <View style={styles.stickyIcons}>
+                    <TouchableOpacity activeOpacity={0.7} hitSlop={8} onPress={onSettings}>
+                      <SettingsIcon color="#000000" />
+                    </TouchableOpacity>
+                    <TouchableOpacity activeOpacity={0.7} hitSlop={8} onPress={todo}>
+                      <MessageIcon color="#000000" />
+                    </TouchableOpacity>
+                    <TouchableOpacity activeOpacity={0.7} hitSlop={8} onPress={todo}>
+                      <ServiceIcon color="#000000" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </Animated.View>
+              <Animated.View
+                style={[styles.tabCard, { borderBottomLeftRadius: tabRadius, borderBottomRightRadius: tabRadius }]}
+                onLayout={e => setTabBarH(e.nativeEvent.layout.height)}
+              >
+                <View style={styles.tabBar}>
+                  {TABS.map((t, i) => {
+                    const textColor = scrollXJS.interpolate({
+                      inputRange: [i - 1, i, i + 1],
+                      outputRange: ['#6C6C6C', '#000000', '#6C6C6C'],
+                      extrapolate: 'clamp',
+                    });
+                    const iconBlack = scrollXJS.interpolate({
+                      inputRange: [i - 1, i, i + 1],
+                      outputRange: [0, 1, 0],
+                      extrapolate: 'clamp',
+                    });
+                    return (
+                      <TouchableOpacity
+                        key={t.key}
+                        activeOpacity={0.7}
+                        style={styles.tabItem}
+                        onLayout={e => {
+                          const { x, width } = e.nativeEvent.layout;
+                          setTabLayouts(prev => {
+                            if (prev[i] && prev[i].x === x && prev[i].w === width) return prev;
+                            const next = [...prev];
+                            next[i] = { x, w: width };
+                            return next;
+                          });
+                        }}
+                        onPress={() => onTabPress(i)}
+                      >
+                        <View style={styles.tabIconWrap}>
+                          <Animated.View style={{ opacity: Animated.subtract(1, iconBlack) }}>
+                            {TAB_ICONS[t.key]('#6C6C6C')}
+                          </Animated.View>
+                          <Animated.View style={[styles.tabIconActive, { opacity: iconBlack }]}>
+                            {TAB_ICONS[t.key]('#000000')}
+                          </Animated.View>
+                        </View>
+                        <Animated.Text style={[styles.tabText, { color: textColor }, pageIndex === i && styles.tabTextActive]}>
+                          {t.label}
+                        </Animated.Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                {tabLayouts.length === TAB_KEYS.length && (
+                  <Animated.View style={[styles.tabIndicator, { transform: [{ translateX: indicatorTranslate }] }]} />
+                )}
+              </Animated.View>
+            </Animated.View>
+          ) : (
+            /* 横向翻页：发布 / 评论 / 收藏 / 点赞 */
+            <Animated.FlatList
+              ref={swiperRef}
+              horizontal
+              pagingEnabled
+              bounces={false}
+              overScrollMode="never"
+              showsHorizontalScrollIndicator={false}
+              data={TAB_KEYS}
+              keyExtractor={(t: TabKey) => t}
+              getItemLayout={(_data, i) => ({ length: windowWidth, offset: windowWidth * i, index: i })}
+              onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], { useNativeDriver: true })}
+              scrollEventThrottle={16}
+              renderItem={({ item }: { item: TabKey }) => renderTabPage(item)}
+            />
+          )}
+        />
+      </View>
     </SafeView>
   );
 }
@@ -539,29 +472,12 @@ const styles = StyleSheet.create({
   flex1: {
     flex: 1,
   },
-  headerGradient: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-  },
-  pageBg: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#F6F7FB',
-  },
-  headerBg: {
-    paddingTop: scaleSizeH(10),
-    paddingBottom: scaleSizeH(70),
-  },
   headerIcons: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: scaleSizeW(11),
     paddingHorizontal: scaleSizeW(16),
-    paddingVertical: scaleSizeH(6)
+    paddingVertical: scaleSizeH(6),
   },
   headerIconBtn: {
     width: scaleSizeW(33),
@@ -725,14 +641,38 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#FFFFFF',
   },
+  stickyNick: {
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.9)',
+  },
+  stickyNickInner: {
+    height: STICKY_NICK_H,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: scaleSizeW(16),
+  },
+  stickyName: {
+    fontSize: setSpText(17),
+    fontWeight: '500',
+    color: '#000000',
+    flex: 1,
+    marginRight: scaleSizeW(12),
+  },
+  stickyIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSizeW(20),
+  },
+  tabCard: {
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+  },
   tabBar: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: scaleSizeW(34),
     paddingHorizontal: scaleSizeW(16),
-    backgroundColor: '#FFFFFF',
-    borderBottomLeftRadius: scaleSizeW(20),
-    borderBottomRightRadius: scaleSizeW(20),
   },
   tabItem: {
     flexDirection: 'row',
@@ -740,176 +680,28 @@ const styles = StyleSheet.create({
     gap: scaleSizeW(5),
     paddingVertical: scaleSizeH(12),
   },
+  tabIconWrap: {
+    justifyContent: 'center',
+  },
+  tabIconActive: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+  },
   tabText: {
     fontSize: setSpText(15),
     color: '#6C6C6C',
   },
   tabTextActive: {
-    color: '#000000',
     fontWeight: '500',
   },
   tabIndicator: {
     position: 'absolute',
     bottom: 0,
-    left: scaleSizeW(3),
+    left: 0,
     width: scaleSizeW(24),
     height: 2,
     borderRadius: 2,
     backgroundColor: BLUE,
-  },
-  stickyBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: scaleSizeH(46),
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: scaleSizeW(16),
-    backgroundColor: 'rgba(255,255,255,0.9)',
-  },
-  stickyName: {
-    fontSize: setSpText(17),
-    fontWeight: '500',
-    color: '#000000',
-  },
-  stickyIcons: {
-    flexDirection: 'row',
-    gap: scaleSizeW(20),
-  },
-  contentPad: {
-    height: scaleSizeH(200),
-  },
-  emptyBox: {
-    marginTop: scaleSizeH(60),
-  },
-  waterfallWrap: {
-    paddingHorizontal: scaleSizeW(5),
-    paddingTop: scaleSizeH(5),
-  },
-  waterfallRow: {
-    flexDirection: 'row',
-    gap: scaleSizeW(4),
-  },
-  waterfallCol: {
-    width: CARD_W,
-    gap: scaleSizeH(4),
-  },
-  postCard: {
-    width: CARD_W,
-    borderRadius: scaleSizeW(4),
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
-  },
-  postImage: {
-    width: CARD_W,
-  },
-  postBody: {
-    paddingHorizontal: scaleSizeW(10),
-    paddingVertical: scaleSizeH(10),
-  },
-  postTitle: {
-    fontSize: setSpText(15),
-    fontWeight: '500',
-    color: '#333333',
-    lineHeight: scaleSizeH(21),
-    minHeight: scaleSizeH(42),
-  },
-  postMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: scaleSizeH(8),
-  },
-  postDate: {
-    fontSize: setSpText(12),
-    color: '#616161',
-  },
-  postLike: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scaleSizeW(2),
-  },
-  draftCard: {
-    width: CARD_W,
-    height: scaleSizeH(146),
-    borderRadius: scaleSizeW(4),
-    backgroundColor: '#E8EFFF',
-    marginBottom: scaleSizeH(4),
-    justifyContent: 'flex-start',
-    alignItems: 'flex-start',
-    padding: scaleSizeW(10),
-  },
-  draftBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scaleSizeW(5),
-    backgroundColor: 'rgba(255,255,255,0.8)',
-    borderWidth: 1,
-    borderColor: '#FFFFFF',
-    borderRadius: scaleSizeW(6),
-    paddingHorizontal: scaleSizeW(8),
-    paddingVertical: scaleSizeH(4),
-  },
-  draftBadgeText: {
-    fontSize: setSpText(12),
-    fontWeight: '500',
-    color: '#000000',
-  },
-  commentList: {
-    paddingHorizontal: scaleSizeW(16),
-    paddingTop: scaleSizeH(10),
-    gap: scaleSizeH(10),
-  },
-  commentCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: scaleSizeW(10),
-    padding: scaleSizeW(12),
-  },
-  commentHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  commentAvatar: {
-    width: scaleSizeW(34),
-    height: scaleSizeW(34),
-    borderRadius: scaleSizeW(17),
-    backgroundColor: '#F5F5F5',
-  },
-  commentHeadText: {
-    flex: 1,
-    marginLeft: scaleSizeW(8),
-  },
-  commentName: {
-    fontSize: setSpText(14),
-    fontWeight: '500',
-    color: '#000000',
-  },
-  commentCompany: {
-    fontSize: setSpText(11),
-    color: '#6C6C6C',
-    marginTop: scaleSizeH(2),
-  },
-  commentTime: {
-    fontSize: setSpText(12),
-    color: '#999999',
-  },
-  commentContent: {
-    fontSize: setSpText(14),
-    color: '#333333',
-    lineHeight: scaleSizeH(20),
-    marginTop: scaleSizeH(8),
-  },
-  commentOrigin: {
-    backgroundColor: '#F6F7FB',
-    borderRadius: scaleSizeW(6),
-    paddingHorizontal: scaleSizeW(8),
-    paddingVertical: scaleSizeH(6),
-    marginTop: scaleSizeH(8),
-  },
-  commentOriginText: {
-    fontSize: setSpText(12),
-    color: '#6C6C6C',
   },
 });

@@ -1,0 +1,131 @@
+import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { Text, TouchableOpacity, View } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import EmptyState from '@/components/EmptyState';
+import ListFooter from '@/components/ListFooter';
+import { API } from '@/api';
+import { setDetailCache } from '@/utils/detailCache';
+import type { RootStackParamList } from '@/route/map';
+import { DraftIcon } from '../myIcons';
+import {
+  DRAFT_ITEM_ID,
+  initialTabState,
+  mapPost,
+  PostCard,
+  tabStyles,
+  type PostCardData,
+  type TabHandle,
+  type TabState,
+} from './common';
+
+const PAGE_SIZE = 10;
+
+interface Props {
+  /** post=发布 fav=收藏 like=点赞 */
+  tab: 'post' | 'fav' | 'like';
+  myId: number;
+  /** 是否为当前展示页（懒加载触发） */
+  active: boolean;
+  draftCount: number;
+  /** 列表内容高度变化（外层 FlatList 统一滚动，需要撑开高度） */
+  onHeight: (h: number) => void;
+}
+
+export default forwardRef<TabHandle, Props>(function WaterfallTab({ tab, myId, active, draftCount, onHeight }, ref) {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const [state, setState] = useState<TabState<PostCardData>>(initialTabState);
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  const fetchPage = useCallback(
+    async (pageNum: number) => {
+      if (stateRef.current.loading) return;
+      setState(prev => ({ ...prev, loading: true }));
+      try {
+        const res =
+          tab === 'post'
+            ? await API.my.bbsList({ pageNum, pageSize: PAGE_SIZE })
+            : await API.my.likeFavoritesList({ targetUserId: myId, type: tab === 'fav' ? 2 : 1, pageNum, pageSize: PAGE_SIZE });
+        const list = (res.data?.list ?? []).map(mapPost);
+        const pages = res.data?.pages ?? 1;
+        setState(prev => ({
+          list: pageNum === 1 ? list : [...prev.list, ...list],
+          page: pageNum,
+          pages,
+          loading: false,
+          loaded: true,
+        }));
+      } catch {
+        setState(prev => ({ ...prev, loading: false, loaded: true }));
+      }
+    },
+    [tab, myId],
+  );
+
+  useEffect(() => {
+    if (active && !state.loaded) fetchPage(1);
+  }, [active, state.loaded, fetchPage]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      onRefresh: () => fetchPage(1),
+      onEndReached: () => {
+        const s = stateRef.current;
+        if (!s.loading && s.loaded && s.page < s.pages) {
+          return fetchPage(s.page + 1);
+        }
+      },
+    }),
+    [fetchPage],
+  );
+
+  const openDetail = useCallback(
+    (item: PostCardData) => {
+      if (item.raw) setDetailCache(item.id, item.raw);
+      navigation.navigate('bbsDetail', { id: item.id });
+    },
+    [navigation],
+  );
+
+  // 草稿卡片作为瀑布流的第一个伪 item，保证吸顶/布局稳定
+  const data: PostCardData[] =
+    tab === 'post' && draftCount > 0
+      ? [{ id: DRAFT_ITEM_ID, imageUrl: '', imageHeight: 0, title: '', date: '', likeCount: 0 }, ...state.list]
+      : state.list;
+
+  return (
+    <FlashList
+      scrollEnabled={false}
+      onContentSizeChange={(_w, h) => onHeight(h)}
+      data={data}
+      keyExtractor={(item: PostCardData) => item.id}
+      masonry
+      numColumns={2}
+      renderItem={({ item }: { item: PostCardData }) =>
+        item.id === DRAFT_ITEM_ID ? (
+          <TouchableOpacity activeOpacity={0.9} style={tabStyles.draftCard} onPress={() => navigation.navigate('draftBox')}>
+            <View style={tabStyles.draftBadge}>
+              <DraftIcon />
+              <Text style={tabStyles.draftBadgeText}>草稿箱 · {draftCount}</Text>
+            </View>
+          </TouchableOpacity>
+        ) : (
+          <PostCard item={item} onPress={() => openDetail(item)} />
+        )
+      }
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={tabStyles.masonryContent}
+      ListEmptyComponent={
+        !state.loaded && state.loading ? (
+          <View style={tabStyles.loadingPad} />
+        ) : state.loaded ? (
+          <EmptyState variant="content" title="暂无内容" style={tabStyles.emptyBox} />
+        ) : null
+      }
+      ListFooterComponent={<ListFooter fetching={state.loading} isLastPage={state.page >= state.pages} listLength={state.list.length} />}
+    />
+  );
+});
