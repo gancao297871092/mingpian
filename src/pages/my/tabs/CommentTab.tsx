@@ -65,6 +65,9 @@ export default forwardRef<TabHandle, Props>(function CommentTab({ active, onHeig
           return fetchPage(s.page + 1);
         }
       },
+      ensureLoaded: () => {
+        if (!stateRef.current.loaded) fetchPage(1);
+      },
     }),
     [fetchPage],
   );

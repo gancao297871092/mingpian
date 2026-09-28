@@ -12,6 +12,8 @@ export const DRAFT_ITEM_ID = '__draft__';
 export interface TabHandle {
   onRefresh: () => Promise<void>;
   onEndReached: () => Promise<void> | void;
+  /** 未加载过时拉取第一页（tab 切换时主动调用） */
+  ensureLoaded: () => void;
 }
 
 export interface TabState<T = any> {

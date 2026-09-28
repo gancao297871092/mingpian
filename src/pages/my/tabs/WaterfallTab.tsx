@@ -81,6 +81,9 @@ export default forwardRef<TabHandle, Props>(function WaterfallTab({ tab, myId, a
           return fetchPage(s.page + 1);
         }
       },
+      ensureLoaded: () => {
+        if (!stateRef.current.loaded) fetchPage(1);
+      },
     }),
     [fetchPage],
   );
@@ -104,7 +107,6 @@ export default forwardRef<TabHandle, Props>(function WaterfallTab({ tab, myId, a
       scrollEnabled={false}
       onContentSizeChange={(_w, h) => onHeight(h)}
       data={data}
-      style={{backgroundColor:'yellow'}}
       keyExtractor={(item: PostCardData) => item.id}
       masonry
       numColumns={2}

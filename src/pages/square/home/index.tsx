@@ -122,10 +122,10 @@ export default function Home() {
       prev.map((item) =>
         item.id === id
           ? {
-              ...item,
-              isLiked: next,
-              likeCount,
-            }
+            ...item,
+            isLiked: next,
+            likeCount,
+          }
           : item,
       ),
     );
@@ -139,10 +139,10 @@ export default function Home() {
           prev.map((item) =>
             item.id === id
               ? {
-                  ...item,
-                  isLiked: !next,
-                  likeCount: item.likeCount + (next ? -1 : 1),
-                }
+                ...item,
+                isLiked: !next,
+                likeCount: item.likeCount + (next ? -1 : 1),
+              }
               : item,
           ),
         );
@@ -208,7 +208,11 @@ export default function Home() {
           onEndReachedThreshold={0.3}
           ListEmptyComponent={!fetching ? <EmptyState variant="content" title="暂无内容" /> : null}
           ListFooterComponent={<ListFooter fetching={fetching} isLastPage={isLastPage} listLength={list.length} />}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[{
+            backgroundColor: list.length > 0
+              ? '#F5F5F5'
+              : 'transparent'
+          }, styles.listContent]}
         />
       )}
     </SafeView>
@@ -292,6 +296,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: scaleSizeW(5),
     paddingTop: scaleSizeH(5),
     paddingBottom: scaleSizeH(100),
-    backgroundColor: '#F5F5F5',
   },
 });

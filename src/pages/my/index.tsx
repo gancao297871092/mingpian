@@ -74,6 +74,8 @@ export default function My() {
   const myId = wqUser?.id ?? 0;
 
   const [pageIndex, setPageIndex] = useState(0);
+  /** 横向滑动已停稳的页码：高度切换/位置恢复以它为准（滑动途中不动，避免跳变） */
+  const [settledIndex, setSettledIndex] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [draftCount, setDraftCount] = useState(0);
   const [draftCover, setDraftCover] = useState('');
@@ -105,6 +107,11 @@ export default function My() {
   }).current;
 
   const activeTab = TAB_KEYS[pageIndex];
+  const settledTab = TAB_KEYS[settledIndex];
+
+  /** 各 tab 记住自己的垂直滚动位置 */
+  const scrollOffsetsRef = useRef<Record<TabKey, number>>({ post: 0, comment: 0, fav: 0, like: 0 }).current;
+  const outerRef = useRef<any>(null);
 
   // 左右滑动 -> 页码（驱动对应列表懒加载）
   useEffect(() => {
@@ -161,13 +168,14 @@ export default function My() {
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const y = e.nativeEvent.contentOffset.y;
       scrollY.setValue(y);
+      scrollOffsetsRef[TAB_KEYS[pageIndexRef.current]] = y;
       const dark = headerH > 0 && y >= headerH - STICKY_NICK_H;
       if (dark !== barDarkRef.current) {
         barDarkRef.current = dark;
         StatusBar.setBarStyle(dark ? 'dark-content' : 'light-content');
       }
     },
-    [scrollY, headerH],
+    [scrollY, headerH, scrollOffsetsRef],
   );
 
   const onSettings = () => {
@@ -213,6 +221,8 @@ export default function My() {
   // ---- 下指示器与标签颜色：跟随横向滚动（跟手） ----
   const position = Animated.divide(scrollX, windowWidth);
   const onTabPress = (i: number) => {
+    // 点击即开始加载目标页数据，不等滑动结束
+    tabRefs[TAB_KEYS[i]]?.ensureLoaded?.();
     swiperRef.current?.scrollToOffset({ offset: i * windowWidth, animated: true });
   };
   const indicatorTranslate =
@@ -233,9 +243,29 @@ export default function My() {
 
   /** 内层列表不滚动，需保证内容够长让外层可滚动（吸顶才能触发） */
   const minPagerHeight = Math.max(contentH - insets.top - tabBarH, 0);
+  /** 分页器高度跟随已停稳 tab 的内容高度（自己是自己的高度） */
+  const pagerHeight = Math.max(listHeights[settledTab], minPagerHeight);
+
+  // 横向滑动停稳：切高度、恢复该 tab 自己的滚动位置（夹紧到当前内容最大滚动范围，避免空白）
+  const onSwiperMomentumEnd = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const i = Math.round(e.nativeEvent.contentOffset.x / windowWidth);
+      if (i < 0 || i >= TAB_KEYS.length) return;
+      const tab = TAB_KEYS[i];
+      tabRefs[tab]?.ensureLoaded?.();
+      const saved = scrollOffsetsRef[tab] || 0;
+      const viewportH = contentH - insets.top;
+      const nextPagerH = Math.max(listHeights[tab], minPagerHeight);
+      const totalH = headerH + STICKY_NICK_H + tabBarH + nextPagerH + scaleSizeH(100);
+      const maxOffset = Math.max(totalH - viewportH, 0);
+      setSettledIndex(i);
+      outerRef.current?.scrollToOffset({ offset: Math.min(saved, maxOffset), animated: false });
+    },
+    [windowWidth, tabRefs, scrollOffsetsRef, contentH, insets.top, listHeights, minPagerHeight, headerH, tabBarH],
+  );
 
   const renderTabPage = (tab: TabKey) => (
-    <View style={{ width: windowWidth, height: Math.max(listHeights[tab], minPagerHeight), backgroundColor: '#F6F7FB' }}>
+    <View style={{ width: windowWidth, height: pagerHeight, backgroundColor: '#F6F7FB' }}>
       {tab === 'comment' ? (
         <CommentTab
           ref={h => { tabRefs.comment = h; }}
@@ -275,7 +305,8 @@ export default function My() {
           backgroundColor: topBarBg,
         }} />
         <Animated.FlatList
-          style={[styles.flex1, {backgroundColor:'red'}]}
+          ref={outerRef}
+          style={[styles.flex1]}
           data={[0, 1, 2]}
           keyExtractor={(i: number) => String(i)}
           stickyHeaderIndices={[1]}
@@ -285,6 +316,7 @@ export default function My() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           onEndReached={() => tabRefs[TAB_KEYS[pageIndexRef.current]]?.onEndReached()}
           onEndReachedThreshold={0.3}
+          ListFooterComponent={<View style={styles.bottomPad} />}
           renderItem={({ index }: { index: number }) => index === 0 ? (
             <View style={{ position: 'relative' }} onLayout={e => setHeaderH(e.nativeEvent.layout.height)}>
               <View style={styles.headerIcons}>
@@ -458,16 +490,17 @@ export default function My() {
             /* 横向翻页：发布 / 评论 / 收藏 / 点赞 */
             <Animated.FlatList
               ref={swiperRef}
+              style={{ height: pagerHeight }}
               horizontal
               pagingEnabled
               bounces={false}
-              style={{backgroundColor:'pink'}}
               overScrollMode="never"
               showsHorizontalScrollIndicator={false}
               data={TAB_KEYS}
               keyExtractor={(t: TabKey) => t}
               getItemLayout={(_data, i) => ({ length: windowWidth, offset: windowWidth * i, index: i })}
               onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], { useNativeDriver: true })}
+              onMomentumScrollEnd={onSwiperMomentumEnd}
               scrollEventThrottle={16}
               renderItem={({ item }: { item: TabKey }) => renderTabPage(item)}
             />
@@ -712,5 +745,10 @@ const styles = StyleSheet.create({
     height: 2,
     borderRadius: 2,
     backgroundColor: BLUE,
+  },
+  bottomPad: {
+    width: '100%',
+    height: scaleSizeH(100),
+    backgroundColor: '#F6F7FB',
   },
 });
