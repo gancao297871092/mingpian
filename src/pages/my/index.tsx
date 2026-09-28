@@ -236,7 +236,7 @@ export default function My() {
   const minPagerHeight = Math.max(contentH - insets.top - tabBarH, 0);
 
   const renderTabPage = (tab: TabKey) => (
-    <View style={{ width: windowWidth, height: Math.max(listHeights[tab], minPagerHeight) }}>
+    <View style={{ width: windowWidth, height: Math.max(listHeights[tab], minPagerHeight), backgroundColor:'#F6F7FB' }}>
       {tab === 'comment' ? (
         <CommentTab
           ref={h => { tabRefs.comment = h; }}
