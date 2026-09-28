@@ -211,46 +211,29 @@ export function EntryHistoryIcon({ size = 24, color = '#000000' }: IconProps) {
   );
 }
 
-export function TabCommentIcon({ size = 17, color = '#6C6C6C' }: IconProps) {
+const LOCK_PATH =
+  'M8.5 1.0625C10.5538 1.0625 12.2188 2.75187 12.2188 4.83756V6.375H13.3694C13.9081 6.375 14.3438 6.851 14.3438 7.4375V14.875C14.3438 15.4615 13.9081 15.9375 13.3694 15.9375H3.63056C3.09188 15.9375 2.65625 15.4615 2.65625 14.875V7.4375C2.65625 6.851 3.09188 6.375 3.63056 6.375H4.78125V4.83756C4.78125 2.75187 6.44619 1.0625 8.5 1.0625ZM13.2812 7.4375H3.71875V14.875H13.2812V7.4375ZM7.4375 11.1562V9.03125H9.5625V11.1562H9.03125V13.2812H7.96875V11.1562H7.4375ZM8.5 2.125C7.03694 2.125 5.84375 3.33625 5.84375 4.83756V6.375H11.1562V4.83756C11.1562 3.33625 9.96306 2.125 8.5 2.125Z';
+
+/** tab 图标：设计稿为锁（用户可锁定隐私，当前静态 UI） */
+function TabLockIcon({ size, color }: Required<IconProps>) {
   const s = scaleSizeW(size);
   return (
     <Svg width={s} height={s} viewBox="0 0 17 17" fill="none">
-      <Path
-        d="M8.5 2.3c-3.7 0-6.7 2.5-6.7 5.6 0 1.7.9 3.2 2.3 4.3l-.5 2.2 2.6-1.1c.7.2 1.5.3 2.3.3 3.7 0 6.7-2.5 6.7-5.7S12.2 2.3 8.5 2.3z"
-        stroke={color}
-        strokeWidth={1.3}
-        strokeLinejoin="round"
-      />
+      <Path d={LOCK_PATH} fill={color} stroke={color} strokeWidth={0.2} />
     </Svg>
   );
+}
+
+export function TabCommentIcon({ size = 17, color = '#6C6C6C' }: IconProps) {
+  return <TabLockIcon size={size} color={color} />;
 }
 
 export function TabFavIcon({ size = 17, color = '#6C6C6C' }: IconProps) {
-  const s = scaleSizeW(size);
-  return (
-    <Svg width={s} height={s} viewBox="0 0 17 17" fill="none">
-      <Path
-        d="M8.5 2.5l1.9 3.8 4.2.6-3 3 .7 4.2-3.8-2-3.8 2 .7-4.2-3-3 4.2-.6L8.5 2.5z"
-        stroke={color}
-        strokeWidth={1.3}
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
+  return <TabLockIcon size={size} color={color} />;
 }
 
 export function TabLikeIcon({ size = 17, color = '#6C6C6C' }: IconProps) {
-  const s = scaleSizeW(size);
-  return (
-    <Svg width={s} height={s} viewBox="0 0 17 17" fill="none">
-      <Path
-        d="M4.5 7.5v6.5H2.8a1 1 0 01-1-1V8.5a1 1 0 011-1h1.7zm0 0l3-4.7c1.1 0 1.9.9 1.8 2l-.3 2h3.7a1.5 1.5 0 011.4 2l-1.3 4a2 2 0 01-1.9 1.2H4.5v-7z"
-        stroke={color}
-        strokeWidth={1.3}
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
+  return <TabLockIcon size={size} color={color} />;
 }
 
 export function CameraBadgeIcon({ size = 12, color = '#FFFFFF' }: IconProps) {

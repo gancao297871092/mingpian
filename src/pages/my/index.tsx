@@ -192,16 +192,11 @@ export default function My() {
 
   const regionText = [wqUser?.province, wqUser?.city].filter(Boolean).join('·');
 
-  // ---- 吸顶动画：滚动经过头部时展开昵称栏（figma 101），tab 行圆角收平 ----
+  // ---- 吸顶动画：滚动经过头部时展开昵称栏（figma 101） ----
   const stickRange: [number, number] = [Math.max(headerH - STICKY_NICK_H, 0), Math.max(headerH, 1)];
   const nickHeight = scrollY.interpolate({
     inputRange: stickRange,
     outputRange: [0, STICKY_NICK_H],
-    extrapolate: 'clamp',
-  });
-  const tabRadius = scrollY.interpolate({
-    inputRange: stickRange,
-    outputRange: [scaleSizeW(20), 0],
     extrapolate: 'clamp',
   });
   /** 吸顶途中背景由透明渐变为白色（状态栏占位 + 昵称栏共用） */
@@ -220,7 +215,7 @@ export default function My() {
     tabLayouts.length === TAB_KEYS.length
       ? position.interpolate({
         inputRange: TAB_KEYS.map((_, i) => i),
-        outputRange: tabLayouts.map(l => l.x + scaleSizeW(3)),
+        outputRange: tabLayouts.map(l => l.x + (l.w - scaleSizeW(24)) / 2),
         extrapolate: 'clamp',
       })
       : 0;
