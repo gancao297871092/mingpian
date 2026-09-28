@@ -1,6 +1,7 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
+import { Image as ExpoImage } from 'expo-image';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import EmptyState from '@/components/EmptyState';
@@ -29,11 +30,13 @@ interface Props {
   /** 是否为当前展示页（懒加载触发） */
   active: boolean;
   draftCount: number;
+  /** 最新草稿封面（草稿卡背景图，figma 64） */
+  draftCover: string;
   /** 列表内容高度变化（外层 FlatList 统一滚动，需要撑开高度） */
   onHeight: (h: number) => void;
 }
 
-export default forwardRef<TabHandle, Props>(function WaterfallTab({ tab, myId, active, draftCount, onHeight }, ref) {
+export default forwardRef<TabHandle, Props>(function WaterfallTab({ tab, myId, active, draftCount, draftCover, onHeight }, ref) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [state, setState] = useState<TabState<PostCardData>>(initialTabState);
   const stateRef = useRef(state);
@@ -101,12 +104,16 @@ export default forwardRef<TabHandle, Props>(function WaterfallTab({ tab, myId, a
       scrollEnabled={false}
       onContentSizeChange={(_w, h) => onHeight(h)}
       data={data}
+      style={{backgroundColor:'yellow'}}
       keyExtractor={(item: PostCardData) => item.id}
       masonry
       numColumns={2}
       renderItem={({ item }: { item: PostCardData }) =>
         item.id === DRAFT_ITEM_ID ? (
           <TouchableOpacity activeOpacity={0.9} style={tabStyles.draftCard} onPress={() => navigation.navigate('draftBox')}>
+            {!!draftCover && (
+              <ExpoImage source={{ uri: draftCover }} style={tabStyles.draftCover} contentFit="cover" transition={150} />
+            )}
             <View style={tabStyles.draftBadge}>
               <DraftIcon />
               <Text style={tabStyles.draftBadgeText}>草稿箱 · {draftCount}</Text>

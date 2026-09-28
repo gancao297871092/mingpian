@@ -76,6 +76,7 @@ export default function My() {
   const [pageIndex, setPageIndex] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [draftCount, setDraftCount] = useState(0);
+  const [draftCover, setDraftCover] = useState('');
   const [headerH, setHeaderH] = useState(0);
   const [contentH, setContentH] = useState(0);
   const [tabBarH, setTabBarH] = useState(0);
@@ -120,7 +121,10 @@ export default function My() {
   // 每次进入页面刷新资料与草稿数
   useFocusEffect(
     useCallback(() => {
-      setDraftCount(listDrafts().length);
+      const drafts = listDrafts();
+      setDraftCount(drafts.length);
+      const latest = drafts[0];
+      setDraftCover(latest ? latest.videoCover || latest.cover || latest.images[0] || '' : '');
       if (token) {
         API.user.info()
           .then(res => res.data && setUserInfo(res.data))
@@ -245,6 +249,7 @@ export default function My() {
           myId={myId}
           active={activeTab === tab}
           draftCount={draftCount}
+          draftCover={draftCover}
           onHeight={onListHeight(tab)}
         />
       )}
@@ -270,7 +275,7 @@ export default function My() {
           backgroundColor: topBarBg,
         }} />
         <Animated.FlatList
-          style={styles.flex1}
+          style={[styles.flex1, {backgroundColor:'red'}]}
           data={[0, 1, 2]}
           keyExtractor={(i: number) => String(i)}
           stickyHeaderIndices={[1]}
@@ -456,6 +461,7 @@ export default function My() {
               horizontal
               pagingEnabled
               bounces={false}
+              style={{backgroundColor:'pink'}}
               overScrollMode="never"
               showsHorizontalScrollIndicator={false}
               data={TAB_KEYS}
