@@ -39,6 +39,8 @@ export interface PostCardData {
   title: string;
   date: string;
   likeCount: number;
+  /** 1已发布 3待审核 4未通过（沿用老项目 pageItem 语义；2草稿已改本地存储，不会出现） */
+  status?: number;
   raw?: any;
 }
 
@@ -74,6 +76,7 @@ export function mapPost(bbs: any): PostCardData {
     title: bbs.title || (bbs.content || '').replace(/<[^>]*>/g, '').slice(0, 50),
     date: formatPushTime(bbs.pushTime || bbs.createTime).slice(0, 5),
     likeCount: bbs.countLike || 0,
+    status: bbs.status,
     raw: bbs,
   };
 }
@@ -92,18 +95,32 @@ export function mapComment(c: any): CommentCardData {
   };
 }
 
+/** 状态角标：3待审核 4未通过（红底），展示在卡片图片左下角；草稿为本地伪 item，不走 status */
+function StatusBadge({ status }: { status?: number }) {
+  if (status !== 3 && status !== 4) return null;
+  const label = status === 3 ? '待审核' : '未通过';
+  return (
+    <View style={[tabStyles.statusBadge, status === 4 && tabStyles.statusBadgeDanger]}>
+      <Text style={tabStyles.statusBadgeText}>{label}</Text>
+    </View>
+  );
+}
+
 export function PostCard({ item, onPress }: { item: PostCardData; onPress: () => void }) {
   return (
     <TouchableOpacity activeOpacity={0.9} style={tabStyles.postCard} onPress={onPress}>
       {!!item.imageUrl && (
-        <ExpoImage
-          source={{ uri: item.imageUrl }}
-          style={[tabStyles.postImage, { height: scaleSizeH(item.imageHeight) }]}
-          contentFit="cover"
-          transition={200}
-          cachePolicy="memory-disk"
-          recyclingKey={item.imageUrl}
-        />
+        <View>
+          <ExpoImage
+            source={{ uri: item.imageUrl }}
+            style={[tabStyles.postImage, { height: scaleSizeH(item.imageHeight) }]}
+            contentFit="cover"
+            transition={200}
+            cachePolicy="memory-disk"
+            recyclingKey={item.imageUrl}
+          />
+          <StatusBadge status={item.status} />
+        </View>
       )}
       <View style={tabStyles.postBody}>
         <Text style={tabStyles.postTitle} numberOfLines={2}>
@@ -164,6 +181,25 @@ export const tabStyles = StyleSheet.create({
   },
   postImage: {
     width: CARD_W,
+  },
+  statusBadge: {
+    position: 'absolute',
+    left: scaleSizeW(10),
+    bottom: scaleSizeH(10),
+    height: scaleSizeH(20),
+    borderRadius: scaleSizeW(7.5),
+    paddingHorizontal: scaleSizeW(9.5),
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusBadgeDanger: {
+    backgroundColor: '#EE5757',
+  },
+  statusBadgeText: {
+    fontSize: setSpText(10),
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   postBody: {
     paddingHorizontal: scaleSizeW(10),

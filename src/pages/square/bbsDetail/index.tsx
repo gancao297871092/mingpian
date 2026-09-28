@@ -696,17 +696,20 @@ export default function BbsDetail() {
       setFavCount(d.favCount);
       setLoading(false);
     }
-    API.square
-      .bbsDetail({ bbsId: route.params.id })
+    const fromMy = route.params.fromMy === true;
+    const detailReq = fromMy
+      ? API.bbs.bbsDetail({ bbsId: Number(route.params.id) })
+      : API.square.bbsDetail({ bbsId: route.params.id });
+    detailReq
       .then(res => {
         console.log(res.data);
         if (!mounted) return;
-        const d = transformDetail(res.data?.bbs ?? {});
+        const d = transformDetail(res.data?.bbs ?? res.data ?? {});
 
         setDetail(d);
         setLiked(d.isLiked);
         setFaved(d.isFaved);
-        setFollowing(res.data.isFollowed === 1 || route.params.isFollowed === true);
+        setFollowing((fromMy ? d.isFollowed : res.data.isFollowed === 1) || route.params.isFollowed === true);
         setVisibility(d.visibility === 2 ? 'private' : d.visibility === 1 ? 'mutual' : 'public');
         setLikeCount(d.likeCount);
         setFavCount(d.favCount);
@@ -721,7 +724,7 @@ export default function BbsDetail() {
     return () => {
       mounted = false;
     };
-  }, [route.params.id, route.params.isFollowed]);
+  }, [route.params.id, route.params.isFollowed, route.params.fromMy]);
 
   useEffect(() => {
     if (!commentRestricted) loadComments(1);

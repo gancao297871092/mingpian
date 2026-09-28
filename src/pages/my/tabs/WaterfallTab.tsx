@@ -91,7 +91,9 @@ export default forwardRef<TabHandle, Props>(function WaterfallTab({ tab, myId, a
   const openDetail = useCallback(
     (item: PostCardData) => {
       if (item.raw) setDetailCache(item.id, item.raw);
-      navigation.navigate('bbsDetail', { id: item.id });
+      // 待审核/未通过的动态不在广场详情接口里，走 /my/bbs/detail
+      const fromMy = item.status === 3 || item.status === 4;
+      navigation.navigate('bbsDetail', { id: item.id, ...(fromMy ? { fromMy: true } : {}) });
     },
     [navigation],
   );
