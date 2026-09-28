@@ -236,7 +236,7 @@ export default function My() {
   const minPagerHeight = Math.max(contentH - insets.top - tabBarH, 0);
 
   const renderTabPage = (tab: TabKey) => (
-    <View style={{ width: windowWidth, height: Math.max(listHeights[tab], minPagerHeight), backgroundColor:'#F6F7FB' }}>
+    <View style={{ width: windowWidth, height: Math.max(listHeights[tab], minPagerHeight), backgroundColor: '#F6F7FB' }}>
       {tab === 'comment' ? (
         <CommentTab
           ref={h => { tabRefs.comment = h; }}
@@ -260,13 +260,15 @@ export default function My() {
     <SafeView backgroundColor="#F6F7FB">
       <View style={styles.flex1} onLayout={e => setContentH(e.nativeEvent.layout.height)}>
         <View style={[StyleSheet.absoluteFill, { paddingBottom: scaleSizeH(80) }]}>
-          <ExpoImage
-            source={require('@/assets/my/my/header_bg.png')}
-            style={{
-              height: scaleSizeH(800),
-              width: '100%',
-            }}
-          />
+          <View style={{ height: '75%', overflow: 'hidden', width: '100%', }}>
+            <ExpoImage
+              source={require('@/assets/my/my/header_bg.png')}
+              style={{
+                height: scaleSizeH(800),
+                width: '100%',
+              }}
+            />
+          </View>
         </View>
         <Animated.View style={{
           height: insets.top,
@@ -382,7 +384,7 @@ export default function My() {
           ) : index === 1 ? (
             /* 吸顶单元：昵称栏（吸顶后展开，figma 101）+ tab 行 */
             <Animated.View>
-              <Animated.View style={[styles.stickyNick, { height: nickHeight, backgroundColor:'#fff' }]}>
+              <Animated.View style={[styles.stickyNick, { height: nickHeight, backgroundColor: '#fff' }]}>
                 <View style={styles.stickyNickInner}>
                   <Text style={styles.stickyName} numberOfLines={1}>
                     {wqUser?.nickname || wqUser?.username || ''}
@@ -401,7 +403,7 @@ export default function My() {
                 </View>
               </Animated.View>
               <Animated.View
-                style={[styles.tabCard, {backgroundColor: '#fff'}]}
+                style={[styles.tabCard, { backgroundColor: '#fff' }]}
                 onLayout={e => setTabBarH(e.nativeEvent.layout.height)}
               >
                 <View style={styles.tabBar}>
