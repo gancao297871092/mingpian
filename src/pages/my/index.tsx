@@ -381,8 +381,8 @@ export default function My() {
             </View>
           ) : index === 1 ? (
             /* 吸顶单元：昵称栏（吸顶后展开，figma 101）+ tab 行 */
-            <Animated.View style={{backgroundColor:'#F6F7FB'}}>
-              <Animated.View style={[styles.stickyNick, { height: nickHeight, backgroundColor: topBarBg }]}>
+            <Animated.View>
+              <Animated.View style={[styles.stickyNick, { height: nickHeight, backgroundColor:'#fff' }]}>
                 <View style={styles.stickyNickInner}>
                   <Text style={styles.stickyName} numberOfLines={1}>
                     {wqUser?.nickname || wqUser?.username || ''}
@@ -401,7 +401,7 @@ export default function My() {
                 </View>
               </Animated.View>
               <Animated.View
-                style={[styles.tabCard, {backgroundColor: topBarBg}]}
+                style={[styles.tabCard, {backgroundColor: '#fff'}]}
                 onLayout={e => setTabBarH(e.nativeEvent.layout.height)}
               >
                 <View style={styles.tabBar}>
@@ -556,7 +556,7 @@ const styles = StyleSheet.create({
     marginTop: scaleSizeH(2),
   },
   profileCard: {
-    backgroundColor: '#F6F7FB',
+    backgroundColor: '#fff',
     borderTopLeftRadius: scaleSizeW(20),
     borderTopRightRadius: scaleSizeW(20),
     marginTop: scaleSizeH(20),
@@ -671,7 +671,7 @@ const styles = StyleSheet.create({
     gap: scaleSizeW(20),
   },
   tabCard: {
-    backgroundColor: '#F6F7FB',
+    backgroundColor: '#fff',
     overflow: 'hidden',
   },
   tabBar: {
