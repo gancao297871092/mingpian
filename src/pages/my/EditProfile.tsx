@@ -118,7 +118,7 @@ export default function EditProfile() {
           navigation.navigate('editBio'),
         )}
       </View>
-
+{/* 
       <View style={styles.card}>
         {renderRow('性别', genderText(wqUser?.gender), false, () => genderSheetRef.current?.present())}
         <View style={styles.divider} />
@@ -127,7 +127,7 @@ export default function EditProfile() {
         )}
         <View style={styles.divider} />
         {renderRow('所在地', regionValue, regionValue === '未设置', () => setAreaVisible(true))}
-      </View>
+      </View> */}
 
       <AppBottomSheet ref={genderSheetRef}>
         <View style={styles.genderCard}>
