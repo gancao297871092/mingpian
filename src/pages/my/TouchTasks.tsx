@@ -1,14 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { Image as ExpoImage } from 'expo-image';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import SafeView from '@/components/SafeView';
-import EmptyState from '@/components/EmptyState';
-import ListFooter from '@/components/ListFooter';
-import { API } from '@/api';
-import { usePageList } from '@/hooks/usePageList';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
 import { BlueBadgeIcon } from './myIcons';
@@ -35,20 +31,7 @@ export interface TouchTask {
   aiNote: string;
 }
 
-function mapTask(t: any): TouchTask {
-  return {
-    id: String(t?.id ?? Math.random()),
-    avatar: t?.avatar || t?.cpLogo || '',
-    company: t?.cpName || t?.company || '',
-    verified: Number(t?.authCompany ?? t?.verified ?? 0) === 1,
-    tag: t?.tag || t?.signalTitle || '',
-    source: t?.source || '',
-    time: t?.time || t?.createTime || '',
-    aiNote: t?.aiNote || t?.aiJudge || '',
-  };
-}
-
-/** 接口未联调前的演示数据（接口返回空或失败时兜底） */
+/** 静态 mock（接口待联调） */
 const MOCK_TASKS: Record<TaskTab, TouchTask[]> = {
   todo: [
     {
@@ -98,56 +81,13 @@ const MOCK_TASKS: Record<TaskTab, TouchTask[]> = {
   ],
 };
 
-const MOCK_COUNTS: Record<TaskTab, number> = { todo: 2, sent: 1, viewed: 2 };
-
 /** 93-95.触达待办（待触达/已发送/已查看 共用一个页面） */
 export default function TouchTasks() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'touchTasks'>>();
   const [tab, setTab] = useState<TaskTab>(route.params?.tab ?? 'todo');
-  const [counts, setCounts] = useState<Record<TaskTab, number | undefined>>({
-    todo: undefined,
-    sent: undefined,
-    viewed: undefined,
-  });
 
-  useEffect(() => {
-    API.touch.summary()
-      .then(res => {
-        if (res.data) {
-          setCounts({
-            todo: res.data.todoCount ?? MOCK_COUNTS.todo,
-            sent: res.data.sentCount ?? MOCK_COUNTS.sent,
-            viewed: res.data.viewedCount ?? MOCK_COUNTS.viewed,
-          });
-        }
-      })
-      .catch(() => setCounts({ ...MOCK_COUNTS }));
-  }, []);
-
-  const fetcher = useCallback(
-    (params: { status: TaskTab; pageNum?: number; pageSize?: number }) =>
-      API.touch.taskList(params)
-        .then(res => {
-          const list = (res.data?.list ?? []).map(mapTask);
-          if (!list.length) throw new Error('empty');
-          return { ...res, data: { ...res.data, list } };
-        })
-        .catch(() => ({
-          code: '0',
-          msg: '',
-          data: {
-            list: MOCK_TASKS[params.status],
-            total: MOCK_TASKS[params.status].length,
-            pageNum: 1,
-            pages: 1,
-            isLastPage: true,
-          },
-        })),
-    [],
-  );
-  const params = useMemo(() => ({ status: tab }), [tab]);
-  const { list, fetching, total, refresh, loadMore, isLastPage } = usePageList(fetcher, params);
+  const list = MOCK_TASKS[tab];
 
   const renderItem = useCallback(
     ({ item }: { item: TouchTask }) => (
@@ -196,7 +136,7 @@ export default function TouchTasks() {
       <View style={styles.tabsRow}>
         {TABS.map(t => {
           const active = tab === t.key;
-          const count = counts[t.key] ?? (active ? total : 0);
+          const count = MOCK_TASKS[t.key].length;
           return (
             <TouchableOpacity
               key={t.key}
@@ -217,14 +157,7 @@ export default function TouchTasks() {
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
-        refreshControl={<RefreshControl refreshing={fetching && list.length > 0} onRefresh={refresh} tintColor={PRIMARY} />}
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.3}
         ItemSeparatorComponent={ListSeparator}
-        ListEmptyComponent={
-          !fetching ? <EmptyState variant="content" title="暂无任务" style={styles.emptyBox} /> : <View style={styles.loadingPad} />
-        }
-        ListFooterComponent={<ListFooter fetching={fetching} isLastPage={isLastPage} listLength={list.length} />}
       />
     </SafeView>
   );
@@ -330,11 +263,5 @@ const styles = StyleSheet.create({
   },
   metaValueDark: {
     color: '#000000',
-  },
-  loadingPad: {
-    height: scaleSizeH(200),
-  },
-  emptyBox: {
-    marginTop: scaleSizeH(60),
   },
 });

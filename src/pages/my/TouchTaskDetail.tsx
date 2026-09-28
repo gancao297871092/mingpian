@@ -1,14 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useRoute, type RouteProp } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
 import Clipboard from '@react-native-clipboard/clipboard';
 import Toast from 'react-native-toast-message';
 import { Image as ExpoImage } from 'expo-image';
 import SafeView from '@/components/SafeView';
-import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
-import type { RootStackParamList } from '@/route/map';
 import { BlueBadgeIcon, CapPuzzleIcon } from './myIcons';
 
 const PRIMARY = '#2962D4';
@@ -28,22 +25,7 @@ interface TaskDetail {
   script: string;
 }
 
-function mapDetail(d: any): TaskDetail {
-  const cap = d?.capCard ?? d?.cap ?? {};
-  return {
-    avatar: d?.avatar || d?.cpLogo || '',
-    company: d?.cpName || d?.company || '',
-    verified: Number(d?.authCompany ?? d?.verified ?? 0) === 1,
-    companyTags: d?.cpTags || d?.companyTags || '',
-    analysis: d?.analysis || d?.matchAnalysis || '',
-    capCompany: cap.cpName || cap.company || '',
-    capBbsCount: Number(cap.bbsCount ?? 0),
-    capContent: cap.content || '',
-    script: d?.script || d?.wechatScript || '',
-  };
-}
-
-/** 接口未联调前的演示数据（接口失败或返回空时兜底） */
+/** 静态 mock（接口待联调） */
 const MOCK_DETAIL: TaskDetail = {
   avatar: '',
   company: '鄂尔多斯市巨鼎煤机制造有限公司',
@@ -60,20 +42,9 @@ const MOCK_DETAIL: TaskDetail = {
 
 /** 96.任务详情 */
 export default function TouchTaskDetail() {
-  const route = useRoute<RouteProp<RootStackParamList, 'touchTaskDetail'>>();
-  const [detail, setDetail] = useState<TaskDetail | null>(null);
-
-  useEffect(() => {
-    API.touch.taskDetail({ id: route.params.id })
-      .then(res => {
-        const d = res.data ? mapDetail(res.data) : null;
-        setDetail(d && d.company ? d : MOCK_DETAIL);
-      })
-      .catch(() => setDetail(MOCK_DETAIL));
-  }, [route.params.id]);
+  const detail = MOCK_DETAIL;
 
   const onCopy = () => {
-    if (!detail?.script) return;
     Clipboard.setString(detail.script);
     Toast.show({ type: 'success', text1: '已复制' });
   };

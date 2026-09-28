@@ -1,41 +1,26 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import SafeView from '@/components/SafeView';
-import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
-import { SignalTaskIcon } from './myIcons';
+import { BlueBadgeIcon, SignalTaskIcon } from './myIcons';
 
 const PRIMARY = '#2962D4';
 const TEXT_SUB = '#6C6C6C';
 const CARD_BG = '#F6F7FB';
 
+/** 静态 mock（接口待联调） */
+const STATS = [
+  { num: 3, label: '待触达' },
+  { num: 2, label: '已发送' },
+  { num: 1, label: '已查看' },
+];
+
 /** 92.业务员工作台 */
 export default function Workbench() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const [summary, setSummary] = useState({ todoCount: 0, sentCount: 0, viewedCount: 0 });
-
-  useEffect(() => {
-    API.touch.summary()
-      .then(res => {
-        if (res.data) {
-          setSummary({
-            todoCount: res.data.todoCount ?? 0,
-            sentCount: res.data.sentCount ?? 0,
-            viewedCount: res.data.viewedCount ?? 0,
-          });
-        }
-      })
-      .catch(() => { });
-  }, []);
-
-  const stats = [
-    { num: summary.todoCount, label: '待触达' },
-    { num: summary.sentCount, label: '已发送' },
-    { num: summary.viewedCount, label: '已查看' },
-  ];
 
   return (
     <SafeView backgroundColor="#F6F7FB">
@@ -44,11 +29,12 @@ export default function Workbench() {
           <View style={styles.cardHead}>
             <SignalTaskIcon />
             <Text style={styles.cardTitle}>信号触达任务</Text>
+            <BlueBadgeIcon />
           </View>
           <View style={styles.divider} />
           <Text style={styles.desc}>合作信号匹配到线下客户时，系统会分配给你负责触达</Text>
           <View style={styles.statsRow}>
-            {stats.map(s => (
+            {STATS.map(s => (
               <View key={s.label} style={styles.statBox}>
                 <Text style={styles.statNum}>{s.num} 个</Text>
                 <Text style={styles.statLabel}>{s.label}</Text>

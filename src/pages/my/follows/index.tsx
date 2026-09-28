@@ -1,6 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  RefreshControl,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -11,10 +10,6 @@ import { Image as ExpoImage } from 'expo-image';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import SafeView from '@/components/SafeView';
-import EmptyState from '@/components/EmptyState';
-import ListFooter from '@/components/ListFooter';
-import { API } from '@/api';
-import { usePageList } from '@/hooks/usePageList';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
 import { BlueBadgeIcon } from '../myIcons';
@@ -37,15 +32,8 @@ const SUBTITLES: Record<FollowTab, string> = {
   fans: '关注我的人',
 };
 
-const EMPTY_TITLES: Record<FollowTab, string> = {
-  mutual: '暂无互关',
-  follow: '暂无关注',
-  fans: '暂无粉丝',
-};
-
 interface FollowUser {
   id: string;
-  userId: number;
   avatar: string;
   name: string;
   company: string;
@@ -55,20 +43,27 @@ interface FollowUser {
   isMutual: boolean;
 }
 
-function mapFollowUser(u: any): FollowUser {
-  const info = u?.userInfoVo ?? u ?? {};
-  const userId = Number(info.userId ?? info.id ?? 0);
-  return {
-    id: String(info.userId ?? info.id ?? Math.random()),
-    userId,
-    avatar: info.avatar || '',
-    name: info.nickname || info.username || '',
-    company: info.cpName || info.companyName || '',
-    verified: Number(info.authCompany ?? info.verified ?? 0) === 1,
-    isFollow: Number(info.isFollow ?? 0) === 1,
-    isMutual: Number(info.isMutual ?? info.mutual ?? 0) === 1,
-  };
-}
+/** 静态 mock（接口待联调） */
+const MOCK_USERS: Record<FollowTab, FollowUser[]> = {
+  mutual: [
+    { id: 'm1', avatar: '', name: '华北设备服务', company: '云南赣云供应链管理有限公司', verified: true, isFollow: true, isMutual: true },
+    { id: 'm2', avatar: '', name: '华北设备服务', company: '云南赣云供应链管理有限公司', verified: false, isFollow: true, isMutual: true },
+    { id: 'm3', avatar: '', name: '苏州自动化集成', company: '', verified: false, isFollow: true, isMutual: true },
+    { id: 'm4', avatar: '', name: '华北设备服务', company: '云南赣云供应链管理有限公司', verified: true, isFollow: true, isMutual: true },
+    { id: 'm5', avatar: '', name: '华北设备服务', company: '云南赣云供应链管理有限公司', verified: false, isFollow: true, isMutual: true },
+    { id: 'm6', avatar: '', name: '苏州自动化集成', company: '', verified: false, isFollow: true, isMutual: true },
+  ],
+  follow: [
+    { id: 'f1', avatar: '', name: '华北设备服务', company: '云南赣云供应链管理有限公司', verified: false, isFollow: true, isMutual: false },
+    { id: 'f2', avatar: '', name: '华北设备服务', company: '云南赣云供应链管理有限公司', verified: true, isFollow: true, isMutual: false },
+    { id: 'f3', avatar: '', name: '华北设备服务', company: '', verified: false, isFollow: true, isMutual: false },
+  ],
+  fans: [
+    { id: 'fa1', avatar: '', name: '华北设备服务', company: '云南赣云供应链管理有限公司', verified: false, isFollow: false, isMutual: false },
+    { id: 'fa2', avatar: '', name: '华北设备服务', company: '', verified: false, isFollow: true, isMutual: true },
+    { id: 'fa3', avatar: '', name: '苏州自动化集成', company: '', verified: false, isFollow: true, isMutual: true },
+  ],
+};
 
 /** 昵称旁蓝色认证徽章（figma 互关/关注/粉丝列表 Vector） */
 function VerifiedBadge() {
@@ -98,6 +93,7 @@ export default function Follows() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'follows'>>();
   const [tab, setTab] = useState<FollowTab>(route.params?.tab ?? 'mutual');
+  const [lists, setLists] = useState<Record<FollowTab, FollowUser[]>>(MOCK_USERS);
 
   useEffect(() => {
     navigation.setOptions({
@@ -114,28 +110,20 @@ export default function Follows() {
     });
   }, [navigation, tab]);
 
-  const fetcher = useCallback(
-    (params: { type: FollowTab; pageNum?: number; pageSize?: number }) =>
-      API.user.followList(params).then(res => ({
-        ...res,
-        data: { ...res.data, list: (res.data?.list ?? []).map(mapFollowUser) },
-      })),
-    [],
-  );
-  const params = useMemo(() => ({ type: tab }), [tab]);
-  const { list, setList, fetching, total, refresh, loadMore, isLastPage } = usePageList(fetcher, params);
+  const list = lists[tab];
 
+  // 本地联动：纯本地切换关注状态（接口待联调）
   const onToggleFollow = useCallback(
     (item: FollowUser) => {
       const next = !item.isFollow;
-      const patch = (u: FollowUser): FollowUser =>
-        u.id === item.id ? { ...u, isFollow: next, isMutual: tab === 'fans' ? u.isMutual || next : u.isMutual } : u;
-      setList(prev => prev.map(patch));
-      API.user.followOperate({ targetUserId: item.userId, isFollow: next ? 1 : 0 }).catch(() => {
-        setList(prev => prev.map(u => (u.id === item.id ? item : u)));
-      });
+      setLists(prev => ({
+        ...prev,
+        [tab]: prev[tab].map(u =>
+          u.id === item.id ? { ...u, isFollow: next, isMutual: tab === 'fans' ? u.isMutual || next : u.isMutual } : u,
+        ),
+      }));
     },
-    [tab, setList],
+    [tab],
   );
 
   const renderItem = useCallback(
@@ -162,21 +150,14 @@ export default function Follows() {
   return (
     <SafeView backgroundColor="#FFFFFF">
       <View style={styles.divider} />
-      <Text style={styles.subtitle}>{`${SUBTITLES[tab]}（${total}人）`}</Text>
+      <Text style={styles.subtitle}>{`${SUBTITLES[tab]}（${list.length}人）`}</Text>
       <FlashList
         data={list}
         keyExtractor={item => item.id}
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
-        refreshControl={<RefreshControl refreshing={fetching && list.length > 0} onRefresh={refresh} tintColor={PRIMARY} />}
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.3}
         ItemSeparatorComponent={tab === 'mutual' ? undefined : RowSeparator}
-        ListEmptyComponent={
-          !fetching ? <EmptyState variant="content" title={EMPTY_TITLES[tab]} style={styles.emptyBox} /> : <View style={styles.loadingPad} />
-        }
-        ListFooterComponent={<ListFooter fetching={fetching} isLastPage={isLastPage} listLength={list.length} />}
       />
     </SafeView>
   );
@@ -284,11 +265,5 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: DIVIDER,
     marginLeft: scaleSizeW(60),
-  },
-  loadingPad: {
-    height: scaleSizeH(200),
-  },
-  emptyBox: {
-    marginTop: scaleSizeH(60),
   },
 });

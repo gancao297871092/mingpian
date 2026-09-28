@@ -1,15 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { Image as ExpoImage } from 'expo-image';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path } from 'react-native-svg';
 import SafeView from '@/components/SafeView';
-import EmptyState from '@/components/EmptyState';
-import ListFooter from '@/components/ListFooter';
-import { API } from '@/api';
-import { usePageList } from '@/hooks/usePageList';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
 import { CardLikeIcon, CheckMarkIcon, HistorySearchIcon, HistoryTrashIcon } from './myIcons';
@@ -32,34 +28,57 @@ interface HistoryItem {
   isVideo: boolean;
 }
 
-function ossVideoSnapshot(videoUrl: string): string {
-  if (!videoUrl) return '';
-  return `${videoUrl}?x-oss-process=video/snapshot,t_0,f_jpg,w_388,h_640,m_fast`;
-}
-
-function mapHistory(h: any): HistoryItem {
-  const bbs = h?.bbs ?? h ?? {};
-  const media = bbs.mediaLinkList?.[0]?.media;
-  const isVideo = media?.fileType === 'video';
-  const imageUrl = isVideo
-    ? bbs.posterUrl || bbs.coverUrl || ossVideoSnapshot(media?.mdUrl || '')
-    : media?.mdUrl || bbs.posterUrl || bbs.coverUrl || '';
-  const w = media?.width ? parseInt(media.width, 10) : 194;
-  const hh = media?.height ? parseInt(media.height, 10) : 237;
-  const info = bbs.userInfoVo ?? {};
-  return {
-    id: String(h?.id ?? bbs.id ?? Math.random()),
-    bbsId: String(bbs.id ?? ''),
-    imageUrl,
-    imageHeight: Math.min(Math.round((194 * hh) / w), 320),
-    title: bbs.title || (bbs.content || '').replace(/<[^>]*>/g, '').slice(0, 50),
-    avatar: info.avatar || '',
-    name: info.nickname || info.username || '',
-    company: info.cpName || '',
-    likeCount: bbs.countLike || 0,
-    isVideo,
-  };
-}
+/** 静态 mock（接口待联调） */
+const MOCK_HISTORY: HistoryItem[] = [
+  {
+    id: 'mock-1',
+    bbsId: '',
+    imageUrl: 'https://picsum.photos/seed/history1/388/474',
+    imageHeight: 237,
+    title: '新增自动化产线投入使用，交付效率提升60%',
+    avatar: '',
+    name: '张伟',
+    company: '通海优耐特管业科技有限公司',
+    likeCount: 647,
+    isVideo: false,
+  },
+  {
+    id: 'mock-2',
+    bbsId: '',
+    imageUrl: 'https://picsum.photos/seed/history2/388/474',
+    imageHeight: 237,
+    title: '自动化产线调试中最容易忽略的五个问题',
+    avatar: '',
+    name: 'WQ_26383331',
+    company: '浙江新能制造有限公司',
+    likeCount: 6,
+    isVideo: false,
+  },
+  {
+    id: 'mock-3',
+    bbsId: '',
+    imageUrl: 'https://picsum.photos/seed/history3/388/474',
+    imageHeight: 237,
+    title: '20强设计师同台竞技，第35届真维斯杯见证时尚新锐设计诞生',
+    avatar: '',
+    name: '刘强',
+    company: '云南赣云供应链管理有限公司',
+    likeCount: 647,
+    isVideo: true,
+  },
+  {
+    id: 'mock-4',
+    bbsId: '',
+    imageUrl: 'https://picsum.photos/seed/history4/388/474',
+    imageHeight: 237,
+    title: '补短板强内核 国产高端农机闯关',
+    avatar: '',
+    name: 'WQ_26383331',
+    company: '河北宝钢集团',
+    likeCount: 6,
+    isVideo: false,
+  },
+];
 
 function VideoBadge() {
   return (
@@ -77,16 +96,7 @@ export default function BrowseHistory() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [managing, setManaging] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-
-  const fetcher = useCallback(
-    (params: { pageNum?: number; pageSize?: number }) =>
-      API.history.list(params).then(res => ({
-        ...res,
-        data: { ...res.data, list: (res.data?.list ?? []).map(mapHistory) },
-      })),
-    [],
-  );
-  const { list, setList, fetching, refresh, loadMore, isLastPage } = usePageList(fetcher, {});
+  const [list, setList] = useState<HistoryItem[]>(MOCK_HISTORY);
 
   useEffect(() => {
     navigation.setOptions({
@@ -126,15 +136,13 @@ export default function BrowseHistory() {
         text: '删除',
         style: 'destructive',
         onPress: () => {
-          const ids = [...selected];
-          const snapshot = list;
+          // 本地联动：纯本地移除（接口待联调）
           setList(prev => prev.filter(i => !selected.has(i.id)));
           setSelected(new Set());
-          API.history.del({ ids }).catch(() => setList(snapshot));
         },
       },
     ]);
-  }, [selected, list, setList]);
+  }, [selected, setList]);
 
   const onPressCard = useCallback(
     (item: HistoryItem) => {
@@ -206,13 +214,6 @@ export default function BrowseHistory() {
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.listContent, managing && styles.listContentManaging]}
-        refreshControl={<RefreshControl refreshing={fetching && list.length > 0} onRefresh={refresh} tintColor={PRIMARY} />}
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.3}
-        ListEmptyComponent={
-          !fetching ? <EmptyState variant="content" title="暂无浏览记录" style={styles.emptyBox} /> : <View style={styles.loadingPad} />
-        }
-        ListFooterComponent={<ListFooter fetching={fetching} isLastPage={isLastPage} listLength={list.length} />}
       />
       {managing && (
         <View style={styles.manageBar}>
@@ -220,6 +221,7 @@ export default function BrowseHistory() {
             已选 <Text style={styles.manageCountNum}>{selected.size}</Text> 条
           </Text>
           <TouchableOpacity
+            style={styles.manageCancelBtn}
             onPress={() => {
               setManaging(false);
               setSelected(new Set());
@@ -384,9 +386,11 @@ const styles = StyleSheet.create({
   manageCountNum: {
     color: '#000000',
   },
-  manageCancel: {
+  manageCancelBtn: {
     marginLeft: 'auto',
     marginRight: scaleSizeW(24),
+  },
+  manageCancel: {
     fontSize: setSpText(14),
     lineHeight: setSpText(24),
     color: '#000000',
@@ -404,11 +408,5 @@ const styles = StyleSheet.create({
     lineHeight: setSpText(24),
     fontWeight: '500',
     color: '#FFFFFF',
-  },
-  loadingPad: {
-    height: scaleSizeH(200),
-  },
-  emptyBox: {
-    marginTop: scaleSizeH(60),
   },
 });
