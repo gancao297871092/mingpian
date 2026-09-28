@@ -381,7 +381,7 @@ export default function My() {
             </View>
           ) : index === 1 ? (
             /* 吸顶单元：昵称栏（吸顶后展开，figma 101）+ tab 行 */
-            <Animated.View>
+            <Animated.View style={{backgroundColor:'#F6F7FB'}}>
               <Animated.View style={[styles.stickyNick, { height: nickHeight, backgroundColor: topBarBg }]}>
                 <View style={styles.stickyNickInner}>
                   <Text style={styles.stickyName} numberOfLines={1}>
@@ -401,7 +401,7 @@ export default function My() {
                 </View>
               </Animated.View>
               <Animated.View
-                style={[styles.tabCard, { borderBottomLeftRadius: tabRadius, borderBottomRightRadius: tabRadius }]}
+                style={[styles.tabCard, {backgroundColor: topBarBg}]}
                 onLayout={e => setTabBarH(e.nativeEvent.layout.height)}
               >
                 <View style={styles.tabBar}>
@@ -671,7 +671,7 @@ const styles = StyleSheet.create({
     gap: scaleSizeW(20),
   },
   tabCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F6F7FB',
     overflow: 'hidden',
   },
   tabBar: {
