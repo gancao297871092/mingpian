@@ -55,6 +55,30 @@ export interface CommentCardData {
   bbsTitle: string;
 }
 
+/** figma 88：我点赞的评论 */
+export interface LikedCommentData {
+  id: string;
+  bbsId: number;
+  avatar: string;
+  name: string;
+  content: string;
+  bbsTitle: string;
+  likeCount: number;
+}
+
+export function mapLikedComment(c: any): LikedCommentData {
+  const info = c?.userInfoVo ?? {};
+  return {
+    id: String(c?.id ?? Math.random()),
+    bbsId: Number(c?.bbsId ?? 0),
+    avatar: info.avatar || '',
+    name: info.nickname || info.username || '',
+    content: c?.content || '',
+    bbsTitle: c?.bbsTitle || '',
+    likeCount: Number(c?.countLike ?? c?.likeCount ?? 0),
+  };
+}
+
 function ossVideoSnapshot(videoUrl: string): string {
   if (!videoUrl) return '';
   return `${videoUrl}?x-oss-process=video/snapshot,t_0,f_jpg,w_388,h_640,m_fast`;
@@ -155,6 +179,33 @@ export function CommentCard({ item, onPress }: { item: CommentCardData; onPress:
           <Text style={tabStyles.commentOriginText} numberOfLines={1}>{item.bbsTitle}</Text>
         </View>
       )}
+    </TouchableOpacity>
+  );
+}
+
+/** figma 88：点赞-评论子列表行（自带底部缩进分割线） */
+export function LikedCommentCard({ item, onPress }: { item: LikedCommentData; onPress: () => void }) {
+  return (
+    <TouchableOpacity activeOpacity={0.8} onPress={onPress}>
+      <View style={tabStyles.likedCommentRow}>
+        {item.avatar ? (
+          <ExpoImage source={{ uri: item.avatar }} style={tabStyles.likedCommentAvatar} contentFit="cover" transition={150} />
+        ) : (
+          <View style={[tabStyles.likedCommentAvatar, tabStyles.likedCommentAvatarPlaceholder]} />
+        )}
+        <View style={tabStyles.likedCommentBody}>
+          <Text style={tabStyles.likedCommentName} numberOfLines={1}>{item.name}</Text>
+          <Text style={tabStyles.likedCommentContent} numberOfLines={2}>{item.content}</Text>
+          {!!item.bbsTitle && (
+            <Text style={tabStyles.likedCommentOrigin} numberOfLines={1}>来自动态·{item.bbsTitle}</Text>
+          )}
+          <View style={tabStyles.likedCommentLike}>
+            <CardLikeIcon />
+            <Text style={tabStyles.likedCommentLikeText}>{item.likeCount}</Text>
+          </View>
+        </View>
+      </View>
+      <View style={tabStyles.likedCommentDivider} />
     </TouchableOpacity>
   );
 }
@@ -315,5 +366,57 @@ export const tabStyles = StyleSheet.create({
   commentOriginText: {
     fontSize: setSpText(12),
     color: '#6C6C6C',
+  },
+  likedCommentRow: {
+    flexDirection: 'row',
+    paddingHorizontal: scaleSizeW(16),
+    paddingVertical: scaleSizeH(13),
+  },
+  likedCommentAvatar: {
+    width: scaleSizeW(37),
+    height: scaleSizeW(37),
+    borderRadius: scaleSizeW(18.5),
+    borderWidth: 1,
+    borderColor: '#D9D9D9',
+  },
+  likedCommentAvatarPlaceholder: {
+    backgroundColor: '#F5F5F5',
+  },
+  likedCommentBody: {
+    flex: 1,
+    marginLeft: scaleSizeW(14),
+  },
+  likedCommentName: {
+    fontSize: setSpText(13),
+    color: '#000000',
+    lineHeight: scaleSizeH(17),
+  },
+  likedCommentContent: {
+    fontSize: setSpText(14),
+    color: '#000000',
+    lineHeight: scaleSizeH(20),
+    marginTop: scaleSizeH(5),
+  },
+  likedCommentOrigin: {
+    fontSize: setSpText(12),
+    color: '#999999',
+    marginTop: scaleSizeH(8),
+  },
+  likedCommentLike: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSizeW(2),
+    marginTop: scaleSizeH(8),
+  },
+  likedCommentLikeText: {
+    fontSize: setSpText(12),
+    fontWeight: '500',
+    lineHeight: scaleSizeH(12),
+    color: '#616161',
+  },
+  likedCommentDivider: {
+    height: 1,
+    backgroundColor: '#EBEBEB',
+    marginLeft: scaleSizeW(67),
   },
 });

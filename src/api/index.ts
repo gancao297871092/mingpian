@@ -83,6 +83,13 @@ export namespace API {
         data,
       );
     }
+    /** 我点赞的评论列表（字段为预设，待后端联调确认） */
+    export function likedCommentList(data: { targetUserId: number; pageNum?: number; pageSize?: number }) {
+      return request.post<{ list: any[]; total: number; pageNum: number; pages: number }>(
+        '/bbs/user/like-comment/list',
+        data,
+      );
+    }
   }
 
   export namespace interaction {

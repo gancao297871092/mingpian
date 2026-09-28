@@ -34,9 +34,11 @@ interface Props {
   draftCover: string;
   /** 列表内容高度变化（外层 FlatList 统一滚动，需要撑开高度） */
   onHeight: (h: number) => void;
+  /** 列表总数变化（figma 88 点赞子 tab 展示数量） */
+  onTotal?: (n: number) => void;
 }
 
-export default forwardRef<TabHandle, Props>(function WaterfallTab({ tab, myId, active, draftCount, draftCover, onHeight }, ref) {
+export default forwardRef<TabHandle, Props>(function WaterfallTab({ tab, myId, active, draftCount, draftCover, onHeight, onTotal }, ref) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [state, setState] = useState<TabState<PostCardData>>(initialTabState);
   const stateRef = useRef(state);
@@ -53,6 +55,7 @@ export default forwardRef<TabHandle, Props>(function WaterfallTab({ tab, myId, a
             : await API.my.likeFavoritesList({ targetUserId: myId, type: tab === 'fav' ? 2 : 1, pageNum, pageSize: PAGE_SIZE });
         const list = (res.data?.list ?? []).map(mapPost);
         const pages = res.data?.pages ?? 1;
+        onTotal?.(res.data?.total ?? 0);
         setState(prev => ({
           list: pageNum === 1 ? list : [...prev.list, ...list],
           page: pageNum,
@@ -64,7 +67,7 @@ export default forwardRef<TabHandle, Props>(function WaterfallTab({ tab, myId, a
         setState(prev => ({ ...prev, loading: false, loaded: true }));
       }
     },
-    [tab, myId],
+    [tab, myId, onTotal],
   );
 
   useEffect(() => {

@@ -37,6 +37,7 @@ import {
 } from './myIcons';
 import WaterfallTab from './tabs/WaterfallTab';
 import CommentTab from './tabs/CommentTab';
+import LikeTab from './tabs/LikeTab';
 import LikesDialog from './LikesDialog';
 import type { TabHandle } from './tabs/common';
 import type { RootStackParamList } from '@/route/map';
@@ -267,6 +268,13 @@ export default function My() {
           ref={h => { tabRefs.comment = h; }}
           active={activeTab === 'comment'}
           onHeight={onListHeight('comment')}
+        />
+      ) : tab === 'like' ? (
+        <LikeTab
+          ref={h => { tabRefs.like = h; }}
+          myId={myId}
+          active={activeTab === 'like'}
+          onHeight={onListHeight('like')}
         />
       ) : (
         <WaterfallTab
