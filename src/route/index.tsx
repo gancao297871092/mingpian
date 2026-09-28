@@ -31,6 +31,11 @@ import WechatBindSuccess from '@/pages/my/settings/WechatBindSuccess';
 import EditName from '@/pages/my/EditName';
 import EditBio from '@/pages/my/EditBio';
 import Follows from '@/pages/my/follows';
+import Workbench from '@/pages/my/Workbench';
+import TouchTasks from '@/pages/my/TouchTasks';
+import TouchTaskDetail from '@/pages/my/TouchTaskDetail';
+import BrowseHistory from '@/pages/my/BrowseHistory';
+import CompanyManage from '@/pages/my/CompanyManage';
 import LoginHome from '@/pages/login';
 import OtherNumberLogin from '@/pages/login/OtherNumberLogin';
 import AgreementPage from '@/pages/login/AgreementPage';
@@ -401,6 +406,56 @@ export default function RootNavigator() {
           options={{
             title: '',
             headerStyle: { backgroundColor: '#FFFFFF' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="workbench"
+          component={Workbench}
+          options={{
+            title: '业务员工作台',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="touchTasks"
+          component={TouchTasks}
+          options={{
+            title: '触达待办',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="touchTaskDetail"
+          component={TouchTaskDetail}
+          options={{
+            title: '任务详情',
+            headerStyle: { backgroundColor: '#E8EFFF' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="browseHistory"
+          component={BrowseHistory}
+          options={{
+            title: '浏览记录',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="companyManage"
+          component={CompanyManage}
+          options={{
+            title: '企业管理',
+            headerStyle: { backgroundColor: '#F6F7FB' },
             headerTitleStyle: { color: '#000000' },
             headerShadowVisible: false,
           }}

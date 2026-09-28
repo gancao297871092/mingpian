@@ -38,6 +38,11 @@ export type RootStackParamList = {
   companyPage: { id: string | number; userId?: string | number };
   certification: { openIndex?: number };
   follows: { tab?: 'mutual' | 'follow' | 'fans' } | undefined;
+  workbench: undefined;
+  touchTasks: { tab?: 'todo' | 'sent' | 'viewed' } | undefined;
+  touchTaskDetail: { id: string | number };
+  browseHistory: undefined;
+  companyManage: undefined;
 };
 
 export type MainTabParamList = {

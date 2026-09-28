@@ -37,6 +37,7 @@ import {
 } from './myIcons';
 import WaterfallTab from './tabs/WaterfallTab';
 import CommentTab from './tabs/CommentTab';
+import LikesDialog from './LikesDialog';
 import type { TabHandle } from './tabs/common';
 import type { RootStackParamList } from '@/route/map';
 
@@ -76,6 +77,7 @@ export default function My() {
   const [refreshing, setRefreshing] = useState(false);
   const [draftCount, setDraftCount] = useState(0);
   const [draftCover, setDraftCover] = useState('');
+  const [likesVisible, setLikesVisible] = useState(false);
   const [headerH, setHeaderH] = useState(0);
   const [contentH, setContentH] = useState(0);
   const [tabBarH, setTabBarH] = useState(0);
@@ -181,19 +183,19 @@ export default function My() {
 
   const todo = () => Toast.show({ type: 'info', text1: '功能开发中' });
 
-  const stats: { num: string | number; label: string; tab?: 'mutual' | 'follow' | 'fans' }[] = [
-    { num: userInfo?.likeCount ?? 0, label: '获赞' },
+  const stats: { num: string | number; label: string; tab?: 'mutual' | 'follow' | 'fans'; onPress?: () => void }[] = [
+    { num: userInfo?.likeCount ?? 0, label: '获赞', onPress: () => setLikesVisible(true) },
     { num: userInfo?.mutualCount ?? '-', label: '互关', tab: 'mutual' },
     { num: userInfo?.followCount ?? 0, label: '关注', tab: 'follow' },
     { num: userInfo?.fansCount ?? 0, label: '粉丝', tab: 'fans' },
   ];
 
   const entries: { label: string; icon: React.ReactNode; badge?: number; onPress: () => void }[] = [
-    { label: '企业管理', icon: <EntryCompanyIcon />, onPress: todo },
+    { label: '企业管理', icon: <EntryCompanyIcon />, onPress: () => navigation.navigate('companyManage') },
     { label: '我的商机', icon: <EntryChanceIcon />, badge: 2, onPress: todo },
-    { label: '业务员工作台', icon: <EntryWorkbenchIcon />, badge: 2, onPress: todo },
-    { label: '认证中心', icon: <EntryCertIcon />, onPress: todo },
-    { label: '浏览记录', icon: <EntryHistoryIcon />, onPress: todo },
+    { label: '业务员工作台', icon: <EntryWorkbenchIcon />, badge: 2, onPress: () => navigation.navigate('workbench') },
+    { label: '认证中心', icon: <EntryCertIcon />, onPress: () => navigation.navigate('certificationCenter') },
+    { label: '浏览记录', icon: <EntryHistoryIcon />, onPress: () => navigation.navigate('browseHistory') },
   ];
 
   const regionText = [wqUser?.province, wqUser?.city].filter(Boolean).join('·');
@@ -367,10 +369,10 @@ export default function My() {
                   {stats.map(s => (
                     <TouchableOpacity
                       key={s.label}
-                      activeOpacity={s.tab ? 0.7 : 1}
+                      activeOpacity={s.tab || s.onPress ? 0.7 : 1}
                       style={styles.statItem}
-                      disabled={!s.tab}
-                      onPress={() => s.tab && navigation.navigate('follows', { tab: s.tab })}
+                      disabled={!s.tab && !s.onPress}
+                      onPress={() => (s.tab ? navigation.navigate('follows', { tab: s.tab }) : s.onPress?.())}
                     >
                       <Text style={styles.statNum}>{s.num}</Text>
                       <Text style={styles.statLabel}>{s.label}</Text>
@@ -507,6 +509,14 @@ export default function My() {
           )}
         />
       </View>
+      <LikesDialog
+        visible={likesVisible}
+        nickname={wqUser?.nickname || wqUser?.username || ''}
+        likeCount={userInfo?.likeCount ?? 0}
+        bbsCount={userInfo?.bbsCount ?? 0}
+        favoriteCount={userInfo?.favoriteCount ?? 0}
+        onClose={() => setLikesVisible(false)}
+      />
     </SafeView>
   );
 }

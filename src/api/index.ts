@@ -275,6 +275,33 @@ export namespace API {
     }
   }
 
+  /** 业务员工作台/触达任务（字段为预设，待后端联调确认） */
+  export namespace touch {
+    /** 工作台汇总（待触达/已发送/已查看数量） */
+    export function summary() {
+      return request.get<{ todoCount?: number; sentCount?: number; viewedCount?: number }>('/touch/task/summary');
+    }
+    /** 触达任务列表（status: todo待触达 sent已发送 viewed已查看） */
+    export function taskList(data: { status: 'todo' | 'sent' | 'viewed'; pageNum?: number; pageSize?: number }) {
+      return request.post<{ list: any[]; total: number; pageNum: number; pages: number }>('/touch/task/list', data);
+    }
+    /** 触达任务详情 */
+    export function taskDetail(params: { id: string | number }) {
+      return request.get<any>('/touch/task/detail', { params });
+    }
+  }
+
+  /** 浏览记录（字段为预设，待后端联调确认） */
+  export namespace history {
+    export function list(data: { pageNum?: number; pageSize?: number }) {
+      return request.post<{ list: any[]; total: number; pageNum: number; pages: number }>('/history/list', data);
+    }
+    /** 批量删除 */
+    export function del(data: { ids: (string | number)[] }) {
+      return request.post<any>('/history/del', data);
+    }
+  }
+
   /** 设置相关接口：字段为预设，待后端联调确认 */
   export namespace setting {
     /** 账号与安全信息 */

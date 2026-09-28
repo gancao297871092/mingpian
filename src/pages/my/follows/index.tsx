@@ -17,7 +17,7 @@ import { API } from '@/api';
 import { usePageList } from '@/hooks/usePageList';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
-import { CompanyIcon } from '../myIcons';
+import { BlueBadgeIcon } from '../myIcons';
 
 const PRIMARY = '#2962D4';
 const TEXT_SUB = '#6C6C6C';
@@ -72,7 +72,7 @@ function mapFollowUser(u: any): FollowUser {
 
 /** 昵称旁蓝色认证徽章（figma 互关/关注/粉丝列表 Vector） */
 function VerifiedBadge() {
-  return <CompanyIcon size={13} color={PRIMARY} />;
+  return <BlueBadgeIcon size={13} />;
 }
 
 function RowSeparator() {
