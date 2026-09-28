@@ -13,6 +13,7 @@ import LinkPage from '@/pages/link';
 import MessagePage from '@/pages/message';
 import My from '@/pages/my';
 import EditProfile from '@/pages/my/EditProfile';
+import Settings from '@/pages/my/settings';
 import EditName from '@/pages/my/EditName';
 import EditBio from '@/pages/my/EditBio';
 import LoginHome from '@/pages/login';
@@ -208,9 +209,18 @@ export default function RootNavigator() {
           })}
         />
         <Stack.Screen
-          name="editName"
-          component={EditName}
+          name="settings"
+          component={Settings}
           options={{
+            title: '设置',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="editName"
+          component={EditName}          options={{
             title: '编辑名字',
             headerStyle: { backgroundColor: '#F6F7FB' },
             headerTitleStyle: { color: '#000000' },

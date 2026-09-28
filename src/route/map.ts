@@ -17,6 +17,7 @@ export type RootStackParamList = {
   bbsShareImage: { id: string };
   search: undefined;
   editProfile: undefined;
+  settings: undefined;
   editName: undefined;
   editBio: undefined;
   reportBbs: { id: string };

@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Animated,
   RefreshControl,
   StatusBar,
@@ -30,10 +29,8 @@ import {
   EntryCompanyIcon,
   EntryHistoryIcon,
   EntryWorkbenchIcon,
-  MessageIcon,
   MyCardIcon,
   ServiceIcon,
-  SettingsIcon,
   TabCommentIcon,
   TabFavIcon,
   TabLikeIcon,
@@ -69,7 +66,7 @@ export default function My() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
-  const { token, userInfo, setUserInfo, logout } = useUserStore();
+  const { token, userInfo, setUserInfo } = useUserStore();
   const wqUser = userInfo?.wqUser;
   const myId = wqUser?.id ?? 0;
 
@@ -179,10 +176,7 @@ export default function My() {
   );
 
   const onSettings = () => {
-    Alert.alert('设置', '', [
-      { text: '取消', style: 'cancel' },
-      { text: '退出登录', style: 'destructive', onPress: logout },
-    ]);
+    navigation.navigate('settings');
   };
 
   const todo = () => Toast.show({ type: 'info', text1: '功能开发中' });
@@ -326,7 +320,7 @@ export default function My() {
                 <TouchableOpacity activeOpacity={0.7} style={styles.headerIconBtn} onPress={todo}>
                   <MessageIcon />
                 </TouchableOpacity> */}
-                <TouchableOpacity activeOpacity={0.7} style={styles.headerIconBtn} onPress={todo}>
+                <TouchableOpacity activeOpacity={0.7} style={styles.headerIconBtn} onPress={onSettings}>
                   <ServiceIcon />
                 </TouchableOpacity>
               </View>
@@ -428,7 +422,7 @@ export default function My() {
                     <TouchableOpacity activeOpacity={0.7} hitSlop={8} onPress={todo}>
                       <MessageIcon color="#000000" />
                     </TouchableOpacity> */}
-                    <TouchableOpacity activeOpacity={0.7} hitSlop={8} onPress={todo}>
+                    <TouchableOpacity activeOpacity={0.7} hitSlop={8} onPress={onSettings}>
                       <ServiceIcon color="#000000" />
                     </TouchableOpacity>
                   </View>
