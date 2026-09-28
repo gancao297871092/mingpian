@@ -204,6 +204,12 @@ export default function My() {
     outputRange: [scaleSizeW(20), 0],
     extrapolate: 'clamp',
   });
+  /** 吸顶途中背景由透明渐变为白色（状态栏占位 + 昵称栏共用） */
+  const topBarBg = scrollY.interpolate({
+    inputRange: stickRange,
+    outputRange: ['rgba(255,255,255,0)', '#FFFFFF'],
+    extrapolate: 'clamp',
+  });
 
   // ---- 下指示器与标签颜色：跟随横向滚动（跟手） ----
   const position = Animated.divide(scrollX, windowWidth);
@@ -262,8 +268,9 @@ export default function My() {
             }}
           />
         </View>
-        <View style={{
+        <Animated.View style={{
           height: insets.top,
+          backgroundColor: topBarBg,
         }} />
         <Animated.FlatList
           style={styles.flex1}
@@ -375,7 +382,7 @@ export default function My() {
           ) : index === 1 ? (
             /* 吸顶单元：昵称栏（吸顶后展开，figma 101）+ tab 行 */
             <Animated.View>
-              <Animated.View style={[styles.stickyNick, { height: nickHeight }]}>
+              <Animated.View style={[styles.stickyNick, { height: nickHeight, backgroundColor: topBarBg }]}>
                 <View style={styles.stickyNickInner}>
                   <Text style={styles.stickyName} numberOfLines={1}>
                     {wqUser?.nickname || wqUser?.username || ''}
@@ -643,7 +650,6 @@ const styles = StyleSheet.create({
   },
   stickyNick: {
     overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.9)',
   },
   stickyNickInner: {
     height: STICKY_NICK_H,
