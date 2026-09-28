@@ -320,12 +320,12 @@ export default function My() {
           renderItem={({ index }: { index: number }) => index === 0 ? (
             <View style={{ position: 'relative' }} onLayout={e => setHeaderH(e.nativeEvent.layout.height)}>
               <View style={styles.headerIcons}>
-                <TouchableOpacity activeOpacity={0.7} style={styles.headerIconBtn} onPress={onSettings}>
+                {/* <TouchableOpacity activeOpacity={0.7} style={styles.headerIconBtn} onPress={onSettings}>
                   <SettingsIcon />
                 </TouchableOpacity>
                 <TouchableOpacity activeOpacity={0.7} style={styles.headerIconBtn} onPress={todo}>
                   <MessageIcon />
-                </TouchableOpacity>
+                </TouchableOpacity> */}
                 <TouchableOpacity activeOpacity={0.7} style={styles.headerIconBtn} onPress={todo}>
                   <ServiceIcon />
                 </TouchableOpacity>
@@ -422,12 +422,12 @@ export default function My() {
                     {wqUser?.nickname || wqUser?.username || ''}
                   </Text>
                   <View style={styles.stickyIcons}>
-                    <TouchableOpacity activeOpacity={0.7} hitSlop={8} onPress={onSettings}>
+                    {/* <TouchableOpacity activeOpacity={0.7} hitSlop={8} onPress={onSettings}>
                       <SettingsIcon color="#000000" />
                     </TouchableOpacity>
                     <TouchableOpacity activeOpacity={0.7} hitSlop={8} onPress={todo}>
                       <MessageIcon color="#000000" />
-                    </TouchableOpacity>
+                    </TouchableOpacity> */}
                     <TouchableOpacity activeOpacity={0.7} hitSlop={8} onPress={todo}>
                       <ServiceIcon color="#000000" />
                     </TouchableOpacity>
