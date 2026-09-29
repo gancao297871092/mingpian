@@ -36,6 +36,13 @@ import TouchTasks from '@/pages/my/TouchTasks';
 import TouchTaskDetail from '@/pages/my/TouchTaskDetail';
 import BrowseHistory from '@/pages/my/BrowseHistory';
 import CompanyManage from '@/pages/my/CompanyManage';
+import CompanyInfo from '@/pages/my/company/CompanyInfo';
+import CompanyModuleEdit from '@/pages/my/company/CompanyModuleEdit';
+import CompanyContactEdit from '@/pages/my/company/CompanyContactEdit';
+import CompanyMembers, { CompanyMemberSearchHeader } from '@/pages/my/company/CompanyMembers';
+import CompanyMemberAudit from '@/pages/my/company/CompanyMemberAudit';
+import CompanyBbsAudit from '@/pages/my/company/CompanyBbsAudit';
+import CompanyCapCards from '@/pages/my/company/CompanyCapCards';
 import LoginHome from '@/pages/login';
 import OtherNumberLogin from '@/pages/login/OtherNumberLogin';
 import AgreementPage from '@/pages/login/AgreementPage';
@@ -455,6 +462,76 @@ export default function RootNavigator() {
           component={CompanyManage}
           options={{
             title: '企业管理',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="companyInfo"
+          component={CompanyInfo}
+          options={{
+            title: '企业信息',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="companyModuleEdit"
+          component={CompanyModuleEdit}
+          options={{
+            title: '编辑模块',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="companyContactEdit"
+          component={CompanyContactEdit}
+          options={{
+            title: '联系方式',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="companyMembers"
+          component={CompanyMembers}
+          options={{
+            headerTitle: () => <CompanyMemberSearchHeader />,
+            headerTitleAlign: 'left',
+            headerStyle: { backgroundColor: '#FFFFFF' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="companyMemberAudit"
+          component={CompanyMemberAudit}
+          options={{
+            title: '成员审核',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="companyBbsAudit"
+          component={CompanyBbsAudit}
+          options={{
+            title: '动态审核',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="companyCapCards"
+          component={CompanyCapCards}
+          options={{
+            title: '能力卡管理',
             headerStyle: { backgroundColor: '#F6F7FB' },
             headerTitleStyle: { color: '#000000' },
             headerShadowVisible: false,

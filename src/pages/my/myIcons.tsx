@@ -454,3 +454,119 @@ export function CompanyExitIcon({ size = 20, color = '#000000' }: IconProps) {
   );
 }
 
+
+export function CompanyJobIcon({ size = 20, color = '#000000' }: IconProps) {
+  const s = scaleSizeW(size);
+  return (
+    <Svg width={s} height={s} viewBox="0 0 20 20" fill="none">
+      <Path
+        d="M3.5 6.5h13c.83 0 1.5.67 1.5 1.5v8c0 .83-.67 1.5-1.5 1.5h-13c-.83 0-1.5-.67-1.5-1.5V8c0-.83.67-1.5 1.5-1.5Z"
+        stroke={color}
+        strokeWidth={1.5}
+      />
+      <Path d="M7.5 6.5V5c0-.83.67-1.5 1.5-1.5h2c.83 0 1.5.67 1.5 1.5v1.5" stroke={color} strokeWidth={1.5} />
+      <Path d="M2.2 11h15.6" stroke={color} strokeWidth={1.5} />
+    </Svg>
+  );
+}
+
+export function CompanyButlerIcon({ size = 20, color = '#000000' }: IconProps) {
+  const s = scaleSizeW(size);
+  return (
+    <Svg width={s} height={s} viewBox="0 0 20 20" fill="none">
+      <Path
+        d="M10 10.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM4 17c0-3.31 2.69-6 6-6s6 2.69 6 6"
+        stroke={color}
+        strokeWidth={1.5}
+        strokeLinecap="round"
+      />
+      <Path d="M10 11.2 9.1 13l.9 3.2L10.9 13 10 11.2Z" fill={color} />
+    </Svg>
+  );
+}
+
+export function ButlerPhoneIcon({ size = 18, color = '#2962D4' }: IconProps) {
+  const s = scaleSizeW(size);
+  return (
+    <Svg width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2Z"
+        fill={color}
+      />
+    </Svg>
+  );
+}
+
+export function TipInfoIcon({ size = 16, color = '#2962D4' }: IconProps) {
+  const s = scaleSizeW(size);
+  return (
+    <Svg width={s} height={s} viewBox="0 0 16 16" fill="none">
+      <Circle cx={8} cy={8} r={6.5} stroke={color} strokeWidth={1.5} />
+      <Path d="M8 7.4v3.4" stroke={color} strokeWidth={1.5} strokeLinecap="round" />
+      <Circle cx={8} cy={5.1} r={0.9} fill={color} />
+    </Svg>
+  );
+}
+
+export function EditPenIcon({ size = 20, color = '#6C6C6C' }: IconProps) {
+  const s = scaleSizeW(size);
+  return (
+    <Svg width={s} height={s} viewBox="0 0 20 20" fill="none">
+      <Path
+        d="M12.9 3.1 16.4 6.6 7.3 15.7l-4.4.9.9-4.4 9.1-9.1Z"
+        stroke={color}
+        strokeWidth={1.5}
+        strokeLinejoin="round"
+      />
+      <Path d="M11.5 4.6l3.4 3.4" stroke={color} strokeWidth={1.5} />
+    </Svg>
+  );
+}
+
+export function TrashLineIcon({ size = 20, color = '#6C6C6C' }: IconProps) {
+  const s = scaleSizeW(size);
+  return (
+    <Svg width={s} height={s} viewBox="0 0 20 20" fill="none">
+      <Path
+        d="M3 5.2h14M8 5V3.6c0-.4.3-.7.7-.7h2.6c.4 0 .7.3.7.7V5M5.4 5.3l.8 11c.1.6.6 1 1.2 1h5.2c.6 0 1.1-.4 1.2-1l.8-11"
+        stroke={color}
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path d="M8.3 8.5v5M11.7 8.5v5" stroke={color} strokeWidth={1.5} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+export function PuzzleIcon({ size = 17, color = '#2962D4' }: IconProps) {
+  const s = scaleSizeW(size);
+  return (
+    <Svg width={s} height={s} viewBox="0 0 18 18" fill="none">
+      <Path
+        d="M7.75 12.7503H5.92277C5.55121 12.7503 5.25 12.446 5.25 12.0775V10.2503H5.59723C6.17252 10.2503 6.63889 9.78396 6.63889 9.20865C6.63889 8.63336 6.17252 8.16699 5.59723 8.16699H5.25V6.33976C5.25 5.96819 5.55437 5.66699 5.92277 5.66699H7.75V5.45865C7.75 4.88336 8.21637 4.41699 8.79167 4.41699C9.36696 4.41699 9.83333 4.88336 9.83333 5.45865V5.66699H11.6606C12.0321 5.66699 12.3333 5.97135 12.3333 6.33976V8.16699H12.5417C13.117 8.16699 13.5833 8.63336 13.5833 9.20865C13.5833 9.78395 13.117 10.2503 12.5417 10.2503H12.3333V12.0775C12.3333 12.4491 12.029 12.7503 11.6606 12.7503H9.83333V12.4031C9.83333 11.8278 9.36696 11.3614 8.79167 11.3614C8.21638 11.3614 7.75 11.8278 7.75 12.4031V12.7503Z"
+        fill={color}
+      />
+    </Svg>
+  );
+}
+
+export function AddPhotoIcon({ size = 33, color = '#999999' }: IconProps) {
+  const s = scaleSizeW(size);
+  return (
+    <Svg width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <Path d="M12 5v14M5 12h14" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+export function PhotoRemoveIcon({ size = 16 }: IconProps) {
+  const s = scaleSizeW(size);
+  return (
+    <Svg width={s} height={s} viewBox="0 0 16 16" fill="none">
+      <Circle cx={8} cy={8} r={8} fill="rgba(0, 0, 0, 0.5)" />
+      <Path d="M5.5 5.5l5 5M10.5 5.5l-5 5" stroke="#FFFFFF" strokeWidth={1.2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+

@@ -327,7 +327,7 @@ export default function My() {
           onEndReachedThreshold={0.3}
           ListFooterComponent={<View style={styles.bottomPad} />}
           renderItem={({ index }: { index: number }) => index === 0 ? (
-            <View style={{ position: 'relative' }} onLayout={e => setHeaderH(e.nativeEvent.layout.height)}>
+            <View style={{ position: 'relative' }} onLayout={e => setHeaderH(e.nativeEvent.layout.height)}> 
               <View style={styles.headerIcons}>
                 {/* <TouchableOpacity activeOpacity={0.7} style={styles.headerIconBtn} onPress={onSettings}>
                   <SettingsIcon />

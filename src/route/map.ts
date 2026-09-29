@@ -43,6 +43,13 @@ export type RootStackParamList = {
   touchTaskDetail: { id: string | number };
   browseHistory: undefined;
   companyManage: undefined;
+  companyInfo: undefined;
+  companyModuleEdit: { id?: string; name?: string } | undefined;
+  companyContactEdit: { id?: string } | undefined;
+  companyMembers: undefined;
+  companyMemberAudit: undefined;
+  companyBbsAudit: undefined;
+  companyCapCards: undefined;
 };
 
 export type MainTabParamList = {
