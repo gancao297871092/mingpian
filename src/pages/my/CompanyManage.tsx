@@ -122,13 +122,13 @@ export default function CompanyManage() {
               title: '企业认证',
               rows: [
                 { label: '创建企业', icon: <CompanyInfoIcon />, onPress: todo },
-                { label: '加入企业', icon: <CompanyManagerIcon />, tag: '待审核', onPress: todo },
+                { label: '加入企业', icon: <CompanyManagerIcon />, tag: '待审核', onPress: () => navigation.navigate('companyJoin') },
               ],
             },
           ];
 
   const extraRows: RowItem[] =
-    role === 'none' ? [{ label: '实名认证', icon: <CompanyAuditIcon />, onPress: todo }] : [];
+    role === 'none' ? [{ label: '实名认证', icon: <CompanyAuditIcon />, onPress: () => navigation.navigate('companyRealName') }] : [];
 
   const renderRow = (row: RowItem) => (
     <TouchableOpacity activeOpacity={0.7} style={styles.row} onPress={row.onPress}>

@@ -168,3 +168,28 @@ export const CAP_CARDS: CapCard[] = [
 ];
 
 export const CAP_CARD_MAX = 10;
+
+export interface CompanySearchItem {
+  id: string;
+  name: string;
+  industry: string;
+  city: string;
+  logo: string;
+}
+
+export const COMPANY_SEARCH_RESULTS: CompanySearchItem[] = [
+  {
+    id: 'cp1',
+    name: '鄂尔多斯市巨鼎煤机制造有限公司',
+    industry: '煤矿装备制造',
+    city: '鄂尔多斯',
+    logo: 'https://picsum.photos/seed/cp1/96/96',
+  },
+  {
+    id: 'cp2',
+    name: '重庆渝达精密制造有限公司',
+    industry: '煤矿装备制造',
+    city: '重庆',
+    logo: 'https://picsum.photos/seed/cp2/96/96',
+  },
+];

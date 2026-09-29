@@ -1,0 +1,391 @@
+import React, { useRef, useState } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { BottomSheetModal } from '@gorhom/bottom-sheet';
+import Svg, { Path } from 'react-native-svg';
+import Toast from 'react-native-toast-message';
+import SafeView from '@/components/SafeView';
+import AppBottomSheet from '@/components/AppBottomSheet';
+import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
+import { useSmsCode } from '../settings/useSmsCode';
+
+const PRIMARY = '#2962D4';
+const GRAY = '#6C6C6C';
+
+type VerifyType = 'phone' | 'face';
+
+function CheckIcon({ size = 18, color = PRIMARY }: { size?: number; color?: string }) {
+  const s = scaleSizeW(size);
+  return (
+    <Svg width={s} height={s} viewBox="0 0 18 18" fill="none">
+      <Path d="M3.5 9.5 7.2 13 14.5 5.5" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function ChevronRightIcon({ size = 10, color = '#999999' }: { size?: number; color?: string }) {
+  const s = scaleSizeW(size);
+  return (
+    <Svg width={s} height={s} viewBox="0 0 20 20" fill="none">
+      <Path d="M7.5 3.5 12.5 10 7.5 16.5" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function AgreementRow({ agreed, onToggle }: { agreed: boolean; onToggle: () => void }) {
+  return (
+    <View style={styles.agreeRow}>
+      <TouchableOpacity activeOpacity={0.8} onPress={onToggle} hitSlop={6}>
+        <View style={[styles.checkbox, agreed && styles.checkboxOn]}>
+          {agreed && (
+            <Svg width={scaleSizeW(8)} height={scaleSizeW(8)} viewBox="0 0 10 8" fill="none">
+              <Path d="M1 4.2 3.8 7 9 1.2" stroke="#FFFFFF" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
+          )}
+        </View>
+      </TouchableOpacity>
+      <Text style={styles.agreeText}>
+        我已阅读并同意
+        <Text style={styles.agreeLink} onPress={() => Toast.show({ type: 'info', text1: '功能开发中' })}>
+          《联诚采信实名认证服务协议》
+        </Text>
+        ，并授权平台校验我的实名信息
+      </Text>
+    </View>
+  );
+}
+
+function VerifyTypeSheet({
+  sheetRef,
+  type,
+  onSelect,
+}: {
+  sheetRef: React.RefObject<BottomSheetModal | null>;
+  type: VerifyType;
+  onSelect: (t: VerifyType) => void;
+}) {
+  const options: { key: VerifyType; label: string }[] = [
+    { key: 'phone', label: '手机号验证' },
+    { key: 'face', label: '人脸识别' },
+  ];
+  return (
+    <AppBottomSheet ref={sheetRef}>
+      <View style={styles.sheetCard}>
+        {options.map((o, i) => (
+          <React.Fragment key={o.key}>
+            {i > 0 && <View style={styles.sheetDivider} />}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.sheetRow}
+              onPress={() => {
+                onSelect(o.key);
+                sheetRef.current?.dismiss();
+              }}
+            >
+              <Text style={styles.sheetRowText}>{o.label}</Text>
+              {type === o.key && <CheckIcon />}
+            </TouchableOpacity>
+          </React.Fragment>
+        ))}
+      </View>
+    </AppBottomSheet>
+  );
+}
+
+/** 实名认证（手机号验证 / 人脸识别） */
+export default function CompanyRealName() {
+  const navigation = useNavigation();
+  const sheetRef = useRef<BottomSheetModal>(null);
+  const [type, setType] = useState<VerifyType>('phone');
+  const [name, setName] = useState('');
+  const [idCard, setIdCard] = useState('');
+  const [phone, setPhone] = useState('');
+  const [code, setCode] = useState('');
+  const [agreed, setAgreed] = useState(false);
+  const { countdown, sendCode } = useSmsCode('realName');
+
+  const onGetCode = () => {
+    if (!/^1\d{10}$/.test(phone)) {
+      Toast.show({ type: 'error', text1: '请输入正确的手机号' });
+      return;
+    }
+    sendCode(phone);
+  };
+
+  const onSubmit = () => {
+    if (!agreed) {
+      Toast.show({ type: 'error', text1: '请先阅读并同意实名认证服务协议' });
+      return;
+    }
+    if (type === 'face') {
+      Toast.show({ type: 'info', text1: '功能开发中' });
+      return;
+    }
+    if (!name.trim()) {
+      Toast.show({ type: 'error', text1: '请输入真实姓名' });
+      return;
+    }
+    if (!/^\d{17}[\dXx]$/.test(idCard.trim())) {
+      Toast.show({ type: 'error', text1: '请输入正确的身份证号' });
+      return;
+    }
+    if (!/^1\d{10}$/.test(phone)) {
+      Toast.show({ type: 'error', text1: '请输入正确的手机号' });
+      return;
+    }
+    if (!code.trim()) {
+      Toast.show({ type: 'error', text1: '请输入验证码' });
+      return;
+    }
+    Toast.show({ type: 'success', text1: '已提交审核' });
+    navigation.goBack();
+  };
+
+  return (
+    <SafeView backgroundColor="#F6F7FB">
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <TouchableOpacity activeOpacity={0.7} style={styles.typeCard} onPress={() => sheetRef.current?.present()}>
+            <Text style={styles.typeLabel}>选择验证方式</Text>
+            <View style={styles.typeValueRow}>
+              <Text style={styles.typeValue}>{type === 'phone' ? '手机号验证' : '人脸识别'}</Text>
+              <View style={styles.typeChevron}>
+                <ChevronRightIcon />
+              </View>
+            </View>
+          </TouchableOpacity>
+          {type === 'phone' && (
+            <>
+              <View style={styles.formCard}>
+                <View style={styles.formRow}>
+                  <Text style={styles.formLabel}>真实姓名</Text>
+                  <TextInput
+                    style={styles.formInput}
+                    value={name}
+                    onChangeText={setName}
+                    placeholder="请输入"
+                    placeholderTextColor="#999999"
+                    textAlign="right"
+                  />
+                </View>
+                <View style={styles.formDivider} />
+                <View style={styles.formRow}>
+                  <Text style={styles.formLabel}>身份证号</Text>
+                  <TextInput
+                    style={styles.formInput}
+                    value={idCard}
+                    onChangeText={setIdCard}
+                    placeholder="请输入"
+                    placeholderTextColor="#999999"
+                    textAlign="right"
+                    maxLength={18}
+                  />
+                </View>
+              </View>
+              <View style={styles.formCard}>
+                <View style={styles.formRow}>
+                  <Text style={styles.formLabel}>手机号</Text>
+                  <View style={styles.phoneRight}>
+                    <Text style={styles.phonePrefix}>+86</Text>
+                    <TextInput
+                      style={styles.phoneInput}
+                      value={phone}
+                      onChangeText={setPhone}
+                      placeholder="请输入"
+                      placeholderTextColor="#999999"
+                      textAlign="right"
+                      keyboardType="phone-pad"
+                      maxLength={11}
+                    />
+                  </View>
+                </View>
+                <View style={styles.formDivider} />
+                <View style={styles.formRow}>
+                  <Text style={styles.formLabel}>验证码</Text>
+                  <TextInput
+                    style={styles.formInput}
+                    value={code}
+                    onChangeText={setCode}
+                    placeholder="请输入"
+                    placeholderTextColor="#999999"
+                    textAlign="right"
+                    keyboardType="number-pad"
+                    maxLength={6}
+                  />
+                  <TouchableOpacity activeOpacity={0.7} onPress={onGetCode} disabled={countdown > 0}>
+                    <Text style={[styles.codeBtn, countdown > 0 && styles.codeBtnDisabled]}>
+                      {countdown > 0 ? `${countdown}s` : '获取验证码'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </>
+          )}
+          <AgreementRow agreed={agreed} onToggle={() => setAgreed(a => !a)} />
+          <TouchableOpacity activeOpacity={0.8} style={styles.submitBtn} onPress={onSubmit}>
+            <Text style={styles.submitText}>{type === 'phone' ? '提交审核' : '开始认证'}</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
+      <VerifyTypeSheet sheetRef={sheetRef} type={type} onSelect={setType} />
+    </SafeView>
+  );
+}
+
+const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
+  content: {
+    padding: scaleSizeW(16),
+    paddingBottom: scaleSizeH(40),
+  },
+  typeCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: scaleSizeW(10),
+    height: scaleSizeH(79),
+    paddingHorizontal: scaleSizeW(14),
+    paddingTop: scaleSizeH(16),
+    gap: scaleSizeH(14),
+    marginTop: scaleSizeH(14),
+  },
+  typeLabel: {
+    fontSize: setSpText(12),
+    lineHeight: setSpText(14),
+    color: GRAY,
+  },
+  typeValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  typeValue: {
+    fontSize: setSpText(15),
+    lineHeight: setSpText(20),
+    color: '#000000',
+  },
+  typeChevron: {
+    marginLeft: 'auto',
+  },
+  formCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: scaleSizeW(10),
+    paddingHorizontal: scaleSizeW(14),
+    marginTop: scaleSizeH(10),
+  },
+  formRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: scaleSizeH(55),
+  },
+  formLabel: {
+    fontSize: setSpText(15),
+    lineHeight: setSpText(20),
+    color: '#000000',
+  },
+  formInput: {
+    flex: 1,
+    padding: 0,
+    marginLeft: scaleSizeW(10),
+    fontSize: setSpText(15),
+    lineHeight: setSpText(20),
+    color: '#000000',
+  },
+  formDivider: {
+    height: 1,
+    backgroundColor: '#EDECEC',
+  },
+  phoneRight: {
+    marginLeft: 'auto',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSizeW(10),
+    flexShrink: 1,
+  },
+  phonePrefix: {
+    fontSize: setSpText(15),
+    lineHeight: setSpText(20),
+    color: GRAY,
+  },
+  phoneInput: {
+    padding: 0,
+    minWidth: scaleSizeW(45),
+    maxWidth: scaleSizeW(200),
+    fontSize: setSpText(15),
+    lineHeight: setSpText(20),
+    color: '#000000',
+  },
+  codeBtn: {
+    fontSize: setSpText(15),
+    lineHeight: setSpText(20),
+    color: PRIMARY,
+    marginLeft: scaleSizeW(18),
+  },
+  codeBtnDisabled: {
+    color: '#999999',
+  },
+  agreeRow: {
+    flexDirection: 'row',
+    marginTop: scaleSizeH(30),
+    gap: scaleSizeW(5),
+  },
+  checkbox: {
+    width: scaleSizeW(12),
+    height: scaleSizeW(12),
+    borderRadius: scaleSizeW(90),
+    borderWidth: 1,
+    borderColor: '#D6D6D6',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: scaleSizeH(6),
+  },
+  checkboxOn: {
+    backgroundColor: PRIMARY,
+    borderColor: PRIMARY,
+  },
+  agreeText: {
+    flex: 1,
+    fontSize: setSpText(12),
+    lineHeight: setSpText(22),
+    color: GRAY,
+  },
+  agreeLink: {
+    color: PRIMARY,
+  },
+  submitBtn: {
+    height: scaleSizeH(48),
+    borderRadius: scaleSizeW(90),
+    backgroundColor: PRIMARY,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: scaleSizeH(15),
+  },
+  submitText: {
+    fontSize: setSpText(15),
+    fontWeight: '500',
+    lineHeight: setSpText(24),
+    color: '#FFFFFF',
+  },
+  sheetCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: scaleSizeW(10),
+    paddingHorizontal: scaleSizeW(14),
+  },
+  sheetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: scaleSizeH(55),
+  },
+  sheetRowText: {
+    flex: 1,
+    fontSize: setSpText(14),
+    fontWeight: '500',
+    lineHeight: setSpText(14),
+    color: '#000000',
+  },
+  sheetDivider: {
+    height: 1,
+    backgroundColor: '#EDECEC',
+    marginHorizontal: scaleSizeW(2),
+  },
+});

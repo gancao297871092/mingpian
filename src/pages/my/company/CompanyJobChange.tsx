@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
   },
   addText: {
     fontSize: setSpText(15),
-    lineHeight: setSpText(14),
+    lineHeight: setSpText(20),
     color: PRIMARY,
   },
   footer: {
