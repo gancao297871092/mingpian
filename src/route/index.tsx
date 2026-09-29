@@ -46,6 +46,7 @@ import CompanyCapCards from '@/pages/my/company/CompanyCapCards';
 import CompanyJobChange from '@/pages/my/company/CompanyJobChange';
 import CompanyJoin from '@/pages/my/company/CompanyJoin';
 import CompanyRealName from '@/pages/my/company/CompanyRealName';
+import CompanyCert from '@/pages/my/company/CompanyCert';
 import LoginHome from '@/pages/login';
 import OtherNumberLogin from '@/pages/login/OtherNumberLogin';
 import AgreementPage from '@/pages/login/AgreementPage';
@@ -555,6 +556,16 @@ export default function RootNavigator() {
           component={CompanyRealName}
           options={{
             title: '实名认证',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="companyCert"
+          component={CompanyCert}
+          options={{
+            title: '企业认证',
             headerStyle: { backgroundColor: '#F6F7FB' },
             headerTitleStyle: { color: '#000000' },
             headerShadowVisible: false,

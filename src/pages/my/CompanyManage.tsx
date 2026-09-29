@@ -4,7 +4,6 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { Image as ExpoImage } from 'expo-image';
-import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
 import AppBottomSheet from '@/components/AppBottomSheet';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
@@ -71,8 +70,6 @@ export default function CompanyManage() {
   const memberAuditCount = useCompanyStore(s => s.memberAuditCount);
   const butlerRef = useRef<BottomSheetModal>(null);
 
-  const todo = () => Toast.show({ type: 'info', text1: '功能开发中' });
-
   const onExit = () => {
     Alert.alert('退出企业', '退出后将失去企业成员身份，确认退出？', [
       { text: '取消', style: 'cancel' },
@@ -121,7 +118,7 @@ export default function CompanyManage() {
             {
               title: '企业认证',
               rows: [
-                { label: '创建企业', icon: <CompanyInfoIcon />, onPress: todo },
+                { label: '创建企业', icon: <CompanyInfoIcon />, onPress: () => navigation.navigate('companyCert') },
                 { label: '加入企业', icon: <CompanyManagerIcon />, tag: '待审核', onPress: () => navigation.navigate('companyJoin') },
               ],
             },

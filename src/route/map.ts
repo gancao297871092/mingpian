@@ -53,6 +53,7 @@ export type RootStackParamList = {
   companyJobChange: undefined;
   companyJoin: undefined;
   companyRealName: undefined;
+  companyCert: undefined;
 };
 
 export type MainTabParamList = {

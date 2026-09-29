@@ -565,3 +565,13 @@ export function PhotoRemoveIcon({ size = 16 }: IconProps) {
   );
 }
 
+
+export function ChevronRightIcon({ size = 10, color = '#999999' }: IconProps) {
+  const s = scaleSizeW(size);
+  return (
+    <Svg width={s} height={s} viewBox="0 0 20 20" fill="none">
+      <Path d="M7.5 3.5 12.5 10 7.5 16.5" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
