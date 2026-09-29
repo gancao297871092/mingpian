@@ -5,6 +5,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Image as ExpoImage } from 'expo-image';
 import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
+import ImageUploader from '@/components/ImageUploader';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
 import {
@@ -14,14 +15,7 @@ import {
   COMPANY_PHOTOS,
   CONTACT_MAX,
 } from '@/data/company';
-import {
-  AddPhotoIcon,
-  CompanyInfoIcon,
-  EditPenIcon,
-  PhotoRemoveIcon,
-  TipInfoIcon,
-  TrashLineIcon,
-} from '../myIcons';
+import { CompanyInfoIcon, EditPenIcon, TipInfoIcon, TrashLineIcon } from '../myIcons';
 
 const PRIMARY = '#2962D4';
 const GRAY = '#6C6C6C';
@@ -84,29 +78,20 @@ function InfoTab() {
 
 function PhotosTab() {
   const [photos, setPhotos] = useState(COMPANY_PHOTOS);
-  const onAdd = () => Toast.show({ type: 'info', text1: '功能开发中' });
-  const onRemove = (uri: string) => {
-    Alert.alert('删除照片', '确认删除该照片？', [
-      { text: '取消', style: 'cancel' },
-      { text: '删除', style: 'destructive', onPress: () => setPhotos(prev => prev.filter(p => p !== uri)) },
-    ]);
-  };
   return (
     <View>
       <TipBanner text="图片建议宽高比为4:3" style={styles.photosTip} />
-      <View style={styles.photoGrid}>
-        {photos.map(uri => (
-          <View key={uri} style={styles.photoItem}>
-            <ExpoImage source={{ uri }} style={styles.photo} contentFit="cover" transition={150} recyclingKey={uri} />
-            <TouchableOpacity activeOpacity={0.8} style={styles.photoRemove} onPress={() => onRemove(uri)}>
-              <PhotoRemoveIcon />
-            </TouchableOpacity>
-          </View>
-        ))}
-        <TouchableOpacity activeOpacity={0.7} style={styles.photoAdd} onPress={onAdd}>
-          <AddPhotoIcon />
-        </TouchableOpacity>
-      </View>
+      <ImageUploader
+        value={photos}
+        onChange={setPhotos}
+        layout="grid"
+        columns={3}
+        itemSize={scaleSizeW(116)}
+        gap={scaleSizeW(11)}
+        showCoverBadge={false}
+        addBackgroundColor="#FFFFFF"
+        style={styles.photoUploader}
+      />
     </View>
   );
 }
@@ -426,34 +411,8 @@ const styles = StyleSheet.create({
   photosTip: {
     marginTop: 0,
   },
-  photoGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: scaleSizeW(11),
+  photoUploader: {
     marginTop: scaleSizeH(14),
-  },
-  photoItem: {
-    width: scaleSizeW(116),
-    height: scaleSizeW(116),
-  },
-  photo: {
-    width: '100%',
-    height: '100%',
-    borderRadius: scaleSizeW(10),
-    backgroundColor: '#F5F5F5',
-  },
-  photoRemove: {
-    position: 'absolute',
-    top: scaleSizeH(-5),
-    right: scaleSizeW(-5),
-  },
-  photoAdd: {
-    width: scaleSizeW(116),
-    height: scaleSizeW(116),
-    borderRadius: scaleSizeW(10),
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   menuRow: {
     flexDirection: 'row',

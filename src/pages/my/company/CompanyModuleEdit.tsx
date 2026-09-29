@@ -74,15 +74,15 @@ export default function CompanyModuleEdit() {
               multiline
               textAlignVertical="top"
             />
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={styles.deepEdit}
+              onPress={() => Toast.show({ type: 'info', text1: '功能开发中' })}
+            >
+              <EditPenIcon size={20} color={PRIMARY} />
+              <Text style={styles.deepEditText}>深度编辑</Text>
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            style={styles.deepEdit}
-            onPress={() => Toast.show({ type: 'info', text1: '功能开发中' })}
-          >
-            <EditPenIcon size={20} color={PRIMARY} />
-            <Text style={styles.deepEditText}>深度编辑</Text>
-          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeView>

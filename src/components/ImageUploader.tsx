@@ -20,7 +20,10 @@ import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import {
   DropProvider,
   SortableDirection,
+  SortableGridItem,
   SortableItem,
+  GridOrientation,
+  useGridSortableList,
   useHorizontalSortableList,
 } from 'react-native-reanimated-dnd';
 import { scaleSizeW } from '@/utils/screenUtils';
@@ -35,6 +38,8 @@ export interface UploadImage {
   failed?: boolean;
 }
 
+export type ImageUploaderLayout = 'horizontal' | 'grid';
+
 interface ImageUploaderProps {
   value: string[];
   onChange: (urls: string[]) => void;
@@ -42,7 +47,13 @@ interface ImageUploaderProps {
   maxCount?: number;
   itemSize?: number;
   gap?: number;
+  /** 布局模式：横向滚动（默认）或九宫格 */
+  layout?: ImageUploaderLayout;
+  /** 九宫格列数，仅 layout 为 grid 时生效 */
+  columns?: number;
   showCoverBadge?: boolean;
+  /** 添加按钮背景色 */
+  addBackgroundColor?: string;
   maxBytes?: number;
   uploadFn?: (uri: string, mime?: string) => Promise<string>;
   style?: StyleProp<ViewStyle>;
@@ -55,31 +66,74 @@ const ICONS = {
   remove: require('@/assets/publish/remove.png'),
 };
 
-interface SortableGridProps {
+interface MediaItemProps {
+  item: UploadImage;
+  index: number;
+  itemSize: number;
+  showCoverBadge: boolean;
+  onRemove: (key: string) => void;
+  onRetry: (item: UploadImage) => void;
+  onPreview: (index: number) => void;
+}
+
+function MediaItem({ item, index, itemSize, showCoverBadge, onRemove, onRetry, onPreview }: MediaItemProps) {
+  return (
+    <View style={[styles.mediaItem, { width: itemSize, height: itemSize, borderRadius: itemSize * 0.12 }]}>
+      <TouchableOpacity style={styles.mediaImgTouch} activeOpacity={0.9} onPress={() => onPreview(index)}>
+        <Image source={{ uri: item.uri }} style={styles.mediaImg} />
+      </TouchableOpacity>
+      {showCoverBadge && index === 0 && (
+        <View style={styles.coverBadge}>
+          <Text style={styles.coverBadgeText}>封面</Text>
+        </View>
+      )}
+      {item.uploading && (
+        <View style={styles.mediaLoading}>
+          <ActivityIndicator color="#FFFFFF" size="small" />
+        </View>
+      )}
+      {!item.uploading && item.failed && (
+        <TouchableOpacity style={styles.mediaLoading} activeOpacity={0.8} onPress={() => onRetry(item)}>
+          <Text style={styles.mediaRetryText}>重试</Text>
+        </TouchableOpacity>
+      )}
+      <TouchableOpacity style={styles.mediaRemove} hitSlop={6} onPress={() => onRemove(item.key)}>
+        <Image source={ICONS.remove} style={styles.mediaRemoveIcon} />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+interface SharedListProps {
   images: UploadImage[];
   itemSize: number;
   gap: number;
   showAdd: boolean;
   showCoverBadge: boolean;
+  addBackgroundColor: string;
   onAdd: () => void;
   onRemove: (key: string) => void;
   onRetry: (item: UploadImage) => void;
   onPreview: (index: number) => void;
+}
+
+interface HorizontalListProps extends SharedListProps {
   onDrop: (id: string, position: number, allPositions?: { [id: string]: number }) => void;
 }
 
-function SortableGrid({
+function HorizontalList({
   images,
   itemSize,
   gap,
   showAdd,
   showCoverBadge,
+  addBackgroundColor,
   onAdd,
   onRemove,
   onRetry,
   onPreview,
   onDrop,
-}: SortableGridProps) {
+}: HorizontalListProps) {
   const data = useMemo(() => images.map(item => ({ ...item, id: item.key })), [images]);
   const { scrollViewRef, dropProviderRef, handleScroll, handleScrollEnd, contentWidth, getItemProps } =
     useHorizontalSortableList({ data, itemWidth: itemSize, gap });
@@ -119,33 +173,15 @@ function SortableGrid({
               }
               onDrop={onDrop}
             >
-              <View style={[styles.mediaItem, { width: itemSize, height: itemSize, borderRadius: itemSize * 0.12 }]}>
-                <TouchableOpacity style={styles.mediaImgTouch} activeOpacity={0.9} onPress={() => onPreview(index)}>
-                  <Image source={{ uri: item.uri }} style={styles.mediaImg} />
-                </TouchableOpacity>
-                {showCoverBadge && index === 0 && (
-                  <View style={styles.coverBadge}>
-                    <Text style={styles.coverBadgeText}>封面</Text>
-                  </View>
-                )}
-                {item.uploading && (
-                  <View style={styles.mediaLoading}>
-                    <ActivityIndicator color="#FFFFFF" size="small" />
-                  </View>
-                )}
-                {!item.uploading && item.failed && (
-                  <TouchableOpacity
-                    style={styles.mediaLoading}
-                    activeOpacity={0.8}
-                    onPress={() => onRetry(item)}
-                  >
-                    <Text style={styles.mediaRetryText}>重试</Text>
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity style={styles.mediaRemove} hitSlop={6} onPress={() => onRemove(item.key)}>
-                  <Image source={ICONS.remove} style={styles.mediaRemoveIcon} />
-                </TouchableOpacity>
-              </View>
+              <MediaItem
+                item={item}
+                index={index}
+                itemSize={itemSize}
+                showCoverBadge={showCoverBadge}
+                onRemove={onRemove}
+                onRetry={onRetry}
+                onPreview={onPreview}
+              />
             </SortableItem>
           );
         })}
@@ -155,7 +191,13 @@ function SortableGrid({
               styles.mediaItem,
               styles.mediaAdd,
               styles.mediaAddAbsolute,
-              { width: itemSize, height: itemSize, borderRadius: itemSize * 0.12, left: data.length * (itemSize + gap) },
+              {
+                width: itemSize,
+                height: itemSize,
+                borderRadius: itemSize * 0.12,
+                left: data.length * (itemSize + gap),
+                backgroundColor: addBackgroundColor,
+              },
             ]}
             activeOpacity={0.8}
             onPress={onAdd}
@@ -164,6 +206,103 @@ function SortableGrid({
           </TouchableOpacity>
         )}
       </AnimatedGestureScrollView>
+    </DropProvider>
+  );
+}
+
+interface GridListProps extends SharedListProps {
+  columns: number;
+  onDrop: (id: string, position: number, allPositions?: { [id: string]: { index: number } }) => void;
+}
+
+function GridList({
+  images,
+  itemSize,
+  gap,
+  columns,
+  showAdd,
+  showCoverBadge,
+  addBackgroundColor,
+  onAdd,
+  onRemove,
+  onRetry,
+  onPreview,
+  onDrop,
+}: GridListProps) {
+  const data = useMemo(() => images.map(item => ({ ...item, id: item.key })), [images]);
+  const dimensions = useMemo(
+    () => ({ columns, itemWidth: itemSize, itemHeight: itemSize, rowGap: gap, columnGap: gap }),
+    [columns, itemSize, gap],
+  );
+  const { dropProviderRef, contentWidth, getItemProps } = useGridSortableList({
+    data,
+    dimensions,
+    orientation: GridOrientation.Vertical,
+  });
+
+  const total = data.length + (showAdd ? 1 : 0);
+  const rows = Math.ceil(total / columns);
+  const height = rows > 0 ? rows * itemSize + (rows - 1) * gap : itemSize;
+  const addLeft = (data.length % columns) * (itemSize + gap);
+  const addTop = Math.floor(data.length / columns) * (itemSize + gap);
+
+  return (
+    <DropProvider ref={dropProviderRef}>
+      <View style={{ width: contentWidth, height }}>
+        {data.map((item, index) => {
+          const itemProps = getItemProps(item, index);
+          return (
+            <SortableGridItem
+              key={itemProps.id}
+              id={itemProps.id}
+              data={item}
+              positions={itemProps.positions}
+              scrollY={itemProps.scrollY}
+              scrollX={itemProps.scrollX}
+              autoScrollDirection={itemProps.autoScrollDirection}
+              itemsCount={itemProps.itemsCount}
+              dimensions={itemProps.dimensions}
+              orientation={itemProps.orientation}
+              strategy={itemProps.strategy}
+              onDragStart={() =>
+                ReactNativeHapticFeedback.trigger('impactLight', { enableVibrateFallback: true })
+              }
+              onDrop={onDrop}
+            >
+              <MediaItem
+                item={item}
+                index={index}
+                itemSize={itemSize}
+                showCoverBadge={showCoverBadge}
+                onRemove={onRemove}
+                onRetry={onRetry}
+                onPreview={onPreview}
+              />
+            </SortableGridItem>
+          );
+        })}
+        {showAdd && (
+          <TouchableOpacity
+            style={[
+              styles.mediaItem,
+              styles.mediaAdd,
+              styles.mediaAddAbsolute,
+              {
+                width: itemSize,
+                height: itemSize,
+                borderRadius: itemSize * 0.12,
+                left: addLeft,
+                top: addTop,
+                backgroundColor: addBackgroundColor,
+              },
+            ]}
+            activeOpacity={0.8}
+            onPress={onAdd}
+          >
+            <Image source={ICONS.add} style={styles.mediaAddIcon} />
+          </TouchableOpacity>
+        )}
+      </View>
     </DropProvider>
   );
 }
@@ -184,7 +323,10 @@ export default function ImageUploader({
   maxCount = 9,
   itemSize = scaleSizeW(85),
   gap = scaleSizeW(10),
+  layout = 'horizontal',
+  columns = 3,
   showCoverBadge = true,
+  addBackgroundColor = '#F5F5F5',
   maxBytes = MAX_IMAGE_BYTES,
   uploadFn = uploadToOss,
   style,
@@ -282,24 +424,38 @@ export default function ImageUploader({
     emitItems(prev => [...prev].sort((a, b) => (allPositions[a.key] ?? 0) - (allPositions[b.key] ?? 0)));
   };
 
+  const handleGridDrop = (_id: string, _position: number, allPositions?: { [id: string]: { index: number } }) => {
+    if (!allPositions) return;
+    emitItems(prev =>
+      [...prev].sort((a, b) => (allPositions[a.key]?.index ?? 0) - (allPositions[b.key]?.index ?? 0)),
+    );
+  };
+
+  const sharedProps = {
+    images: innerItems,
+    itemSize,
+    gap,
+    showAdd: innerItems.length < maxCount,
+    showCoverBadge,
+    addBackgroundColor,
+    onAdd: pickImages,
+    onRemove: removeImage,
+    onRetry: (item: UploadImage) => {
+      updateImage(item.key, { uploading: true, failed: false });
+      uploadImageItem(item.key, item.uri);
+    },
+    onPreview: (index: number) => setPreviewIndex(index),
+  };
+
+  const listKey = innerItems.map(item => item.key).join('|');
+
   return (
-    <View style={[{ height: itemSize }, style]}>
-      <SortableGrid
-        key={innerItems.map(item => item.key).join('|')}
-        images={innerItems}
-        itemSize={itemSize}
-        gap={gap}
-        showAdd={innerItems.length < maxCount}
-        showCoverBadge={showCoverBadge}
-        onAdd={pickImages}
-        onRemove={removeImage}
-        onRetry={item => {
-          updateImage(item.key, { uploading: true, failed: false });
-          uploadImageItem(item.key, item.uri);
-        }}
-        onPreview={index => setPreviewIndex(index)}
-        onDrop={handleDrop}
-      />
+    <View style={[layout === 'horizontal' && { height: itemSize }, style]}>
+      {layout === 'grid' ? (
+        <GridList key={listKey} {...sharedProps} columns={columns} onDrop={handleGridDrop} />
+      ) : (
+        <HorizontalList key={listKey} {...sharedProps} onDrop={handleDrop} />
+      )}
       <Modal
         transparent
         visible={previewIndex !== null}
