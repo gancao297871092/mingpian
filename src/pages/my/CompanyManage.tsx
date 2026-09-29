@@ -114,7 +114,7 @@ export default function CompanyManage() {
         ? [
             {
               title: '我的企业',
-              rows: [{ label: '职位变更', icon: <CompanyJobIcon />, onPress: todo }],
+              rows: [{ label: '职位变更', icon: <CompanyJobIcon />, onPress: () => navigation.navigate('companyJobChange') }],
             },
           ]
         : [

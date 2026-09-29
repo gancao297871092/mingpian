@@ -50,6 +50,7 @@ export type RootStackParamList = {
   companyMemberAudit: undefined;
   companyBbsAudit: undefined;
   companyCapCards: undefined;
+  companyJobChange: undefined;
 };
 
 export type MainTabParamList = {

@@ -43,6 +43,7 @@ import CompanyMembers from '@/pages/my/company/CompanyMembers';
 import CompanyMemberAudit from '@/pages/my/company/CompanyMemberAudit';
 import CompanyBbsAudit from '@/pages/my/company/CompanyBbsAudit';
 import CompanyCapCards from '@/pages/my/company/CompanyCapCards';
+import CompanyJobChange from '@/pages/my/company/CompanyJobChange';
 import LoginHome from '@/pages/login';
 import OtherNumberLogin from '@/pages/login/OtherNumberLogin';
 import AgreementPage from '@/pages/login/AgreementPage';
@@ -527,6 +528,16 @@ export default function RootNavigator() {
           component={CompanyCapCards}
           options={{
             title: '能力卡管理',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="companyJobChange"
+          component={CompanyJobChange}
+          options={{
+            title: '职位变更',
             headerStyle: { backgroundColor: '#F6F7FB' },
             headerTitleStyle: { color: '#000000' },
             headerShadowVisible: false,
