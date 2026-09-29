@@ -39,7 +39,7 @@ import CompanyManage from '@/pages/my/CompanyManage';
 import CompanyInfo from '@/pages/my/company/CompanyInfo';
 import CompanyModuleEdit from '@/pages/my/company/CompanyModuleEdit';
 import CompanyContactEdit from '@/pages/my/company/CompanyContactEdit';
-import CompanyMembers, { CompanyMemberSearchHeader } from '@/pages/my/company/CompanyMembers';
+import CompanyMembers from '@/pages/my/company/CompanyMembers';
 import CompanyMemberAudit from '@/pages/my/company/CompanyMemberAudit';
 import CompanyBbsAudit from '@/pages/my/company/CompanyBbsAudit';
 import CompanyCapCards from '@/pages/my/company/CompanyCapCards';
@@ -500,12 +500,7 @@ export default function RootNavigator() {
         <Stack.Screen
           name="companyMembers"
           component={CompanyMembers}
-          options={{
-            headerTitle: () => <CompanyMemberSearchHeader />,
-            headerTitleAlign: 'left',
-            headerStyle: { backgroundColor: '#FFFFFF' },
-            headerShadowVisible: false,
-          }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="companyMemberAudit"

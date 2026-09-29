@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import SafeView from '@/components/SafeView';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
@@ -30,11 +30,20 @@ export default function CompanyMemberAudit() {
   const [list, setList] = useState<MemberApplication[]>(MEMBER_APPLICATIONS);
 
   const mark = (id: string, status: 'approved' | 'rejected') => {
-    setList(prev => {
-      const next = prev.map(a => (a.id === id ? { ...a, status } : a));
-      setMemberAuditCount(next.filter(a => a.status === 'pending').length);
-      return next;
-    });
+    Alert.alert(status === 'approved' ? '确认通过审核？' : '确认拒绝审核？', undefined, [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '确认',
+        style: status === 'rejected' ? 'destructive' : 'default',
+        onPress: () => {
+          setList(prev => {
+            const next = prev.map(a => (a.id === id ? { ...a, status } : a));
+            setMemberAuditCount(next.filter(a => a.status === 'pending').length);
+            return next;
+          });
+        },
+      },
+    ]);
   };
 
   return (

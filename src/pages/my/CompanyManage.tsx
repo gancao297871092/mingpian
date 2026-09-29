@@ -134,17 +134,17 @@ export default function CompanyManage() {
     <TouchableOpacity activeOpacity={0.7} style={styles.row} onPress={row.onPress}>
       {row.icon}
       <Text style={[styles.rowLabel, row.danger && styles.rowLabelDanger]}>{row.label}</Text>
-      {!!row.badge && row.badge > 0 && (
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{row.badge}</Text>
-        </View>
-      )}
-      {!!row.tag && (
-        <View style={styles.tag}>
-          <Text style={styles.tagText}>{row.tag}</Text>
-        </View>
-      )}
-      <View style={styles.arrow}>
+      <View style={styles.rowRight}>
+        {!!row.badge && row.badge > 0 && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{row.badge}</Text>
+          </View>
+        )}
+        {!!row.tag && (
+          <View style={styles.tag}>
+            <Text style={styles.tagText}>{row.tag}</Text>
+          </View>
+        )}
         <SettingArrowIcon />
       </View>
     </TouchableOpacity>
@@ -240,7 +240,6 @@ const styles = StyleSheet.create({
     backgroundColor: DANGER,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 'auto',
   },
   badgeText: {
     fontSize: setSpText(10),
@@ -255,7 +254,6 @@ const styles = StyleSheet.create({
     backgroundColor: ORANGE,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 'auto',
   },
   tagText: {
     fontSize: setSpText(12),
@@ -263,8 +261,11 @@ const styles = StyleSheet.create({
     lineHeight: setSpText(14),
     color: '#FFFFFF',
   },
-  arrow: {
+  rowRight: {
     marginLeft: 'auto',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSizeW(12),
   },
   divider: {
     height: 1,

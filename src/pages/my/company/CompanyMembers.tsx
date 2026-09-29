@@ -1,10 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { FlatList } from 'react-native-gesture-handler';
 import { SwipeRow } from 'react-native-swipe-list-view';
 import { Image as ExpoImage } from 'expo-image';
 import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
+import { NavBackButton } from '@/components/NavHeader';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { COMPANY_MEMBERS, type CompanyMember } from '@/data/company';
 import { useCompanyStore } from '@/store/company';
@@ -32,12 +34,11 @@ interface Action {
   onPress: () => void;
 }
 
-export function CompanyMemberSearchHeader() {
-  const { width } = useWindowDimensions();
+function SearchBar() {
   const setMemberKeyword = useCompanyStore(s => s.setMemberKeyword);
   const [text, setText] = useState('');
   return (
-    <View style={[styles.searchBar, { width: width - scaleSizeW(66) }]}>
+    <View style={styles.searchBar}>
       <HistorySearchIcon size={16} color="#AFB1BB" />
       <TextInput
         style={styles.searchInput}
@@ -67,6 +68,7 @@ function roleBadge(member: CompanyMember): { text: string; color: string } | nul
 
 /** 成员管理（左滑出操作：踢出/管理员/编辑职位/客服/移交超管） */
 export default function CompanyMembers() {
+  const navigation = useNavigation();
   const keyword = useCompanyStore(s => s.memberKeyword);
   const [members, setMembers] = useState<CompanyMember[]>(COMPANY_MEMBERS);
 
@@ -196,7 +198,11 @@ export default function CompanyMembers() {
   };
 
   return (
-    <SafeView backgroundColor="#FFFFFF">
+    <SafeView backgroundColor="#FFFFFF" disableTop={false}>
+      <View style={styles.header}>
+        <NavBackButton color="#1A1A1A" onPress={() => navigation.goBack()} />
+        <SearchBar />
+      </View>
       <Text style={styles.hint}>左滑进行更多操作</Text>
       <FlatList
         data={list}
@@ -210,7 +216,17 @@ export default function CompanyMembers() {
 }
 
 const styles = StyleSheet.create({
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: scaleSizeW(8),
+    paddingRight: scaleSizeW(16),
+    paddingTop: scaleSizeH(2),
+    paddingBottom: scaleSizeH(7),
+    gap: scaleSizeW(17),
+  },
   searchBar: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     height: scaleSizeH(40),
