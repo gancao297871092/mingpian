@@ -311,7 +311,7 @@ export default function CompanyRealName() {
           <AgreementRow agreed={agreed} onToggle={() => setAgreed(a => !a)} />
           <TouchableOpacity
             activeOpacity={0.8}
-            style={[styles.submitBtn, (locked || submitting) && styles.submitBtnDisabled]}
+            style={[styles.submitBtn, locked && styles.submitBtnDisabled, submitting && styles.submitBtnBusy]}
             disabled={locked || submitting}
             onPress={onSubmit}
           >
@@ -466,6 +466,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: scaleSizeW(8),
+  },
+  submitBtnBusy: {
+    opacity: 0.7,
   },
   rejectText: {
     fontSize: setSpText(12),
