@@ -13,6 +13,7 @@ import { DraftIcon } from '../myIcons';
 import {
   DRAFT_ITEM_ID,
   initialTabState,
+  ListLoading,
   mapPost,
   PostCard,
   tabStyles,
@@ -54,7 +55,9 @@ export default forwardRef<TabHandle, Props>(function WaterfallTab({ tab, myId, t
       try {
         const res =
           tab === 'post'
-            ? await API.my.bbsList({ targetUserId, pageNum, pageSize: PAGE_SIZE })
+            ? targetUserId
+              ? await API.bbs.userMain({ targetUserId, pageNum, pageSize: PAGE_SIZE })
+              : await API.my.bbsList({ pageNum, pageSize: PAGE_SIZE })
             : await API.my.likeFavoritesList({ targetUserId: listUserId, type: tab === 'fav' ? 2 : 1, pageNum, pageSize: PAGE_SIZE });
         const list = (res.data?.list ?? []).map(mapPost);
         const pages = res.data?.pages ?? 1;
@@ -137,7 +140,7 @@ export default forwardRef<TabHandle, Props>(function WaterfallTab({ tab, myId, t
       contentContainerStyle={tabStyles.masonryContent}
       ListEmptyComponent={
         !state.loaded && state.loading ? (
-          <View style={tabStyles.loadingPad} />
+          <ListLoading />
         ) : state.loaded ? (
           <EmptyState variant="content" title="暂无内容" style={tabStyles.emptyBox} />
         ) : null

@@ -72,8 +72,8 @@ export namespace API {
   }
 
   export namespace my {
-    /** 我的动态列表（发布 tab；statusTab: all/publishing/published/rejected；targetUserId 查看他人主页时传） */
-    export function bbsList(data: { statusTab?: string; boardType?: number; targetUserId?: number; pageNum?: number; pageSize?: number }) {
+    /** 我的动态列表（发布 tab；statusTab: all/publishing/published/rejected） */
+    export function bbsList(data: { statusTab?: string; boardType?: number; pageNum?: number; pageSize?: number }) {
       return request.post<{ list: any[]; total: number; pageNum: number; pages: number }>('/my/bbs/list', data);
     }
     /** 点赞/收藏的动态列表（type: 1点赞 2收藏） */
@@ -179,6 +179,10 @@ export namespace API {
   }
 
   export namespace bbs {
+    /** 他人主页的发布动态列表 */
+    export function userMain(data: { targetUserId: number; pageNum?: number; pageSize?: number }) {
+      return request.post<{ list: any[]; total: number; pageNum: number; pages: number }>('/bbs/user/main', data);
+    }
     /** 点赞/取消（status: 1赞 0取消） */
     export function like(params: { bbsId: number; status: number }) {
       return request.get<any>('/bbs/like', { params });

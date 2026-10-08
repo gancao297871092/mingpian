@@ -1,10 +1,19 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { formatLikeCount } from '@/utils/format';
 import { formatPushTime } from '@/pages/square/bbsDetail/detailTransform';
 import { CardLikeIcon } from '../myIcons';
+
+/** 列表首屏加载占位 */
+export function ListLoading() {
+  return (
+    <View style={tabStyles.loadingPad}>
+      <ActivityIndicator color="#2962D4" />
+    </View>
+  );
+}
 
 /** 瀑布流草稿卡片的伪 id */
 export const DRAFT_ITEM_ID = '__draft__';
@@ -215,6 +224,8 @@ export const CARD_W = scaleSizeW(194);
 export const tabStyles = StyleSheet.create({
   loadingPad: {
     height: scaleSizeH(200),
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyBox: {
     marginTop: scaleSizeH(60),

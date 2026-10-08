@@ -21,7 +21,7 @@ import { NavBackButton } from '@/components/NavHeader';
 import { API } from '@/api';
 import { useUserStore, type UserInfo, type WqUser } from '@/store/user';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
-import { CompanyIcon, PlusIcon, SendPlaneIcon, TabCommentIcon, TabFavIcon, TabLikeIcon } from './myIcons';
+import { ChatBubbleIcon, CompanyIcon, PlusIcon, TabCommentIcon, TabFavIcon, TabLikeIcon } from './myIcons';
 import WaterfallTab from './tabs/WaterfallTab';
 import CommentTab from './tabs/CommentTab';
 import LikeTab from './tabs/LikeTab';
@@ -393,7 +393,8 @@ export default function UserHome() {
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity activeOpacity={0.8} style={styles.msgBtn} onPress={todo}>
-                      <SendPlaneIcon size={27} color="#000000" />
+                      <ChatBubbleIcon size={18} color="#000000" />
+                      <Text style={styles.msgBtnText}>发私信</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -628,11 +629,11 @@ const styles = StyleSheet.create({
   followRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scaleSizeW(10),
+    justifyContent: 'space-between',
     marginTop: scaleSizeH(20),
   },
   followBtn: {
-    flex: 1,
+    width: scaleSizeW(180),
     height: scaleSizeH(40),
     borderRadius: scaleSizeW(5),
     backgroundColor: BLUE,
@@ -652,12 +653,18 @@ const styles = StyleSheet.create({
     color: '#6C6C6C',
   },
   msgBtn: {
-    width: scaleSizeW(40),
-    height: scaleSizeW(40),
+    width: scaleSizeW(180),
+    height: scaleSizeH(40),
     borderRadius: scaleSizeW(5),
     backgroundColor: '#F3F3F1',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: scaleSizeW(5),
+  },
+  msgBtnText: {
+    fontSize: setSpText(14),
+    color: '#000000',
   },
   stickyNick: {
     overflow: 'hidden',
