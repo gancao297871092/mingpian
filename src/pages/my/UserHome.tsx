@@ -17,11 +17,10 @@ import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SafeView from '@/components/SafeView';
-import { NavBackButton } from '@/components/NavHeader';
 import { API } from '@/api';
 import { useUserStore, type UserInfo, type WqUser } from '@/store/user';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
-import { ChatBubbleIcon, CompanyIcon, PlusIcon, TabCommentIcon, TabFavIcon, TabLikeIcon } from './myIcons';
+import { BackArrowIcon, ChatBubbleIcon, CompanyIcon, PlusIcon, TabCommentIcon, TabFavIcon, TabLikeIcon } from './myIcons';
 import WaterfallTab from './tabs/WaterfallTab';
 import CommentTab from './tabs/CommentTab';
 import LikeTab from './tabs/LikeTab';
@@ -90,6 +89,7 @@ export default function UserHome() {
   const scrollXJS = useRef(new Animated.Value(0)).current;
   const swiperRef = useRef<any>(null);
   const barDarkRef = useRef(false);
+  const [barDark, setBarDark] = useState(false);
   const pageIndexRef = useRef(pageIndex);
   pageIndexRef.current = pageIndex;
   const tabRefs = useRef<Record<TabKey, TabHandle | null>>({
@@ -149,6 +149,7 @@ export default function UserHome() {
   useFocusEffect(
     useCallback(() => {
       barDarkRef.current = false;
+      setBarDark(false);
       StatusBar.setBarStyle('light-content');
       return () => StatusBar.setBarStyle('dark-content');
     }, []),
@@ -171,6 +172,7 @@ export default function UserHome() {
       const dark = headerH > 0 && y >= headerH - STICKY_NICK_H;
       if (dark !== barDarkRef.current) {
         barDarkRef.current = dark;
+        setBarDark(dark);
         StatusBar.setBarStyle(dark ? 'dark-content' : 'light-content');
       }
     },
@@ -261,8 +263,14 @@ export default function UserHome() {
 
   const headerBtnsMT = isPreview
     ? Math.max(scaleSizeH(61) - insets.top, scaleSizeH(8))
-    : Math.max(scaleSizeH(48) - insets.top, scaleSizeH(4));
+    : Math.max(scaleSizeH(64) - insets.top, scaleSizeH(8));
   const profileRowMT = Math.max(scaleSizeH(107) - insets.top - headerBtnsMT - scaleSizeH(44), scaleSizeH(2));
+  /** 吸顶过程中，覆盖层导航按钮平移到吸顶栏内（不跟随下拉） */
+  const navTranslateY = scrollY.interpolate({
+    inputRange: stickRange,
+    outputRange: [0, 1 - headerBtnsMT],
+    extrapolate: 'clamp',
+  });
 
   const renderTabPage = (tab: TabKey) => (
     <View style={{ width: windowWidth, height: pagerHeight, backgroundColor: '#F6F7FB' }}>
@@ -326,14 +334,7 @@ export default function UserHome() {
           ListFooterComponent={<View style={styles.bottomPad} />}
           renderItem={({ index }: { index: number }) => index === 0 ? (
             <View onLayout={e => setHeaderH(e.nativeEvent.layout.height)}>
-              <View style={[styles.headerBtns, { marginTop: headerBtnsMT }]}>
-                {!isPreview && <NavBackButton color="#FFFFFF" onPress={() => navigation.goBack()} />}
-                {isPreview && (
-                  <TouchableOpacity activeOpacity={0.8} style={styles.exitBtn} onPress={() => navigation.goBack()}>
-                    <Text style={styles.exitBtnText}>退出预览</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
+              <View style={[styles.headerBtns, { marginTop: headerBtnsMT }]} />
               <View style={[styles.profileRow, { marginTop: profileRowMT }]}>
                 <ExpoImage
                   source={{ uri: wqUser?.avatar || '' }}
@@ -407,16 +408,6 @@ export default function UserHome() {
                   <Text style={styles.stickyName} numberOfLines={1}>
                     {wqUser?.username || wqUser?.nickname || ''}
                   </Text>
-                  {!isPreview && (
-                    <View style={styles.stickyLeft}>
-                      <NavBackButton color="#000000" onPress={() => navigation.goBack()} />
-                    </View>
-                  )}
-                  {isPreview && (
-                    <TouchableOpacity activeOpacity={0.8} style={styles.exitBtnSticky} onPress={() => navigation.goBack()}>
-                      <Text style={styles.exitBtnText}>退出预览</Text>
-                    </TouchableOpacity>
-                  )}
                 </View>
               </Animated.View>
               <Animated.View
@@ -490,6 +481,39 @@ export default function UserHome() {
             />
           )}
         />
+        <Animated.View
+          pointerEvents="box-none"
+          style={[
+            styles.navOverlay,
+            {
+              paddingTop: insets.top,
+              marginTop: headerBtnsMT,
+              transform: [{ translateY: navTranslateY }],
+            },
+          ]}
+        >
+          <View style={styles.navOverlayRow} pointerEvents="box-none">
+            {!isPreview && (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                hitSlop={8}
+                style={[styles.backCircle, barDark && styles.backCircleOnSticky]}
+                onPress={() => navigation.goBack()}
+              >
+                <BackArrowIcon size={20} color={barDark ? '#000000' : '#FFFFFF'} />
+              </TouchableOpacity>
+            )}
+            {isPreview && (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                style={[styles.exitBtn, barDark && styles.exitBtnOnSticky]}
+                onPress={() => navigation.goBack()}
+              >
+                <Text style={styles.exitBtnText}>退出预览</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </Animated.View>
       </View>
       <LikesDialog
         visible={likesVisible}
@@ -523,24 +547,36 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginLeft: 'auto',
   },
-  exitBtnSticky: {
-    position: 'absolute',
-    right: scaleSizeW(15),
-    height: scaleSizeH(32),
-    paddingHorizontal: scaleSizeW(10),
-    borderRadius: scaleSizeW(16),
+  exitBtnOnSticky: {
     backgroundColor: '#F3F3F1',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   exitBtnText: {
     fontSize: setSpText(14),
     fontWeight: '600',
     color: '#000000',
   },
-  stickyLeft: {
+  navOverlay: {
     position: 'absolute',
-    left: scaleSizeW(16),
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: scaleSizeW(15),
+  },
+  navOverlayRow: {
+    height: scaleSizeH(44),
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backCircle: {
+    width: scaleSizeW(33),
+    height: scaleSizeW(33),
+    borderRadius: scaleSizeW(16.5),
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backCircleOnSticky: {
+    backgroundColor: 'transparent',
   },
   profileRow: {
     flexDirection: 'row',
@@ -650,7 +686,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   followBtnTextDone: {
-    color: '#6C6C6C',
+    color: '#000000',
   },
   msgBtn: {
     width: scaleSizeW(180),
