@@ -1,13 +1,16 @@
-import React, { useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import Svg, { Path } from 'react-native-svg';
 import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
 import AppBottomSheet from '@/components/AppBottomSheet';
+import { API } from '@/api';
+import { useUserStore } from '@/store/user';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
-import { useSmsCode } from '../settings/useSmsCode';
+import type { RootStackParamList } from '@/route/map';
 
 const PRIMARY = '#2962D4';
 const GRAY = '#6C6C6C';
@@ -33,6 +36,7 @@ function ChevronRightIcon({ size = 10, color = '#999999' }: { size?: number; col
 }
 
 function AgreementRow({ agreed, onToggle }: { agreed: boolean; onToggle: () => void }) {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   return (
     <View style={styles.agreeRow}>
       <TouchableOpacity activeOpacity={0.8} onPress={onToggle} hitSlop={6}>
@@ -46,7 +50,7 @@ function AgreementRow({ agreed, onToggle }: { agreed: boolean; onToggle: () => v
       </TouchableOpacity>
       <Text style={styles.agreeText}>
         我已阅读并同意
-        <Text style={styles.agreeLink} onPress={() => Toast.show({ type: 'info', text1: '功能开发中' })}>
+        <Text style={styles.agreeLink} onPress={() => navigation.navigate('agreement', { type: 'cardSure', title: '服务协议' })}>
           《联诚采信实名认证服务协议》
         </Text>
         ，并授权平台校验我的实名信息
@@ -92,9 +96,10 @@ function VerifyTypeSheet({
   );
 }
 
-/** 实名认证（手机号验证 / 人脸识别） */
+/** 实名认证（手机号验证 / 人脸识别；人脸识别待 SDK 接入） */
 export default function CompanyRealName() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const setUserInfo = useUserStore(s => s.setUserInfo);
   const sheetRef = useRef<BottomSheetModal>(null);
   const [type, setType] = useState<VerifyType>('phone');
   const [name, setName] = useState('');
@@ -102,23 +107,77 @@ export default function CompanyRealName() {
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [agreed, setAgreed] = useState(false);
-  const { countdown, sendCode } = useSmsCode('realName');
+  /** null=加载中；0未认证 1已认证 2待审核 3未通过 */
+  const [authStatus, setAuthStatus] = useState<number | null>(null);
+  const [authId, setAuthId] = useState<number | null>(null);
+  const [authRemark, setAuthRemark] = useState('');
+  const [authCode, setAuthCode] = useState('');
+  const [countdown, setCountdown] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    API.user
+      .idCardPre()
+      .then(res => {
+        if (res.code !== '200' || !res.data) return;
+        setName(res.data.realName || '');
+        setIdCard(res.data.realCard || '');
+        setAuthStatus(res.data.authStatus ?? 0);
+        setAuthId(res.data.auth?.id ?? null);
+        setAuthRemark(res.data.auth?.authRemark || '');
+      })
+      .catch(() => setAuthStatus(0));
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
+
+  const startCountdown = () => {
+    setCountdown(60);
+    timerRef.current = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          if (timerRef.current) clearInterval(timerRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
 
   const onGetCode = () => {
-    if (!/^1\d{10}$/.test(phone)) {
+    if (!/^1[3-9]\d{9}$/.test(phone.trim())) {
       Toast.show({ type: 'error', text1: '请输入正确的手机号' });
       return;
     }
-    sendCode(phone);
+    if (countdown > 0) return;
+    startCountdown();
+    API.common
+      .msgSend({ phone: phone.trim(), id: authId })
+      .then(res => {
+        if (res.code === '200' && res.data) {
+          setAuthCode(String(res.data));
+          Toast.show({ type: 'success', text1: '验证码已发送' });
+        }
+      })
+      .catch(() => {});
   };
 
-  const onSubmit = () => {
+  /** 1已认证 2待审核 不可操作（对齐小程序 authStatus -1/1/2 禁用） */
+  const locked = authStatus === null || authStatus === 1 || authStatus === 2;
+  const reviewing = authStatus === 2;
+  const submitText =
+    authStatus === 1 ? '已认证' : authStatus === 2 ? '待审核' : authStatus === 3 ? '重新提交' : '提交审核';
+
+  const onSubmit = async () => {
+    if (locked || submitting) return;
     if (!agreed) {
       Toast.show({ type: 'error', text1: '请先阅读并同意实名认证服务协议' });
       return;
     }
     if (type === 'face') {
-      Toast.show({ type: 'info', text1: '功能开发中' });
+      Toast.show({ type: 'info', text1: '人脸识别暂未开放，请使用手机号验证' });
       return;
     }
     if (!name.trim()) {
@@ -129,22 +188,48 @@ export default function CompanyRealName() {
       Toast.show({ type: 'error', text1: '请输入正确的身份证号' });
       return;
     }
-    if (!/^1\d{10}$/.test(phone)) {
+    if (!/^1[3-9]\d{9}$/.test(phone.trim())) {
       Toast.show({ type: 'error', text1: '请输入正确的手机号' });
+      return;
+    }
+    if (!authCode) {
+      Toast.show({ type: 'error', text1: '请先点击获取验证码' });
       return;
     }
     if (!code.trim()) {
       Toast.show({ type: 'error', text1: '请输入验证码' });
       return;
     }
-    Toast.show({ type: 'success', text1: '已提交审核' });
-    navigation.goBack();
+    setSubmitting(true);
+    try {
+      await API.common.msgValidate({ authCode, code: code.trim() });
+      await API.user.idCardVerify({
+        id: authId,
+        realCard: idCard.trim(),
+        realName: name.trim(),
+        phone: phone.trim(),
+        authCode,
+        code: code.trim(),
+      });
+      Toast.show({ type: 'success', text1: '实名认证提交成功' });
+      API.user.info()
+        .then(res => res.data && setUserInfo(res.data))
+        .catch(() => {});
+      navigation.goBack();
+    } catch {
+      // 拦截器已提示
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <SafeView backgroundColor="#F6F7FB">
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          {authStatus === 3 && !!authRemark && (
+            <Text style={styles.rejectText}>*拒绝理由: {authRemark}</Text>
+          )}
           <TouchableOpacity activeOpacity={0.7} style={styles.typeCard} onPress={() => sheetRef.current?.present()}>
             <Text style={styles.typeLabel}>选择验证方式</Text>
             <View style={styles.typeValueRow}>
@@ -166,6 +251,7 @@ export default function CompanyRealName() {
                     placeholder="请输入"
                     placeholderTextColor="#999999"
                     textAlign="right"
+                    editable={!reviewing}
                   />
                 </View>
                 <View style={styles.formDivider} />
@@ -179,6 +265,7 @@ export default function CompanyRealName() {
                     placeholderTextColor="#999999"
                     textAlign="right"
                     maxLength={18}
+                    editable={!reviewing}
                   />
                 </View>
               </View>
@@ -222,8 +309,20 @@ export default function CompanyRealName() {
             </>
           )}
           <AgreementRow agreed={agreed} onToggle={() => setAgreed(a => !a)} />
-          <TouchableOpacity activeOpacity={0.8} style={styles.submitBtn} onPress={onSubmit}>
-            <Text style={styles.submitText}>{type === 'phone' ? '提交审核' : '开始认证'}</Text>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={[styles.submitBtn, (locked || submitting) && styles.submitBtnDisabled]}
+            disabled={locked || submitting}
+            onPress={onSubmit}
+          >
+            {submitting ? (
+              <View style={styles.submitLoading}>
+                <ActivityIndicator size="small" color="#FFFFFF" />
+                <Text style={styles.submitText}>提交中...</Text>
+              </View>
+            ) : (
+              <Text style={styles.submitText}>{type === 'phone' ? submitText : '开始认证'}</Text>
+            )}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -359,6 +458,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: scaleSizeH(15),
+  },
+  submitBtnDisabled: {
+    backgroundColor: '#CECECE',
+  },
+  submitLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSizeW(8),
+  },
+  rejectText: {
+    fontSize: setSpText(12),
+    fontWeight: '600',
+    color: '#F5A623',
+    marginBottom: scaleSizeH(4),
   },
   submitText: {
     fontSize: setSpText(15),

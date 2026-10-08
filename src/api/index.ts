@@ -15,6 +15,14 @@ export namespace API {
     export function richText(apiUrl: string) {
       return request.get<{ name: string; value: string; htmls: string }>(`/common/${apiUrl}`);
     }
+    /** 发送短信验证码（通用，data 为 authCode 字符串） */
+    export function msgSend(data: { phone: string; id?: number | null }) {
+      return request.post<string>('/common/msg/send', data);
+    }
+    /** 校验短信验证码 */
+    export function msgValidate(data: { authCode: string; code: string }) {
+      return request.post<any>('/common/msg/validate', data);
+    }
     export function userSure() {
       return request.get<{ name: string; value: string; htmls: string }>('/common/userSure');
     }
@@ -72,6 +80,26 @@ export namespace API {
       avatar?: string;
     }) {
       return request.post<any>('/user/info/base/update', data);
+    }
+    /** 实名认证预填信息（authStatus: 0未认证 1已认证 2待审核 3未通过） */
+    export function idCardPre() {
+      return request.get<{
+        realCard?: string;
+        realName?: string;
+        authStatus?: number;
+        auth?: { id?: number; authRemark?: string };
+      }>('/auth/idCard/pre');
+    }
+    /** 实名认证提交（手机号三要素核验；人脸识别走 SDK 另接） */
+    export function idCardVerify(data: {
+      id?: number | null;
+      realCard: string;
+      realName: string;
+      phone: string;
+      authCode: string;
+      code: string;
+    }) {
+      return request.post<any>('/auth/idCard/verifyV3', data);
     }
   }
 
