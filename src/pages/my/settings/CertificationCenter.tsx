@@ -5,9 +5,14 @@ import SafeView from '@/components/SafeView';
 import { useUserStore } from '@/store/user';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { SettingArrowIcon } from './settingsIcons';
-import { CertCompanyIcon, CertJobIcon, CertPerkIcon, CertRealIcon } from './subIcons';
+import { CertCompanyIcon, CertJobIcon, CertPerkArrowIcon, CertPerkBriefcaseIcon, CertPerkIcon, CertPerkMedalIcon, CertRealIcon } from './subIcons';
 
-const PERKS = ['独有标识', '一步认证', '职刻点亮', '权威背书'];
+const PERKS: { label: string; icon: React.ReactNode }[] = [
+  { label: '独有标识', icon: <CertPerkIcon /> },
+  { label: '一步认证', icon: <CertPerkArrowIcon /> },
+  { label: '职刻点亮', icon: <CertPerkBriefcaseIcon /> },
+  { label: '权威背书', icon: <CertPerkMedalIcon /> },
+];
 
 type CertKey = 'authRealCard' | 'authPosition' | 'authCompany';
 
@@ -71,10 +76,10 @@ export default function CertificationCenter() {
           end={{ x: 1, y: 0.5 }}
           style={styles.perkCard}
         >
-          {PERKS.map(p => (
-            <View key={p} style={styles.perkItem}>
-              <CertPerkIcon />
-              <Text style={styles.perkText}>{p}</Text>
+          {PERKS.map((p, i) => (
+            <View key={p.label} style={[styles.perkItem, i === PERKS.length - 1 && styles.perkItemLast, i=== 0 && styles.perkItemFirst]}>
+              {p.icon}
+              <Text style={[styles.perkText, i === PERKS.length - 1 && styles.perkTextLast]}>{p.label}</Text>
             </View>
           ))}
         </LinearGradient>
@@ -150,11 +155,10 @@ const styles = StyleSheet.create({
   },
   perkCard: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: scaleSizeW(27),
     marginHorizontal: scaleSizeW(16),
     marginTop: scaleSizeH(32),
-    paddingHorizontal: scaleSizeW(13),
     height: scaleSizeH(100),
     borderRadius: scaleSizeW(10),
     borderWidth: 1,
@@ -164,15 +168,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: scaleSizeW(3),
+    height: scaleSizeH(40),
+    flex: 1,
+  },
+  perkItemLast: {
+    marginRight: scaleSizeW(10),
+  },
+  perkItemFirst:{
+    marginLeft: scaleSizeW(10),
   },
   perkText: {
     fontSize: setSpText(12),
     fontWeight: '500',
     color: '#4C3416',
   },
+  perkTextLast: {
+    fontWeight: '400',
+  },
   certCard: {
     marginHorizontal: scaleSizeW(16),
-    marginTop: scaleSizeH(14),
+    marginTop: -scaleSizeH(56),
     backgroundColor: '#FFFFFF',
     borderRadius: scaleSizeW(10),
     overflow: 'hidden',
