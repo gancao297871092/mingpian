@@ -15,18 +15,18 @@ const TITLES: Record<string, string> = {
 
 export default function AgreementPage({ route, navigation }: Props) {
   const theme = useTheme();
-  const { type } = route.params;
+  const { type, title } = route.params;
   const [html, setHtml] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    navigation.setOptions({ title: TITLES[type] ?? '' });
-  }, [navigation, type]);
+    navigation.setOptions({ title: title ?? TITLES[type] ?? '' });
+  }, [navigation, type, title]);
 
   useEffect(() => {
-    const fetcher = type === 'userSure' ? API.common.userSure : API.common.privates;
-    fetcher()
+    API.common
+      .richText(type)
       .then(res => {
         const { code, data } = res;
         if (code === '200' && data?.htmls) {

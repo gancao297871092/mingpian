@@ -11,6 +11,10 @@ export namespace API {
   }
 
   export namespace common {
+    /** 通用富文本（userSure 用户协议 / privates 隐私政策 / cardSure 实名认证协议 / cpSure 企业认证协议） */
+    export function richText(apiUrl: string) {
+      return request.get<{ name: string; value: string; htmls: string }>(`/common/${apiUrl}`);
+    }
     export function userSure() {
       return request.get<{ name: string; value: string; htmls: string }>('/common/userSure');
     }

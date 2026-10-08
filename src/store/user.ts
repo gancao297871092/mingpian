@@ -33,6 +33,10 @@ export interface WqUser {
   birthday?: number;
   cpId?: number;
   cpName?: string;
+  /** 实名认证状态：0未认证 1已认证 2待审核 3未通过（小程序认证中心以此为判断依据） */
+  authStatus?: number;
+  /** 真实姓名（实名认证通过后返回） */
+  realName?: string;
 }
 
 export interface UserInfo {
@@ -46,6 +50,10 @@ export interface UserInfo {
   favoriteCount?: number;
   cpId?: number;
   cpName?: string;
+  /** 是否企业管理员（1是 0否） */
+  isManager?: number;
+  /** 企业内职位名称 */
+  position?: string;
 }
 
 interface UserState {

@@ -4,7 +4,7 @@ export type RootStackParamList = {
   MainTabs: undefined;
   login: undefined;
   otherLogin: undefined;
-  agreement: { type: 'userSure' | 'privates' };
+  agreement: { type: string; title?: string };
   cardDetail: { id: string | number; userId?: string | number };
   editCard: { id?: string | number };
   addItem: { itemId?: string | number; cardId?: string | number; userId?: string | number; pjId?: string | number };

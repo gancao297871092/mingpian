@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import SafeView from '@/components/SafeView';
+import { API } from '@/api';
 import { useUserStore } from '@/store/user';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { SettingArrowIcon } from './settingsIcons';
 import { CertCompanyIcon, CertJobIcon, CertPerkArrowIcon, CertPerkBriefcaseIcon, CertPerkIcon, CertPerkMedalIcon, CertRealIcon } from './subIcons';
+import type { RootStackParamList } from '@/route/map';
 
 const PERKS: { label: string; icon: React.ReactNode }[] = [
   { label: '独有标识', icon: <CertPerkIcon /> },
@@ -14,49 +18,105 @@ const PERKS: { label: string; icon: React.ReactNode }[] = [
   { label: '权威背书', icon: <CertPerkMedalIcon /> },
 ];
 
-type CertKey = 'authRealCard' | 'authPosition' | 'authCompany';
+type CertKey = 'real' | 'position' | 'company';
+
+/** 实名认证状态枚举（对齐小程序 authStatusEnums） */
+const AUTH_STATUS: Record<number, { label: string; color: string }> = {
+  0: { label: '未认证', color: '#EF4444' },
+  1: { label: '已认证', color: '#6C6C6C' },
+  2: { label: '待审核', color: '#F2722C' },
+  3: { label: '未通过', color: '#EF4444' },
+};
+
+/** 各认证项的操作跳转与协议（对齐旧版 certification.vue） */
+const CERT_ACTION: Record<CertKey, { route: keyof RootStackParamList; agreement?: { type: string; name: string } }> = {
+  real: { route: 'companyRealName', agreement: { type: 'cardSure', name: '《联诚采信实名认证服务协议》' } },
+  position: { route: 'companyJoin', agreement: { type: 'cpSure', name: '《联诚采信企业认证服务协议》' } },
+  company: { route: 'companyCert', agreement: { type: 'cpSure', name: '《联诚采信企业认证服务协议》' } },
+};
 
 interface CertItem {
   key: CertKey;
   label: string;
   color: string;
   icon: React.ReactNode;
-  /** 展开后的占位说明文字（待手动调整） */
-  expandText: string;
+  /** 展开面板信息行（认证后首行为 姓名/职位/企业） */
+  rows: { label: string; value: string }[];
+  /** 认证后额外展示的首行（原型 certification-center verified 态） */
+  verifiedRow?: { label: string; value: string };
 }
 
-/** 76.认证中心 */
+/** 76.认证中心（文案对齐原型 certification-center，样式对齐 figma 76） */
 export default function CertificationCenter() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const userInfo = useUserStore(s => s.userInfo);
+  const setUserInfo = useUserStore(s => s.setUserInfo);
   const wqUser = userInfo?.wqUser;
   const [expandedKey, setExpandedKey] = useState<CertKey | null>(null);
 
+  // 进入页面刷新认证状态（对齐旧版 onShow 拉取 /user/base/info）
+  useFocusEffect(
+    useCallback(() => {
+      API.user.info()
+        .then(res => res.data && setUserInfo(res.data))
+        .catch(() => {});
+    }, [setUserInfo]),
+  );
+
+  const toggle = (key: CertKey) => setExpandedKey(prev => (prev === key ? null : key));
+
+  const authStatus = wqUser?.authStatus ?? 0;
+  const hasCompany = !!userInfo?.cpId;
+  /** 认证判断与小程序一致：实名=wqUser.authStatus，职业/企业=userInfo.cpId */
+  const certified: Record<CertKey, boolean> = {
+    real: authStatus === 1,
+    position: hasCompany,
+    company: hasCompany,
+  };
+  const statusOf = (key: CertKey): { label: string; color: string } =>
+    key === 'real'
+      ? AUTH_STATUS[authStatus] ?? AUTH_STATUS[0]
+      : hasCompany
+        ? { label: '已认证', color: '#6C6C6C' }
+        : { label: '未认证', color: '#EF4444' };
+
   const items: CertItem[] = [
     {
-      key: 'authRealCard',
+      key: 'real',
       label: '实名认证',
       color: '#36BE69',
       icon: <CertRealIcon />,
-      expandText:
-        '实名认证后，将自动显示您的真实姓名，显著提升名片的可信度与辨识度，为拓展人脉奠定坚实基础。（占位文字，待调整）',
+      verifiedRow: { label: '姓名', value: wqUser?.realName || '' },
+      rows: [
+        { label: '认证方式', value: '阿里云三要素核验，安全快捷' },
+        { label: '认证价值', value: '实名认证后，将自动显示您的真实姓名，显著提升名片的可信度与辨识度，为拓展人脉奠定坚实基础。' },
+      ],
     },
     {
-      key: 'authPosition',
-      label: '职业认证',
+      key: 'position',
+      label: '职位认证',
       color: '#F2722C',
       icon: <CertJobIcon />,
-      expandText: '职业认证说明占位文字：认证后可展示职业身份标识，提升专业形象与合作信任度。（待调整）',
+      verifiedRow: { label: '职位', value: userInfo?.isManager ? '管理员' : userInfo?.position || '' },
+      rows: [
+        { label: '认证条件', value: '完成实名认证' },
+        { label: '认证方式', value: '搜索并申请加入任职企业，可同时选择一个或多个职位。' },
+        { label: '认证价值', value: '经过认证的职位信息将在个人主页醒目展示，如同您的专业“身份证”，有效增强在商务社交中的专业可信度。' },
+      ],
     },
     {
-      key: 'authCompany',
+      key: 'company',
       label: '企业认证',
       color: '#2962D4',
       icon: <CertCompanyIcon />,
-      expandText: '企业认证说明占位文字：认证后可获得企业官方标识，解锁企业名片与企业动态等能力。（待调整）',
+      verifiedRow: { label: '企业', value: userInfo?.cpName || '' },
+      rows: [
+        { label: '认证条件', value: '完成实名认证' },
+        { label: '认证方式', value: '通过阿里云企业四要素核验，验证企业信息及法人身份。' },
+        { label: '认证价值', value: '通过验证企业主体的真实性，极大提升您在招标、洽谈等场景中的公信力与透明度，是获取关键合作与重大项目信任的核心凭证。' },
+      ],
     },
   ];
-
-  const toggle = (key: CertKey) => setExpandedKey(prev => (prev === key ? null : key));
 
   return (
     <SafeView backgroundColor="#E8EFFF">
@@ -87,6 +147,9 @@ export default function CertificationCenter() {
         <View style={styles.certCard}>
           {items.map((item, i) => {
             const expanded = expandedKey === item.key;
+            const isCertified = certified[item.key];
+            const rows = isCertified && item.verifiedRow?.value ? [item.verifiedRow, ...item.rows] : item.rows;
+            const itemAction = CERT_ACTION[item.key];
             return (
               <React.Fragment key={item.key}>
                 {i > 0 && <View style={styles.divider} />}
@@ -94,15 +157,44 @@ export default function CertificationCenter() {
                   <View style={[styles.certIconWrap, { backgroundColor: item.color }]}>{item.icon}</View>
                   <Text style={styles.certLabel}>{item.label}</Text>
                   <View style={styles.certRight}>
-                    <Text style={styles.certStatus}>{wqUser?.[item.key] ? '已认证' : '未认证'}</Text>
+                    <Text style={[styles.certStatus, { color: statusOf(item.key).color }]}>{statusOf(item.key).label}</Text>
                     <View style={[styles.arrow, expanded && styles.arrowExpanded]}>
                       <SettingArrowIcon color="#6C6C6C" />
                     </View>
                   </View>
                 </TouchableOpacity>
                 {expanded && (
-                  <View style={styles.expandCard}>
-                    <Text style={styles.expandText}>{item.expandText}</Text>
+                  <View style={styles.expandWrap}>
+                    <View style={styles.expandCard}>
+                      {rows.map(r => (
+                        <View key={r.label} style={styles.expandRow}>
+                          <Text style={styles.expandLabel}>{r.label}</Text>
+                          <Text style={styles.expandValue}>{r.value}</Text>
+                        </View>
+                      ))}
+                    </View>
+                    {!isCertified && (
+                      <View style={styles.actionArea}>
+                        <TouchableOpacity
+                          activeOpacity={0.8}
+                          style={styles.actionBtn}
+                          onPress={() => navigation.navigate(itemAction.route as never)}
+                        >
+                          <Text style={styles.actionBtnText}>立即认证</Text>
+                        </TouchableOpacity>
+                        {itemAction.agreement && (
+                          <Text style={styles.agreementText}>
+                            点击立即认证，即同意
+                            <Text
+                              style={styles.agreementLink}
+                              onPress={() => navigation.navigate('agreement', { type: itemAction.agreement!.type, title: '服务协议' })}
+                            >
+                              {itemAction.agreement.name}
+                            </Text>
+                          </Text>
+                        )}
+                      </View>
+                    )}
                   </View>
                 )}
               </React.Fragment>
@@ -235,16 +327,60 @@ const styles = StyleSheet.create({
   arrowExpanded: {
     transform: [{ rotate: '90deg' }],
   },
-  expandCard: {
+  expandWrap: {
     marginHorizontal: scaleSizeW(14),
     marginBottom: scaleSizeH(10),
+  },
+  expandCard: {
     backgroundColor: '#F5F5F5',
     borderRadius: scaleSizeW(10),
     padding: scaleSizeW(14),
+    gap: scaleSizeH(10),
   },
-  expandText: {
+  expandRow: {
+    flexDirection: 'row',
+    gap: scaleSizeW(24),
+  },
+  expandLabel: {
+    width: scaleSizeW(48),
+    fontSize: setSpText(12),
+    color: '#6C6C6C',
+    lineHeight: scaleSizeH(20),
+  },
+  expandValue: {
+    flex: 1,
     fontSize: setSpText(12),
     color: '#000000',
     lineHeight: scaleSizeH(20),
+  },
+  actionArea: {
+    marginTop: scaleSizeH(10),
+    alignItems: 'center',
+  },
+  actionBtn: {
+    marginHorizontal: scaleSizeW(14),
+    alignSelf: 'stretch',
+    height: scaleSizeH(48),
+    borderRadius: scaleSizeW(24),
+    backgroundColor: '#2962D4',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionBtnText: {
+    fontSize: setSpText(15),
+    fontWeight: '500',
+    color: '#FFFFFF',
+    lineHeight: scaleSizeH(24),
+  },
+  agreementText: {
+    fontSize: setSpText(12),
+    color: '#6C6C6C',
+    lineHeight: scaleSizeH(24),
+    marginTop: scaleSizeH(10),
+    textAlign: 'center',
+    paddingHorizontal: scaleSizeW(14),
+  },
+  agreementLink: {
+    color: '#2962D4',
   },
 });
