@@ -124,8 +124,15 @@ export default function UserHome() {
         .then(res => {
           if (!res.data) return;
           const d = res.data;
-          setOtherInfo(d.wqUser ? d : { wqUser: d });
-          setFollowed(!!(d.isFollowed ?? d.isFollow));
+          const ui = d.userInfo ?? {};
+          setOtherInfo({
+            ...ui,
+            wqUser: ui.wqUser ? { ...ui.wqUser, cpName: ui.cpName } : undefined,
+            followCount: ui.followCount ?? d.followCount,
+            fansCount: ui.fansCount ?? d.fansCount,
+            bbsCount: ui.bbsCount ?? d.bbsCount,
+          });
+          setFollowed(!!(d.isFollowed ?? ui.wqUser?.currentUserIsFollow));
         })
         .catch(() => {});
     }
