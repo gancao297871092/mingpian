@@ -7,6 +7,34 @@ interface IconProps {
   color?: string;
 }
 
+/** 关注按钮：加号（figma 66，440:2537） */
+export function PlusIcon({ size = 14, color = '#FFFFFF' }: IconProps) {
+  const s = scaleSizeW(size);
+  return (
+    <Svg width={s} height={s} viewBox="0 0 14 14" fill="none">
+      <Path
+        d="M12.5248 6.38799H7.62833V1.49151C7.62833 1.15361 7.35412 0.879395 7.01623 0.879395C6.67832 0.879395 6.40411 1.15361 6.40411 1.49151V6.38799H1.50762C1.16971 6.38799 0.895508 6.66221 0.895508 7.0001C0.895508 7.338 1.16972 7.61223 1.50762 7.61223H6.40411V12.5087C6.40411 12.8473 6.67832 13.1208 7.01623 13.1208C7.35412 13.1208 7.62833 12.8473 7.62833 12.5087V7.61223H12.5248C12.8634 7.61223 13.1369 7.338 13.1369 7.0001C13.1369 6.66221 12.8634 6.38799 12.5248 6.38799Z"
+        fill={color}
+        stroke={color}
+        strokeWidth={0.5}
+      />
+    </Svg>
+  );
+}
+
+/** 私信按钮：纸飞机（figma 66，440:2541） */
+export function SendPlaneIcon({ size = 27, color = '#000000' }: IconProps) {
+  const s = scaleSizeW(size);
+  return (
+    <Svg width={s} height={s} viewBox="0 0 27 27" fill="none">
+      <Path
+        d="M20.2385 9.22176L3.4806 9.31156C2.65796 9.35522 2.21648 10.3312 2.85635 10.85L7.26373 14.894L16.4813 11.981L8.70672 17.726L9.38776 23.6686C9.50594 24.4533 10.4805 24.7077 10.9613 23.9934L20.884 10.4887C21.2918 9.99932 20.9121 9.25405 20.2385 9.22176Z"
+        fill={color}
+      />
+    </Svg>
+  );
+}
+
 /** 头部右侧：设置（设计稿 64 为滑杆图标） */
 export function SettingsIcon({ size = 20, color = '#FFFFFF' }: IconProps) {
   const s = scaleSizeW(size);

@@ -234,7 +234,7 @@ export default function RootNavigator() {
             headerTitleStyle: { color: '#000000' },
             headerShadowVisible: false,
             headerRight: () => (
-              <Text style={{ fontSize: 15, fontWeight: '500', color: '#000000' }} onPress={() => navigation.navigate('userHome')}>
+              <Text style={{ fontSize: 15, fontWeight: '500', color: '#000000' }} onPress={() => navigation.navigate('userHome', { preview: true })}>
                 预览
               </Text>
             ),

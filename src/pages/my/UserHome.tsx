@@ -21,7 +21,7 @@ import { NavBackButton } from '@/components/NavHeader';
 import { API } from '@/api';
 import { useUserStore, type UserInfo, type WqUser } from '@/store/user';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
-import { CompanyIcon, MessageIcon, TabCommentIcon, TabFavIcon, TabLikeIcon } from './myIcons';
+import { CompanyIcon, PlusIcon, SendPlaneIcon, TabCommentIcon, TabFavIcon, TabLikeIcon } from './myIcons';
 import WaterfallTab from './tabs/WaterfallTab';
 import CommentTab from './tabs/CommentTab';
 import LikeTab from './tabs/LikeTab';
@@ -60,6 +60,8 @@ export default function UserHome() {
   const myId = selfInfo?.wqUser?.id ?? 0;
   const targetUserId = route.params?.userId;
   const isSelf = !targetUserId || targetUserId === myId;
+  /** 预览模式：仅从编辑资料「预览」进入，显示「退出预览」；其余（含自己主页）显示返回键 */
+  const isPreview = isSelf && route.params?.preview === true;
 
   const [otherInfo, setOtherInfo] = useState<UserInfo | null>(null);
   const [followed, setFollowed] = useState(false);
@@ -257,6 +259,11 @@ export default function UserHome() {
     [windowWidth, tabRefs, scrollOffsetsRef, contentH, insets.top, pagerHeightFor, headerH, tabBarH],
   );
 
+  const headerBtnsMT = isPreview
+    ? Math.max(scaleSizeH(61) - insets.top, scaleSizeH(8))
+    : Math.max(scaleSizeH(48) - insets.top, scaleSizeH(4));
+  const profileRowMT = Math.max(scaleSizeH(107) - insets.top - headerBtnsMT - scaleSizeH(44), scaleSizeH(2));
+
   const renderTabPage = (tab: TabKey) => (
     <View style={{ width: windowWidth, height: pagerHeight, backgroundColor: '#F6F7FB' }}>
       {tab === 'comment' ? (
@@ -319,17 +326,17 @@ export default function UserHome() {
           ListFooterComponent={<View style={styles.bottomPad} />}
           renderItem={({ index }: { index: number }) => index === 0 ? (
             <View onLayout={e => setHeaderH(e.nativeEvent.layout.height)}>
-              <View style={[styles.headerBtns, { marginTop: Math.max(scaleSizeH(61) - insets.top, scaleSizeH(8)) }]}>
-                {!isSelf && <NavBackButton color="#FFFFFF" onPress={() => navigation.goBack()} />}
-                {isSelf && (
+              <View style={[styles.headerBtns, { marginTop: headerBtnsMT }]}>
+                {!isPreview && <NavBackButton color="#FFFFFF" onPress={() => navigation.goBack()} />}
+                {isPreview && (
                   <TouchableOpacity activeOpacity={0.8} style={styles.exitBtn} onPress={() => navigation.goBack()}>
                     <Text style={styles.exitBtnText}>退出预览</Text>
                   </TouchableOpacity>
                 )}
               </View>
-              <View style={styles.profileRow}>
+              <View style={[styles.profileRow, { marginTop: profileRowMT }]}>
                 <ExpoImage
-                  source={{ uri: wqUser?.avatar || 'https://i.pravatar.cc/100?img=8' }}
+                  source={{ uri: wqUser?.avatar || '' }}
                   style={styles.avatar}
                   contentFit="cover"
                   transition={150}
@@ -380,12 +387,13 @@ export default function UserHome() {
                       disabled={followBusy}
                       onPress={onToggleFollow}
                     >
+                      {!followed && <PlusIcon size={14} />}
                       <Text style={[styles.followBtnText, followed && styles.followBtnTextDone]}>
                         {followed ? '已关注' : '关注'}
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity activeOpacity={0.8} style={styles.msgBtn} onPress={todo}>
-                      <MessageIcon size={22} color="#333333" />
+                      <SendPlaneIcon size={27} color="#000000" />
                     </TouchableOpacity>
                   </View>
                 )}
@@ -398,12 +406,12 @@ export default function UserHome() {
                   <Text style={styles.stickyName} numberOfLines={1}>
                     {wqUser?.username || wqUser?.nickname || ''}
                   </Text>
-                  {!isSelf && (
+                  {!isPreview && (
                     <View style={styles.stickyLeft}>
                       <NavBackButton color="#000000" onPress={() => navigation.goBack()} />
                     </View>
                   )}
-                  {isSelf && (
+                  {isPreview && (
                     <TouchableOpacity activeOpacity={0.8} style={styles.exitBtnSticky} onPress={() => navigation.goBack()}>
                       <Text style={styles.exitBtnText}>退出预览</Text>
                     </TouchableOpacity>
@@ -537,7 +545,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: scaleSizeW(16),
-    marginTop: scaleSizeH(2),
   },
   avatar: {
     width: scaleSizeW(80),
@@ -629,8 +636,10 @@ const styles = StyleSheet.create({
     height: scaleSizeH(40),
     borderRadius: scaleSizeW(5),
     backgroundColor: BLUE,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: scaleSizeW(5),
   },
   followBtnDone: {
     backgroundColor: '#F3F3F1',
