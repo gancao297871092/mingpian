@@ -27,6 +27,8 @@ interface Props {
   /** post=发布 fav=收藏 like=点赞 */
   tab: 'post' | 'fav' | 'like';
   myId: number;
+  /** 他人主页场景传目标用户 id（此时不展示草稿卡） */
+  targetUserId?: number;
   /** 是否为当前展示页（懒加载触发） */
   active: boolean;
   draftCount: number;
@@ -38,11 +40,12 @@ interface Props {
   onTotal?: (n: number) => void;
 }
 
-export default forwardRef<TabHandle, Props>(function WaterfallTab({ tab, myId, active, draftCount, draftCover, onHeight, onTotal }, ref) {
+export default forwardRef<TabHandle, Props>(function WaterfallTab({ tab, myId, targetUserId, active, draftCount, draftCover, onHeight, onTotal }, ref) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [state, setState] = useState<TabState<PostCardData>>(initialTabState);
   const stateRef = useRef(state);
   stateRef.current = state;
+  const listUserId = targetUserId ?? myId;
 
   const fetchPage = useCallback(
     async (pageNum: number) => {
@@ -51,8 +54,8 @@ export default forwardRef<TabHandle, Props>(function WaterfallTab({ tab, myId, a
       try {
         const res =
           tab === 'post'
-            ? await API.my.bbsList({ pageNum, pageSize: PAGE_SIZE })
-            : await API.my.likeFavoritesList({ targetUserId: myId, type: tab === 'fav' ? 2 : 1, pageNum, pageSize: PAGE_SIZE });
+            ? await API.my.bbsList({ targetUserId, pageNum, pageSize: PAGE_SIZE })
+            : await API.my.likeFavoritesList({ targetUserId: listUserId, type: tab === 'fav' ? 2 : 1, pageNum, pageSize: PAGE_SIZE });
         const list = (res.data?.list ?? []).map(mapPost);
         const pages = res.data?.pages ?? 1;
         onTotal?.(res.data?.total ?? 0);
@@ -67,7 +70,7 @@ export default forwardRef<TabHandle, Props>(function WaterfallTab({ tab, myId, a
         setState(prev => ({ ...prev, loading: false, loaded: true }));
       }
     },
-    [tab, myId, onTotal],
+    [tab, targetUserId, listUserId, onTotal],
   );
 
   useEffect(() => {
@@ -103,7 +106,7 @@ export default forwardRef<TabHandle, Props>(function WaterfallTab({ tab, myId, a
 
   // 草稿卡片作为瀑布流的第一个伪 item，保证吸顶/布局稳定
   const data: PostCardData[] =
-    tab === 'post' && draftCount > 0
+    tab === 'post' && !targetUserId && draftCount > 0
       ? [{ id: DRAFT_ITEM_ID, imageUrl: '', imageHeight: 0, title: '', date: '', likeCount: 0 }, ...state.list]
       : state.list;
 

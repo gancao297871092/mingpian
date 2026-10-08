@@ -72,8 +72,8 @@ export namespace API {
   }
 
   export namespace my {
-    /** 我的动态列表（发布 tab；statusTab: all/publishing/published/rejected） */
-    export function bbsList(data: { statusTab?: string; boardType?: number; pageNum?: number; pageSize?: number }) {
+    /** 我的动态列表（发布 tab；statusTab: all/publishing/published/rejected；targetUserId 查看他人主页时传） */
+    export function bbsList(data: { statusTab?: string; boardType?: number; targetUserId?: number; pageNum?: number; pageSize?: number }) {
       return request.post<{ list: any[]; total: number; pageNum: number; pages: number }>('/my/bbs/list', data);
     }
     /** 点赞/收藏的动态列表（type: 1点赞 2收藏） */
@@ -93,8 +93,8 @@ export namespace API {
   }
 
   export namespace interaction {
-    /** 我收到的评论（我的动态下他人评论，含楼中楼） */
-    export function commentList(params: { pageNum?: number; pageSize?: number }) {
+    /** 我收到的评论（我的动态下他人评论，含楼中楼；targetUserId 查看他人主页时传） */
+    export function commentList(params: { targetUserId?: number; pageNum?: number; pageSize?: number }) {
       return request.get<{ list: any[]; total: number; pageNum: number; pages: number }>(
         '/interaction/comment/list',
         { params },

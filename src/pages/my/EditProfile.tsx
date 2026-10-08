@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import ImagePicker from 'react-native-image-crop-picker';
 import Toast from 'react-native-toast-message';
@@ -32,6 +32,7 @@ export default function EditProfile() {
   const genderSheetRef = useRef<BottomSheetModal>(null);
   const [areaVisible, setAreaVisible] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
   const refreshUserInfo = useCallback(() => {
     API.user.info()
@@ -63,13 +64,24 @@ export default function EditProfile() {
         cropperCircleOverlay: true,
       });
       if (!img?.path) return;
+      const localUri = img.path.startsWith('file://') ? img.path : `file://${img.path}`;
+      setAvatarPreview(localUri);
       setAvatarBusy(true);
-      const url = await uploadToOss(img.path, img.mime);
-      saveField({ avatar: url });
+      try {
+        const url = await uploadToOss(img.path, img.mime);
+        await API.user.updateInfo({ avatar: url });
+        const res = await API.user.info();
+        if (res.data) setUserInfo(res.data);
+        setAvatarPreview(null);
+        Toast.show({ type: 'success', text1: '已保存' });
+      } catch (err: any) {
+        setAvatarPreview(null);
+        Toast.show({ type: 'error', text1: err?.msg || '头像上传失败，请重试' });
+      } finally {
+        setAvatarBusy(false);
+      }
     } catch {
       // 用户取消选择
-    } finally {
-      setAvatarBusy(false);
     }
   };
 
@@ -85,9 +97,9 @@ export default function EditProfile() {
 
   return (
     <SafeView backgroundColor="#F6F7FB">
-      <TouchableOpacity activeOpacity={0.9} style={styles.avatarBox} onPress={onPickAvatar}>
+      <TouchableOpacity activeOpacity={0.9} style={styles.avatarBox} onPress={onPickAvatar} disabled={avatarBusy}>
         <ExpoImage
-          source={{ uri: wqUser?.avatar || 'https://i.pravatar.cc/100?img=8' }}
+          source={{ uri: avatarPreview || wqUser?.avatar || 'https://i.pravatar.cc/100?img=8' }}
           style={styles.avatar}
           contentFit="cover"
           transition={150}
@@ -95,6 +107,11 @@ export default function EditProfile() {
         <View style={styles.avatarBadge}>
           <CameraBadgeIcon />
         </View>
+        {avatarBusy && (
+          <View style={styles.avatarLoading}>
+            <ActivityIndicator color="#FFFFFF" />
+          </View>
+        )}
       </TouchableOpacity>
 
       <View style={styles.card}>
@@ -165,6 +182,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#EAEAEA',
     backgroundColor: '#EAEAEA',
+  },
+  avatarLoading: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: scaleSizeW(40),
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   avatarBadge: {
     position: 'absolute',

@@ -38,6 +38,8 @@ const MOCK_LIKED_COMMENTS: LikedCommentData[] = [
 
 interface Props {
   myId: number;
+  /** 他人主页场景传目标用户 id */
+  targetUserId?: number;
   /** 是否为当前展示页（懒加载触发） */
   active: boolean;
   /** 列表内容高度变化（含子 tab 栏高度，外层 FlatList 统一滚动） */
@@ -45,7 +47,7 @@ interface Props {
 }
 
 /** figma 88：我的-点赞（动态/评论 两个子列表） */
-export default forwardRef<TabHandle, Props>(function LikeTab({ myId, active, onHeight }, ref) {
+export default forwardRef<TabHandle, Props>(function LikeTab({ myId, targetUserId, active, onHeight }, ref) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [subTab, setSubTab] = useState<SubTab>('bbs');
   const [subBarH, setSubBarH] = useState(0);
@@ -120,6 +122,7 @@ export default forwardRef<TabHandle, Props>(function LikeTab({ myId, active, onH
           ref={h => { waterfallRef.current = h; }}
           tab="like"
           myId={myId}
+          targetUserId={targetUserId}
           active={active}
           draftCount={0}
           draftCover=""

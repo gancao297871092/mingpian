@@ -17,6 +17,7 @@ export type RootStackParamList = {
   bbsShareImage: { id: string };
   search: undefined;
   editProfile: undefined;
+  userHome: { userId?: number } | undefined;
   settings: undefined;
   accountSecurity: undefined;
   verifyIdentity: { scene?: 'changePhone' | 'resetPassword' } | undefined;

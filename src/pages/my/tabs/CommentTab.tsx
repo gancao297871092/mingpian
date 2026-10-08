@@ -20,13 +20,15 @@ import {
 const PAGE_SIZE = 20;
 
 interface Props {
+  /** 他人主页场景传目标用户 id */
+  targetUserId?: number;
   /** 是否为当前展示页（懒加载触发） */
   active: boolean;
   /** 列表内容高度变化（外层 FlatList 统一滚动，需要撑开高度） */
   onHeight: (h: number) => void;
 }
 
-export default forwardRef<TabHandle, Props>(function CommentTab({ active, onHeight }, ref) {
+export default forwardRef<TabHandle, Props>(function CommentTab({ targetUserId, active, onHeight }, ref) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [state, setState] = useState<TabState<CommentCardData>>(initialTabState);
   const stateRef = useRef(state);
@@ -36,7 +38,7 @@ export default forwardRef<TabHandle, Props>(function CommentTab({ active, onHeig
     if (stateRef.current.loading) return;
     setState(prev => ({ ...prev, loading: true }));
     try {
-      const res = await API.interaction.commentList({ pageNum, pageSize: PAGE_SIZE });
+      const res = await API.interaction.commentList({ targetUserId, pageNum, pageSize: PAGE_SIZE });
       const list = (res.data?.list ?? []).map(mapComment);
       const pages = res.data?.pages ?? 1;
       setState(prev => ({
@@ -49,7 +51,7 @@ export default forwardRef<TabHandle, Props>(function CommentTab({ active, onHeig
     } catch {
       setState(prev => ({ ...prev, loading: false, loaded: true }));
     }
-  }, []);
+  }, [targetUserId]);
 
   useEffect(() => {
     if (active && !state.loaded) fetchPage(1);

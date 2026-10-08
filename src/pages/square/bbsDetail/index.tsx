@@ -942,7 +942,11 @@ export default function BbsDetail() {
       <NavHeader
         center={
           detail ? (
-            <View style={styles.headerAuthor}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.headerAuthor}
+              onPress={() => navigation.navigate('userHome', { userId: detail.authorId })}
+            >
               <ExpoImage source={{ uri: detail.authorAvatar }} style={styles.headerAvatar} contentFit="cover" transition={150} />
               <View style={styles.headerAuthorText}>
                 <Text style={styles.headerName} numberOfLines={1}>{detail.authorName}</Text>
@@ -951,7 +955,7 @@ export default function BbsDetail() {
                   <VerifiedBadge />
                 </View>}
               </View>
-            </View>
+            </TouchableOpacity>
           ) : null
         }
         right={

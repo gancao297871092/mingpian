@@ -13,6 +13,7 @@ import LinkPage from '@/pages/link';
 import MessagePage from '@/pages/message';
 import My from '@/pages/my';
 import EditProfile from '@/pages/my/EditProfile';
+import UserHome from '@/pages/my/UserHome';
 import Settings from '@/pages/my/settings';
 import AccountSecurity from '@/pages/my/settings/AccountSecurity';
 import VerifyIdentity from '@/pages/my/settings/VerifyIdentity';
@@ -233,11 +234,16 @@ export default function RootNavigator() {
             headerTitleStyle: { color: '#000000' },
             headerShadowVisible: false,
             headerRight: () => (
-              <Text style={{ fontSize: 15, fontWeight: '500', color: '#000000' }} onPress={() => navigation.goBack()}>
+              <Text style={{ fontSize: 15, fontWeight: '500', color: '#000000' }} onPress={() => navigation.navigate('userHome')}>
                 预览
               </Text>
             ),
           })}
+        />
+        <Stack.Screen
+          name="userHome"
+          component={UserHome}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="settings"
