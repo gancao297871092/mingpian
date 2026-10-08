@@ -347,7 +347,7 @@ export default function My() {
                   transition={150}
                 />
                 <View style={styles.profileText}>
-                  <Text style={styles.nickname}>{wqUser?.nickname || wqUser?.username || '未登录'}</Text>
+                  <Text style={styles.nickname}>{wqUser?.username || wqUser?.nickname || '未登录'}</Text>
                   {!!wqUser?.cpName && (
                     <View style={styles.companyRow}>
                       <Text style={styles.companyText} numberOfLines={1}>{wqUser.cpName}</Text>
@@ -434,7 +434,7 @@ export default function My() {
               <Animated.View style={[styles.stickyNick, { height: nickHeight, backgroundColor: '#fff' }]}>
                 <View style={styles.stickyNickInner}>
                   <Text style={styles.stickyName} numberOfLines={1}>
-                    {wqUser?.nickname || wqUser?.username || ''}
+                    {wqUser?.username || wqUser?.nickname || ''}
                   </Text>
                   <View style={styles.stickyIcons}>
                     {/* <TouchableOpacity activeOpacity={0.7} hitSlop={8} onPress={onSettings}>
@@ -524,7 +524,7 @@ export default function My() {
       </View>
       <LikesDialog
         visible={likesVisible}
-        nickname={wqUser?.nickname || wqUser?.username || ''}
+        nickname={wqUser?.username || wqUser?.nickname || ''}
         likeCount={userInfo?.likeCount ?? 0}
         bbsCount={userInfo?.bbsCount ?? 0}
         favoriteCount={userInfo?.favoriteCount ?? 0}

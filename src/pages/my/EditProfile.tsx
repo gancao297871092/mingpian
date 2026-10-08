@@ -25,16 +25,6 @@ const GENDER_OPTIONS = [
   { key: 0, label: '保密' },
 ];
 
-function genderText(g?: number) {
-  return g === 1 ? '男' : g === 2 ? '女' : '保密';
-}
-
-function birthdayText(ts?: number) {
-  if (!ts) return '未设置';
-  const d = new Date(ts * 1000);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
 export default function EditProfile() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { userInfo, setUserInfo } = useUserStore();
@@ -83,8 +73,6 @@ export default function EditProfile() {
     }
   };
 
-  const regionValue = ['中国', wqUser?.province, wqUser?.city].filter(Boolean).join('·') || '未设置';
-
   const renderRow = (label: string, value: string, placeholder: boolean, onPress: () => void) => (
     <TouchableOpacity activeOpacity={0.7} style={styles.row} onPress={onPress}>
       <Text style={styles.rowLabel}>{label}</Text>
@@ -110,7 +98,7 @@ export default function EditProfile() {
       </TouchableOpacity>
 
       <View style={styles.card}>
-        {renderRow('昵称', wqUser?.nickname || wqUser?.username || '', !wqUser?.nickname && !wqUser?.username, () =>
+        {renderRow('昵称', wqUser?.username || wqUser?.nickname || '', !wqUser?.username && !wqUser?.nickname, () =>
           navigation.navigate('editName'),
         )}
         <View style={styles.divider} />

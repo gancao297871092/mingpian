@@ -16,7 +16,7 @@ const INVALID_CHARS = /[@<>/]/;
 export default function EditName() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { userInfo, setUserInfo } = useUserStore();
-  const origin = userInfo?.wqUser?.nickname || userInfo?.wqUser?.username || '';
+  const origin = userInfo?.wqUser?.username || userInfo?.wqUser?.nickname || '';
   const [value, setValue] = useState(origin);
   const [saving, setSaving] = useState(false);
 
@@ -34,7 +34,7 @@ export default function EditName() {
             if (!canSave) return;
             setSaving(true);
             API.user
-              .updateInfo({ nickname: trimmed })
+              .updateInfo({ username: trimmed })
               .then(() => {
                 Toast.show({ type: 'success', text1: '已保存' });
                 API.user.info().then(res => res.data && setUserInfo(res.data)).catch(() => {});

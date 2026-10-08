@@ -105,7 +105,7 @@ export function useCurrentAccount() {
   const userInfo = useUserStore(s => s.userInfo);
   return {
     avatar: userInfo?.wqUser?.avatar,
-    name: userInfo?.wqUser?.nickname || userInfo?.wqUser?.username || '当前账号',
+    name: userInfo?.wqUser?.username || userInfo?.wqUser?.nickname || '当前账号',
   };
 }
 
