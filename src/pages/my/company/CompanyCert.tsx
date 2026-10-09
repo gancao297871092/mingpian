@@ -315,26 +315,29 @@ function Step1({ onNext }: { onNext: (d: CertBase) => void }) {
   const [sampleVisible, setSampleVisible] = useState(false);
 
   const fill = useCallback((d: any) => {
-    // if (!d) return;
-    // setId(d.id ?? null);
-    // setCpId(d.cpId ?? null);
-    // if (d.businessUrl !== undefined) setLicense(d.businessUrl || '');
-    // setName(d.companyName || '');
-    // setCode(d.creditCode || '');
-    // setLocation(d.businessAddress || '');
-    // const forever = isForever(d.validToDate);
-    // setLongTerm(forever);
-    // setValidToDate(forever ? '' : formatValidDate(d.validToDate));
+    if (!d || typeof d !== 'object') return;
+    setId(d.id ?? null);
+    setCpId(d.cpId ?? null);
+    // 仅接受 http(s) 图片地址，防止后端返回 base64 等大字段导致渲染崩溃
+    if (typeof d.businessUrl === 'string' && /^https?:\/\//.test(d.businessUrl)) {
+      setLicense(d.businessUrl);
+    }
+    setName(typeof d.companyName === 'string' ? d.companyName : '');
+    setCode(typeof d.creditCode === 'string' ? d.creditCode : '');
+    setLocation(typeof d.businessAddress === 'string' ? d.businessAddress : '');
+    const forever = isForever(d.validToDate);
+    setLongTerm(forever);
+    setValidToDate(forever ? '' : formatValidDate(d.validToDate));
   }, []);
 
   useEffect(() => {
     (async () => {
       try {
-        // const res = await API.company.certStepOne();
-        // if (res.code !== '200' || !res.data) return;
-        // const r2 = await API.company.certStepTwo(res.data);
-        // if (r2.code !== '200') return;
-        // fill(r2.data);
+        const res = await API.company.certStepOne();
+        if (res.code !== '200' || !res.data || typeof res.data !== 'object') return;
+        const r2 = await API.company.certStepTwo(res.data);
+        if (r2.code !== '200' || !r2.data || typeof r2.data !== 'object') return;
+        fill(r2.data);
       } catch {
         // 拦截器已提示
       }
