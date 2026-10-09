@@ -1,81 +1,65 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
-import { Image as ExpoImage } from 'expo-image';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import Svg, { Path } from 'react-native-svg';
 import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
 import EmptyState from '@/components/EmptyState';
 import ListFooter from '@/components/ListFooter';
+import WaterfallCard, { type WaterfallItem } from '@/components/WaterfallCard';
 import { API } from '@/api';
 import { setDetailCache } from '@/utils/detailCache';
 import { useBbsInteractionStore } from '@/store/bbsInteraction';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
 import { mapPost } from './tabs/common';
-import { CardLikeIcon, CheckMarkIcon, HistorySearchIcon, HistoryTrashIcon } from './myIcons';
+import { CheckMarkIcon, HistorySearchIcon, HistoryTrashIcon } from './myIcons';
 
 const PRIMARY = '#2962D4';
 const DANGER = '#EF4444';
-const LIKE_RED = '#FE2955';
 const PAGE_SIZE = 20;
-const CARD_W = scaleSizeW(194);
 const IMAGE_H = 130;
 
 type HistoryItem = API.history.HistoryItem;
+type LikeMap = ReturnType<typeof useBbsInteractionStore.getState>['likeMap'];
 
-interface CardDisplay {
-  imageUrl: string;
-  imageHeight: number;
-  title: string;
-  avatar: string;
-  name: string;
-  likeCount: number | null;
-  isVideo: boolean;
-  bbs?: any;
-}
-
-/** 优先使用回填的完整动态卡片（与广场 feed 同构），否则用快照兜底 */
-function displayOf(item: HistoryItem): CardDisplay {
+/** 转为广场公用瀑布流卡片数据（bbs 卡片优先，快照兜底；点赞状态以 likeMap 为准） */
+function toWaterfallItem(item: HistoryItem, likeMap: LikeMap): WaterfallItem {
+  const id = String(item.targetId);
+  const like = likeMap[id];
+  const info = item.bbs?.userInfoVo ?? {};
   if (item.bbs) {
     const post = mapPost(item.bbs);
-    const info = item.bbs.userInfoVo ?? {};
     return {
+      id,
       imageUrl: post.imageUrl,
       imageHeight: post.imageHeight,
       title: post.title,
-      avatar: info.avatar || item.authorAvatar || '',
-      name: info.nickname || info.username || item.authorName || '',
-      likeCount: post.likeCount,
-      isVideo: item.bbs.mediaLinkList?.[0]?.media?.fileType === 'video',
-      bbs: item.bbs,
+      avatarUrl: info.avatar || item.authorAvatar || '',
+      userName: info.nickname || info.username || item.authorName || '',
+      companyName: info.cpName || '',
+      likeCount: like?.likeCount ?? post.likeCount,
+      isLiked: like?.isLiked ?? item.bbs.userIsZan === 1,
+      hasVideo: item.bbs.mediaLinkList?.[0]?.media?.fileType === 'video',
+      raw: item.bbs,
     };
   }
   return {
+    id,
     imageUrl: item.targetAvatar || '',
     imageHeight: IMAGE_H,
     title: item.targetTitle || '',
-    avatar: item.authorAvatar || '',
-    name: item.authorName || '',
-    likeCount: item.countLike ?? null,
-    isVideo: false,
+    avatarUrl: item.authorAvatar || '',
+    userName: item.authorName || '',
+    companyName: '',
+    likeCount: like?.likeCount ?? item.countLike ?? 0,
+    isLiked: like?.isLiked ?? false,
+    hasVideo: false,
   };
 }
 
-function VideoBadge() {
-  return (
-    <View style={styles.videoBadge}>
-      <Svg width={scaleSizeW(10)} height={scaleSizeW(10)} viewBox="0 0 24 24">
-        <Path d="M7 4l13 8-13 8z" fill="#FFFFFF" />
-      </Svg>
-      <Text style={styles.videoBadgeText}>含视频</Text>
-    </View>
-  );
-}
-
-/** 98/99.浏览记录（点右上角垃圾桶进入删除管理模式；放大镜展开关键词搜索；动态/文章可跳转详情） */
+/** 98/99.浏览记录（点右上角垃圾桶进入删除管理模式；放大镜跳转搜索页；卡片复用广场 WaterfallCard） */
 export default function BrowseHistory() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [managing, setManaging] = useState(false);
@@ -91,20 +75,20 @@ export default function BrowseHistory() {
 
   /** 列表卡片直接点赞（仅动态/文章类；乐观更新，失败回滚） */
   const onToggleLike = useCallback(
-    (item: HistoryItem) => {
-      if (!item.bbs) return;
-      const id = String(item.targetId);
+    (id: string) => {
+      const item = list.find(i => String(i.targetId) === id);
+      if (!item?.bbs) return;
       const cur = likeMap[id];
       const isLiked = cur?.isLiked ?? item.bbs.userIsZan === 1;
       const likeCount = cur?.likeCount ?? item.bbs.countLike ?? 0;
       const next = !isLiked;
       const nextCount = likeCount + (next ? 1 : -1);
       setLike(id, { isLiked: next, likeCount: nextCount });
-      API.bbs.like({ bbsId: item.targetId, status: next ? 1 : 0 }).catch(() => {
+      API.bbs.like({ bbsId: Number(id), status: next ? 1 : 0 }).catch(() => {
         setLike(id, { isLiked, likeCount });
       });
     },
-    [likeMap, setLike],
+    [list, likeMap, setLike],
   );
 
   const fetchList = useCallback(async (pageNum: number, append: boolean) => {
@@ -214,78 +198,35 @@ export default function BrowseHistory() {
   }, []);
 
   const onPressCard = useCallback(
-    (item: HistoryItem) => {
-      if (managing) {
-        toggleSelect(item.id);
-        return;
-      }
+    (id: string) => {
+      const item = list.find(i => String(i.targetId) === id);
+      if (!item) return;
       // 1动态 5技术文章 → 动态详情（其余类型详情页待实现）
       if (item.targetType === 1 || item.targetType === 5) {
-        if (item.bbs) setDetailCache(String(item.targetId), item.bbs);
-        navigation.navigate('bbsDetail', { id: String(item.targetId) });
+        if (item.bbs) setDetailCache(id, item.bbs);
+        navigation.navigate('bbsDetail', { id });
       }
     },
-    [managing, toggleSelect, navigation],
+    [list, navigation],
   );
 
   const renderItem = useCallback(
     ({ item }: { item: HistoryItem }) => {
-      const d = displayOf(item);
-      const like = likeMap[String(item.targetId)];
-      const isLiked = like?.isLiked ?? item.bbs?.userIsZan === 1;
-      const likeCount = like?.likeCount ?? d.likeCount;
       const checked = selected.has(item.id);
       return (
-        <TouchableOpacity activeOpacity={0.9} style={styles.card} onPress={() => onPressCard(item)}>
-          <View>
-            {d.imageUrl ? (
-              <ExpoImage
-                source={{ uri: d.imageUrl }}
-                style={[styles.cardImage, { height: scaleSizeH(d.imageHeight) }]}
-                contentFit="cover"
-                transition={200}
-                cachePolicy="memory-disk"
-                recyclingKey={d.imageUrl}
-              />
-            ) : (
-              <View style={[styles.cardImage, styles.cardImagePlaceholder, { height: scaleSizeH(IMAGE_H) }]} />
-            )}
-            {d.isVideo && !managing && <VideoBadge />}
-            {managing && (
+        <View>
+          <WaterfallCard item={toWaterfallItem(item, likeMap)} onToggleLike={onToggleLike} onPress={onPressCard} />
+          {managing && (
+            <TouchableOpacity activeOpacity={1} style={styles.manageMask} onPress={() => toggleSelect(item.id)}>
               <View style={[styles.checkCircle, checked && styles.checkCircleOn]}>
                 {checked && <CheckMarkIcon />}
               </View>
-            )}
-          </View>
-          <View style={styles.cardBody}>
-            <Text style={styles.cardTitle} numberOfLines={2}>{d.title}</Text>
-            <View style={styles.cardFoot}>
-              {d.avatar ? (
-                <ExpoImage source={{ uri: d.avatar }} style={styles.footAvatar} contentFit="cover" transition={150} />
-              ) : (
-                <View style={[styles.footAvatar, styles.footAvatarPlaceholder]} />
-              )}
-              <View style={styles.footText}>
-                <Text style={styles.footName} numberOfLines={1}>{d.name}</Text>
-              </View>
-              {likeCount != null && !managing && (
-                <TouchableOpacity activeOpacity={0.7} hitSlop={8} style={styles.footLike} onPress={() => onToggleLike(item)}>
-                  <CardLikeIcon color={isLiked ? LIKE_RED : '#666666'} />
-                  <Text style={[styles.footLikeText, isLiked && styles.footLikeTextOn]}>{likeCount}</Text>
-                </TouchableOpacity>
-              )}
-              {likeCount != null && managing && (
-                <View style={styles.footLike}>
-                  <CardLikeIcon />
-                  <Text style={styles.footLikeText}>{likeCount}</Text>
-                </View>
-              )}
-            </View>
-          </View>
-        </TouchableOpacity>
+            </TouchableOpacity>
+          )}
+        </View>
       );
     },
-    [managing, selected, onPressCard, likeMap, onToggleLike],
+    [managing, selected, toggleSelect, likeMap, onToggleLike, onPressCard],
   );
 
   return (
@@ -365,38 +306,12 @@ const styles = StyleSheet.create({
   emptyBox: {
     paddingTop: scaleSizeH(80),
   },
-  card: {
-    width: CARD_W,
-    borderRadius: scaleSizeW(4),
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: scaleSizeW(2),
-    marginBottom: scaleSizeH(5),
-  },
-  cardImage: {
-    width: '100%',
-    backgroundColor: '#F5F5F5',
-  },
-  cardImagePlaceholder: {
-    backgroundColor: '#E6E6E6',
-  },
-  videoBadge: {
+  manageMask: {
     position: 'absolute',
-    top: scaleSizeH(10),
-    right: scaleSizeW(5),
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scaleSizeW(3),
-    height: scaleSizeH(20),
-    paddingHorizontal: scaleSizeW(5),
-    borderRadius: scaleSizeW(10),
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  videoBadgeText: {
-    fontSize: setSpText(10),
-    fontWeight: '500',
-    lineHeight: scaleSizeH(10),
-    color: '#FFFFFF',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   checkCircle: {
     position: 'absolute',
@@ -414,56 +329,6 @@ const styles = StyleSheet.create({
   checkCircleOn: {
     backgroundColor: PRIMARY,
     borderColor: PRIMARY,
-  },
-  cardBody: {
-    paddingHorizontal: scaleSizeW(11),
-    paddingTop: scaleSizeH(6),
-    paddingBottom: scaleSizeH(12),
-  },
-  cardTitle: {
-    fontSize: setSpText(15),
-    fontWeight: '500',
-    lineHeight: setSpText(21),
-    color: '#333333',
-  },
-  cardFoot: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: scaleSizeH(12),
-  },
-  footAvatar: {
-    width: scaleSizeW(27),
-    height: scaleSizeW(27),
-    borderRadius: scaleSizeW(14),
-    backgroundColor: '#F5F5F5',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#F5F5F5',
-  },
-  footAvatarPlaceholder: {
-    backgroundColor: '#F5F5F5',
-  },
-  footText: {
-    flex: 1,
-    marginLeft: scaleSizeW(5),
-    gap: scaleSizeH(3),
-  },
-  footName: {
-    fontSize: setSpText(12),
-    lineHeight: setSpText(12),
-    color: '#333333',
-  },
-  footLike: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scaleSizeW(2),
-  },
-  footLikeText: {
-    fontSize: setSpText(12),
-    lineHeight: setSpText(21),
-    color: '#616161',
-  },
-  footLikeTextOn: {
-    color: LIKE_RED,
   },
   manageBar: {
     position: 'absolute',
