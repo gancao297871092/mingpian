@@ -37,6 +37,7 @@ import Workbench from '@/pages/my/Workbench';
 import TouchTasks from '@/pages/my/TouchTasks';
 import TouchTaskDetail from '@/pages/my/TouchTaskDetail';
 import BrowseHistory from '@/pages/my/BrowseHistory';
+import BrowseHistorySearch from '@/pages/my/BrowseHistorySearch';
 import CompanyManage from '@/pages/my/CompanyManage';
 import CompanyInfo from '@/pages/my/company/CompanyInfo';
 import CompanyModuleEdit from '@/pages/my/company/CompanyModuleEdit';
@@ -478,6 +479,11 @@ export default function RootNavigator() {
             headerTitleStyle: { color: '#000000' },
             headerShadowVisible: false,
           }}
+        />
+        <Stack.Screen
+          name="browseHistorySearch"
+          component={BrowseHistorySearch}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="companyManage"

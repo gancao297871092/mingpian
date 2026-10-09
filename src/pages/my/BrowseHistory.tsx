@@ -4,13 +4,16 @@ import { FlashList } from '@shopify/flash-list';
 import { Image as ExpoImage } from 'expo-image';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import Svg, { Path } from 'react-native-svg';
 import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
 import EmptyState from '@/components/EmptyState';
 import ListFooter from '@/components/ListFooter';
 import { API } from '@/api';
+import { setDetailCache } from '@/utils/detailCache';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
+import { mapPost } from './tabs/common';
 import { CardLikeIcon, CheckMarkIcon, HistorySearchIcon, HistoryTrashIcon } from './myIcons';
 
 const PRIMARY = '#2962D4';
@@ -21,7 +24,56 @@ const IMAGE_H = 130;
 
 type HistoryItem = API.history.HistoryItem;
 
-/** 98/99.浏览记录（点右上角垃圾桶进入删除管理模式；动态/文章可跳转详情） */
+interface CardDisplay {
+  imageUrl: string;
+  imageHeight: number;
+  title: string;
+  avatar: string;
+  name: string;
+  likeCount: number | null;
+  isVideo: boolean;
+  bbs?: any;
+}
+
+/** 优先使用回填的完整动态卡片（与广场 feed 同构），否则用快照兜底 */
+function displayOf(item: HistoryItem): CardDisplay {
+  if (item.bbs) {
+    const post = mapPost(item.bbs);
+    const info = item.bbs.userInfoVo ?? {};
+    return {
+      imageUrl: post.imageUrl,
+      imageHeight: post.imageHeight,
+      title: post.title,
+      avatar: info.avatar || item.authorAvatar || '',
+      name: info.nickname || info.username || item.authorName || '',
+      likeCount: post.likeCount,
+      isVideo: item.bbs.mediaLinkList?.[0]?.media?.fileType === 'video',
+      bbs: item.bbs,
+    };
+  }
+  return {
+    imageUrl: item.targetAvatar || '',
+    imageHeight: IMAGE_H,
+    title: item.targetTitle || '',
+    avatar: item.authorAvatar || '',
+    name: item.authorName || '',
+    likeCount: item.countLike ?? null,
+    isVideo: false,
+  };
+}
+
+function VideoBadge() {
+  return (
+    <View style={styles.videoBadge}>
+      <Svg width={scaleSizeW(10)} height={scaleSizeW(10)} viewBox="0 0 24 24">
+        <Path d="M7 4l13 8-13 8z" fill="#FFFFFF" />
+      </Svg>
+      <Text style={styles.videoBadgeText}>含视频</Text>
+    </View>
+  );
+}
+
+/** 98/99.浏览记录（点右上角垃圾桶进入删除管理模式；放大镜展开关键词搜索；动态/文章可跳转详情） */
 export default function BrowseHistory() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [managing, setManaging] = useState(false);
@@ -69,7 +121,7 @@ export default function BrowseHistory() {
     navigation.setOptions({
       headerRight: () => (
         <View style={styles.headerPill}>
-          <TouchableOpacity style={styles.headerIcon} onPress={() => navigation.navigate('search')}>
+          <TouchableOpacity style={styles.headerIcon} onPress={() => navigation.navigate('browseHistorySearch')}>
             <HistorySearchIcon />
           </TouchableOpacity>
           <TouchableOpacity
@@ -147,6 +199,7 @@ export default function BrowseHistory() {
       }
       // 1动态 5技术文章 → 动态详情（其余类型详情页待实现）
       if (item.targetType === 1 || item.targetType === 5) {
+        if (item.bbs) setDetailCache(String(item.targetId), item.bbs);
         navigation.navigate('bbsDetail', { id: String(item.targetId) });
       }
     },
@@ -155,22 +208,24 @@ export default function BrowseHistory() {
 
   const renderItem = useCallback(
     ({ item }: { item: HistoryItem }) => {
+      const d = displayOf(item);
       const checked = selected.has(item.id);
       return (
         <TouchableOpacity activeOpacity={0.9} style={styles.card} onPress={() => onPressCard(item)}>
           <View>
-            {item.targetAvatar ? (
+            {d.imageUrl ? (
               <ExpoImage
-                source={{ uri: item.targetAvatar }}
-                style={[styles.cardImage, { height: scaleSizeH(IMAGE_H) }]}
+                source={{ uri: d.imageUrl }}
+                style={[styles.cardImage, { height: scaleSizeH(d.imageHeight) }]}
                 contentFit="cover"
                 transition={200}
                 cachePolicy="memory-disk"
-                recyclingKey={item.targetAvatar}
+                recyclingKey={d.imageUrl}
               />
             ) : (
               <View style={[styles.cardImage, styles.cardImagePlaceholder, { height: scaleSizeH(IMAGE_H) }]} />
             )}
+            {d.isVideo && !managing && <VideoBadge />}
             {managing && (
               <View style={[styles.checkCircle, checked && styles.checkCircleOn]}>
                 {checked && <CheckMarkIcon />}
@@ -178,20 +233,20 @@ export default function BrowseHistory() {
             )}
           </View>
           <View style={styles.cardBody}>
-            <Text style={styles.cardTitle} numberOfLines={2}>{item.targetTitle || ''}</Text>
+            <Text style={styles.cardTitle} numberOfLines={2}>{d.title}</Text>
             <View style={styles.cardFoot}>
-              {item.authorAvatar ? (
-                <ExpoImage source={{ uri: item.authorAvatar }} style={styles.footAvatar} contentFit="cover" transition={150} />
+              {d.avatar ? (
+                <ExpoImage source={{ uri: d.avatar }} style={styles.footAvatar} contentFit="cover" transition={150} />
               ) : (
                 <View style={[styles.footAvatar, styles.footAvatarPlaceholder]} />
               )}
               <View style={styles.footText}>
-                <Text style={styles.footName} numberOfLines={1}>{item.authorName || ''}</Text>
+                <Text style={styles.footName} numberOfLines={1}>{d.name}</Text>
               </View>
-              {item.countLike != null && (
+              {d.likeCount != null && (
                 <View style={styles.footLike}>
                   <CardLikeIcon />
-                  <Text style={styles.footLikeText}>{item.countLike}</Text>
+                  <Text style={styles.footLikeText}>{d.likeCount}</Text>
                 </View>
               )}
             </View>
@@ -293,6 +348,24 @@ const styles = StyleSheet.create({
   },
   cardImagePlaceholder: {
     backgroundColor: '#E6E6E6',
+  },
+  videoBadge: {
+    position: 'absolute',
+    top: scaleSizeH(10),
+    right: scaleSizeW(5),
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSizeW(3),
+    height: scaleSizeH(20),
+    paddingHorizontal: scaleSizeW(5),
+    borderRadius: scaleSizeW(10),
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  videoBadgeText: {
+    fontSize: setSpText(10),
+    fontWeight: '500',
+    lineHeight: scaleSizeH(10),
+    color: '#FFFFFF',
   },
   checkCircle: {
     position: 'absolute',

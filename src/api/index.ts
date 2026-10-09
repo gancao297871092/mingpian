@@ -501,13 +501,15 @@ export namespace API {
       authorName?: string;
       authorAvatar?: string;
       countLike?: number;
+      /** 完整动态卡片（targetType=1/5 时回填，与 /square/feed 同构） */
+      bbs?: any;
     }
     /** 记录一次浏览（targetType：1动态 2企业 3名片 4商机 5技术文章 6AI商机） */
     export function record(data: { targetType: number; targetId: number; title?: string; avatar?: string }) {
       return request.post<any>('/history/record', data);
     }
-    /** 浏览历史分页（viewedAt 倒序） */
-    export function list(data: { pageNum: number; pageSize: number }) {
+    /** 浏览历史分页（viewedAt 倒序；keyword 可选：动态/文章搜标题正文，其余搜标题快照） */
+    export function list(data: { pageNum: number; pageSize: number; keyword?: string }) {
       return request.post<{ list: HistoryItem[]; total: number; pageNum: number; pages: number }>('/history/list', data);
     }
     /** 批量删除 */

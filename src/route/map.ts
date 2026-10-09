@@ -43,6 +43,7 @@ export type RootStackParamList = {
   touchTasks: { tab?: 'todo' | 'sent' | 'viewed' } | undefined;
   touchTaskDetail: { id: string | number };
   browseHistory: undefined;
+  browseHistorySearch: undefined;
   companyManage: undefined;
   companyInfo: undefined;
   companyModuleEdit: { id?: string; name?: string } | undefined;
