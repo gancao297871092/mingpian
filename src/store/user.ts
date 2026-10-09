@@ -33,6 +33,22 @@ export interface WqUser {
   birthday?: number;
   cpId?: number;
   cpName?: string;
+  /** 隐私开关（1公开 0关闭）：我的动态 */
+  bbsShow?: number;
+  /** 我的点赞 */
+  isLikePrivate?: number;
+  /** 我的收藏 */
+  isFavoritePrivate?: number;
+  /** 我的关注 */
+  isFollowShow?: number;
+  /** 我的粉丝 */
+  isFansShow?: number;
+  /** AI产业连接开关（主开关）：0关 1开（默认），控制新发动态默认参与AI分析 */
+  aiConnectDefault?: number;
+  /** 分析我的公开动态开关：0关 1开（默认） */
+  aiAnalyzeBbs?: number;
+  /** 为我推荐企业与机会开关：0关 1开（默认） */
+  aiRecommendOpp?: number;
   /** 实名认证状态：0未认证 1已认证 2待审核 3未通过（小程序认证中心以此为判断依据） */
   authStatus?: number;
   /** 真实姓名（实名认证通过后返回） */
@@ -54,6 +70,8 @@ export interface UserInfo {
   isManager?: number;
   /** 企业内职位名称 */
   position?: string;
+  /** 企业名片公开开关（1公开 0关闭） */
+  isCpShow?: number;
 }
 
 interface UserState {

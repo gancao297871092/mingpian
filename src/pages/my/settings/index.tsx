@@ -98,7 +98,6 @@ export default function Settings() {
           title="账号"
           rows={[
             { label: '账号与安全', icon: <SettingAccountIcon />, onPress: () => navigation.navigate('accountSecurity') },
-            { label: '通用设置', icon: <SettingGeneralIcon />, onPress: () => navigation.navigate('generalSettings') },
             { label: '隐私与权限', icon: <SettingPrivacyIcon />, onPress: () => navigation.navigate('privacySettings') },
           ]}
         />
@@ -106,7 +105,7 @@ export default function Settings() {
           title="通用"
           rows={[
             { label: '通用设置', icon: <SettingGeneralIcon />, onPress: () => navigation.navigate('generalSettings') },
-            { label: '机会偏好调节', icon: <SettingChanceIcon />, onPress: todo },
+            // { label: '机会偏好调节', icon: <SettingChanceIcon />, onPress: todo },
             { label: '清理缓存', icon: <SettingClearIcon />, onPress: onClearCache },
           ]}
         />

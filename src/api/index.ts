@@ -51,6 +51,10 @@ export namespace API {
     export function info() {
       return request.get<any>('/user/base/info');
     }
+    /** 基础字段更新（隐私开关：bbsShow/isLikePrivate/isFavoritePrivate/isFollowShow/isFansShow 等，1公开 0关闭） */
+    export function baseUpdate(data: Record<string, number>) {
+      return request.post<any>('/user/info/base/update', data);
+    }
     /** 关注/取消关注（isFollow: 1关注 0取消） */
     export function followOperate(data: { targetUserId: number; isFollow: number }) {
       return request.post<any>('/user/follow/operate', data);
@@ -457,6 +461,10 @@ export namespace API {
     /** 编辑成员职位（type=3，管理员操作） */
     export function positionEdit(data: { cpId: number | string; submitPosition: string; submitMsg?: string; userId?: number | string | null }) {
       return request.post<any>('/company/user/position/edit', data);
+    }
+    /** 企业名片公开开关（isShow: 1公开 0关闭） */
+    export function bbsShow(isShow: number) {
+      return request.get<any>(`/company/bbs/show?isShow=${isShow}`);
     }
     /** 企业认证-查询进行中的认证（有 data 则需回显） */
     export function certStepOne() {
