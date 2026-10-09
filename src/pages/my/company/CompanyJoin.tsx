@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { FlatList } from 'react-native-gesture-handler';
@@ -7,6 +7,7 @@ import { Image as ExpoImage } from 'expo-image';
 import SafeView from '@/components/SafeView';
 import { NavBackButton } from '@/components/NavHeader';
 import ListFooter from '@/components/ListFooter';
+import EmptyState from '@/components/EmptyState';
 import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
@@ -70,6 +71,10 @@ export default function CompanyJoin() {
   const [keyword, setKeyword] = useState('');
   const [list, setList] = useState<CompanyItem[]>([]);
   const [loading, setLoading] = useState(false);
+  /** 是否完成过至少一次查询（控制空状态展示时机） */
+  const [loaded, setLoaded] = useState(false);
+  /** 是否处于搜索结果态（false=预查询已申请列表） */
+  const [searched, setSearched] = useState(false);
   const loadingRef = useRef(false);
 
   const fetchList = useCallback(async (name: string) => {
@@ -84,20 +89,27 @@ export default function CompanyJoin() {
     } finally {
       loadingRef.current = false;
       setLoading(false);
+      setLoaded(true);
     }
   }, []);
 
   /** 预查询已申请企业（对齐小程序 onShow 且未搜索时） */
-  const queryPre = useCallback(() => {
-    API.company
-      .queryPre()
-      .then(res => {
-        if (res.code !== '200') return;
-        const d = res.data;
-        const arr = Array.isArray(d) ? d : d?.list || d?.records || [];
-        setList(arr);
-      })
-      .catch(() => {});
+  const queryPre = useCallback(async () => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+    setLoading(true);
+    try {
+      const res = await API.company.queryPre();
+      if (res.code !== '200') return;
+      const d = res.data;
+      setList(Array.isArray(d) ? d : d?.list || d?.records || []);
+    } catch {
+      // 拦截器已提示
+    } finally {
+      loadingRef.current = false;
+      setLoading(false);
+      setLoaded(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -107,9 +119,11 @@ export default function CompanyJoin() {
   const onSearch = useCallback(() => {
     const name = keyword.trim();
     if (!name) {
+      setSearched(false);
       queryPre();
       return;
     }
+    setSearched(true);
     fetchList(name);
   }, [keyword, fetchList, queryPre]);
 
@@ -153,6 +167,13 @@ export default function CompanyJoin() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         ItemSeparatorComponent={() => <View style={styles.divider} />}
+        ListEmptyComponent={
+          loading ? (
+            <ActivityIndicator style={styles.loadingPad} size="small" color={PRIMARY} />
+          ) : loaded ? (
+            <EmptyState variant="search" title={searched ? '暂无搜索结果' : '暂无申请记录'} style={styles.emptyBox} />
+          ) : null
+        }
         ListFooterComponent={<ListFooter fetching={loading} isLastPage listLength={list.length} />}
       />
     </SafeView>
@@ -256,5 +277,11 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#EBEBEB',
     marginLeft: scaleSizeW(77),
+  },
+  loadingPad: {
+    paddingVertical: scaleSizeH(60),
+  },
+  emptyBox: {
+    paddingTop: scaleSizeH(80),
   },
 });

@@ -458,6 +458,38 @@ export namespace API {
     export function positionEdit(data: { cpId: number | string; submitPosition: string; submitMsg?: string; userId?: number | string | null }) {
       return request.post<any>('/company/user/position/edit', data);
     }
+    /** 企业认证-查询进行中的认证（有 data 则需回显） */
+    export function certStepOne() {
+      return request.get<any>('/company/auth/step/one');
+    }
+    /** 企业认证-回显主体信息 */
+    export function certStepTwo(data: any) {
+      return request.post<any>('/company/auth/step/two', data);
+    }
+    /** 企业认证-营业执照 OCR 识别 */
+    export function certOcr(data: { id: number | string | null; businessLicense: string }) {
+      return request.post<any>('/company/auth/step/ocr', data);
+    }
+    /** 企业认证-提交主体信息（返回 authUrl 委托书模板地址） */
+    export function certBusiness(data: any) {
+      return request.post<any>('/company/auth/step/business', data);
+    }
+    /** 企业认证-对公认证发送短信验证码（data 为 authCode） */
+    export function certSendCode(data: any) {
+      return request.post<any>('/company/auth/step/sendCode', data);
+    }
+    /** 企业认证-校验短信验证码 */
+    export function certValidateCode(data: any) {
+      return request.post<any>('/company/auth/step/validateCode', data);
+    }
+    /** 企业认证-提交授权委托书 */
+    export function certAuthPng(data: any) {
+      return request.post<any>('/company/auth/step/authPng', data);
+    }
+    /** 企业认证-提交联系人信息 */
+    export function certLink(data: any) {
+      return request.post<any>('/company/auth/step/link', data);
+    }
   }
 
   export namespace file {
