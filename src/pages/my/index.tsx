@@ -69,7 +69,9 @@ export default function My() {
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
   const { token, userInfo, setUserInfo } = useUserStore();
+  console.log('userInfo', userInfo);
   const wqUser = userInfo?.wqUser;
+  const cpName = userInfo?.cpName || wqUser?.cpName;
   const myId = wqUser?.id ?? 0;
 
   const [pageIndex, setPageIndex] = useState(0);
@@ -348,9 +350,9 @@ export default function My() {
                 />
                 <View style={styles.profileText}>
                   <Text style={styles.nickname}>{wqUser?.username || wqUser?.nickname || '未登录'}</Text>
-                  {!!wqUser?.cpName && (
+                  {!!cpName && (
                     <View style={styles.companyRow}>
-                      <Text style={styles.companyText} numberOfLines={1}>{wqUser.cpName}</Text>
+                      <Text style={styles.companyText} numberOfLines={1}>{cpName}</Text>
                       <CompanyIcon />
                     </View>
                   )}
