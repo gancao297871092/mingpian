@@ -40,7 +40,7 @@ export default function AccountSecurity() {
   }, [userInfo]);
 
   useEffect(() => {
-    load();
+    // load();
   }, [load]);
 
   useFocusEffect(

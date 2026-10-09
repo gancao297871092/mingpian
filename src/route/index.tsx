@@ -44,8 +44,8 @@ import CompanyMembers from '@/pages/my/company/CompanyMembers';
 import CompanyMemberAudit from '@/pages/my/company/CompanyMemberAudit';
 import CompanyBbsAudit from '@/pages/my/company/CompanyBbsAudit';
 import CompanyCapCards from '@/pages/my/company/CompanyCapCards';
-import CompanyJobChange from '@/pages/my/company/CompanyJobChange';
 import CompanyJoin from '@/pages/my/company/CompanyJoin';
+import CompanyApply from '@/pages/my/company/CompanyApply';
 import CompanyRealName from '@/pages/my/company/CompanyRealName';
 import CompanyCert from '@/pages/my/company/CompanyCert';
 import LoginHome from '@/pages/login';
@@ -543,19 +543,19 @@ export default function RootNavigator() {
           }}
         />
         <Stack.Screen
-          name="companyJobChange"
-          component={CompanyJobChange}
+          name="companyJoin"
+          component={CompanyJoin}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="companyApply"
+          component={CompanyApply}
           options={{
-            title: '职位变更',
+            title: '申请职位',
             headerStyle: { backgroundColor: '#F6F7FB' },
             headerTitleStyle: { color: '#000000' },
             headerShadowVisible: false,
           }}
-        />
-        <Stack.Screen
-          name="companyJoin"
-          component={CompanyJoin}
-          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="companyRealName"

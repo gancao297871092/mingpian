@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -66,6 +66,18 @@ export default function CertificationCenter() {
   const toggle = (key: CertKey) => setExpandedKey(prev => (prev === key ? null : key));
 
   const authStatus = wqUser?.authStatus ?? 0;
+
+  /** 职位/企业认证以实名认证为前提，未实名先拦截提示（同小程序 onTipsAuthRealCard） */
+  const onAction = (key: CertKey) => {
+    if (key !== 'real' && authStatus !== 1) {
+      Alert.alert('提示', '您还未实名认证，是否进行认证!', [
+        { text: '取消', style: 'cancel' },
+        { text: '去认证', onPress: () => navigation.navigate('companyRealName') },
+      ]);
+      return;
+    }
+    navigation.navigate(CERT_ACTION[key].route as never);
+  };
   const hasCompany = !!userInfo?.cpId;
   /** 认证判断与小程序一致：实名=wqUser.authStatus，职业/企业=userInfo.cpId */
   const certified: Record<CertKey, boolean> = {
@@ -178,7 +190,7 @@ export default function CertificationCenter() {
                         <TouchableOpacity
                           activeOpacity={0.8}
                           style={styles.actionBtn}
-                          onPress={() => navigation.navigate(itemAction.route as never)}
+                          onPress={() => onAction(item.key)}
                         >
                           <Text style={styles.actionBtnText}>立即认证</Text>
                         </TouchableOpacity>

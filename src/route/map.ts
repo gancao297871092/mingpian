@@ -51,8 +51,9 @@ export type RootStackParamList = {
   companyMemberAudit: undefined;
   companyBbsAudit: undefined;
   companyCapCards: undefined;
-  companyJobChange: undefined;
   companyJoin: undefined;
+  /** 对齐小程序 apply.vue：type=1申请职位 2职位变更申请 3编辑职位（2/3 需 position 回显，3 需 userId） */
+  companyApply: { cpId: string | number; type?: '1' | '2' | '3'; position?: string; userId?: string | number };
   companyRealName: undefined;
   companyCert: undefined;
 };

@@ -440,6 +440,26 @@ export namespace API {
     }
   }
 
+  /** 企业相关 */
+  export namespace company {
+    /** 搜索企业（无分页，data 为企业数组） */
+    export function query(data: { name: string }) {
+      return request.post<any[]>('/user/company/query', data);
+    }
+    /** 预查询：我已申请的企业（含审核状态 checkStatus：0未通过 1通过 2待审核） */
+    export function queryPre() {
+      return request.get<any>('/user/company/queryPre');
+    }
+    /** 申请加入企业 / 职位变更申请（submitPosition 多职位逗号分隔） */
+    export function auth(data: { cpId: number | string; submitPosition: string; submitMsg?: string; userId?: number | string | null }) {
+      return request.post<any>('/user/company/auth', data);
+    }
+    /** 编辑成员职位（type=3，管理员操作） */
+    export function positionEdit(data: { cpId: number | string; submitPosition: string; submitMsg?: string; userId?: number | string | null }) {
+      return request.post<any>('/company/user/position/edit', data);
+    }
+  }
+
   export namespace file {
     /** 图片上传 */
     export function upload(data: FormData) {

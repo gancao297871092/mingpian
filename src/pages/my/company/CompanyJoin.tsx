@@ -1,19 +1,50 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { FlatList } from 'react-native-gesture-handler';
 import { Image as ExpoImage } from 'expo-image';
-import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
 import { NavBackButton } from '@/components/NavHeader';
+import ListFooter from '@/components/ListFooter';
+import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
-import { COMPANY_SEARCH_RESULTS, type CompanySearchItem } from '@/data/company';
+import type { RootStackParamList } from '@/route/map';
 import { HistorySearchIcon } from '../myIcons';
 
 const PRIMARY = '#2962D4';
 const GRAY = '#6C6C6C';
+interface CompanyItem {
+  id: number;
+  name: string;
+  avatar?: string;
+  province?: string;
+  city?: string;
+  district?: string;
+  address?: string;
+  /** 审核状态：null/-1 可申请；0未通过 1通过 2待审核 */
+  checkStatus?: number | null;
+}
 
-function SearchBar({ value, onChange }: { value: string; onChange: (t: string) => void }) {
+const STATUS: Record<number, { label: string; bg: string }> = {
+  0: { label: '未通过', bg: '#EE5757' },
+  1: { label: '通过', bg: '#2CB563' },
+  2: { label: '待审核', bg: '#2962D4' },
+};
+
+function addressOf(item: CompanyItem) {
+  return [item.province, item.city, item.district, item.address].filter(Boolean).join('');
+}
+
+function SearchBar({
+  value,
+  onChange,
+  onSearch,
+}: {
+  value: string;
+  onChange: (t: string) => void;
+  onSearch: () => void;
+}) {
   return (
     <View style={styles.searchBar}>
       <HistorySearchIcon size={16} color="#AFB1BB" />
@@ -24,47 +55,87 @@ function SearchBar({ value, onChange }: { value: string; onChange: (t: string) =
         placeholder="请至少输入企业名称的前四个字..."
         placeholderTextColor="#AFB1BB"
         returnKeyType="search"
+        onSubmitEditing={onSearch}
       />
-      <TouchableOpacity activeOpacity={0.8} style={styles.searchBtn} onPress={() => onChange(value.trim())}>
+      <TouchableOpacity activeOpacity={0.8} style={styles.searchBtn} onPress={onSearch}>
         <Text style={styles.searchBtnText}>搜索</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
-/** 加入企业（搜索企业并提交加入申请） */
+/** 加入企业（搜索企业并提交加入申请；未搜索时展示已申请企业及审核状态，对齐 enterCer.vue） */
 export default function CompanyJoin() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [keyword, setKeyword] = useState('');
-  const [applied, setApplied] = useState<Set<string>>(new Set());
+  const [list, setList] = useState<CompanyItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const loadingRef = useRef(false);
 
-  const list = useMemo(
-    () => COMPANY_SEARCH_RESULTS.filter(c => !keyword || c.name.includes(keyword)),
-    [keyword],
-  );
+  const fetchList = useCallback(async (name: string) => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+    setLoading(true);
+    try {
+      const res = await API.company.query({ name });
+      setList(res.data ?? []);
+    } catch {
+      // 拦截器已提示
+    } finally {
+      loadingRef.current = false;
+      setLoading(false);
+    }
+  }, []);
 
-  const onApply = (item: CompanySearchItem) => {
-    if (applied.has(item.id)) return;
-    setApplied(prev => new Set(prev).add(item.id));
-    Toast.show({ type: 'success', text1: '已提交加入申请' });
-  };
+  /** 预查询已申请企业（对齐小程序 onShow 且未搜索时） */
+  const queryPre = useCallback(() => {
+    API.company
+      .queryPre()
+      .then(res => {
+        if (res.code !== '200') return;
+        const d = res.data;
+        const arr = Array.isArray(d) ? d : d?.list || d?.records || [];
+        setList(arr);
+      })
+      .catch(() => {});
+  }, []);
 
-  const renderItem = ({ item }: { item: CompanySearchItem }) => {
-    const isApplied = applied.has(item.id);
+  useEffect(() => {
+    queryPre();
+  }, [queryPre]);
+
+  const onSearch = useCallback(() => {
+    const name = keyword.trim();
+    if (!name) {
+      queryPre();
+      return;
+    }
+    fetchList(name);
+  }, [keyword, fetchList, queryPre]);
+
+  const renderItem = ({ item }: { item: CompanyItem }) => {
+    const canApply = item.checkStatus === undefined || item.checkStatus === null || item.checkStatus === -1;
+    const status = !canApply && item.checkStatus != null ? STATUS[item.checkStatus] : undefined;
     return (
       <View style={styles.row}>
-        <ExpoImage source={{ uri: item.logo }} style={styles.avatar} contentFit="cover" transition={150} recyclingKey={item.logo} />
+        <ExpoImage source={{ uri: item.avatar || '' }} style={styles.avatar} contentFit="cover" transition={150} recyclingKey={item.avatar} />
         <View style={styles.rowText}>
-          <Text style={styles.rowName} numberOfLines={1}>{item.name}</Text>
-          <Text style={styles.rowSub}>{item.industry} · {item.city}</Text>
+          <Text style={styles.rowName} numberOfLines={2}>{item.name}</Text>
+          <Text style={styles.rowSub} numberOfLines={1}>{addressOf(item)}</Text>
         </View>
-        <TouchableOpacity
-          activeOpacity={0.8}
-          style={[styles.applyBtn, isApplied && styles.applyBtnDisabled]}
-          onPress={() => onApply(item)}
-        >
-          <Text style={[styles.applyText, isApplied && styles.applyTextDisabled]}>{isApplied ? '已申请' : '申请'}</Text>
-        </TouchableOpacity>
+        {canApply ? (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={styles.applyBtn}
+            onPress={() => navigation.navigate('companyApply', { cpId: item.id })}
+          >
+            <Text style={styles.applyText}>申请</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={[styles.applyBtn, styles.statusBtn, status && { backgroundColor: status.bg }]}>
+            <Text style={styles.statusText}>{status?.label ?? ''}</Text>
+          </View>
+        )}
       </View>
     );
   };
@@ -73,15 +144,16 @@ export default function CompanyJoin() {
     <SafeView backgroundColor="#FFFFFF" disableTop={false}>
       <View style={styles.header}>
         <NavBackButton color="#1A1A1A" onPress={() => navigation.goBack()} />
-        <SearchBar value={keyword} onChange={setKeyword} />
+        <SearchBar value={keyword} onChange={setKeyword} onSearch={onSearch} />
       </View>
       <FlatList
         data={list}
-        keyExtractor={item => item.id}
+        keyExtractor={item => String(item.id)}
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         ItemSeparatorComponent={() => <View style={styles.divider} />}
+        ListFooterComponent={<ListFooter fetching={loading} isLastPage listLength={list.length} />}
       />
     </SafeView>
   );
@@ -130,7 +202,8 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: scaleSizeH(78),
+    minHeight: scaleSizeH(78),
+    paddingVertical: scaleSizeH(10),
     paddingHorizontal: scaleSizeW(16),
     backgroundColor: '#FFFFFF',
   },
@@ -149,7 +222,7 @@ const styles = StyleSheet.create({
   },
   rowName: {
     fontSize: setSpText(15),
-    lineHeight: setSpText(16),
+    lineHeight: setSpText(18),
     color: '#000000',
   },
   rowSub: {
@@ -166,16 +239,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginLeft: scaleSizeW(10),
   },
-  applyBtnDisabled: {
-    backgroundColor: '#F4F4F4',
-  },
   applyText: {
     fontSize: setSpText(12),
     lineHeight: setSpText(12),
     color: PRIMARY,
   },
-  applyTextDisabled: {
-    color: '#999999',
+  statusBtn: {
+    backgroundColor: '#F4F4F4',
+  },
+  statusText: {
+    fontSize: setSpText(12),
+    lineHeight: setSpText(12),
+    color: '#FFFFFF',
   },
   divider: {
     height: 1,

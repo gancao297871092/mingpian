@@ -1,15 +1,17 @@
 import React, { useMemo, useState } from 'react';
 import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { FlatList } from 'react-native-gesture-handler';
 import { SwipeRow } from 'react-native-swipe-list-view';
 import { Image as ExpoImage } from 'expo-image';
-import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
 import { NavBackButton } from '@/components/NavHeader';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { COMPANY_MEMBERS, type CompanyMember } from '@/data/company';
 import { useCompanyStore } from '@/store/company';
+import { useUserStore } from '@/store/user';
+import type { RootStackParamList } from '@/route/map';
 import { HistorySearchIcon } from '../myIcons';
 
 const PRIMARY = '#2962D4';
@@ -68,9 +70,20 @@ function roleBadge(member: CompanyMember): { text: string; color: string } | nul
 
 /** 成员管理（左滑出操作：踢出/管理员/编辑职位/客服/移交超管） */
 export default function CompanyMembers() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const keyword = useCompanyStore(s => s.memberKeyword);
+  const cpId = useUserStore(s => s.userInfo?.cpId);
   const [members, setMembers] = useState<CompanyMember[]>(COMPANY_MEMBERS);
+
+  const onEditPosition = (member: CompanyMember, closeRow?: () => void) => {
+    closeRow?.();
+    navigation.navigate('companyApply', {
+      cpId: cpId ?? '',
+      type: '3',
+      userId: member.id,
+      position: member.positions.filter(p => p !== '企业客服').join(','),
+    });
+  };
 
   const list = useMemo(
     () => members.filter(m => !keyword || m.name.includes(keyword)),
@@ -79,7 +92,7 @@ export default function CompanyMembers() {
 
   const buildActions = (member: CompanyMember, closeRow: () => void): Action[] => {
     if (member.isSuper) {
-      return [{ label: '编辑\n职位', color: '#8B5CF6', onPress: () => Toast.show({ type: 'info', text1: '功能开发中' }) }];
+      return [{ label: '编辑\n职位', color: '#8B5CF6', onPress: () => onEditPosition(member, closeRow) }];
     }
     return [
       {
@@ -108,7 +121,7 @@ export default function CompanyMembers() {
       {
         label: '编辑\n职位',
         color: '#8B5CF6',
-        onPress: () => Toast.show({ type: 'info', text1: '功能开发中' }),
+        onPress: () => onEditPosition(member, closeRow),
       },
       {
         label: member.isService ? '取消\n客服' : '设为\n客服',

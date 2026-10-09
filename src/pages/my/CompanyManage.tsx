@@ -9,6 +9,7 @@ import AppBottomSheet from '@/components/AppBottomSheet';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
 import { useCompanyStore, type CompanyRole } from '@/store/company';
+import { useUserStore } from '@/store/user';
 import { COMPANY_BUTLER } from '@/data/company';
 import { SettingArrowIcon } from './settings/settingsIcons';
 import {
@@ -68,6 +69,7 @@ export default function CompanyManage() {
   const role = useCompanyStore(s => s.role);
   const setRole = useCompanyStore(s => s.setRole);
   const memberAuditCount = useCompanyStore(s => s.memberAuditCount);
+  const userInfo = useUserStore(s => s.userInfo);
   const butlerRef = useRef<BottomSheetModal>(null);
 
   const onExit = () => {
@@ -111,7 +113,18 @@ export default function CompanyManage() {
         ? [
             {
               title: '我的企业',
-              rows: [{ label: '职位变更', icon: <CompanyJobIcon />, onPress: () => navigation.navigate('companyJobChange') }],
+              rows: [
+                {
+                  label: '职位变更',
+                  icon: <CompanyJobIcon />,
+                  onPress: () =>
+                    navigation.navigate('companyApply', {
+                      cpId: userInfo?.cpId ?? '',
+                      type: '2',
+                      position: userInfo?.position ?? '',
+                    }),
+                },
+              ],
             },
           ]
         : [
