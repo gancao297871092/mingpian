@@ -199,7 +199,7 @@ export default function My() {
     { label: '浏览记录', icon: <EntryHistoryIcon />, onPress: () => navigation.navigate('browseHistory') },
   ];
 
-  const regionText = [wqUser?.province, wqUser?.city].filter(Boolean).join('·');
+  const regionText = ['IP', wqUser?.city].filter(Boolean).join('·');
 
   // ---- 吸顶动画：滚动经过头部时展开昵称栏（figma 101） ----
   const stickRange: [number, number] = [Math.max(headerH - STICKY_NICK_H, 0), Math.max(headerH, 1)];
@@ -238,8 +238,9 @@ export default function My() {
     [],
   );
 
-  /** 内层列表不滚动，需保证内容够长让外层可滚动（吸顶才能触发） */
-  const minPagerHeight = Math.max(contentH - insets.top - tabBarH, 0);
+  /** 内层列表不滚动，需保证内容够长让外层可滚动（吸顶才能触发）；
+   *  减去 bottomPad，使短内容时外层滚动正好停在头部完全收起处，避免吸顶后还有一截空白滚动区 */
+  const minPagerHeight = Math.max(contentH - insets.top - tabBarH - scaleSizeH(100), 0);
   /** 点赞 tab（figma 88 动态/评论子列表）内容常较短，用较小的下限避免整屏空白滚动区 */
   const pagerHeightFor = useCallback(
     (tab: TabKey) => Math.max(listHeights[tab] || 0, tab === 'like' ? scaleSizeH(500) : minPagerHeight),
