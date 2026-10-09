@@ -1,102 +1,69 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { Image as ExpoImage } from 'expo-image';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import Svg, { Path } from 'react-native-svg';
+import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
+import EmptyState from '@/components/EmptyState';
+import ListFooter from '@/components/ListFooter';
+import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
 import { CardLikeIcon, CheckMarkIcon, HistorySearchIcon, HistoryTrashIcon } from './myIcons';
 
 const PRIMARY = '#2962D4';
 const DANGER = '#EF4444';
-
+const PAGE_SIZE = 20;
 const CARD_W = scaleSizeW(194);
+const IMAGE_H = 130;
 
-interface HistoryItem {
-  id: string;
-  bbsId: string;
-  imageUrl: string;
-  imageHeight: number;
-  title: string;
-  avatar: string;
-  name: string;
-  company: string;
-  likeCount: number;
-  isVideo: boolean;
-}
+type HistoryItem = API.history.HistoryItem;
 
-/** 静态 mock（接口待联调） */
-const MOCK_HISTORY: HistoryItem[] = [
-  {
-    id: 'mock-1',
-    bbsId: '',
-    imageUrl: 'https://picsum.photos/seed/history1/388/474',
-    imageHeight: 237,
-    title: '新增自动化产线投入使用，交付效率提升60%',
-    avatar: '',
-    name: '张伟',
-    company: '通海优耐特管业科技有限公司',
-    likeCount: 647,
-    isVideo: false,
-  },
-  {
-    id: 'mock-2',
-    bbsId: '',
-    imageUrl: 'https://picsum.photos/seed/history2/388/474',
-    imageHeight: 237,
-    title: '自动化产线调试中最容易忽略的五个问题',
-    avatar: '',
-    name: 'WQ_26383331',
-    company: '浙江新能制造有限公司',
-    likeCount: 6,
-    isVideo: false,
-  },
-  {
-    id: 'mock-3',
-    bbsId: '',
-    imageUrl: 'https://picsum.photos/seed/history3/388/474',
-    imageHeight: 237,
-    title: '20强设计师同台竞技，第35届真维斯杯见证时尚新锐设计诞生',
-    avatar: '',
-    name: '刘强',
-    company: '云南赣云供应链管理有限公司',
-    likeCount: 647,
-    isVideo: true,
-  },
-  {
-    id: 'mock-4',
-    bbsId: '',
-    imageUrl: 'https://picsum.photos/seed/history4/388/474',
-    imageHeight: 237,
-    title: '补短板强内核 国产高端农机闯关',
-    avatar: '',
-    name: 'WQ_26383331',
-    company: '河北宝钢集团',
-    likeCount: 6,
-    isVideo: false,
-  },
-];
-
-function VideoBadge() {
-  return (
-    <View style={styles.videoBadge}>
-      <Svg width={scaleSizeW(10)} height={scaleSizeW(10)} viewBox="0 0 24 24">
-        <Path d="M7 4l13 8-13 8z" fill="#FFFFFF" />
-      </Svg>
-      <Text style={styles.videoBadgeText}>含视频</Text>
-    </View>
-  );
-}
-
-/** 98/99.浏览记录（点右上角垃圾桶进入删除管理模式） */
+/** 98/99.浏览记录（点右上角垃圾桶进入删除管理模式；动态/文章可跳转详情） */
 export default function BrowseHistory() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [managing, setManaging] = useState(false);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [list, setList] = useState<HistoryItem[]>(MOCK_HISTORY);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [list, setList] = useState<HistoryItem[]>([]);
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const loadingRef = useRef(false);
+
+  const fetchList = useCallback(async (pageNum: number, append: boolean) => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+    setLoading(true);
+    try {
+      const res = await API.history.list({ pageNum, pageSize: PAGE_SIZE });
+      if (res.code !== '200') return;
+      const { list: arr = [], pages: p = 1 } = res.data ?? {};
+      setList(prev => (append ? [...prev, ...arr] : arr));
+      setPage(pageNum);
+      setPages(p);
+    } catch {
+      // 拦截器已提示
+    } finally {
+      loadingRef.current = false;
+      setLoading(false);
+      setLoaded(true);
+    }
+  }, []);
+
+  const refresh = useCallback(() => fetchList(1, false), [fetchList]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const onEndReached = useCallback(() => {
+    if (!loadingRef.current && page < pages) {
+      fetchList(page + 1, true);
+    }
+  }, [fetchList, page, pages]);
 
   useEffect(() => {
     navigation.setOptions({
@@ -119,7 +86,7 @@ export default function BrowseHistory() {
     });
   }, [navigation]);
 
-  const toggleSelect = useCallback((id: string) => {
+  const toggleSelect = useCallback((id: number) => {
     setSelected(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -135,21 +102,52 @@ export default function BrowseHistory() {
       {
         text: '删除',
         style: 'destructive',
-        onPress: () => {
-          // 本地联动：纯本地移除（接口待联调）
-          setList(prev => prev.filter(i => !selected.has(i.id)));
-          setSelected(new Set());
+        onPress: async () => {
+          try {
+            const res = await API.history.del([...selected]);
+            if (res.code !== '200') return;
+            setList(prev => prev.filter(i => !selected.has(i.id)));
+            setSelected(new Set());
+            Toast.show({ type: 'success', text1: '已删除' });
+          } catch {
+            // 拦截器已提示
+          }
         },
       },
     ]);
-  }, [selected, setList]);
+  }, [selected]);
+
+  const onClear = useCallback(() => {
+    Alert.alert('清空浏览记录', '确认清空全部浏览记录？', [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '清空',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const res = await API.history.clear();
+            if (res.code !== '200') return;
+            setList([]);
+            setSelected(new Set());
+            setManaging(false);
+            Toast.show({ type: 'success', text1: '已清空' });
+          } catch {
+            // 拦截器已提示
+          }
+        },
+      },
+    ]);
+  }, []);
 
   const onPressCard = useCallback(
     (item: HistoryItem) => {
       if (managing) {
         toggleSelect(item.id);
-      } else if (item.bbsId) {
-        navigation.navigate('bbsDetail', { id: item.bbsId });
+        return;
+      }
+      // 1动态 5技术文章 → 动态详情（其余类型详情页待实现）
+      if (item.targetType === 1 || item.targetType === 5) {
+        navigation.navigate('bbsDetail', { id: String(item.targetId) });
       }
     },
     [managing, toggleSelect, navigation],
@@ -161,19 +159,18 @@ export default function BrowseHistory() {
       return (
         <TouchableOpacity activeOpacity={0.9} style={styles.card} onPress={() => onPressCard(item)}>
           <View>
-            {item.imageUrl ? (
+            {item.targetAvatar ? (
               <ExpoImage
-                source={{ uri: item.imageUrl }}
-                style={[styles.cardImage, { height: scaleSizeH(item.imageHeight) }]}
+                source={{ uri: item.targetAvatar }}
+                style={[styles.cardImage, { height: scaleSizeH(IMAGE_H) }]}
                 contentFit="cover"
                 transition={200}
                 cachePolicy="memory-disk"
-                recyclingKey={item.imageUrl}
+                recyclingKey={item.targetAvatar}
               />
             ) : (
-              <View style={[styles.cardImage, styles.cardImagePlaceholder, { height: scaleSizeH(130) }]} />
+              <View style={[styles.cardImage, styles.cardImagePlaceholder, { height: scaleSizeH(IMAGE_H) }]} />
             )}
-            {item.isVideo && !managing && <VideoBadge />}
             {managing && (
               <View style={[styles.checkCircle, checked && styles.checkCircleOn]}>
                 {checked && <CheckMarkIcon />}
@@ -181,21 +178,22 @@ export default function BrowseHistory() {
             )}
           </View>
           <View style={styles.cardBody}>
-            <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+            <Text style={styles.cardTitle} numberOfLines={2}>{item.targetTitle || ''}</Text>
             <View style={styles.cardFoot}>
-              {item.avatar ? (
-                <ExpoImage source={{ uri: item.avatar }} style={styles.footAvatar} contentFit="cover" transition={150} />
+              {item.authorAvatar ? (
+                <ExpoImage source={{ uri: item.authorAvatar }} style={styles.footAvatar} contentFit="cover" transition={150} />
               ) : (
                 <View style={[styles.footAvatar, styles.footAvatarPlaceholder]} />
               )}
               <View style={styles.footText}>
-                <Text style={styles.footName} numberOfLines={1}>{item.name}</Text>
-                {!!item.company && <Text style={styles.footCompany} numberOfLines={1}>{item.company}</Text>}
+                <Text style={styles.footName} numberOfLines={1}>{item.authorName || ''}</Text>
               </View>
-              <View style={styles.footLike}>
-                <CardLikeIcon />
-                <Text style={styles.footLikeText}>{item.likeCount}</Text>
-              </View>
+              {item.countLike != null && (
+                <View style={styles.footLike}>
+                  <CardLikeIcon />
+                  <Text style={styles.footLikeText}>{item.countLike}</Text>
+                </View>
+              )}
             </View>
           </View>
         </TouchableOpacity>
@@ -208,18 +206,31 @@ export default function BrowseHistory() {
     <SafeView backgroundColor="#F6F7FB">
       <FlashList
         data={list}
-        keyExtractor={item => item.id}
+        keyExtractor={item => String(item.id)}
         masonry
         numColumns={2}
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.listContent, managing && styles.listContentManaging]}
+        onEndReached={onEndReached}
+        onEndReachedThreshold={0.3}
+        ListEmptyComponent={
+          loading ? (
+            <ActivityIndicator style={styles.loadingPad} size="small" color={PRIMARY} />
+          ) : loaded ? (
+            <EmptyState variant="content" title="暂无浏览记录" style={styles.emptyBox} />
+          ) : null
+        }
+        ListFooterComponent={<ListFooter fetching={loading} isLastPage={page >= pages} listLength={list.length} />}
       />
       {managing && (
         <View style={styles.manageBar}>
           <Text style={styles.manageCount}>
             已选 <Text style={styles.manageCountNum}>{selected.size}</Text> 条
           </Text>
+          <TouchableOpacity style={styles.manageClearBtn} onPress={onClear}>
+            <Text style={styles.manageClear}>清空</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.manageCancelBtn}
             onPress={() => {
@@ -262,6 +273,12 @@ const styles = StyleSheet.create({
   listContentManaging: {
     paddingBottom: scaleSizeH(90),
   },
+  loadingPad: {
+    paddingVertical: scaleSizeH(60),
+  },
+  emptyBox: {
+    paddingTop: scaleSizeH(80),
+  },
   card: {
     width: CARD_W,
     borderRadius: scaleSizeW(4),
@@ -276,24 +293,6 @@ const styles = StyleSheet.create({
   },
   cardImagePlaceholder: {
     backgroundColor: '#E6E6E6',
-  },
-  videoBadge: {
-    position: 'absolute',
-    top: scaleSizeH(10),
-    right: scaleSizeW(5),
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scaleSizeW(3),
-    height: scaleSizeH(20),
-    paddingHorizontal: scaleSizeW(5),
-    borderRadius: scaleSizeW(10),
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  videoBadgeText: {
-    fontSize: setSpText(10),
-    fontWeight: '500',
-    lineHeight: scaleSizeH(10),
-    color: '#FFFFFF',
   },
   checkCircle: {
     position: 'absolute',
@@ -349,11 +348,6 @@ const styles = StyleSheet.create({
     lineHeight: setSpText(12),
     color: '#333333',
   },
-  footCompany: {
-    fontSize: setSpText(10),
-    lineHeight: setSpText(12),
-    color: '#6C6C6C',
-  },
   footLike: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -386,8 +380,16 @@ const styles = StyleSheet.create({
   manageCountNum: {
     color: '#000000',
   },
-  manageCancelBtn: {
+  manageClearBtn: {
     marginLeft: 'auto',
+    marginRight: scaleSizeW(24),
+  },
+  manageClear: {
+    fontSize: setSpText(14),
+    lineHeight: setSpText(24),
+    color: DANGER,
+  },
+  manageCancelBtn: {
     marginRight: scaleSizeW(24),
   },
   manageCancel: {

@@ -338,17 +338,6 @@ export namespace API {
     }
   }
 
-  /** 浏览记录（字段为预设，待后端联调确认） */
-  export namespace history {
-    export function list(data: { pageNum?: number; pageSize?: number }) {
-      return request.post<{ list: any[]; total: number; pageNum: number; pages: number }>('/history/list', data);
-    }
-    /** 批量删除 */
-    export function del(data: { ids: (string | number)[] }) {
-      return request.post<any>('/history/del', data);
-    }
-  }
-
   /** 设置相关接口：字段为预设，待后端联调确认 */
   export namespace setting {
     /** 账号与安全信息 */
@@ -497,6 +486,37 @@ export namespace API {
     /** 企业认证-提交联系人信息 */
     export function certLink(data: any) {
       return request.post<any>('/company/auth/step/link', data);
+    }
+  }
+
+  /** 浏览历史（我的-浏览记录；动态详情登录时服务端自动记录） */
+  export namespace history {
+    export interface HistoryItem {
+      id: number;
+      targetType: number;
+      targetId: number;
+      targetTitle?: string;
+      targetAvatar?: string;
+      viewedAt?: string;
+      authorName?: string;
+      authorAvatar?: string;
+      countLike?: number;
+    }
+    /** 记录一次浏览（targetType：1动态 2企业 3名片 4商机 5技术文章 6AI商机） */
+    export function record(data: { targetType: number; targetId: number; title?: string; avatar?: string }) {
+      return request.post<any>('/history/record', data);
+    }
+    /** 浏览历史分页（viewedAt 倒序） */
+    export function list(data: { pageNum: number; pageSize: number }) {
+      return request.post<{ list: HistoryItem[]; total: number; pageNum: number; pages: number }>('/history/list', data);
+    }
+    /** 批量删除 */
+    export function del(ids: number[]) {
+      return request.post<{ deleted: number }>('/history/del', { ids });
+    }
+    /** 清空浏览历史 */
+    export function clear() {
+      return request.post<{ deleted: number }>('/history/clear');
     }
   }
 
