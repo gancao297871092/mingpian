@@ -11,6 +11,7 @@ import EmptyState from '@/components/EmptyState';
 import ListFooter from '@/components/ListFooter';
 import { API } from '@/api';
 import { setDetailCache } from '@/utils/detailCache';
+import { useBbsInteractionStore } from '@/store/bbsInteraction';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
 import { mapPost } from './tabs/common';
@@ -18,6 +19,7 @@ import { CardLikeIcon, CheckMarkIcon, HistorySearchIcon, HistoryTrashIcon } from
 
 const PRIMARY = '#2962D4';
 const DANGER = '#EF4444';
+const LIKE_RED = '#FE2955';
 const PAGE_SIZE = 20;
 const CARD_W = scaleSizeW(194);
 const IMAGE_H = 130;
@@ -84,6 +86,26 @@ export default function BrowseHistory() {
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const loadingRef = useRef(false);
+  const likeMap = useBbsInteractionStore(s => s.likeMap);
+  const setLike = useBbsInteractionStore(s => s.setLike);
+
+  /** 列表卡片直接点赞（仅动态/文章类；乐观更新，失败回滚） */
+  const onToggleLike = useCallback(
+    (item: HistoryItem) => {
+      if (!item.bbs) return;
+      const id = String(item.targetId);
+      const cur = likeMap[id];
+      const isLiked = cur?.isLiked ?? item.bbs.userIsZan === 1;
+      const likeCount = cur?.likeCount ?? item.bbs.countLike ?? 0;
+      const next = !isLiked;
+      const nextCount = likeCount + (next ? 1 : -1);
+      setLike(id, { isLiked: next, likeCount: nextCount });
+      API.bbs.like({ bbsId: item.targetId, status: next ? 1 : 0 }).catch(() => {
+        setLike(id, { isLiked, likeCount });
+      });
+    },
+    [likeMap, setLike],
+  );
 
   const fetchList = useCallback(async (pageNum: number, append: boolean) => {
     if (loadingRef.current) return;
@@ -209,6 +231,9 @@ export default function BrowseHistory() {
   const renderItem = useCallback(
     ({ item }: { item: HistoryItem }) => {
       const d = displayOf(item);
+      const like = likeMap[String(item.targetId)];
+      const isLiked = like?.isLiked ?? item.bbs?.userIsZan === 1;
+      const likeCount = like?.likeCount ?? d.likeCount;
       const checked = selected.has(item.id);
       return (
         <TouchableOpacity activeOpacity={0.9} style={styles.card} onPress={() => onPressCard(item)}>
@@ -243,10 +268,16 @@ export default function BrowseHistory() {
               <View style={styles.footText}>
                 <Text style={styles.footName} numberOfLines={1}>{d.name}</Text>
               </View>
-              {d.likeCount != null && (
+              {likeCount != null && !managing && (
+                <TouchableOpacity activeOpacity={0.7} hitSlop={8} style={styles.footLike} onPress={() => onToggleLike(item)}>
+                  <CardLikeIcon color={isLiked ? LIKE_RED : '#666666'} />
+                  <Text style={[styles.footLikeText, isLiked && styles.footLikeTextOn]}>{likeCount}</Text>
+                </TouchableOpacity>
+              )}
+              {likeCount != null && managing && (
                 <View style={styles.footLike}>
                   <CardLikeIcon />
-                  <Text style={styles.footLikeText}>{d.likeCount}</Text>
+                  <Text style={styles.footLikeText}>{likeCount}</Text>
                 </View>
               )}
             </View>
@@ -254,7 +285,7 @@ export default function BrowseHistory() {
         </TouchableOpacity>
       );
     },
-    [managing, selected, onPressCard],
+    [managing, selected, onPressCard, likeMap, onToggleLike],
   );
 
   return (
@@ -430,6 +461,9 @@ const styles = StyleSheet.create({
     fontSize: setSpText(12),
     lineHeight: setSpText(21),
     color: '#616161',
+  },
+  footLikeTextOn: {
+    color: LIKE_RED,
   },
   manageBar: {
     position: 'absolute',
