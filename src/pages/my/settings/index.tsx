@@ -2,6 +2,7 @@ import React from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Image as ExpoImage } from 'expo-image';
 import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
 import { useUserStore } from '@/store/user';
@@ -10,7 +11,6 @@ import {
   SettingAboutIcon,
   SettingAccountIcon,
   SettingArrowIcon,
-  SettingChanceIcon,
   SettingClearIcon,
   SettingGeneralIcon,
   SettingHelpIcon,
@@ -52,14 +52,18 @@ export default function Settings() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const logout = useUserStore(s => s.logout);
 
-  const todo = () => Toast.show({ type: 'info', text1: '功能开发中' });
-
   const onClearCache = () => {
     Alert.alert('清理缓存', '确定要清理本地缓存吗？', [
       { text: '取消', style: 'cancel' },
       {
         text: '确定',
-        onPress: () => Toast.show({ type: 'success', text1: '缓存已清理' }),
+        onPress: async () => {
+          await Promise.all([
+            ExpoImage.clearMemoryCache().catch(() => false),
+            ExpoImage.clearDiskCache().catch(() => false),
+          ]);
+          Toast.show({ type: 'success', text1: '缓存已清理' });
+        },
       },
     ]);
   };
@@ -105,7 +109,6 @@ export default function Settings() {
           title="通用"
           rows={[
             { label: '通用设置', icon: <SettingGeneralIcon />, onPress: () => navigation.navigate('generalSettings') },
-            // { label: '机会偏好调节', icon: <SettingChanceIcon />, onPress: todo },
             { label: '清理缓存', icon: <SettingClearIcon />, onPress: onClearCache },
           ]}
         />
