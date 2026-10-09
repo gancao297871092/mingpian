@@ -13,7 +13,6 @@ import AppBottomSheet from '@/components/AppBottomSheet';
 import { API } from '@/api';
 import { uploadToOss } from '@/utils/ossUpload';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
-import { useUserStore } from '@/store/user';
 import type { RootStackParamList } from '@/route/map';
 import { ChevronRightIcon } from '../myIcons';
 
@@ -55,7 +54,7 @@ function StepHeader({ step, title, gap = 20 }: { step: number; title: string; ga
         <Text style={styles.stepTitle}>{title}</Text>
         <Text style={styles.stepCount}>
           <Text style={styles.stepCountNum}>{step}</Text>
-          /3
+          /2
         </Text>
       </View>
       <Text style={styles.stepSub}>让信息流通，让资源流通</Text>
@@ -316,26 +315,26 @@ function Step1({ onNext }: { onNext: (d: CertBase) => void }) {
   const [sampleVisible, setSampleVisible] = useState(false);
 
   const fill = useCallback((d: any) => {
-    if (!d) return;
-    setId(d.id ?? null);
-    setCpId(d.cpId ?? null);
-    if (d.businessUrl !== undefined) setLicense(d.businessUrl || '');
-    setName(d.companyName || '');
-    setCode(d.creditCode || '');
-    setLocation(d.businessAddress || '');
-    const forever = isForever(d.validToDate);
-    setLongTerm(forever);
-    setValidToDate(forever ? '' : formatValidDate(d.validToDate));
+    // if (!d) return;
+    // setId(d.id ?? null);
+    // setCpId(d.cpId ?? null);
+    // if (d.businessUrl !== undefined) setLicense(d.businessUrl || '');
+    // setName(d.companyName || '');
+    // setCode(d.creditCode || '');
+    // setLocation(d.businessAddress || '');
+    // const forever = isForever(d.validToDate);
+    // setLongTerm(forever);
+    // setValidToDate(forever ? '' : formatValidDate(d.validToDate));
   }, []);
 
   useEffect(() => {
     (async () => {
       try {
-        const res = await API.company.certStepOne();
-        if (res.code !== '200' || !res.data) return;
-        const r2 = await API.company.certStepTwo(res.data);
-        if (r2.code !== '200') return;
-        fill(r2.data);
+        // const res = await API.company.certStepOne();
+        // if (res.code !== '200' || !res.data) return;
+        // const r2 = await API.company.certStepTwo(res.data);
+        // if (r2.code !== '200') return;
+        // fill(r2.data);
       } catch {
         // 拦截器已提示
       }
@@ -493,8 +492,10 @@ function Step1({ onNext }: { onNext: (d: CertBase) => void }) {
   );
 }
 
-/** 第二步：对公认证（对齐小程序 stepFour.vue；人脸识别 app 端暂未实现） */
-function Step2({ cpId, authUrl, method, onOpenSheet, onPrev, onNext }: { cpId: number | null; authUrl: string; method: VerifyMethod; onOpenSheet: () => void; onPrev: () => void; onNext: () => void }) {
+/** 第二步：对公认证（对齐小程序 stepFour.vue，成功后直接调用 certLink 完成认证；人脸识别 app 端暂未实现） */
+function Step2({ cpId, authUrl, method, onOpenSheet, onPrev }: { cpId: number | null; authUrl: string; method: VerifyMethod; onOpenSheet: () => void; onPrev: () => void }) {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const formType = FORM_TYPE[method];
   const [legalPerson, setLegalPerson] = useState('');
   const [legalPersonCertCode, setLegalPersonCertCode] = useState('');
   const [legalPhone, setLegalPhone] = useState('');
@@ -505,6 +506,7 @@ function Step2({ cpId, authUrl, method, onOpenSheet, onPrev, onNext }: { cpId: n
   const [countdown, setCountdown] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [previewVisible, setPreviewVisible] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -649,7 +651,10 @@ function Step2({ cpId, authUrl, method, onOpenSheet, onPrev, onNext }: { cpId: n
         });
         if (res.code !== '200') return;
       }
-      onNext();
+      const linkRes = await API.company.certLink({ cpId, id: cpId, formType });
+      if (linkRes.code !== '200') return;
+      Toast.show({ type: 'success', text1: formType === 2 ? '已提交审核' : '企业认证成功！' });
+      navigation.goBack();
     } catch {
       // 拦截器已提示
     } finally {
@@ -676,7 +681,11 @@ function Step2({ cpId, authUrl, method, onOpenSheet, onPrev, onNext }: { cpId: n
                 <Text style={styles.letterBtnFillText}>查看委托书(模板)</Text>
               </TouchableOpacity>
             </View>
-            {!!docxName && <Text style={styles.letterFile} numberOfLines={1}>已上传: {docxName}</Text>}
+            {!!docxName && (
+              <TouchableOpacity activeOpacity={0.7} onPress={() => setPreviewVisible(true)}>
+                <Text style={styles.letterFile} numberOfLines={1}>已上传: {docxName}</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           <>
@@ -714,77 +723,17 @@ function Step2({ cpId, authUrl, method, onOpenSheet, onPrev, onNext }: { cpId: n
           </>
         )}
       </ScrollView>
-      <PrevNextButtons onPrev={onPrev} nextText="下一步" onNext={submit} busy={submitting} />
-    </View>
-  );
-}
-
-/** 第三步：联系人信息（对齐小程序 stepThree.vue，预填当前用户信息） */
-function Step3({ cpId, formType, onPrev }: { cpId: number | null; formType: number; onPrev: () => void }) {
-  const navigation = useNavigation();
-  const wqUser = useUserStore(s => s.userInfo?.wqUser);
-  const [name, setName] = useState(wqUser?.realName ?? '');
-  const [email, setEmail] = useState(wqUser?.email ?? '');
-  const [phone, setPhone] = useState(wqUser?.phone ?? '');
-  const [submitting, setSubmitting] = useState(false);
-
-  const submit = async () => {
-    if (submitting) return;
-    if (!name.trim()) {
-      Toast.show({ type: 'error', text1: '请输入运用者姓名' });
-      return;
-    }
-    if (email.trim() && !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email.trim())) {
-      Toast.show({ type: 'error', text1: '请输入正确的邮箱地址' });
-      return;
-    }
-    if (!phone.trim()) {
-      Toast.show({ type: 'error', text1: '请输入手机号' });
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const res = await API.company.certLink({
-        cpId,
-        id: cpId,
-        formType,
-        linkPerson: name.trim(),
-        linkEmail: email.trim(),
-        linkPhone: phone.trim(),
-      });
-      if (res.code !== '200') return;
-      Toast.show({ type: 'success', text1: formType === 2 ? '已提交审核' : '企业认证成功！' });
-      navigation.goBack();
-    } catch {
-      // 拦截器已提示
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <View style={styles.flex}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <StepHeader step={3} title="联系人信息" gap={18} />
-        <View style={[styles.formCard, styles.mt0]}>
-          <FormRow label="企业联系人姓名" required>
-            <FormInput value={name} onChangeText={setName} placeholder="请填写负责本企业账号的联系人姓名" />
-          </FormRow>
-          <FormRow label="联系邮箱" required>
-            <FormInput value={email} onChangeText={setEmail} placeholder="用于后续接收企业认证及业务沟通邮件" keyboardType="email-address" autoCapitalize="none" />
-          </FormRow>
-          <FormRow label="手机号" required last>
-            <PhoneRight value={phone} onChangeText={setPhone} />
-          </FormRow>
-        </View>
-        <Text style={styles.note}>*邮箱用于后续接收企业认证及业务沟通邮件</Text>
-      </ScrollView>
       <PrevNextButtons onPrev={onPrev} nextText={formType === 2 ? '提交' : '完成'} onNext={submit} busy={submitting} />
+      <Modal transparent visible={previewVisible} animationType="fade" onRequestClose={() => setPreviewVisible(false)}>
+        <TouchableOpacity activeOpacity={1} style={styles.sampleMask} onPress={() => setPreviewVisible(false)}>
+          <ExpoImage source={{ uri: authRemark }} style={styles.sampleImage} contentFit="contain" transition={150} />
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
 
-/** 企业认证（创建企业三步：主体信息 / 对公认证 / 联系人信息，对齐小程序 enterprise 流程） */
+/** 企业认证（创建企业两步：主体信息 / 对公认证，对齐小程序 enterprise 流程） */
 export default function CompanyCert() {
   const sheetRef = useRef<BottomSheetModal>(null);
   const [step, setStep] = useState(1);
@@ -796,11 +745,12 @@ export default function CompanyCert() {
   return (
     <SafeView backgroundColor="#F6F7FB">
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        {step === 1 && <Step1 onNext={d => { setCert(d); setStep(2); }} />}
-        {step === 2 && (
-          <Step2 cpId={cert.cpId} authUrl={cert.authUrl} method={method} onOpenSheet={openSheet} onPrev={() => setStep(1)} onNext={() => setStep(3)} />
-        )}
-        {step === 3 && <Step3 cpId={cert.cpId} formType={FORM_TYPE[method]} onPrev={() => setStep(2)} />}
+        <View style={[styles.flex, step !== 1 && styles.hidden]}>
+          <Step1 onNext={d => { setCert(d); setStep(2); }} />
+        </View>
+        <View style={[styles.flex, step !== 2 && styles.hidden]}>
+          <Step2 cpId={cert.cpId} authUrl={cert.authUrl} method={method} onOpenSheet={openSheet} onPrev={() => setStep(1)} />
+        </View>
       </KeyboardAvoidingView>
       <VerifySheet sheetRef={sheetRef} method={method} onSelect={setMethod} />
     </SafeView>
@@ -810,6 +760,9 @@ export default function CompanyCert() {
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
+  },
+  hidden: {
+    display: 'none',
   },
   content: {
     padding: scaleSizeW(16),
