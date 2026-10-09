@@ -34,6 +34,7 @@ import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText, SCREEN_WIDTH } from '@/utils/screenUtils';
 import { formatLikeCount } from '@/utils/format';
 import { useUserStore } from '@/store/user';
+import { useSettingStore } from '@/store/setting';
 import { useBbsInteractionStore } from '@/store/bbsInteraction';
 import { getDetailCache } from '@/utils/detailCache';
 import CommentInputSheet from './CommentInputSheet';
@@ -179,12 +180,14 @@ const VideoCoverPlayer = React.memo(function VideoCoverPlayerInner({
   height: number;
 }) {
   const [playing, setPlaying] = useState(false);
+  const videoMuted = useSettingStore(s => s.videoMuted);
   if (playing) {
     return (
       <Video
         source={{ uri: videoUrl }}
         style={{ width: SCREEN_WIDTH, height }}
         controls
+        muted={videoMuted}
         paused={false}
         resizeMode="contain"
       />

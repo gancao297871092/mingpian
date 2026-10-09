@@ -3,6 +3,7 @@ import { Modal, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Video from 'react-native-video';
 import Svg, { Path } from 'react-native-svg';
 import { scaleSizeH, scaleSizeW } from '@/utils/screenUtils';
+import { useSettingStore } from '@/store/setting';
 
 interface VideoPlayerModalProps {
   visible: boolean;
@@ -12,6 +13,7 @@ interface VideoPlayerModalProps {
 
 export default function VideoPlayerModal({ visible, uri, onClose }: VideoPlayerModalProps) {
   const [paused, setPaused] = useState(false);
+  const videoMuted = useSettingStore(s => s.videoMuted);
 
   useEffect(() => {
     if (visible) setPaused(false);
@@ -26,6 +28,7 @@ export default function VideoPlayerModal({ visible, uri, onClose }: VideoPlayerM
               source={{ uri }}
               style={styles.video}
               paused={paused}
+              muted={videoMuted}
               resizeMode="contain"
               onEnd={() => setPaused(true)}
             />

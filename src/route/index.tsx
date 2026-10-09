@@ -4,6 +4,7 @@ import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useTheme } from '@/theme';
+import { useSettingStore } from '@/store/setting';
 import LiquidGlassTabBar from '@/components/LiquidGlassTabBar';
 import { navigationRef } from './navigationRef';
 import type { RootStackParamList, MainTabParamList } from './map';
@@ -83,23 +84,34 @@ function useNavTheme() {
 }
 
 function MainTabs() {
+  const defaultHome = useSettingStore(s => s.defaultHome);
+  const homeScreen = (
+    <Tab.Screen
+      key="home"
+      name="home"
+      component={Home}
+      options={{ title: '广场', headerShown: false }}
+    />
+  );
+  const linkScreen = (
+    <Tab.Screen
+      key="link"
+      name="link"
+      component={LinkPage}
+      options={{ title: '链接', headerShown: false }}
+    />
+  );
   return (
     <Tab.Navigator
+      key={defaultHome}
+      initialRouteName={defaultHome === 'link' ? 'link' : 'home'}
       tabBar={props => <LiquidGlassTabBar {...props} />}
       screenOptions={{
         freezeOnBlur: true,
       }}
     >
-      <Tab.Screen
-        name="home"
-        component={Home}
-        options={{ title: '广场', headerShown: false }}
-      />
-      <Tab.Screen
-        name="link"
-        component={LinkPage}
-        options={{ title: '链接', headerShown: false }}
-      />
+      {defaultHome === 'link' ? linkScreen : homeScreen}
+      {defaultHome === 'link' ? homeScreen : linkScreen}
       <Tab.Screen
         name="message"
         component={MessagePage}

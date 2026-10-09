@@ -116,10 +116,10 @@ export default function LiquidGlassTabBar({ state, descriptors, navigation }: Bo
         interactive
       >
         <View style={styles.tabsRow}>
-          {/* 广场 */}
-          <TabItem route={state.routes[0]} index={0} descriptors={descriptors} state={state} navigation={navigation} />
-          {/* 链接 */}
-          <TabItem route={state.routes[1]} index={1} descriptors={descriptors} state={state} navigation={navigation} />
+          {/* 广场/链接（顺序随默认首页动态调整） */}
+          {state.routes.slice(0, 2).map((route, i) => (
+            <TabItem key={route.key} route={route} index={i} descriptors={descriptors} state={state} navigation={navigation} />
+          ))}
           {/* 发布按钮 */}
           <TouchableOpacity
             accessibilityRole="button"
@@ -134,10 +134,10 @@ export default function LiquidGlassTabBar({ state, descriptors, navigation }: Bo
               resizeMode="contain"
             />
           </TouchableOpacity>
-          {/* 消息 */}
-          <TabItem route={state.routes[2]} index={2} descriptors={descriptors} state={state} navigation={navigation} />
-          {/* 我的 */}
-          <TabItem route={state.routes[3]} index={3} descriptors={descriptors} state={state} navigation={navigation} />
+          {/* 消息/我的 */}
+          {state.routes.slice(2).map((route, i) => (
+            <TabItem key={route.key} route={route} index={i + 2} descriptors={descriptors} state={state} navigation={navigation} />
+          ))}
         </View>
       </LiquidGlass>
     </View>

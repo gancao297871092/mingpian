@@ -1,7 +1,6 @@
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import SafeView from '@/components/SafeView';
-import { API } from '@/api';
 import { useSettingStore, type DefaultHome } from '@/store/setting';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { CheckCircleIcon } from './subIcons';
@@ -11,16 +10,13 @@ const OPTIONS: { key: DefaultHome; label: string; desc: string }[] = [
   { key: 'link', label: '链接', desc: '快速发现各种机会' },
 ];
 
-/** 78/79.默认首页设置 */
+/** 78/79.默认首页设置（本地持久化，MainTabs 启动时读取） */
 export default function DefaultHomeSetting() {
   const defaultHome = useSettingStore(s => s.defaultHome);
   const setValue = useSettingStore(s => s.setValue);
 
   const onSelect = (key: DefaultHome) => {
     setValue('defaultHome', key);
-    API.setting.preferenceSave({ defaultHome: key }).catch(() => {
-      // TODO 联调后处理失败回滚
-    });
   };
 
   return (
