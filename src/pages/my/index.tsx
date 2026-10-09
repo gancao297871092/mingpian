@@ -25,7 +25,6 @@ import {
   CardBoxIcon,
   CompanyIcon,
   EntryCertIcon,
-  EntryChanceIcon,
   EntryCompanyIcon,
   EntryHistoryIcon,
   EntryWorkbenchIcon,
@@ -195,7 +194,6 @@ export default function My() {
 
   const entries: { label: string; icon: React.ReactNode; badge?: number; onPress: () => void }[] = [
     { label: '企业管理', icon: <EntryCompanyIcon />, onPress: () => navigation.navigate('companyManage') },
-    { label: '我的商机', icon: <EntryChanceIcon />, badge: 2, onPress: todo },
     { label: '业务员工作台', icon: <EntryWorkbenchIcon />, badge: 2, onPress: () => navigation.navigate('workbench') },
     { label: '认证中心', icon: <EntryCertIcon />, onPress: () => navigation.navigate('certificationCenter') },
     { label: '浏览记录', icon: <EntryHistoryIcon />, onPress: () => navigation.navigate('browseHistory') },
@@ -404,9 +402,6 @@ export default function My() {
                       <Text style={styles.chipText}>{regionText}</Text>
                     </View>
                   )}
-                  <View style={styles.chip}>
-                    <Text style={styles.chipText}>{regionText}</Text>
-                  </View>
                   {wqUser?.authRealCard && (
                     <View style={styles.chip}>
                       <Text style={styles.chipText}>已实名</Text>
@@ -680,7 +675,8 @@ const styles = StyleSheet.create({
   },
   entriesRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    gap: scaleSizeW(44),
     marginTop: scaleSizeH(20),
   },
   entryItem: {
