@@ -1,5 +1,7 @@
 import React from 'react';
 import { Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Clipboard from '@react-native-clipboard/clipboard';
+import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { BLUE, SectionTitle, SettingCard, SettingDivider } from './components';
@@ -19,6 +21,11 @@ const BRANCHES = [
 export default function HelpCenter() {
   const call = (phone: string) => Linking.openURL(`tel:${phone}`).catch(() => {});
 
+  const copyEmail = () => {
+    Clipboard.setString(SERVICE_EMAIL);
+    Toast.show({ type: 'success', text1: '邮箱已复制' });
+  };
+
   return (
     <SafeView backgroundColor="#F6F7FB">
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
@@ -34,7 +41,7 @@ export default function HelpCenter() {
           <View style={styles.contactRow}>
             <Text style={styles.contactLabel}>电子邮箱</Text>
             <Text style={styles.contactValue}>{SERVICE_EMAIL}</Text>
-            <TouchableOpacity activeOpacity={0.7} onPress={() => Linking.openURL(`mailto:${SERVICE_EMAIL}`).catch(() => {})}>
+            <TouchableOpacity activeOpacity={0.7} onPress={copyEmail}>
               <MailIcon />
             </TouchableOpacity>
           </View>

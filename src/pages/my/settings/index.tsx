@@ -125,9 +125,13 @@ export default function Settings() {
             { label: '退出登录', icon: <SettingLogoutIcon />, onPress: onLogout },
           ]}
         />
-        <Text style={styles.footerLinks}>
-          {'《个人信息收集清单》《第三方信息共享清单》\n《联诚采信用户服务协议》《联诚采信隐私政策》'}
-        </Text>
+        <View style={styles.footerLinks}>
+          <Text style={styles.footerText}>《个人信息收集清单》《第三方信息共享清单》</Text>
+          <Text style={styles.footerText}>
+            <Text style={styles.footerLink} onPress={() => navigation.navigate('agreement', { type: 'userSure', title: '用户服务协议' })}>《联诚采信用户服务协议》</Text>
+            <Text style={styles.footerLink} onPress={() => navigation.navigate('agreement', { type: 'privates', title: '隐私政策' })}>《联诚采信隐私政策》</Text>
+          </Text>
+        </View>
       </ScrollView>
     </SafeView>
   );
@@ -174,9 +178,15 @@ const styles = StyleSheet.create({
   },
   footerLinks: {
     marginTop: scaleSizeH(30),
+    alignItems: 'center',
+  },
+  footerText: {
     fontSize: setSpText(12),
     lineHeight: scaleSizeH(20),
-    color: '#2962D4',
+    color: '#6C6C6C',
     textAlign: 'center',
+  },
+  footerLink: {
+    color: '#2962D4',
   },
 });
