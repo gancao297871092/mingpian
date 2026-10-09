@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Linking, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { Image as ExpoImage } from 'expo-image';
@@ -10,8 +11,10 @@ import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
 import AppBottomSheet from '@/components/AppBottomSheet';
 import { API } from '@/api';
+import { uploadToOss } from '@/utils/ossUpload';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { useUserStore } from '@/store/user';
+import type { RootStackParamList } from '@/route/map';
 import { ChevronRightIcon } from '../myIcons';
 
 const PRIMARY = '#2962D4';
@@ -204,7 +207,7 @@ function PrevNextButtons({ onPrev, nextText, onNext, busy }: { onPrev: () => voi
   );
 }
 
-const LICENSE_SAMPLE_URL = 'https://picsum.photos/seed/licenseSample/686/960';
+const LICENSE_SAMPLE_URL = 'https://card.yiduipj.com/static/ming/ex.png';
 
 function LicenseSampleModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   return (
@@ -298,6 +301,7 @@ function DatePickerModal({ visible, value, onCancel, onConfirm }: { visible: boo
 
 /** 第一步：主体信息（对齐小程序 stepTwo.vue） */
 function Step1({ onNext }: { onNext: (d: CertBase) => void }) {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [id, setId] = useState<number | null>(null);
   const [cpId, setCpId] = useState<number | null>(null);
   const [license, setLicense] = useState('');
@@ -352,21 +356,16 @@ function Step1({ onNext }: { onNext: (d: CertBase) => void }) {
       const img = await ImagePicker.openPicker({ mediaType: 'photo' });
       if (!img.path) return;
       setOcrLoading(true);
-      const formData = new FormData();
-      formData.append('file', {
-        uri: img.path,
-        type: img.mime || 'image/jpeg',
-        name: img.filename || 'license.jpg',
-      } as any);
-      const res = await API.file.upload(formData);
-      if (res.code !== '200' || !res.data) return;
-      const businessLicense = (res.data as any).mdUrl || (res.data as any).url || res.data;
+      const businessLicense = await uploadToOss(img.path, img.mime || 'image/jpeg');
       const ocr = await API.company.certOcr({ id: cpId, businessLicense });
       if (ocr.code !== '200') return;
       fill({ ...(ocr.data || {}), businessUrl: businessLicense });
       Toast.show({ type: 'success', text1: '上传成功' });
-    } catch {
-      // 用户取消或拦截器已提示
+    } catch (e: any) {
+      if (e?.message?.includes('OSS')) {
+        Toast.show({ type: 'error', text1: e.message });
+      }
+      // 其余为用户取消或拦截器已提示
     } finally {
       setOcrLoading(false);
     }
@@ -477,7 +476,7 @@ function Step1({ onNext }: { onNext: (d: CertBase) => void }) {
         </TouchableOpacity>
         <Text style={styles.agreeNote}>
           点击下一步，即同意
-          <Text style={styles.noteLink} onPress={() => Toast.show({ type: 'info', text1: '功能开发中' })}>《联诚采信企业认证服务协议》</Text>
+          <Text style={styles.noteLink} onPress={() => navigation.navigate('agreement', { type: 'cpSure', title: '服务协议' })}>《联诚采信企业认证服务协议》</Text>
         </Text>
       </BottomBar>
       <LicenseSampleModal visible={sampleVisible} onClose={() => setSampleVisible(false)} />
@@ -567,19 +566,15 @@ function Step2({ cpId, authUrl, method, onOpenSheet, onPrev, onNext }: { cpId: n
       const img = await ImagePicker.openPicker({ mediaType: 'photo' });
       if (!img.path) return;
       setUploading(true);
-      const formData = new FormData();
-      formData.append('file', {
-        uri: img.path,
-        type: img.mime || 'image/jpeg',
-        name: img.filename || 'auth.jpg',
-      } as any);
-      const res = await API.file.upload(formData);
-      if (res.code !== '200' || !res.data) return;
-      setAuthRemark((res.data as any).mdUrl || (res.data as any).url || res.data);
+      const url = await uploadToOss(img.path, img.mime || 'image/jpeg');
+      setAuthRemark(url);
       setDocxName(img.filename || '委托书图片');
       Toast.show({ type: 'success', text1: '上传成功' });
-    } catch {
-      // 用户取消或拦截器已提示
+    } catch (e: any) {
+      if (e?.message?.includes('OSS')) {
+        Toast.show({ type: 'error', text1: e.message });
+      }
+      // 其余为用户取消或拦截器已提示
     } finally {
       setUploading(false);
     }
@@ -1085,7 +1080,7 @@ const styles = StyleSheet.create({
   },
   phonePrefix: {
     fontSize: setSpText(15),
-    lineHeight: setSpText(20),
+    // lineHeight: setSpText(20),
     color: GRAY,
   },
   phoneInput: {
@@ -1093,7 +1088,7 @@ const styles = StyleSheet.create({
     minWidth: scaleSizeW(45),
     maxWidth: scaleSizeW(200),
     fontSize: setSpText(15),
-    lineHeight: setSpText(20),
+    // lineHeight: setSpText(20),
     color: '#000000',
   },
   codeBtn: {
