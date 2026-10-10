@@ -1,7 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
-  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,10 +8,15 @@ import {
   View,
 } from 'react-native';
 import { API } from '@/api';
-import { scaleSizeW } from '@/utils/screenUtils';
-import Card1 from '@/components/cards/Card1';
-import Card2 from '@/components/cards/Card2';
-import Card3 from '@/components/cards/Card3';
+import PersonalCard from '@/components/cards/PersonalCard';
+import { CheckWhiteIcon } from '@/components/cards/cardIcons';
+import {
+  FASHION_COLOR_PRESETS,
+  normalizeCardStyle,
+  type CardStyle,
+  type FashionColor,
+} from '@/components/cards/types';
+import { scaleSizeW, setSpText } from '@/utils/screenUtils';
 
 interface StepFourProps {
   cardId: number | null;
@@ -21,15 +25,22 @@ interface StepFourProps {
   onPublish: () => void;
 }
 
+const FALLBACK_STYLES: { styleCode: string; name: string }[] = [
+  { styleCode: 'NORMAL', name: '商务' },
+  { styleCode: 'TRADITIONAL', name: '时尚' },
+  { styleCode: 'FASHION', name: '简约' },
+];
+
 export default function StepFour({ cardId, data, onNext, onPublish }: StepFourProps) {
   const [styleCode, setStyleCode] = useState(data.styleCode || 'NORMAL');
-  const [fontColor, setFontColor] = useState(data.fontColor || '#ffffff');
-  const [backColor, setBackColor] = useState(data.backColor || 'transparent');
+  const [fontColor, setFontColor] = useState(data.fontColor || '#000000');
+  const [backColor, setBackColor] = useState(data.backColor || '#FFFFFF');
   const [styleList, setStyleList] = useState<any[]>([]);
-  const [colorList, setColorList] = useState<any[]>([]);
+  const [colorList, setColorList] = useState<FashionColor[]>([]);
 
   useEffect(() => {
     loadStyleList();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadStyleList = async () => {
@@ -37,41 +48,54 @@ export default function StepFour({ cardId, data, onNext, onPublish }: StepFourPr
       const res = await API.common.cardStyle();
       if (res.code === '200') {
         const list = res.data?.styleList || [];
-        const colors = res.data?.colorList || [];
+        const colors: FashionColor[] = (res.data?.colorList || []).map((c: any) => ({
+          name: c.name || c.colorName || '',
+          fontColor: c.fontColor || '#000000',
+          backColor: c.backColor || '#FFFFFF',
+        }));
         setStyleList(list);
-        setColorList(colors);
+        setColorList(colors.length > 0 ? colors : FASHION_COLOR_PRESETS);
 
-        // 如果当前 styleCode 不在列表中，默认选中第一个
         const hasMatch = list.some((s: any) => s.styleCode === styleCode);
         if (list[0] && !hasMatch) {
           setStyleCode(list[0].styleCode);
         }
 
-        // 如果当前颜色不在列表中，默认选中第一个配色
-        const hasColorMatch = colors.some(
-          (c: any) => c.fontColor === fontColor && c.backColor === backColor
+        const effectiveColors = colors.length > 0 ? colors : FASHION_COLOR_PRESETS;
+        const hasColorMatch = effectiveColors.some(
+          c => c.fontColor === fontColor && c.backColor === backColor,
         );
-        if (colors[0] && !hasColorMatch) {
-          setFontColor(colors[0].fontColor || '#ffffff');
-          setBackColor(colors[0].backColor || 'transparent');
+        if (!hasColorMatch) {
+          setFontColor(effectiveColors[0].fontColor);
+          setBackColor(effectiveColors[0].backColor);
         }
+      } else {
+        setColorList(FASHION_COLOR_PRESETS);
       }
-    } catch (e) {
-      // ignore
+    } catch {
+      setColorList(FASHION_COLOR_PRESETS);
     }
   };
 
+  const styleOptions = styleList.length > 0 ? styleList : FALLBACK_STYLES;
+  const currentStyle: CardStyle = normalizeCardStyle(
+    styleCode,
+    styleOptions.find((s: any) => s.styleCode === styleCode)?.name,
+  );
+
   const cardInfo = {
-    nameZh: data.nameZh || '姓名',
+    nameZh: data.nameZh || '',
     nameEn: data.nameEn || '',
     position: data.position || '',
-    cpName: data.cpName || '企业名称',
+    cpName: data.cpName || '',
     phone: data.phone || '',
     email: data.email || '',
     province: data.province || '',
     city: data.city || '',
     district: data.district || '',
     address: data.address || '',
+    mediaLinkList: data.mediaLinkList || [],
+    isAuth: data.isAuth,
   };
 
   const onMake = async () => {
@@ -86,71 +110,78 @@ export default function StepFour({ cardId, data, onNext, onPublish }: StepFourPr
       if (res.code === '200') {
         onPublish();
       }
-    } catch (e) {
+    } catch {
       Alert.alert('保存失败');
     }
   };
 
   return (
     <View style={styles.container}>
-      {/* 样式切换 Tab */}
-      <View style={styles.navRow}>
-        {styleList.map((item) => (
-          <TouchableOpacity
-            key={item.styleCode}
-            style={[styles.navItem, styleCode === item.styleCode && styles.navActive]}
-            onPress={() => setStyleCode(item.styleCode)}
-          >
-            <Text style={[styles.navText, styleCode === item.styleCode && styles.navTextActive]}>
-              {item.name}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* 预览区域 */}
-      <View style={styles.preview}>
-        {styleCode === 'NORMAL' && <Card1 cardInfo={cardInfo} from="edit" />}
-        {styleCode === 'TRADITIONAL' && (
-          <Card2 cardInfo={cardInfo} colorConfig={{ backColor, fontColor }} from="edit" />
-        )}
-        {styleCode === 'FASHION' && <Card3 cardInfo={cardInfo} from="edit" />}
-      </View>
-
-      {/* TRADITIONAL 配色选择 */}
-      {styleCode === 'TRADITIONAL' && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.colorScroll}
-          contentContainerStyle={styles.colorScrollContent}
-        >
-          {colorList.map((it, ix) => (
+      {/* 风格分段选择（figma 创建名片4-1：商务/时尚/简约） */}
+      <View style={styles.segmented}>
+        {styleOptions.map((item: any) => {
+          const active = styleCode === item.styleCode;
+          return (
             <TouchableOpacity
-              key={ix}
-              style={[styles.colorBox, { backgroundColor: it.fontColor }]}
-              onPress={() => {
-                setFontColor(it.fontColor);
-                setBackColor(it.backColor);
-              }}
+              key={item.styleCode}
+              activeOpacity={0.8}
+              style={[styles.segmentItem, active && styles.segmentItemActive]}
+              onPress={() => setStyleCode(item.styleCode)}
             >
-              <View
-                style={[
-                  styles.colorInner,
-                  { backgroundColor: it.backColor },
-                ]}
-              />
-              {fontColor === it.fontColor && backColor === it.backColor && (
-                <Image source={require('@/assets/ming/gou_blue.png')} style={styles.checkIcon} />
-              )}
-              {!(fontColor === it.fontColor && backColor === it.backColor) && (
-                <View style={styles.colorIndex}>
-                  <Text style={styles.colorIndexText}>{ix + 1}</Text>
-                </View>
-              )}
+              <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
+                {item.name}
+              </Text>
             </TouchableOpacity>
-          ))}
-        </ScrollView>
+          );
+        })}
+      </View>
+
+      {/* 名片预览 */}
+      <View style={styles.preview}>
+        <PersonalCard
+          data={cardInfo}
+          style={currentStyle}
+          fontColor={fontColor}
+          backColor={backColor}
+          qrValue={cardId ? `mingpian://cardDetail?id=${cardId}` : ''}
+          placeholder
+        />
+      </View>
+
+      {/* 时尚风格：选择配色（figma 创建名片4-2） */}
+      {currentStyle === 'fashion' && (
+        <>
+          <Text style={styles.colorTitle}>选择配色</Text>
+          <ScrollView
+            style={styles.colorScroll}
+            contentContainerStyle={styles.colorGrid}
+            showsVerticalScrollIndicator={false}
+          >
+            {colorList.map((it, ix) => {
+              const active = fontColor === it.fontColor && backColor === it.backColor;
+              return (
+                <TouchableOpacity
+                  key={`${it.fontColor}-${ix}`}
+                  activeOpacity={0.8}
+                  style={[styles.colorCard, active && styles.colorCardActive]}
+                  onPress={() => {
+                    setFontColor(it.fontColor);
+                    setBackColor(it.backColor);
+                  }}
+                >
+                  <View style={[styles.colorSwatch, { backgroundColor: it.fontColor }]} />
+                  <View style={styles.colorTextCol}>
+                    <Text style={styles.colorName}>{it.name || `配色${ix + 1}`}</Text>
+                    <Text style={styles.colorHex}>{it.fontColor}</Text>
+                  </View>
+                  <View style={[styles.colorCheck, active && styles.colorCheckActive]}>
+                    {active && <CheckWhiteIcon />}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </>
       )}
 
       <View style={styles.btnRow}>
@@ -170,79 +201,100 @@ const styles = StyleSheet.create({
   container: {
     paddingTop: scaleSizeW(8),
   },
-  navRow: {
+  segmented: {
     flexDirection: 'row',
-    backgroundColor: '#f6f6f6',
-    borderRadius: scaleSizeW(11),
-    padding: scaleSizeW(3),
-    marginBottom: scaleSizeW(11),
+    backgroundColor: '#FFFFFF',
+    borderRadius: scaleSizeW(100),
+    padding: scaleSizeW(2),
+    gap: scaleSizeW(4),
+    marginBottom: scaleSizeW(20),
   },
-  navItem: {
+  segmentItem: {
     flex: 1,
     height: scaleSizeW(28),
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: scaleSizeW(11),
+    borderRadius: scaleSizeW(20),
+    paddingHorizontal: scaleSizeW(6),
   },
-  navActive: {
+  segmentItemActive: {
     backgroundColor: '#000000',
   },
-  navText: {
+  segmentText: {
     fontWeight: '500',
-    fontSize: scaleSizeW(13),
+    fontSize: setSpText(13),
     color: '#000000',
+    letterSpacing: -0.2,
   },
-  navTextActive: {
-    color: '#ffffff',
+  segmentTextActive: {
+    color: '#FFFFFF',
   },
   preview: {
-    marginBottom: scaleSizeW(11),
+    marginBottom: scaleSizeW(16),
+  },
+  colorTitle: {
+    fontSize: setSpText(12),
+    fontWeight: '400',
+    color: '#6C6C6C',
+    marginBottom: scaleSizeW(10),
   },
   colorScroll: {
-    marginTop: scaleSizeW(11),
-    marginBottom: scaleSizeW(11),
+    flexGrow: 0,
   },
-  colorScrollContent: {
-    paddingRight: scaleSizeW(15),
+  colorGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: scaleSizeW(10),
   },
-  colorBox: {
-    width: scaleSizeW(60),
-    height: scaleSizeW(60),
-    borderRadius: scaleSizeW(11),
-    overflow: 'hidden',
-    position: 'relative',
+  colorCard: {
+    width: '48.6%',
+    height: scaleSizeW(70),
+    borderRadius: scaleSizeW(10),
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#f5f5f5',
-    justifyContent: 'center',
+    borderColor: '#FFFFFF',
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: scaleSizeW(14),
   },
-  colorInner: {
-    width: scaleSizeW(100),
-    height: scaleSizeW(100),
-    position: 'absolute',
-    transform: [{ rotate: '45deg' }],
+  colorCardActive: {
+    borderColor: '#2962D4',
   },
-  checkIcon: {
-    width: scaleSizeW(21),
-    height: scaleSizeW(21),
-    zIndex: 2,
+  colorSwatch: {
+    width: scaleSizeW(10),
+    height: scaleSizeW(10),
+    marginRight: scaleSizeW(10),
   },
-  colorIndex: {
-    width: scaleSizeW(21),
-    height: scaleSizeW(21),
-    borderRadius: scaleSizeW(11),
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#eeeeee',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 2,
+  colorTextCol: {
+    gap: scaleSizeW(6),
+    flexShrink: 1,
   },
-  colorIndexText: {
-    fontWeight: '600',
-    fontSize: scaleSizeW(11),
+  colorName: {
+    fontSize: setSpText(14),
+    fontWeight: '400',
     color: '#000000',
+  },
+  colorHex: {
+    fontSize: setSpText(12),
+    fontWeight: '400',
+    color: '#6C6C6C',
+  },
+  colorCheck: {
+    position: 'absolute',
+    right: scaleSizeW(10),
+    top: scaleSizeW(25),
+    width: scaleSizeW(20),
+    height: scaleSizeW(20),
+    borderRadius: scaleSizeW(10),
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#EBEBEB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  colorCheckActive: {
+    backgroundColor: '#2962D4',
+    borderColor: '#2962D4',
   },
   btnRow: {
     flexDirection: 'row',
@@ -251,29 +303,28 @@ const styles = StyleSheet.create({
   },
   btnBorder: {
     flex: 1,
-    height: scaleSizeW(42),
-    borderRadius: scaleSizeW(21),
-    borderWidth: 1,
-    borderColor: '#eeeeee',
+    height: scaleSizeW(48),
+    borderRadius: scaleSizeW(24),
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
   },
   btnBorderText: {
-    fontSize: scaleSizeW(15),
-    fontWeight: 'bold',
+    fontSize: setSpText(15),
+    fontWeight: '500',
     color: '#000000',
   },
   btn: {
     flex: 1,
-    height: scaleSizeW(42),
-    backgroundColor: '#000000',
-    borderRadius: scaleSizeW(21),
+    height: scaleSizeW(48),
+    backgroundColor: '#FFFFFF',
+    borderRadius: scaleSizeW(24),
     justifyContent: 'center',
     alignItems: 'center',
   },
   btnText: {
-    fontSize: scaleSizeW(15),
-    fontWeight: 'bold',
-    color: '#ffffff',
+    fontSize: setSpText(15),
+    fontWeight: '500',
+    color: '#000000',
   },
 });

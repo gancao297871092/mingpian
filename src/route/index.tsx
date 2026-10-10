@@ -54,6 +54,8 @@ import LoginHome from '@/pages/login';
 import OtherNumberLogin from '@/pages/login/OtherNumberLogin';
 import AgreementPage from '@/pages/login/AgreementPage';
 import EditCard from '@/pages/card/editCard';
+import MyCard from '@/pages/card/myCard';
+import CardShareImage from '@/pages/card/shareImage';
 import AddItem from '@/pages/card/editCard/AddItem';
 import RichTextEdit from '@/pages/card/common/RichTextEdit';
 import Publish from '@/pages/square/publish';
@@ -170,6 +172,26 @@ export default function RootNavigator() {
           name="editCard"
           component={EditCard}
           options={{ title: '', headerStyle: { backgroundColor: '#FFFFFF' }, headerShadowVisible: false, }}
+        />
+        <Stack.Screen
+          name="myCard"
+          component={MyCard}
+          options={{
+            title: '',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="cardShareImage"
+          component={CardShareImage}
+          options={{
+            title: '分享名片',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
         />
         <Stack.Screen
           name="addItem"

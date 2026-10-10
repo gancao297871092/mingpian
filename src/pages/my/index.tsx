@@ -358,7 +358,7 @@ export default function My() {
                 </View>
               </View>
               <View style={styles.entryCards}>
-                <TouchableOpacity activeOpacity={0.8} style={styles.entryCard} onPress={() => navigation.navigate('editCard', {})}>
+                <TouchableOpacity activeOpacity={0.8} style={styles.entryCard} onPress={() => navigation.navigate('myCard')}>
                   <View>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <MyCardIcon />
