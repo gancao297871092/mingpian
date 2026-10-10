@@ -15,6 +15,7 @@ import SafeView from '@/components/SafeView';
 import Empty from '@/components/Empty';
 import PersonalCard from '@/components/cards/PersonalCard';
 import CompanyCard from '@/components/cards/CompanyCard';
+import CardShareSheet from '@/components/cards/CardShareSheet';
 import { normalizeCardStyle, type CardData } from '@/components/cards/types';
 import { API } from '@/api';
 import { useUserStore } from '@/store/user';
@@ -58,6 +59,8 @@ export default function MyCard() {
   const [selectedId, setSelectedId] = useState<number | string | null>(null);
   const [selectorVisible, setSelectorVisible] = useState(false);
   const [pillLayout, setPillLayout] = useState({ x: 0, y: 0, w: 0, h: 0 });
+  const [shareTarget, setShareTarget] = useState<TabKey>('personal');
+  const [shareVisible, setShareVisible] = useState(false);
   const pillRef = useRef<View>(null);
 
   useLayoutEffect(() => {
@@ -119,15 +122,14 @@ export default function MyCard() {
 
   const onSharePersonal = useCallback(() => {
     if (!currentCard?.id) return;
-    navigation.navigate('cardShareImage', { cardId: currentCard.id });
-  }, [navigation, currentCard]);
+    setShareTarget('personal');
+    setShareVisible(true);
+  }, [currentCard]);
 
   const onShareCompany = useCallback(() => {
-    navigation.navigate('cardShareImage', {
-      cpId: userInfo?.cpId,
-      cpName: userInfo?.cpName,
-    });
-  }, [navigation, userInfo]);
+    setShareTarget('company');
+    setShareVisible(true);
+  }, []);
 
   const renderPersonal = () => {
     if (!currentCard) {
@@ -242,6 +244,13 @@ export default function MyCard() {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      <CardShareSheet
+        visible={shareVisible}
+        onClose={() => setShareVisible(false)}
+        card={shareTarget === 'personal' ? currentCard : undefined}
+        company={shareTarget === 'company' ? { cpId: userInfo?.cpId, cpName: userInfo?.cpName } : undefined}
+      />
     </SafeView>
   );
 }

@@ -7,7 +7,6 @@ export type RootStackParamList = {
   agreement: { type: string; title?: string };
   cardDetail: { id: string | number; userId?: string | number };
   myCard: undefined;
-  cardShareImage: { cardId?: string | number; cpId?: string | number; cpName?: string; poster?: string } | undefined;
   editCard: { id?: string | number };
   addItem: { itemId?: string | number; cardId?: string | number; userId?: string | number; pjId?: string | number };
   richTextEdit: { initialHtml?: string; placeholder?: string };

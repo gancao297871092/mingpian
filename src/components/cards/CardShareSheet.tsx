@@ -1,56 +1,41 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import React, { useCallback, useRef, useState } from 'react';
+import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import ViewShot from 'react-native-view-shot';
 import Toast from 'react-native-toast-message';
-import { useRoute, type RouteProp } from '@react-navigation/native';
 import { shareImage } from 'native-wechat';
-import SafeView from '@/components/SafeView';
+import { BlurView } from '@react-native-community/blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PersonalPoster from '@/components/posters/PersonalPoster';
 import CompanyPoster from '@/components/posters/CompanyPoster';
 import { normalizeCardStyle, type CardData } from '@/components/cards/types';
-import { API } from '@/api';
-import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
+import type { CompanyCardData } from '@/components/cards/CompanyCard';
 import { saveToGallery } from '@/components/capabilities/Gallery';
 import { isWechatAvailable } from '@/utils/wechat';
-import { MomentsIcon, SaveIcon, WechatIcon } from '@/pages/square/bbsDetail/sheetIcons';
-import type { RootStackParamList } from '@/route/map';
+import { MomentsIcon, SaveIcon, ShareImgIcon, WechatIcon } from '@/pages/square/bbsDetail/sheetIcons';
+import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 
 const WX_SCENE_SESSION = 0;
 const WX_SCENE_TIMELINE = 1;
 
-export default function CardShareImage() {
-  const route = useRoute<RouteProp<RootStackParamList, 'cardShareImage'>>();
-  const { cardId, cpId, cpName, poster } = route.params || {};
-  const isPersonal = !!cardId;
+export interface CardShareSheetProps {
+  visible: boolean;
+  onClose: () => void;
+  /** 个人名片数据（个人名片分享时传） */
+  card?: CardData | null;
+  /** 企业名片数据（企业名片分享时传） */
+  company?: CompanyCardData | null;
+}
 
-  const [card, setCard] = useState<CardData | null>(null);
+/** 名片分享蒙层：海报浮于模糊蒙层 + 底部更多操作（figma 分享个人名片 1072:4545 / 分享 1072:4204） */
+export default function CardShareSheet({ visible, onClose, card, company }: CardShareSheetProps) {
+  const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState(false);
   const shotRef = useRef<React.ElementRef<typeof ViewShot>>(null);
 
-  useEffect(() => {
-    if (!isPersonal) return;
-    let mounted = true;
-    API.card
-      .detail({ cardId: cardId! })
-      .then(res => {
-        if (mounted && res.code === '200') setCard(res.data || {});
-      })
-      .catch(() => {});
-    return () => {
-      mounted = false;
-    };
-  }, [isPersonal, cardId]);
-
+  const isPersonal = !!card;
   const qrValue = isPersonal
-    ? `mingpian://cardDetail?id=${cardId}`
-    : `mingpian://companyPage?id=${cpId || ''}`;
+    ? `mingpian://cardDetail?id=${card?.id}`
+    : `mingpian://companyPage?id=${company?.cpId || ''}`;
 
   const capture = useCallback(async (): Promise<string | null> => {
     try {
@@ -97,35 +82,34 @@ export default function CardShareImage() {
     }
   }, [busy, capture]);
 
-  const loading = isPersonal && !card;
-
   return (
-    <SafeView backgroundColor="#F6F7FB" style={styles.container}>
-      {loading ? (
-        <View style={styles.loadingBox}>
-          <ActivityIndicator color="#2962D4" />
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+      <View style={styles.mask}>
+        <BlurView style={StyleSheet.absoluteFill} blurType="dark" blurAmount={10} reducedTransparencyFallbackColor="rgba(0,0,0,0.25)" />
+        <View style={styles.maskDim} />
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
+
+        {/* 海报预览：浮于蒙层，垂直居中于弹层上方区域 */}
+        <View style={styles.posterArea} pointerEvents="box-none">
+          <ViewShot ref={shotRef} options={{ format: 'png', quality: 1 }} style={styles.shot}>
+            {isPersonal ? (
+              <PersonalPoster
+                data={card!}
+                style={normalizeCardStyle(card?.styleCode)}
+                fontColor={card?.fontColor}
+                backColor={card?.backColor}
+                qrValue={qrValue}
+              />
+            ) : (
+              <CompanyPoster data={company || {}} qrValue={qrValue} />
+            )}
+          </ViewShot>
         </View>
-      ) : (
-        <>
-          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-            <ViewShot ref={shotRef} options={{ format: 'png', quality: 1 }} style={styles.shot}>
-              {isPersonal ? (
-                <PersonalPoster
-                  data={card!}
-                  style={normalizeCardStyle(card?.styleCode)}
-                  fontColor={card?.fontColor}
-                  backColor={card?.backColor}
-                  qrValue={qrValue}
-                />
-              ) : (
-                <CompanyPoster
-                  data={{ cpId, cpName, poster }}
-                  qrValue={qrValue}
-                />
-              )}
-            </ViewShot>
-          </ScrollView>
-          <View style={styles.bottomBar}>
+
+        {/* 底部更多操作 */}
+        <View style={[styles.sheet, { paddingBottom: insets.bottom + scaleSizeH(16) }]}>
+          <View style={styles.grabber} />
+          <View style={styles.actions}>
             <TouchableOpacity
               activeOpacity={0.7}
               style={styles.actionItem}
@@ -152,39 +136,64 @@ export default function CardShareImage() {
               </View>
               <Text style={styles.actionLabel}>保存图片</Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.actionItem}
+              onPress={() => shareToWechat(WX_SCENE_SESSION)}
+            >
+              <View style={styles.actionCircle}>
+                <ShareImgIcon />
+              </View>
+              <Text style={styles.actionLabel}>转发为贴图</Text>
+            </TouchableOpacity>
           </View>
-        </>
-      )}
-    </SafeView>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  mask: {
     flex: 1,
   },
-  loadingBox: {
+  maskDim: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  posterArea: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  scrollContent: {
     paddingHorizontal: scaleSizeW(16),
-    paddingTop: scaleSizeH(24),
-    paddingBottom: scaleSizeH(24),
   },
   shot: {
-    backgroundColor: '#F6F7FB',
+    width: '100%',
     borderRadius: scaleSizeW(10),
+    overflow: 'hidden',
   },
-  bottomBar: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: scaleSizeW(50),
-    paddingHorizontal: scaleSizeW(26),
-    paddingTop: scaleSizeH(20),
-    paddingBottom: scaleSizeH(24),
+  sheet: {
     backgroundColor: '#F6F7FB',
+    borderTopLeftRadius: scaleSizeW(20),
+    borderTopRightRadius: scaleSizeW(20),
+    paddingTop: scaleSizeH(10),
+  },
+  grabber: {
+    alignSelf: 'center',
+    width: scaleSizeW(34),
+    height: scaleSizeH(6),
+    borderRadius: scaleSizeW(10),
+    backgroundColor: '#A3A3A3',
+  },
+  actions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: scaleSizeW(26),
+    marginTop: scaleSizeH(20),
   },
   actionItem: {
     alignItems: 'center',
