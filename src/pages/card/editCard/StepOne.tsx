@@ -27,7 +27,7 @@ const validatePhone = (phone: string) => {
   return /^(\+86)?1[3-9]\d{9}$/.test(phone.trim());
 };
 
-const StepOne = forwardRef<StepHandle, StepOneProps>(function StepOne({ cardId, data, onNext }, ref) {
+const StepOne = forwardRef<StepHandle, StepOneProps>(function StepOneForm({ cardId, data, onNext }, ref) {
   const [form, setForm] = useState<Record<string, any>>({
     alias: '',
     nameZh: '',
@@ -113,8 +113,14 @@ const StepOne = forwardRef<StepHandle, StepOneProps>(function StepOne({ cardId, 
       };
       const res = await API.card.save(payload);
       if (res.code === '200') {
-        const newCardId = res.data?.cardId || cardId;
-        onNext(2, { cardId: newCardId, ...form, positionList: payload.positionList });
+        const newCardId = res.data?.preId || res.data?.cardId || cardId;
+        onNext(2, {
+          ...res.data,
+          ...form,
+          cardId: newCardId,
+          preId: newCardId,
+          positionList: payload.positionList,
+        });
       }
     } catch (e: any) {
       Alert.alert('保存失败', e?.msg || '请稍后重试');
@@ -305,7 +311,7 @@ const styles = StyleSheet.create({
     marginLeft: scaleSizeW(16),
     fontSize: setSpText(15),
     fontWeight: '400',
-    color: '#6C6C6C',
+    color: '#000000',
     padding: 0,
   },
   formDivider: {

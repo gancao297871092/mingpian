@@ -178,7 +178,7 @@ export namespace API {
     }
     /** 保存名片基础信息 */
     export function save(data: any) {
-      return request.post<{ cardId: number }>('/card/save', data);
+      return request.post<{ cardId: number; preId?: number }>('/card/save', data);
     }
     /** 发布名片 */
     export function push(params: { cardId: number }) {
@@ -525,7 +525,7 @@ export namespace API {
   export namespace file {
     /** 图片上传 */
     export function upload(data: FormData) {
-      return request.post<{ id: number; url: string; width: string; height: string }>('/file/upload', data, {
+      return request.post<{ id: number; url: string; mdUrl?: string; userId?: number; width: string; height: string }>('/file/uploadV2', data, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
     }

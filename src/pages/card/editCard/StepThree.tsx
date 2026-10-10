@@ -1,4 +1,4 @@
-import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from 'react';
+import React, { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react';
 import {
   Alert,
   StyleSheet,
@@ -20,21 +20,19 @@ interface StepThreeProps {
   onNext: (step: number, data?: any) => void;
 }
 
-const StepThree = forwardRef<StepHandle, StepThreeProps>(function StepThree({ cardId, data, onNext }, ref) {
+const StepThree = forwardRef<StepHandle, StepThreeProps>(function StepThreeForm({ cardId, data, onNext }, ref) {
   const navigation = useNavigation<any>();
   const [itemsList, setItemsList] = useState<any[]>(data.itemsList || []);
   const [pjId, setPjId] = useState<number | null>(data.pjId || null);
+  const isFirstFocus = useRef(true);
 
-  useEffect(() => {
-    if (cardId && !itemsList.length) {
-      loadProjectPre();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cardId]);
-
-  // 从编辑页面返回后自动刷新
+  // 从板块编辑页返回后刷新；首次进入时 StepTwo 已预加载 itemsList，跳过（对齐小程序只调一次）
   useFocusEffect(
     useCallback(() => {
+      if (isFirstFocus.current) {
+        isFirstFocus.current = false;
+        return;
+      }
       if (cardId) {
         loadProjectPre();
       }

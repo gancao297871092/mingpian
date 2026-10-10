@@ -91,6 +91,8 @@ export default function EditCard({ navigation, route }: Props) {
           styleCode: res.data.styleCode || 'NORMAL',
           fontColor: res.data.fontColor || '#ffffff',
           backColor: res.data.backColor || 'transparent',
+          positionList: res.data.positionList || [],
+          userId: res.data.userId,
         });
       }
     } catch {
@@ -125,7 +127,9 @@ export default function EditCard({ navigation, route }: Props) {
           styleCode: data.styleCode || 'NORMAL',
           fontColor: data.fontColor || '#ffffff',
           backColor: data.backColor || 'transparent',
+          positionList: data.positionList || [],
           mediaLinkList: data.mediaLinkList || [],
+          userId: data.userId,
         });
       }
     } catch {
@@ -136,6 +140,9 @@ export default function EditCard({ navigation, route }: Props) {
   const onStepChange = useCallback((nextStep: number, data?: any) => {
     if (data) {
       setStepData((prev) => ({ ...prev, ...data }));
+      // 第一步保存后拿到 preId，同步到 cardId 供后续步骤使用
+      const nextId = data.cardId ?? data.preId;
+      if (nextId) setCardId(Number(nextId));
     }
     setStep(nextStep);
   }, []);

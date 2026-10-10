@@ -19,10 +19,14 @@ interface StepTwoProps {
   onNext: (step: number, data?: any) => void;
 }
 
-const StepTwo = forwardRef<StepHandle, StepTwoProps>(function StepTwo({ cardId, data, onNext }, ref) {
-  const [mediaList, setMediaList] = useState<any[]>(data.mediaLinkList || []);
+const StepTwo = forwardRef<StepHandle, StepTwoProps>(function StepTwoForm({ cardId, data, onNext }, ref) {
+  // 对齐小程序：名片 id 优先取 props，其次取第一步返回的 preId/cardId
+  const cid = cardId ?? (data.preId ? Number(data.preId) : null) ?? (data.cardId ? Number(data.cardId) : null);
+  const [mediaList, setMediaList] = useState<any[]>(
+    (data.mediaList || data.mediaLinkList || []).filter((o: any) => !!o.media || !!o.mdUrl)
+  );
   const [indexId, setIndexId] = useState<number | null>(
-    data.mediaLinkList?.find((o: any) => o.isIndex)?.mdId || null
+    (data.mediaList || data.mediaLinkList || [])?.find((o: any) => o.isIndex)?.mdId || null
   );
   const [uploading, setUploading] = useState(false);
 
@@ -31,7 +35,7 @@ const StepTwo = forwardRef<StepHandle, StepTwoProps>(function StepTwo({ cardId, 
       Alert.alert('提示', '最多上传9张图片');
       return;
     }
-    if (!cardId) {
+    if (!cid) {
       Alert.alert('提示', '请先完成第一步');
       return;
     }
@@ -57,24 +61,23 @@ const StepTwo = forwardRef<StepHandle, StepTwoProps>(function StepTwo({ cardId, 
       if (res.code === '200' && res.data) {
         const mediaData = res.data;
         const newLink = {
-          userId: data.userId,
+          userId: mediaData.userId ?? data.userId,
           type: 1,
           mdId: mediaData.id,
-          targetId: cardId,
+          targetId: cid,
           isIndex: 0,
           media: {
             id: mediaData.id,
-            mdUrl: mediaData.url,
+            mdUrl: mediaData.mdUrl || mediaData.url,
             width: mediaData.width,
             height: mediaData.height,
           },
         };
 
-        // 保存素材关系
-        await API.common.mediaLinkSave([newLink]);
+        setMediaList([...mediaList, newLink]);
 
-        const newList = [...mediaList, newLink];
-        setMediaList(newList);
+        // 保存素材关系（失败不阻断，与小程序一致）
+        API.common.mediaLinkSave([newLink]).catch(() => {});
       }
     } catch (e: any) {
       if (e?.code !== 'E_PICKER_CANCELLED') {

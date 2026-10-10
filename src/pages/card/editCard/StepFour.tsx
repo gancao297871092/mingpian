@@ -32,7 +32,7 @@ const FALLBACK_STYLES: { styleCode: string; name: string }[] = [
   { styleCode: 'FASHION', name: '简约' },
 ];
 
-const StepFour = forwardRef<StepHandle, StepFourProps>(function StepFour({ cardId, data, onPublish }, ref) {
+const StepFour = forwardRef<StepHandle, StepFourProps>(function StepFourForm({ cardId, data, onPublish }, ref) {
   const [styleCode, setStyleCode] = useState(data.styleCode || 'NORMAL');
   const [fontColor, setFontColor] = useState(data.fontColor || '#000000');
   const [backColor, setBackColor] = useState(data.backColor || '#FFFFFF');
