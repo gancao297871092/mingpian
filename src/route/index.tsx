@@ -170,7 +170,12 @@ export default function RootNavigator() {
         <Stack.Screen
           name="editCard"
           component={EditCard}
-          options={{ title: '', headerStyle: { backgroundColor: '#FFFFFF' }, headerShadowVisible: false, }}
+          options={{
+            title: '创建名片',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
         />
         <Stack.Screen
           name="myCard"

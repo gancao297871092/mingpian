@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import {
   Alert,
   ScrollView,
@@ -17,6 +17,7 @@ import {
   type FashionColor,
 } from '@/components/cards/types';
 import { scaleSizeW, setSpText } from '@/utils/screenUtils';
+import type { StepHandle } from './types';
 
 interface StepFourProps {
   cardId: number | null;
@@ -31,7 +32,7 @@ const FALLBACK_STYLES: { styleCode: string; name: string }[] = [
   { styleCode: 'FASHION', name: '简约' },
 ];
 
-export default function StepFour({ cardId, data, onNext, onPublish }: StepFourProps) {
+const StepFour = forwardRef<StepHandle, StepFourProps>(function StepFour({ cardId, data, onPublish }, ref) {
   const [styleCode, setStyleCode] = useState(data.styleCode || 'NORMAL');
   const [fontColor, setFontColor] = useState(data.fontColor || '#000000');
   const [backColor, setBackColor] = useState(data.backColor || '#FFFFFF');
@@ -115,6 +116,8 @@ export default function StepFour({ cardId, data, onNext, onPublish }: StepFourPr
     }
   };
 
+  useImperativeHandle(ref, () => ({ submit: onMake }));
+
   return (
     <View style={styles.container}>
       {/* 风格分段选择（figma 创建名片4-1：商务/时尚/简约） */}
@@ -185,17 +188,16 @@ export default function StepFour({ cardId, data, onNext, onPublish }: StepFourPr
       )}
 
       <View style={styles.btnRow}>
-        <TouchableOpacity style={styles.btnBorder} onPress={() => onNext(3)}>
-          <Text style={styles.btnBorderText}>上一步</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.btn} onPress={onMake}>
+        <TouchableOpacity style={styles.btn} activeOpacity={0.8} onPress={onMake}>
           <Text style={styles.btnText}>预览主页</Text>
         </TouchableOpacity>
       </View>
       <View style={{ height: scaleSizeW(40) }} />
     </View>
   );
-}
+});
+
+export default StepFour;
 
 const styles = StyleSheet.create({
   container: {
@@ -297,25 +299,9 @@ const styles = StyleSheet.create({
     borderColor: '#2962D4',
   },
   btnRow: {
-    flexDirection: 'row',
     marginTop: scaleSizeW(22),
-    gap: scaleSizeW(11),
-  },
-  btnBorder: {
-    flex: 1,
-    height: scaleSizeW(48),
-    borderRadius: scaleSizeW(24),
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  btnBorderText: {
-    fontSize: setSpText(15),
-    fontWeight: '500',
-    color: '#000000',
   },
   btn: {
-    flex: 1,
     height: scaleSizeW(48),
     backgroundColor: '#FFFFFF',
     borderRadius: scaleSizeW(24),
@@ -326,5 +312,6 @@ const styles = StyleSheet.create({
     fontSize: setSpText(15),
     fontWeight: '500',
     color: '#000000',
+    letterSpacing: -0.4,
   },
 });

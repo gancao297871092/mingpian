@@ -1,15 +1,17 @@
-import React, { useCallback, useState } from 'react';
+import React, { forwardRef, useImperativeHandle, useState } from 'react';
 import {
   Alert,
-  Image,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import ImagePicker from 'react-native-image-crop-picker';
 import { API } from '@/api';
-import { scaleSizeW } from '@/utils/screenUtils';
+import { scaleSizeW, setSpText } from '@/utils/screenUtils';
+import { CameraGrayIcon, DelCircleIcon, InfoBlueIcon } from './stepIcons';
+import type { StepHandle } from './types';
 
 interface StepTwoProps {
   cardId: number | null;
@@ -17,7 +19,7 @@ interface StepTwoProps {
   onNext: (step: number, data?: any) => void;
 }
 
-export default function StepTwo({ cardId, data, onNext }: StepTwoProps) {
+const StepTwo = forwardRef<StepHandle, StepTwoProps>(function StepTwo({ cardId, data, onNext }, ref) {
   const [mediaList, setMediaList] = useState<any[]>(data.mediaLinkList || []);
   const [indexId, setIndexId] = useState<number | null>(
     data.mediaLinkList?.find((o: any) => o.isIndex)?.mdId || null
@@ -90,7 +92,7 @@ export default function StepTwo({ cardId, data, onNext }: StepTwoProps) {
       }
       await API.common.mediaLinkUpdate({ mdId: item.mdId, isIndex: 1 });
       setIndexId(item.mdId);
-    } catch (e) {
+    } catch {
       Alert.alert('设置失败');
     }
   };
@@ -106,214 +108,187 @@ export default function StepTwo({ cardId, data, onNext }: StepTwoProps) {
       if (indexId === item.mdId) {
         setIndexId(null);
       }
-    } catch (e) {
+    } catch {
       Alert.alert('删除失败');
     }
   };
 
-  const onSubmit = async (nextStep: number) => {
-    if (nextStep === 3 && mediaList.length <= 0) {
+  const onSubmit = async () => {
+    if (mediaList.length <= 0) {
       Alert.alert('提示', '请上传名片照片');
       return;
     }
-    if (nextStep === 3 && !indexId && mediaList[0]) {
+    if (!indexId && mediaList[0]) {
       try {
         await API.common.mediaLinkUpdate({ mdId: mediaList[0].mdId, isIndex: 1 });
         setIndexId(mediaList[0].mdId);
-      } catch (e) {
+      } catch {
         // ignore
       }
     }
     try {
       const res = await API.card.projectPre({ cardId: cardId! });
       if (res.code === '200') {
-        onNext(nextStep, {
+        onNext(3, {
           mediaLinkList: mediaList,
           itemsList: res.data?.[0]?.itemsList || [],
         });
         return;
       }
-    } catch (e) {
+    } catch {
       // ignore
     }
-    onNext(nextStep, { mediaLinkList: mediaList });
+    onNext(3, { mediaLinkList: mediaList });
   };
+
+  useImperativeHandle(ref, () => ({ submit: onSubmit }));
 
   return (
     <View style={styles.container}>
-      <Text style={styles.tip}>*图片建议尺寸(w-1;h-1)</Text>
-      <View style={styles.grid}>
-        {mediaList.map((item, index) => (
-          <View key={item.mdId || index} style={[styles.imgBox, index % 2 === 1 && styles.imgBoxEven]}>
-            {item.mdId === indexId && (
-              <View style={styles.coverBadge}>
-                <Text style={styles.coverText}>封面</Text>
-              </View>
-            )}
-            <View style={styles.imgActions}>
-              {item.mdId !== indexId && (
-                <TouchableOpacity style={styles.badge} onPress={() => onSetIndex(item)}>
-                  <Text style={styles.badgeText}>设为封面</Text>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity style={styles.delBtn} onPress={() => onDelete(item, index)}>
-                <Image source={require('@/assets/ming/del_1.png')} style={styles.delIcon} />
-              </TouchableOpacity>
-            </View>
-            <Image
-              source={{ uri: item.media?.mdUrl || item.mdUrl }}
-              style={styles.img}
-              resizeMode="cover"
-            />
-          </View>
-        ))}
-        {mediaList.length < 9 && (
-          <TouchableOpacity style={[styles.uploadBox, mediaList.length % 2 === 1 && styles.imgBoxEven, uploading && { opacity: 0.6 }]} onPress={uploadImg} disabled={uploading}>
-            <Image source={require('@/assets/ming/upload.png')} style={styles.uploadIcon} />
-            <Text style={styles.uploadText}>上传图片（{mediaList.length}/9）</Text>
-          </TouchableOpacity>
-        )}
+      {/* 提示条（figma 创建名片2） */}
+      <View style={styles.tipBanner}>
+        <InfoBlueIcon />
+        <Text style={styles.tipText}>图片建议宽高比为1:1</Text>
       </View>
 
-      <View style={styles.btnRow}>
-        <TouchableOpacity style={styles.btnBorder} onPress={() => onNext(1)}>
-          <Text style={styles.btnBorderText}>上一步</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.btn} onPress={() => onSubmit(3)}>
-          <Text style={styles.btnText}>下一步</Text>
-        </TouchableOpacity>
+      <View style={styles.grid}>
+        {mediaList.map((item, index) => {
+          const isCover = item.mdId === indexId;
+          return (
+            <View key={item.mdId || index} style={styles.imgBox}>
+              <ExpoImage
+                source={{ uri: item.media?.mdUrl || item.mdUrl }}
+                style={styles.img}
+                contentFit="cover"
+                transition={150}
+              />
+              {isCover && (
+                <View style={styles.coverBadge}>
+                  <Text style={styles.coverText}>封面</Text>
+                </View>
+              )}
+              {!isCover && (
+                <TouchableOpacity
+                  style={styles.setCoverBadge}
+                  activeOpacity={0.8}
+                  onPress={() => onSetIndex(item)}
+                >
+                  <Text style={styles.setCoverText}>设为封面</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={styles.delBtn}
+                activeOpacity={0.8}
+                onPress={() => onDelete(item, index)}
+              >
+                <DelCircleIcon />
+              </TouchableOpacity>
+            </View>
+          );
+        })}
+        {mediaList.length < 9 && (
+          <TouchableOpacity
+            style={[styles.uploadBox, uploading && { opacity: 0.6 }]}
+            activeOpacity={0.8}
+            onPress={uploadImg}
+            disabled={uploading}
+          >
+            <CameraGrayIcon />
+            <Text style={styles.uploadText}>上传图片{mediaList.length}/9</Text>
+          </TouchableOpacity>
+        )}
       </View>
       <View style={{ height: scaleSizeW(40) }} />
     </View>
   );
-}
+});
+
+export default StepTwo;
 
 const styles = StyleSheet.create({
-  container: {
-    paddingTop: scaleSizeW(8),
+  container: {},
+  tipBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSizeW(4),
+    backgroundColor: '#E3EDFF',
+    borderRadius: scaleSizeW(10),
+    paddingHorizontal: scaleSizeW(12),
+    paddingVertical: scaleSizeW(10),
+    marginTop: scaleSizeW(10),
   },
-  tip: {
-    fontSize: scaleSizeW(11),
-    color: '#faad13',
-    fontWeight: 'bold',
-    marginTop: scaleSizeW(8),
+  tipText: {
+    fontSize: setSpText(12),
+    fontWeight: '400',
+    color: '#2962D4',
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: scaleSizeW(11),
+    gap: scaleSizeW(11),
+    marginTop: scaleSizeW(16),
   },
   imgBox: {
-    width: '48%',
-    aspectRatio: 1,
-    borderRadius: scaleSizeW(18),
+    width: scaleSizeW(116),
+    height: scaleSizeW(116),
+    borderRadius: scaleSizeW(10),
     overflow: 'hidden',
-    marginBottom: scaleSizeW(10),
-    position: 'relative',
-    backgroundColor: '#f9f9f9',
-  },
-  imgBoxEven: {
-    marginLeft: '4%',
+    backgroundColor: '#F5F5F5',
   },
   img: {
     width: '100%',
     height: '100%',
   },
-  imgActions: {
-    position: 'absolute',
-    right: scaleSizeW(10),
-    bottom: scaleSizeW(10),
-    flexDirection: 'row',
-    zIndex: 2,
-  },
   coverBadge: {
     position: 'absolute',
-    left: scaleSizeW(10),
-    top: scaleSizeW(10),
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: scaleSizeW(8),
-    paddingHorizontal: scaleSizeW(8),
-    paddingVertical: scaleSizeW(3),
+    left: scaleSizeW(5),
+    top: scaleSizeW(5),
+    backgroundColor: '#000000',
+    borderRadius: scaleSizeW(90),
+    paddingHorizontal: scaleSizeW(7),
+    paddingVertical: scaleSizeW(2),
     zIndex: 2,
   },
   coverText: {
-    color: '#ffffff',
-    fontSize: scaleSizeW(11),
-    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontSize: setSpText(10),
+    fontWeight: '500',
   },
-  badge: {
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: scaleSizeW(8),
-    paddingHorizontal: scaleSizeW(8),
+  setCoverBadge: {
+    position: 'absolute',
+    left: scaleSizeW(24),
+    bottom: scaleSizeW(11),
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    borderRadius: scaleSizeW(90),
+    borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.5)',
+    paddingHorizontal: scaleSizeW(10),
     paddingVertical: scaleSizeW(3),
-    marginRight: scaleSizeW(6),
+    zIndex: 2,
   },
-  badgeText: {
-    color: '#ffffff',
-    fontSize: scaleSizeW(11),
-    fontWeight: 'bold',
+  setCoverText: {
+    color: '#FFFFFF',
+    fontSize: setSpText(12),
+    fontWeight: '500',
   },
   delBtn: {
-    width: scaleSizeW(26),
-    height: scaleSizeW(26),
-    borderRadius: scaleSizeW(13),
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  delIcon: {
-    width: scaleSizeW(16),
-    height: scaleSizeW(16),
+    position: 'absolute',
+    right: scaleSizeW(5),
+    top: scaleSizeW(5),
+    zIndex: 2,
   },
   uploadBox: {
-    width: '48%',
-    aspectRatio: 1,
-    borderRadius: scaleSizeW(18),
-    backgroundColor: '#f9f9f9',
+    width: scaleSizeW(116),
+    height: scaleSizeW(116),
+    borderRadius: scaleSizeW(10),
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: scaleSizeW(10),
-  },
-  uploadIcon: {
-    width: scaleSizeW(24),
-    height: scaleSizeW(22),
+    gap: scaleSizeW(10),
   },
   uploadText: {
-    fontWeight: '500',
-    fontSize: scaleSizeW(13),
+    fontWeight: '400',
+    fontSize: setSpText(10),
     color: '#999999',
-    marginTop: scaleSizeW(11),
-  },
-  btnRow: {
-    flexDirection: 'row',
-    marginTop: scaleSizeW(22),
-    gap: scaleSizeW(11),
-  },
-  btnBorder: {
-    flex: 1,
-    height: scaleSizeW(42),
-    borderRadius: scaleSizeW(21),
-    borderWidth: 1,
-    borderColor: '#eeeeee',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  btnBorderText: {
-    fontSize: scaleSizeW(15),
-    fontWeight: 'bold',
-    color: '#000000',
-  },
-  btn: {
-    flex: 1,
-    height: scaleSizeW(42),
-    backgroundColor: '#000000',
-    borderRadius: scaleSizeW(21),
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  btnText: {
-    fontSize: scaleSizeW(15),
-    fontWeight: 'bold',
-    color: '#ffffff',
   },
 });

@@ -1,26 +1,23 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   Alert,
-  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useNavigation } from '@react-navigation/native';
 import SafeView from '@/components/SafeView';
 import { API } from '@/api';
-import { scaleSizeW } from '@/utils/screenUtils';
+import { scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
 import StepOne from './StepOne';
 import StepTwo from './StepTwo';
 import StepThree from './StepThree';
 import StepFour from './StepFour';
+import type { StepHandle } from './types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'editCard'>;
 
@@ -31,15 +28,14 @@ const TIPS = [
   { title: '名片风格', content: '多元化设计您的名片样式' },
 ];
 
-export default function EditCard({ route }: Props) {
-  const navigation = useNavigation();
+export default function EditCard({ navigation, route }: Props) {
   const { id } = route.params || {};
   const isEdit = !!id;
 
   const [step, setStep] = useState(1);
   const [cardId, setCardId] = useState<number | null>(isEdit ? Number(id) : null);
   const [stepData, setStepData] = useState<Record<string, any>>({});
-  const [isLoading, setIsLoading] = useState(false);
+  const stepRef = useRef<StepHandle>(null);
 
   // 初始化加载
   useEffect(() => {
@@ -50,9 +46,27 @@ export default function EditCard({ route }: Props) {
     }
   }, [isEdit, id]);
 
+  // 头部：左侧上一步（第2-4步），右侧下一步/完成（figma 创建名片1-4）
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerLeft:
+        step > 1
+          ? () => (
+              <Text style={styles.headerBtn} onPress={() => setStep(step - 1)}>
+                上一步
+              </Text>
+            )
+          : undefined,
+      headerRight: () => (
+        <Text style={styles.headerBtnPrimary} onPress={() => stepRef.current?.submit()}>
+          {step === 4 ? '完成' : '下一步'}
+        </Text>
+      ),
+    });
+  }, [navigation, step]);
+
   const initCreate = async () => {
     try {
-      setIsLoading(true);
       const res = await API.card.prepare();
       if (res.code === '200' && res.data) {
         setCardId(res.data.id);
@@ -79,16 +93,13 @@ export default function EditCard({ route }: Props) {
           backColor: res.data.backColor || 'transparent',
         });
       }
-    } catch (e) {
+    } catch {
       // ignore
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const loadCardDetail = async (cid: number) => {
     try {
-      setIsLoading(true);
       const res = await API.card.detail({ cardId: cid });
       if (res.code === '200' && res.data) {
         const data = res.data;
@@ -117,10 +128,8 @@ export default function EditCard({ route }: Props) {
           mediaLinkList: data.mediaLinkList || [],
         });
       }
-    } catch (e) {
+    } catch {
       // ignore
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -140,41 +149,42 @@ export default function EditCard({ route }: Props) {
           { text: '确定', onPress: () => navigation.goBack() },
         ]);
       }
-    } catch (e) {
-      Alert.alert('发布失败', '请稍后重试');
+    } catch {
+      Alert.alert('发布失败');
     }
   }, [cardId, navigation]);
 
+  /** 步骤标题栏：标题+副标题，右侧 n/4（figma 创建名片1-4） */
   const renderHeader = () => (
     <View style={styles.header}>
-      <View>
+      <View style={styles.headerTextCol}>
         <Text style={styles.headerTitle}>{TIPS[step - 1].title}</Text>
         <Text style={styles.headerSub}>{TIPS[step - 1].content}</Text>
       </View>
-      <View style={styles.stepIndicator}>
+      <Text style={styles.stepIndicator}>
         <Text style={styles.stepCurrent}>{step}</Text>
         <Text style={styles.stepTotal}>/4</Text>
-      </View>
+      </Text>
     </View>
   );
 
   const renderStep = () => {
     switch (step) {
       case 1:
-        return <StepOne cardId={cardId} data={stepData} onNext={onStepChange} />;
+        return <StepOne ref={stepRef} cardId={cardId} data={stepData} onNext={onStepChange} />;
       case 2:
-        return <StepTwo cardId={cardId} data={stepData} onNext={onStepChange} />;
+        return <StepTwo ref={stepRef} cardId={cardId} data={stepData} onNext={onStepChange} />;
       case 3:
-        return <StepThree cardId={cardId} data={stepData} onNext={onStepChange} />;
+        return <StepThree ref={stepRef} cardId={cardId} data={stepData} onNext={onStepChange} />;
       case 4:
-        return <StepFour cardId={cardId} data={stepData} onNext={onStepChange} onPublish={onPublish} />;
+        return <StepFour ref={stepRef} cardId={cardId} data={stepData} onNext={onStepChange} onPublish={onPublish} />;
       default:
         return null;
     }
   };
 
   return (
-    <SafeView backgroundColor="#fff" disableTop>
+    <SafeView backgroundColor="#F6F7FB" disableTop>
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -182,7 +192,6 @@ export default function EditCard({ route }: Props) {
       >
         <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
           {renderHeader()}
-          <View style={styles.divider} />
           {renderStep()}
         </ScrollView>
       </KeyboardAvoidingView>
@@ -196,42 +205,48 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flex: 1,
-    paddingHorizontal: scaleSizeW(15),
+    paddingHorizontal: scaleSizeW(16),
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    paddingVertical: scaleSizeW(16),
+    marginTop: scaleSizeW(14),
+    marginBottom: scaleSizeW(20),
+  },
+  headerTextCol: {
+    gap: scaleSizeW(11),
   },
   headerTitle: {
-    fontWeight: '800',
-    fontSize: scaleSizeW(22),
-    color: '#040719',
+    fontWeight: '500',
+    fontSize: setSpText(20),
+    color: '#000000',
   },
   headerSub: {
-    fontWeight: 'bold',
-    fontSize: scaleSizeW(14),
-    color: '#999999',
-    marginTop: scaleSizeW(3),
+    fontWeight: '400',
+    fontSize: setSpText(12),
+    color: '#6C6C6C',
   },
   stepIndicator: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
+    fontSize: setSpText(15),
+    fontWeight: '400',
+    color: '#6C6C6C',
+    marginTop: scaleSizeW(13),
   },
   stepCurrent: {
-    fontWeight: '800',
-    fontSize: scaleSizeW(18),
-    color: '#040719',
+    color: '#000000',
   },
   stepTotal: {
-    fontWeight: '600',
-    fontSize: scaleSizeW(14),
-    color: '#999999',
+    color: '#6C6C6C',
   },
-  divider: {
-    height: 1,
-    backgroundColor: '#eeeeee',
-    marginBottom: scaleSizeW(12),
+  headerBtn: {
+    fontSize: setSpText(15),
+    fontWeight: '500',
+    color: '#000000',
+  },
+  headerBtnPrimary: {
+    fontSize: setSpText(15),
+    fontWeight: '500',
+    color: '#2962D4',
   },
 });

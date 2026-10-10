@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import {
   Alert,
   Image,
@@ -11,8 +11,10 @@ import {
   View,
 } from 'react-native';
 import { API } from '@/api';
-import { scaleSizeW } from '@/utils/screenUtils';
+import { scaleSizeW, setSpText } from '@/utils/screenUtils';
 import AreaPicker from '@/components/AreaPicker';
+import { ChevronRightIcon } from '@/pages/square/bbsDetail/sheetIcons';
+import type { StepHandle } from './types';
 
 interface StepOneProps {
   cardId: number | null;
@@ -24,20 +26,8 @@ const validatePhone = (phone: string) => {
   if (!phone) return true;
   return /^(\+86)?1[3-9]\d{9}$/.test(phone.trim());
 };
-const validateEmail = (email: string) => {
-  if (!email) return true;
-  return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email.trim());
-};
-const validateFax = (fax: string) => {
-  if (!fax) return true;
-  return /^(\d{3,4}-)?\d{7,8}$|^\d{11}$/.test(fax.trim());
-};
-const validateTel = (tel: string) => {
-  if (!tel) return true;
-  return /^(\d{3,4}-)?\d{7,8}$/.test(tel.trim());
-};
 
-export default function StepOne({ cardId, data, onNext }: StepOneProps) {
+const StepOne = forwardRef<StepHandle, StepOneProps>(function StepOne({ cardId, data, onNext }, ref) {
   const [form, setForm] = useState<Record<string, any>>({
     alias: '',
     nameZh: '',
@@ -57,7 +47,6 @@ export default function StepOne({ cardId, data, onNext }: StepOneProps) {
     positionList: [],
     ...data,
   });
-  const [isLoading, setIsLoading] = useState(false);
   const [positionModalVisible, setPositionModalVisible] = useState(false);
   const [areaPickerVisible, setAreaPickerVisible] = useState(false);
   const [positionOptions, setPositionOptions] = useState<any[]>(data.positionList || []);
@@ -108,24 +97,11 @@ export default function StepOne({ cardId, data, onNext }: StepOneProps) {
       Alert.alert('提示', '请输入正确的手机号码');
       return;
     }
-    // if (form.fax && !validateFax(form.fax)) {
-    //   Alert.alert('提示', '请输入正确的传真号码');
-    //   return;
-    // }
-    // if (form.telNumber && !validateTel(form.telNumber)) {
-    //   Alert.alert('提示', '请输入正确的座机号码');
-    //   return;
-    // }
-    // if (form.email && !validateEmail(form.email)) {
-    //   Alert.alert('提示', '请输入正确的邮箱地址');
-    //   return;
-    // }
     if (form.profile && form.profile.length > 100) {
       Alert.alert('提示', '个性签名字符不能超过100');
       return;
     }
 
-    setIsLoading(true);
     try {
       const payload = {
         id: cardId,
@@ -142,121 +118,103 @@ export default function StepOne({ cardId, data, onNext }: StepOneProps) {
       }
     } catch (e: any) {
       Alert.alert('保存失败', e?.msg || '请稍后重试');
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  const renderInput = (
+  useImperativeHandle(ref, () => ({ submit: onSubmit }));
+
+  /** 输入行：左 label，右输入框（figma 创建名片1） */
+  const renderInputRow = (
     label: string,
     key: string,
-    placeholder: string,
     options?: {
-      keyboardType?: any;
       required?: boolean;
       disabled?: boolean;
+      keyboardType?: any;
       maxLength?: number;
-      multiline?: boolean;
+      last?: boolean;
     },
   ) => {
-    const { keyboardType, required, disabled, maxLength, multiline } = options || {};
+    const { required, disabled, keyboardType, maxLength, last } = options || {};
     return (
-      <View style={styles.box}>
-        <Text style={styles.boxLabel}>
-          {label}
-          {required && <Text style={{ color: '#ff0000' }}>*</Text>}
-        </Text>
-        <TextInput
-          style={[styles.boxInput, multiline && styles.boxTextarea]}
-          placeholder={placeholder}
-          placeholderTextColor="#a3a3a3"
-          value={form[key] || ''}
-          onChangeText={(text) => updateField(key, text)}
-          keyboardType={keyboardType}
-          editable={!disabled}
-          maxLength={maxLength}
-          multiline={multiline}
-          textAlignVertical={multiline ? 'top' : 'center'}
-        />
-        {multiline && (
-          <Text style={styles.charCount}>
-            {(form[key] || '').length}/100
+      <View>
+        <View style={styles.formRow}>
+          <Text style={styles.formLabel}>
+            {label}
+            {required && <Text style={styles.requiredMark}>*</Text>}
           </Text>
-        )}
+          <TextInput
+            style={styles.formInput}
+            placeholder="请输入"
+            placeholderTextColor="#999999"
+            value={form[key] || ''}
+            onChangeText={(text) => updateField(key, text)}
+            keyboardType={keyboardType}
+            editable={!disabled}
+            maxLength={maxLength}
+            textAlign="right"
+          />
+        </View>
+        {!last && <View style={styles.formDivider} />}
       </View>
     );
   };
 
+  /** 选择行：左 label，右值 + 箭头 */
+  const renderSelectRow = (
+    label: string,
+    value: string,
+    onPress: () => void,
+    options?: { last?: boolean },
+  ) => (
+    <View>
+      <TouchableOpacity style={styles.formRow} activeOpacity={0.7} onPress={onPress}>
+        <Text style={styles.formLabel}>{label}</Text>
+        <View style={styles.selectValueRow}>
+          <Text style={value ? styles.selectValue : styles.selectPlaceholder} numberOfLines={1}>
+            {value || '请选择'}
+          </Text>
+          <ChevronRightIcon />
+        </View>
+      </TouchableOpacity>
+      {!options?.last && <View style={styles.formDivider} />}
+    </View>
+  );
+
   return (
     <View style={styles.container}>
-      {renderInput('名片别名', 'alias', '输入名片别名，方便您对名片进行区分')}
-      <View style={styles.row}>
-        <View style={[styles.box, styles.flex1]}>
-          <Text style={styles.boxLabel}>
-            姓名<Text style={{ color: '#ff0000' }}>*</Text>
-          </Text>
-          <TextInput
-            style={[styles.boxInput, form.isAuth && { color: '#6c6c6c' }]}
-            placeholder="请输入姓名"
-            placeholderTextColor="#a3a3a3"
-            value={form.nameZh || ''}
-            onChangeText={(text) => updateField('nameZh', text)}
-            editable={!form.isAuth}
-          />
-        </View>
-        <View style={[styles.box, styles.flex1, { marginLeft: scaleSizeW(10) }]}>
-          <Text style={styles.boxLabel}>其他名称</Text>
-          <TextInput
-            style={styles.boxInput}
-            placeholder="请输入其他名称"
-            placeholderTextColor="#a3a3a3"
-            value={form.nameEn || ''}
-            onChangeText={(text) => updateField('nameEn', text)}
-          />
-        </View>
+      <View style={styles.formCard}>
+        {renderInputRow('名片别名', 'alias', { last: true })}
       </View>
 
-      {/* 职位选择 */}
-      {positionOptions.length > 0 && (
-        <TouchableOpacity style={styles.box} onPress={() => setPositionModalVisible(true)}>
-          <Text style={styles.boxLabel}>职位</Text>
-          <View style={styles.selectRow}>
-            <Text style={positionText ? styles.selectValue : styles.selectPlaceholder}>
-              {positionText || '选择'}
-            </Text>
-            <Image source={require('@/assets/ming/right.png')} style={styles.arrow} />
-          </View>
-        </TouchableOpacity>
-      )}
+      <View style={styles.formCard}>
+        {renderInputRow('姓名', 'nameZh', { required: true, disabled: !!form.isAuth })}
+        {renderInputRow('其他名称', 'nameEn')}
+        {renderSelectRow('职位', positionText, () => setPositionModalVisible(true), { last: true })}
+      </View>
 
-      {renderInput('电话', 'phone', '请输入联系电话', { keyboardType: 'phone-pad' })}
-      {renderInput('传真', 'fax', '请输入传真')}
-      {renderInput('座机', 'telNumber', '请输入座机')}
-      {renderInput('邮箱', 'email', '请输入邮箱', { keyboardType: 'email-address' })}
+      <View style={styles.formCard}>
+        {renderInputRow('电话', 'phone', { keyboardType: 'phone-pad' })}
+        {renderInputRow('传真', 'fax')}
+        {renderInputRow('座机', 'telNumber')}
+        {renderInputRow('邮箱', 'email', { keyboardType: 'email-address', last: true })}
+      </View>
 
-      {/* 省市区选择 */}
-      <TouchableOpacity style={styles.box} onPress={() => setAreaPickerVisible(true)}>
-        <Text style={styles.boxLabel}>地址</Text>
-        <View style={styles.selectRow}>
-          <Text style={form.province ? styles.selectValue : styles.selectPlaceholder}>
-            {form.province
-              ? `${form.province}${form.city ? ` / ${form.city}` : ''}${form.district ? ` / ${form.district}` : ''}`
-              : '请选择省市区'}
-          </Text>
-          <Image source={require('@/assets/ming/right.png')} style={styles.arrow} />
-        </View>
-      </TouchableOpacity>
+      <View style={styles.formCard}>
+        {renderSelectRow(
+          '地址',
+          form.province
+            ? `${form.province}${form.city ? ` ${form.city}` : ''}${form.district ? ` ${form.district}` : ''}`
+            : '',
+          () => setAreaPickerVisible(true),
+        )}
+        {renderInputRow('详细地址', 'address', { last: true })}
+      </View>
 
-      {renderInput('详细地址', 'address', '街道、门牌号等')}
-      {renderInput('个性签名', 'profile', '请输入个性签名', { multiline: true, maxLength: 100 })}
+      <View style={styles.formCard}>
+        {renderInputRow('个性签名', 'profile', { maxLength: 100, last: true })}
+      </View>
 
-      <TouchableOpacity
-        style={[styles.btn, isLoading && { opacity: 0.6 }]}
-        onPress={onSubmit}
-        disabled={isLoading}
-      >
-        <Text style={styles.btnText}>下一步</Text>
-      </TouchableOpacity>
       <View style={{ height: scaleSizeW(40) }} />
 
       {/* 职位选择 Modal */}
@@ -316,84 +274,60 @@ export default function StepOne({ cardId, data, onNext }: StepOneProps) {
       />
     </View>
   );
-}
+});
+
+export default StepOne;
 
 const styles = StyleSheet.create({
-  container: {
-    paddingTop: scaleSizeW(8),
+  container: {},
+  formCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: scaleSizeW(10),
+    paddingHorizontal: scaleSizeW(14),
+    marginTop: scaleSizeW(10),
   },
-  row: {
+  formRow: {
+    height: scaleSizeW(55),
     flexDirection: 'row',
-  },
-  flex1: {
-    flex: 1,
-  },
-  box: {
-    backgroundColor: '#f9f9f9',
-    borderRadius: scaleSizeW(11),
-    marginTop: scaleSizeW(11),
-    paddingHorizontal: scaleSizeW(16),
-    paddingVertical: scaleSizeW(12),
-    minHeight: scaleSizeW(70),
-  },
-  boxLabel: {
-    fontWeight: '500',
-    fontSize: scaleSizeW(13),
-    color: '#6c6c6c',
-  },
-  boxInput: {
-    fontWeight: 'bold',
-    fontSize: scaleSizeW(15),
-    color: '#000000',
-    marginTop: scaleSizeW(4),
-    padding: 0,
-    minHeight: scaleSizeW(24),
-  },
-  boxTextarea: {
-    height: scaleSizeW(90),
-    marginBottom: scaleSizeW(20),
-  },
-  charCount: {
-    position: 'absolute',
-    bottom: scaleSizeW(10),
-    right: scaleSizeW(16),
-    fontSize: scaleSizeW(11),
-    color: '#b4b4b9',
-  },
-  selectRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: scaleSizeW(4),
+    justifyContent: 'space-between',
+  },
+  formLabel: {
+    fontSize: setSpText(15),
+    fontWeight: '400',
+    color: '#000000',
+  },
+  requiredMark: {
+    color: '#EF4444',
+  },
+  formInput: {
+    flex: 1,
+    marginLeft: scaleSizeW(16),
+    fontSize: setSpText(15),
+    fontWeight: '400',
+    color: '#6C6C6C',
+    padding: 0,
+  },
+  formDivider: {
+    height: 1,
+    backgroundColor: '#EDECEC',
+  },
+  selectValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSizeW(4),
+    flexShrink: 1,
   },
   selectValue: {
-    fontWeight: 'bold',
-    fontSize: scaleSizeW(15),
-    color: '#000000',
-    flex: 1,
+    fontSize: setSpText(15),
+    fontWeight: '400',
+    color: '#6C6C6C',
+    flexShrink: 1,
   },
   selectPlaceholder: {
-    fontWeight: 'bold',
-    fontSize: scaleSizeW(15),
-    color: '#a3a3a3',
-    flex: 1,
-  },
-  arrow: {
-    width: scaleSizeW(16),
-    height: scaleSizeW(16),
-  },
-  btn: {
-    height: scaleSizeW(42),
-    backgroundColor: '#000000',
-    borderRadius: scaleSizeW(21),
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: scaleSizeW(22),
-  },
-  btnText: {
-    fontSize: scaleSizeW(15),
-    fontWeight: 'bold',
-    color: '#ffffff',
+    fontSize: setSpText(15),
+    fontWeight: '400',
+    color: '#999999',
   },
   modalOverlay: {
     flex: 1,
