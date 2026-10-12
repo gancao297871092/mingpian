@@ -106,21 +106,50 @@ const StepFour = forwardRef<StepHandle, StepFourProps>(function StepFourForm({ c
     isAuth: data.isAuth,
   };
 
-  const onMake = async () => {
-    if (!cardId) return;
+  const [saving, setSaving] = useState(false);
+
+  const saveStyle = async () => {
+    const res = await API.card.styleCodeSave({
+      id: cardId,
+      styleCode: effectiveStyleCode,
+      fontColor: effectiveFontColor,
+      backColor: effectiveBackColor,
+    });
+    return res.code === '200';
+  };
+
+  // 预览主页：保存风格后跳转预览页（纯预览）
+  const onPreview = async () => {
+    if (!cardId || saving) return;
+    setSaving(true);
     try {
-      const res = await API.card.styleCodeSave({
-        id: cardId,
-        styleCode: effectiveStyleCode,
-        fontColor: effectiveFontColor,
-        backColor: effectiveBackColor,
-      });
-      if (res.code === '200') {
-        // 对齐小程序：保存风格后跳转预览主页，在预览页确认发布
+      if (await saveStyle()) {
         navigation.navigate('viewCard', { id: cardId, mode: isEdit ? 'update' : 'add' });
       }
     } catch {
       Alert.alert('保存失败');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // 完成（头部右上角）：保存风格并发布名片（原预览页「创建名片」逻辑）
+  const onMake = async () => {
+    if (!cardId || saving) return;
+    setSaving(true);
+    try {
+      if (await saveStyle()) {
+        const res = await API.card.push({ cardId });
+        if (res.code === '200') {
+          Alert.alert('提示', isEdit ? '名片保存成功！' : '名片创建成功！', [
+            { text: '确定', onPress: () => navigation.goBack() },
+          ]);
+        }
+      }
+    } catch {
+      Alert.alert('保存失败');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -195,7 +224,12 @@ const StepFour = forwardRef<StepHandle, StepFourProps>(function StepFourForm({ c
       )}
 
       <View style={styles.btnRow}>
-        <TouchableOpacity style={styles.btn} activeOpacity={0.8} onPress={onMake}>
+        <TouchableOpacity
+          style={[styles.btn, saving && { opacity: 0.6 }]}
+          activeOpacity={0.8}
+          onPress={onPreview}
+          disabled={saving}
+        >
           <Text style={styles.btnText}>预览主页</Text>
         </TouchableOpacity>
       </View>

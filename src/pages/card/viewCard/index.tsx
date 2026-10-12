@@ -1,15 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
   useWindowDimensions,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RenderHtml from 'react-native-render-html';
 import SafeView from '@/components/SafeView';
 import PersonalCard from '@/components/cards/PersonalCard';
@@ -20,16 +17,13 @@ import type { RootStackParamList } from '@/route/map';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'viewCard'>;
 
-/** 预览主页（对齐小程序 viewCard）：展示草稿名片主页，确认后发布 */
-export default function ViewCard({ navigation, route }: Props) {
-  const { id, mode = 'update' } = route.params;
-  const isUpdate = mode === 'update';
-  const insets = useSafeAreaInsets();
+/** 预览主页：纯预览草稿名片效果（发布在创建第4步「完成」） */
+export default function ViewCard({ route }: Props) {
+  const { id } = route.params;
   const { width: screenWidth } = useWindowDimensions();
 
   const [userCard, setUserCard] = useState<any>(null);
   const [itemsList, setItemsList] = useState<any[]>([]);
-  const [pushing, setPushing] = useState(false);
 
   const loadDetail = useCallback(async () => {
     try {
@@ -62,32 +56,6 @@ export default function ViewCard({ navigation, route }: Props) {
     }),
     [userCard],
   );
-
-  const onGenerate = () => {
-    Alert.alert('提示', isUpdate ? '确认保存名片？' : '确认创建名片？', [
-      { text: '取消', style: 'cancel' },
-      {
-        text: '确定',
-        onPress: async () => {
-          if (pushing) return;
-          setPushing(true);
-          try {
-            const res = await API.card.push({ cardId: id });
-            if (res.code === '200') {
-              Alert.alert('提示', isUpdate ? '名片保存成功！' : '名片创建成功！', [
-                // 对齐小程序 goBack(2)：预览页 → 编辑页 → 我的名片
-                { text: '确定', onPress: () => navigation.pop(2) },
-              ]);
-            }
-          } catch {
-            // ignore（拦截器已提示）
-          } finally {
-            setPushing(false);
-          }
-        },
-      },
-    ]);
-  };
 
   return (
     <SafeView backgroundColor="#FFFFFF" disableTop>
@@ -132,17 +100,6 @@ export default function ViewCard({ navigation, route }: Props) {
         )}
         <View style={{ height: scaleSizeW(40) }} />
       </ScrollView>
-
-      <View style={[styles.footer, { paddingBottom: insets.bottom + scaleSizeW(12) }]}>
-        <TouchableOpacity
-          activeOpacity={0.8}
-          style={[styles.generateBtn, pushing && { opacity: 0.6 }]}
-          onPress={onGenerate}
-          disabled={pushing}
-        >
-          <Text style={styles.generateBtnText}>{isUpdate ? '保存更改' : '创建名片'}</Text>
-        </TouchableOpacity>
-      </View>
     </SafeView>
   );
 }
@@ -181,23 +138,5 @@ const styles = StyleSheet.create({
     fontSize: setSpText(15),
     fontWeight: '500',
     color: '#000000',
-  },
-  footer: {
-    paddingHorizontal: scaleSizeW(16),
-    paddingTop: scaleSizeW(12),
-    backgroundColor: '#FFFFFF',
-  },
-  generateBtn: {
-    height: scaleSizeW(48),
-    borderRadius: scaleSizeW(24),
-    backgroundColor: '#2962D4',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  generateBtnText: {
-    fontSize: setSpText(15),
-    fontWeight: '500',
-    color: '#FFFFFF',
-    letterSpacing: -0.4,
   },
 });

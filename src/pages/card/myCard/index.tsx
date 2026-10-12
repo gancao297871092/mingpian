@@ -13,6 +13,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SafeView from '@/components/SafeView';
 import Empty from '@/components/Empty';
+import EmptyState from '@/components/EmptyState';
 import PersonalCard from '@/components/cards/PersonalCard';
 import CompanyCard from '@/components/cards/CompanyCard';
 import CardShareSheet from '@/components/cards/CardShareSheet';
@@ -73,7 +74,10 @@ export default function MyCard() {
     try {
       const res = await API.card.list();
       if (res.code === '200') {
-        const list: CardData[] = res.data?.cardsList || [];
+        // card/list 含企业名片（isCp=1），个人名片页只取个人名片；缓存表主键为 cardId，统一映射到 id
+        const list: CardData[] = (res.data?.cardsList || [])
+          .filter((c: any) => !c.isCp)
+          .map((c: any) => ({ ...c, id: c.cardId ?? c.id }));
         setCards(list);
         setSelectedId(prev => (list.some(c => c.id === prev) ? prev : (list[0]?.id ?? null)));
       }
@@ -133,7 +137,7 @@ export default function MyCard() {
 
   const renderPersonal = () => {
     if (!currentCard) {
-      return <Empty label="暂无名片，点击下方按钮创建" />;
+      return <EmptyState variant="content" title="暂无名片" description="点击下方按钮创建你的专属名片" style={styles.emptyState} />;
     }
     return (
       <>
@@ -313,6 +317,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#000000',
     letterSpacing: -0.4,
+  },
+  emptyState: {
+    paddingVertical: scaleSizeW(80),
   },
   cardBox: {
     width: '100%',

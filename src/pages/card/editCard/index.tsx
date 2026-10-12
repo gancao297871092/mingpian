@@ -41,7 +41,7 @@ export default function EditCard({ navigation, route }: Props) {
     loadCreatePre(isEdit && id ? Number(id) : -1);
   }, [isEdit, id]);
 
-  // 头部：左侧上一步（第2-4步），右侧下一步（第1-3步；第4步用页内「预览主页」按钮，对齐小程序）
+  // 头部：左侧上一步（第2-4步），右侧下一步（第1-3步）/ 完成（第4步，保存并发布）
   useLayoutEffect(() => {
     navigation.setOptions({
       headerLeft:
@@ -52,14 +52,11 @@ export default function EditCard({ navigation, route }: Props) {
               </Text>
             )
           : undefined,
-      headerRight:
-        step < 4
-          ? () => (
-              <Text style={styles.headerBtnPrimary} onPress={() => stepRef.current?.submit()}>
-                下一步
-              </Text>
-            )
-          : undefined,
+      headerRight: () => (
+        <Text style={styles.headerBtnPrimary} onPress={() => stepRef.current?.submit()}>
+          {step < 4 ? '下一步' : '完成'}
+        </Text>
+      ),
     });
   }, [navigation, step]);
 
