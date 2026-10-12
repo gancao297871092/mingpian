@@ -7,8 +7,8 @@ interface IconProps {
   color?: string;
 }
 
-/** 实名认证徽标（figma 预览1，1107:6045） */
-export function AuthRealIcon({ size = 15, color = '#000000' }: IconProps) {
+/** 实名认证徽标（figma 预览1，1107:6045，绿色 #36BE69） */
+export function AuthRealIcon({ size = 15, color = '#36BE69' }: IconProps) {
   const s = scaleSizeW(size);
   return (
     <Svg width={s} height={s} viewBox="0 0 15 15" fill="none">
@@ -20,8 +20,8 @@ export function AuthRealIcon({ size = 15, color = '#000000' }: IconProps) {
   );
 }
 
-/** 职位认证徽标（figma 预览1，1107:6048） */
-export function AuthPositionIcon({ size = 15, color = '#000000' }: IconProps) {
+/** 职位认证徽标（figma 预览1，1107:6048，橙色 #F2722C） */
+export function AuthPositionIcon({ size = 15, color = '#F2722C' }: IconProps) {
   const s = scaleSizeW(size);
   return (
     <Svg width={s} height={s} viewBox="0 0 15 15" fill="none">

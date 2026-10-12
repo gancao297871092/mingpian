@@ -59,25 +59,28 @@ export default function BaseInfo({ userCard, userInfo }: BaseInfoProps) {
       )}
 
       {contacts.length > 0 && (
-        <>
+        <View style={styles.contactSection}>
           <Text style={styles.sectionLabel}>联系方式</Text>
           <View style={styles.contactCol}>
             {contacts.map((c) => (
               <View key={c.label} style={styles.contactRow}>
                 <Text style={styles.contactLabel}>{c.label}</Text>
-                <Text style={styles.contactValue}>{c.value}</Text>
-                {c.tel && (
+                {c.tel ? (
                   <TouchableOpacity
-                    hitSlop={8}
-                    onPress={() => Linking.openURL(`tel:${c.value}`).catch(() => {})}
+                    style={styles.contactValueRow}
+                    activeOpacity={0.7}
+                    onPress={() => Linking.openURL(`tel:${c.value.replace(/[^\d+]/g, '')}`).catch(() => {})}
                   >
+                    <Text style={styles.contactValue}>{c.value}</Text>
                     <PhoneBlueIcon />
                   </TouchableOpacity>
+                ) : (
+                  <Text style={styles.contactValue}>{c.value}</Text>
                 )}
               </View>
             ))}
           </View>
-        </>
+        </View>
       )}
     </View>
   );
@@ -87,6 +90,9 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: scaleSizeW(16),
     paddingTop: scaleSizeW(24),
+  },
+  contactSection: {
+    marginTop: scaleSizeW(30),
   },
   sectionLabel: {
     fontSize: setSpText(12),
@@ -130,7 +136,7 @@ const styles = StyleSheet.create({
     color: '#6C6C6C',
   },
   contactCol: {
-    marginTop: scaleSizeW(6),
+    marginTop: scaleSizeW(10),
   },
   contactRow: {
     flexDirection: 'row',
@@ -144,9 +150,15 @@ const styles = StyleSheet.create({
     color: '#6C6C6C',
   },
   contactValue: {
-    flex: 1,
     fontSize: setSpText(14),
     fontWeight: '400',
     color: '#000000',
+    flexShrink: 1,
+  },
+  contactValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSizeW(10),
+    flexShrink: 1,
   },
 });

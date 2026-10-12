@@ -131,7 +131,7 @@ export default function CardDetail({ navigation, route }: Props) {
           {/* tab 栏 */}
           <View style={styles.tabRow}>
             {TABS.map((t, ix) => (
-              <TouchableOpacity key={t} activeOpacity={0.8} onPress={() => setTab(ix)}>
+              <TouchableOpacity key={t} style={styles.tabItem} activeOpacity={0.8} onPress={() => setTab(ix)}>
                 <Text style={[styles.tabText, tab === ix && styles.tabTextActive]}>{t}</Text>
                 <View style={[styles.tabBar, tab === ix && styles.tabBarActive]} />
               </TouchableOpacity>
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
   },
   dots: {
     position: 'absolute',
-    bottom: scaleSizeW(69),
+    bottom: scaleSizeW(71),
     left: 0,
     right: 0,
     flexDirection: 'row',
@@ -250,7 +250,10 @@ const styles = StyleSheet.create({
   tabRow: {
     flexDirection: 'row',
     gap: scaleSizeW(34),
-    marginTop: scaleSizeW(20),
+    marginTop: scaleSizeW(30),
+  },
+  tabItem: {
+    alignItems: 'center',
   },
   tabText: {
     fontSize: setSpText(15),
