@@ -207,8 +207,8 @@ const styles = StyleSheet.create({
   squareCard: {
     borderRadius: scaleSizeW(4),
     overflow: 'hidden',
-    marginTop: scaleSizeW(6),
     marginHorizontal: scaleSizeW(2),
+    marginBottom: scaleSizeW(5),
   },
   squareCardBody: {
     paddingHorizontal: scaleSizeW(11),
