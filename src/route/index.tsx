@@ -56,6 +56,7 @@ import AgreementPage from '@/pages/login/AgreementPage';
 import EditCard from '@/pages/card/editCard';
 import MyCard from '@/pages/card/myCard';
 import ViewCard from '@/pages/card/viewCard';
+import CardDetail from '@/pages/card/cardDetail';
 import AddItem from '@/pages/card/editCard/AddItem';
 import RichTextEdit from '@/pages/card/common/RichTextEdit';
 import Publish from '@/pages/square/publish';
@@ -187,6 +188,11 @@ export default function RootNavigator() {
             headerTitleStyle: { color: '#000000' },
             headerShadowVisible: false,
           }}
+        />
+        <Stack.Screen
+          name="cardDetail"
+          component={CardDetail}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="viewCard"

@@ -196,6 +196,14 @@ export namespace API {
       mediaLinkList?: any[];
       userId?: number;
     }
+    /** 名片聚合详情（/bbs/cardDetail，免登录；返回 userCard/projectList/userInfo） */
+    export function aggregate(params: { cardId: string | number }) {
+      return request.get<any>('/bbs/cardDetail', { params });
+    }
+    /** 收藏/取消名片（type: 1收藏 0取消） */
+    export function favoriteDo(data: { cardId: string | number; type: number }) {
+      return request.post<any>('/card/favorite/do', data);
+    }
     /** 名片预创建：查找草稿（status=2），不存在则自动创建（AppCardController /card/prepare，无入参） */
     export function prepare() {
       return request.get<CardDraft>('/card/prepare');

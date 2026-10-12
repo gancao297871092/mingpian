@@ -151,14 +151,18 @@ export default function MyCard() {
             </View>
           </TouchableOpacity>
         </View>
-        <View style={styles.cardBox}>
+        <TouchableOpacity
+          style={styles.cardBox}
+          activeOpacity={0.9}
+          onPress={() => navigation.navigate('cardDetail', { id: currentCard.id! })}
+        >
           <PersonalCard
             data={currentCard}
             style={normalizeCardStyle(currentCard.styleCode)}
             fontColor={currentCard.fontColor}
             backColor={currentCard.backColor}
           />
-        </View>
+        </TouchableOpacity>
         <View style={styles.actionRow}>
           <TouchableOpacity activeOpacity={0.8} style={styles.actionBtn} onPress={onDelete}>
             <CardDeleteIcon />
@@ -183,7 +187,13 @@ export default function MyCard() {
     }
     return (
       <>
-        <View style={styles.companyCardBox}>
+        <TouchableOpacity
+          style={styles.companyCardBox}
+          activeOpacity={0.9}
+          onPress={() =>
+            navigation.navigate('companyPage', { id: companyCard.cpId!, userId: companyCard.userId })
+          }
+        >
           <CompanyCard
             data={{
               cpId: companyCard.cpId,
@@ -194,7 +204,7 @@ export default function MyCard() {
               isAuth: companyCard.isAuth,
             }}
           />
-        </View>
+        </TouchableOpacity>
         <TouchableOpacity activeOpacity={0.8} style={styles.companyShareBtn} onPress={onShareCompany}>
           <CardShareIcon />
           <Text style={styles.actionText}>分享</Text>

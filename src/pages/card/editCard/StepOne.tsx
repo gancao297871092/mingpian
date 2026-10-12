@@ -27,16 +27,6 @@ const validatePhone = (phone: string) => {
   return /^(\+86)?1[3-9]\d{9}$/.test(phone.trim());
 };
 
-const validateFax = (fax: string) => {
-  if (!fax) return true;
-  return /^(\d{3,4}-)?\d{7,8}$|^\d{11}$/.test(fax.trim());
-};
-
-const validateTel = (tel: string) => {
-  if (!tel) return true;
-  return /^(\d{3,4}-)?\d{7,8}$/.test(tel.trim());
-};
-
 const validateEmail = (email: string) => {
   if (!email) return true;
   return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email.trim());
@@ -115,14 +105,6 @@ const StepOne = forwardRef<StepHandle, StepOneProps>(function StepOneForm({ card
     }
     if (!validatePhone(form.phone)) {
       Alert.alert('提示', '请输入正确的手机号码');
-      return;
-    }
-    if (!validateFax(form.fax)) {
-      Alert.alert('提示', '请输入正确的传真号码（格式：区号-号码）');
-      return;
-    }
-    if (!validateTel(form.telNumber)) {
-      Alert.alert('提示', '请输入正确的座机号码（格式：区号-号码）');
       return;
     }
     if (!validateEmail(form.email)) {
