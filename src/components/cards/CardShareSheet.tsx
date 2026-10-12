@@ -148,6 +148,9 @@ export default function CardShareSheet({ visible, onClose, card, company }: Card
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Modal 会盖住 App 根部的 Toast，弹层内单独挂一个保证提示可见 */}
+        <Toast topOffset={80} />
       </View>
     </Modal>
   );
