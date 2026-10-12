@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  Animated,
   ScrollView,
   StyleSheet,
   Text,
@@ -41,6 +42,19 @@ export default function CardDetail({ navigation, route }: Props) {
   const [tab, setTab] = useState(0);
   const [current, setCurrent] = useState(0);
   const plazaRef = useRef<PlazaListHandle>(null);
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  // iOS 下拉回弹时头部图片拉伸（原生驱动 transform，避免 JS 重渲染抖动）
+  const headerScale = scrollY.interpolate({
+    inputRange: [-screenWidth, 0],
+    outputRange: [2, 1],
+    extrapolate: 'clamp',
+  });
+  const headerTranslateY = scrollY.interpolate({
+    inputRange: [-screenWidth, 0],
+    outputRange: [-screenWidth / 2, 0],
+    extrapolate: 'clamp',
+  });
 
   useEffect(() => {
     (async () => {
@@ -75,41 +89,51 @@ export default function CardDetail({ navigation, route }: Props) {
 
   return (
     <View style={styles.container}>
-      <ScrollView
+      <Animated.ScrollView
         style={[styles.flex, tab === 2 && styles.scrollGray]}
         showsVerticalScrollIndicator={false}
-        scrollEventThrottle={200}
-        onScroll={({ nativeEvent }) => {
-          const { contentOffset, contentSize, layoutMeasurement } = nativeEvent;
-          if (contentOffset.y + layoutMeasurement.height >= contentSize.height - 200) {
-            plazaRef.current?.loadMore();
-          }
-        }}
+        scrollEventThrottle={16}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+          useNativeDriver: true,
+          listener: ({ nativeEvent }: any) => {
+            const { contentOffset, contentSize, layoutMeasurement } = nativeEvent;
+            if (contentOffset.y + layoutMeasurement.height >= contentSize.height - 200) {
+              plazaRef.current?.loadMore();
+            }
+          },
+        })}
       >
-        {/* 头部轮播图（mediaLinkList，对齐小程序 swiper） */}
+        {/* 头部轮播图（mediaLinkList，对齐小程序 swiper）；下拉回弹时向上拉伸 */}
         <View style={{ height: screenWidth }}>
-          {medias.length > 0 ? (
-            <ScrollView
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              onMomentumScrollEnd={(e) =>
-                setCurrent(Math.round(e.nativeEvent.contentOffset.x / screenWidth))
-              }
-            >
-              {medias.map((url, ix) => (
-                <ExpoImage
-                  key={ix}
-                  source={{ uri: url }}
-                  style={{ width: screenWidth, height: screenWidth }}
-                  contentFit="cover"
-                  transition={150}
-                />
-              ))}
-            </ScrollView>
-          ) : (
-            <View style={[styles.swiperEmpty, { width: screenWidth, height: screenWidth }]} />
-          )}
+          <Animated.View
+            style={[
+              StyleSheet.absoluteFill,
+              { transform: [{ translateY: headerTranslateY }, { scale: headerScale }] },
+            ]}
+          >
+            {medias.length > 0 ? (
+              <ScrollView
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onMomentumScrollEnd={(e) =>
+                  setCurrent(Math.round(e.nativeEvent.contentOffset.x / screenWidth))
+                }
+              >
+                {medias.map((url, ix) => (
+                  <ExpoImage
+                    key={ix}
+                    source={{ uri: url }}
+                    style={{ width: screenWidth, height: screenWidth }}
+                    contentFit="cover"
+                    transition={150}
+                  />
+                ))}
+              </ScrollView>
+            ) : (
+              <View style={[styles.swiperEmpty, { width: screenWidth, height: screenWidth }]} />
+            )}
+          </Animated.View>
           {medias.length > 1 && (
             <View style={styles.dots} pointerEvents="none">
               {medias.map((_, ix) => (
@@ -159,7 +183,7 @@ export default function CardDetail({ navigation, route }: Props) {
         </View>
 
         <View style={styles.bottomGap} />
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* 悬浮返回按钮 */}
       <TouchableOpacity
