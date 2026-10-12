@@ -1,10 +1,12 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { API } from '@/api';
 import WaterfallCard, { WaterfallItem } from '@/components/WaterfallCard';
+import ListFooter from '@/components/ListFooter';
 import { useBbsInteractionStore } from '@/store/bbsInteraction';
 import { setDetailCache } from '@/utils/detailCache';
 import { scaleSizeW, setSpText } from '@/utils/screenUtils';
@@ -21,10 +23,7 @@ export interface PlazaListHandle {
 }
 
 const PAGE_SIZE = 10;
-/** 「去广场」卡片高度（figma 预览3 175px），瀑布分栏估算用 */
-const PLAZA_CARD_HEIGHT = scaleSizeW(175);
-/** 动态卡片底部信息区高度估算（标题+作者行） */
-const CARD_INFO_HEIGHT = scaleSizeW(100);
+const PLAZA_CARD_ID = '__plaza_card__';
 
 type FeedItem = WaterfallItem & { isPlazaCard?: boolean };
 
@@ -60,9 +59,9 @@ function transformBbsToItem(bbs: any): WaterfallItem {
   };
 }
 
-/** 穿插「去广场」卡片（对齐小程序 plazaList）：动态≥4 作为第5个元素，1-3 放最后，0 由外层铺满展示 */
+/** 穿插「去广场」卡片（对齐小程序 plazaList）：动态≥4 作为第5个元素，1-3 放最后，0 由 ListEmptyComponent 铺满展示 */
 function withPlazaCard(list: WaterfallItem[]): FeedItem[] {
-  const card: FeedItem = { isPlazaCard: true, id: '__plaza_card__' } as FeedItem;
+  const card: FeedItem = { isPlazaCard: true, id: PLAZA_CARD_ID } as FeedItem;
   const items: FeedItem[] = [...list];
   if (items.length >= 4) {
     items.splice(4, 0, card);
@@ -72,20 +71,7 @@ function withPlazaCard(list: WaterfallItem[]): FeedItem[] {
   return items;
 }
 
-/** 瀑布分栏：按累计高度分配到较矮的一列（对齐小程序 waterfall 工具） */
-function distribute(items: FeedItem[]): [FeedItem[], FeedItem[]] {
-  const columns: [FeedItem[], FeedItem[]] = [[], []];
-  const heights = [0, 0];
-  for (const item of items) {
-    const h = item.isPlazaCard ? PLAZA_CARD_HEIGHT : (item.imageHeight || 0) + CARD_INFO_HEIGHT;
-    const target = heights[0] <= heights[1] ? 0 : 1;
-    columns[target].push(item);
-    heights[target] += h;
-  }
-  return columns;
-}
-
-/** 广场动态 tab（figma 预览3）：TA 的动态双列瀑布流 + 穿插「去广场发现更多」 */
+/** 广场动态 tab（figma 预览3）：TA 的动态 FlashList masonry 双列瀑布流 + 穿插「去广场发现更多」 */
 const PlazaList = forwardRef<PlazaListHandle, PlazaListProps>(function PlazaListFeed({ userId }, ref) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [list, setList] = useState<WaterfallItem[]>([]);
@@ -151,13 +137,6 @@ const PlazaList = forwardRef<PlazaListHandle, PlazaListProps>(function PlazaList
     </TouchableOpacity>
   );
 
-  // 无动态时「去广场发现更多」占满两列展示
-  if (loaded && !list.length) {
-    return <View style={styles.container}>{squareCard()}</View>;
-  }
-
-  const [leftColumn, rightColumn] = distribute(withPlazaCard(list));
-
   const onToggleLike = (id: string) => {
     const target = list.find((item) => item.id === id);
     if (!target) return;
@@ -178,13 +157,12 @@ const PlazaList = forwardRef<PlazaListHandle, PlazaListProps>(function PlazaList
       });
   };
 
-  const renderItem = (item: FeedItem) => {
+  const renderItem = ({ item }: { item: FeedItem }) => {
     if (item.isPlazaCard) {
-      return <React.Fragment key={item.id}>{squareCard()}</React.Fragment>;
+      return squareCard();
     }
     return (
       <WaterfallCard
-        key={item.id}
         item={item}
         onToggleLike={onToggleLike}
         onPress={(id) => {
@@ -200,44 +178,37 @@ const PlazaList = forwardRef<PlazaListHandle, PlazaListProps>(function PlazaList
   }
 
   return (
-    <View style={styles.container}>
-      {list.length === 0 && loading ? null : null}
-      <View style={styles.columns}>
-        <View style={styles.column}>{leftColumn.map(renderItem)}</View>
-        <View style={styles.column}>{rightColumn.map(renderItem)}</View>
-      </View>
-      {!loading && page >= pages && list.length > 0 && <Text style={styles.noMore}>没有更多了</Text>}
-    </View>
+    <FlashList
+      scrollEnabled={false}
+      data={withPlazaCard(list)}
+      keyExtractor={(item: FeedItem) => item.id}
+      masonry
+      numColumns={2}
+      renderItem={renderItem}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={styles.listContent}
+      ListEmptyComponent={<View style={styles.emptyWrap}>{squareCard()}</View>}
+      ListFooterComponent={<ListFooter fetching={loading} isLastPage={page >= pages} listLength={list.length} />}
+    />
   );
 });
 
 export default PlazaList;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  listContent: {
     backgroundColor: '#F6F7FB',
     paddingHorizontal: scaleSizeW(5),
     paddingTop: scaleSizeW(5),
   },
-  columns: {
-    flexDirection: 'row',
-    gap: scaleSizeW(4),
-  },
-  column: {
-    flex: 1,
-    gap: scaleSizeW(4),
-  },
-  noMore: {
-    textAlign: 'center',
-    fontSize: setSpText(12),
-    color: '#999999',
-    marginTop: scaleSizeW(16),
+  emptyWrap: {
+    paddingVertical: scaleSizeW(5),
   },
   squareCard: {
     borderRadius: scaleSizeW(4),
     overflow: 'hidden',
     marginTop: scaleSizeW(6),
+    marginHorizontal: scaleSizeW(2),
   },
   squareCardBody: {
     paddingHorizontal: scaleSizeW(11),
