@@ -36,7 +36,7 @@ export default function CompanyPoster({ data, qrValue, width }: CompanyPosterPro
           <Text style={styles.name} numberOfLines={2}>
             {data.cpName || '企业名称'}
           </Text>
-          {!!data.isAuth && <CardVerifiedIcon size={13} />}
+          <CardVerifiedIcon size={13} />
         </View>
       </View>
       <View style={styles.qrBox}>

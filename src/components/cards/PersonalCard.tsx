@@ -74,7 +74,8 @@ function BusinessCard({ data, placeholder, squareBottom }: PersonalCardProps) {
               <Text style={styles.contactText} numberOfLines={1}>
                 {company}
               </Text>
-              {!!data.isAuth && <CardVerifiedIcon />}
+              {/* 企业名右侧认证 icon（figma 我的名片/创建名片4-1） */}
+              <CardVerifiedIcon />
             </View>
           )}
           {!!email && (
@@ -128,9 +129,13 @@ function FashionCard({ data, fontColor = '#000000', backColor = '#FFFFFF', place
           )}
         </View>
         {!!(data.cpName || placeholder) && (
-          <Text style={[styles.fashionCompany, { color: fontColor }]} numberOfLines={2}>
-            {data.cpName || '企业名称'}
-          </Text>
+          <View style={styles.fashionCompanyRow}>
+            <Text style={[styles.fashionCompany, { color: fontColor }]} numberOfLines={2}>
+              {data.cpName || '企业名称'}
+            </Text>
+            {/* 企业名右侧认证 icon */}
+            <CardVerifiedIcon />
+          </View>
         )}
       </View>
     </View>
@@ -140,9 +145,8 @@ function FashionCard({ data, fontColor = '#000000', backColor = '#FFFFFF', place
 /** 简约风格：整图 + 底部渐变信息（figma 创建名片4-3） */
 function SimpleCard({ data, placeholder, squareBottom }: PersonalCardProps) {
   const photo = getCardPhoto(data);
-  const sub = [data.cpName || (placeholder ? '企业名称' : ''), data.position || (placeholder ? '职位名称' : '')]
-    .filter(Boolean)
-    .join('·');
+  const company = data.cpName || (placeholder ? '企业名称' : '');
+  const position = data.position || (placeholder ? '职位名称' : '');
   return (
     <View style={[styles.container, styles.simpleBox, squareBottom && styles.squareBottom]}>
       {photo ? (
@@ -162,10 +166,24 @@ function SimpleCard({ data, placeholder, squareBottom }: PersonalCardProps) {
             <Text style={styles.simpleNameEn}>{data.nameEn || '英文名'}</Text>
           )}
         </View>
-        {!!sub && (
-          <Text style={styles.simpleSub} numberOfLines={2}>
-            {sub}
-          </Text>
+        {(!!company || !!position) && (
+          <View style={styles.simpleSubRow}>
+            {!!company && (
+              <>
+                <Text style={styles.simpleSub} numberOfLines={1}>
+                  {company}
+                </Text>
+                {/* 企业名右侧认证 icon */}
+                <CardVerifiedIcon />
+              </>
+            )}
+            {!!company && !!position && <Text style={styles.simpleSub}>·</Text>}
+            {!!position && (
+              <Text style={styles.simpleSub} numberOfLines={1}>
+                {position}
+              </Text>
+            )}
+          </View>
         )}
       </View>
     </View>
@@ -350,6 +368,12 @@ const styles = StyleSheet.create({
     fontSize: setSpText(10),
     fontWeight: '300',
     letterSpacing: -0.4,
+    flexShrink: 1,
+  },
+  fashionCompanyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSizeW(4),
   },
   // 简约
   simpleBox: {
@@ -389,5 +413,11 @@ const styles = StyleSheet.create({
     fontWeight: '300',
     color: '#FFFFFF',
     letterSpacing: -0.4,
+    flexShrink: 1,
+  },
+  simpleSubRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSizeW(4),
   },
 });

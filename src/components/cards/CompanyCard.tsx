@@ -46,7 +46,8 @@ export default function CompanyCard({ data, showViews = true }: CompanyCardProps
             <Text style={styles.name} numberOfLines={2}>
               {data.cpName || '企业名称'}
             </Text>
-            {!!data.isAuth && <CardVerifiedIcon size={13} />}
+            {/* 企业名右侧认证 icon（figma 企业名片，1062:4035） */}
+            <CardVerifiedIcon size={13} />
           </View>
           {showViews && (
             <View style={styles.viewsRow}>

@@ -19,7 +19,6 @@ import CompanyCard from '@/components/cards/CompanyCard';
 import CardShareSheet from '@/components/cards/CardShareSheet';
 import { normalizeCardStyle, type CardData } from '@/components/cards/types';
 import { API } from '@/api';
-import { useUserStore } from '@/store/user';
 import { scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
 import { CardCheckIcon, CardDeleteIcon, CardEditIcon, CardShareIcon, TriangleDownIcon } from './icons';
@@ -53,10 +52,10 @@ function HeaderTabs({ active, onChange }: { active: TabKey; onChange: (t: TabKey
 export default function MyCard() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
-  const userInfo = useUserStore(s => s.userInfo);
 
   const [tab, setTab] = useState<TabKey>('personal');
   const [cards, setCards] = useState<CardData[]>([]);
+  const [companyCard, setCompanyCard] = useState<CardData | null>(null);
   const [selectedId, setSelectedId] = useState<number | string | null>(null);
   const [selectorVisible, setSelectorVisible] = useState(false);
   const [pillLayout, setPillLayout] = useState({ x: 0, y: 0, w: 0, h: 0 });
@@ -74,12 +73,15 @@ export default function MyCard() {
     try {
       const res = await API.card.list();
       if (res.code === '200') {
-        // card/list 含企业名片（isCp=1），个人名片页只取个人名片；缓存表主键为 cardId，统一映射到 id
-        const list: CardData[] = (res.data?.cardsList || [])
+        const rawList: any[] = res.data?.cardsList || [];
+        // card/list 含企业名片（isCp=1）：个人名片页只展示个人名片，企业名片单独取 isCp=1 项（对齐小程序字段）
+        const list: CardData[] = rawList
           .filter((c: any) => !c.isCp)
           .map((c: any) => ({ ...c, id: c.cardId ?? c.id }));
         setCards(list);
         setSelectedId(prev => (list.some(c => c.id === prev) ? prev : (list[0]?.id ?? null)));
+        const cp = rawList.find((c: any) => c.isCp);
+        setCompanyCard(cp ? { ...cp, id: cp.cardId ?? cp.id } : null);
       }
     } catch {
       // ignore
@@ -176,7 +178,7 @@ export default function MyCard() {
   };
 
   const renderCompany = () => {
-    if (!userInfo?.cpName) {
+    if (!companyCard) {
       return <Empty label="暂无企业名片" />;
     }
     return (
@@ -184,8 +186,12 @@ export default function MyCard() {
         <View style={styles.companyCardBox}>
           <CompanyCard
             data={{
-              cpId: userInfo.cpId,
-              cpName: userInfo.cpName,
+              cpId: companyCard.cpId,
+              // 对齐小程序：名称优先 posterTitle，整图取 cardPoster
+              cpName: companyCard.posterTitle || companyCard.cpName,
+              poster: companyCard.cardPoster,
+              countBrowse: companyCard.countBrowse,
+              isAuth: companyCard.isAuth,
             }}
           />
         </View>
@@ -252,7 +258,16 @@ export default function MyCard() {
         visible={shareVisible}
         onClose={() => setShareVisible(false)}
         card={shareTarget === 'personal' ? currentCard : undefined}
-        company={shareTarget === 'company' ? { cpId: userInfo?.cpId, cpName: userInfo?.cpName } : undefined}
+        company={
+          shareTarget === 'company'
+            ? {
+                cpId: companyCard?.cpId,
+                cpName: companyCard?.posterTitle || companyCard?.cpName,
+                poster: companyCard?.cardPoster,
+                isAuth: companyCard?.isAuth,
+              }
+            : undefined
+        }
       />
     </SafeView>
   );
