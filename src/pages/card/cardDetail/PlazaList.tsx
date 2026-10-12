@@ -127,14 +127,19 @@ const PlazaList = forwardRef<PlazaListHandle, PlazaListProps>(function PlazaList
 
   useImperativeHandle(ref, () => ({ loadMore }), [loadMore]);
 
-  const squareCard = (fullWidth?: boolean) => (
-    <TouchableOpacity activeOpacity={0.9} onPress={() => navigation.navigate('MainTabs' as never)}>
+  const squareCard = () => (
+    <TouchableOpacity
+      activeOpacity={0.9}
+      style={styles.squareCard}
+      onPress={() => navigation.navigate('MainTabs' as never)}
+    >
       <LinearGradient
         colors={['#2962D4', '#224FA8']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[styles.squareCard, fullWidth && styles.squareCardFull]}
-      >
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={styles.squareCardBody}>
         <SparklesIcon />
         <Text style={styles.squareTitle}>去广场发现更多</Text>
         <Text style={styles.squareSub}>查看更多同行动态与合作机会</Text>
@@ -142,13 +147,13 @@ const PlazaList = forwardRef<PlazaListHandle, PlazaListProps>(function PlazaList
           <Text style={styles.squareBtnText}>去广场逛逛</Text>
           <ChevronRightIcon color="#000000" />
         </View>
-      </LinearGradient>
+      </View>
     </TouchableOpacity>
   );
 
-  // 无动态时「去广场发现更多」占满两列展示（对齐小程序 PlazaCard free）
+  // 无动态时「去广场发现更多」占满两列展示
   if (loaded && !list.length) {
-    return <View style={styles.container}>{squareCard(true)}</View>;
+    return <View style={styles.container}>{squareCard()}</View>;
   }
 
   const [leftColumn, rightColumn] = distribute(withPlazaCard(list));
@@ -212,7 +217,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F6F7FB',
-    marginHorizontal: scaleSizeW(-16),
     paddingHorizontal: scaleSizeW(5),
     paddingTop: scaleSizeW(5),
   },
@@ -232,12 +236,14 @@ const styles = StyleSheet.create({
   },
   squareCard: {
     borderRadius: scaleSizeW(4),
-    padding: scaleSizeW(11),
+    overflow: 'hidden',
     marginTop: scaleSizeW(6),
-    gap: scaleSizeW(10),
   },
-  squareCardFull: {
-    marginTop: 0,
+  squareCardBody: {
+    paddingHorizontal: scaleSizeW(11),
+    paddingTop: scaleSizeW(14),
+    paddingBottom: scaleSizeW(14),
+    gap: scaleSizeW(10),
   },
   squareTitle: {
     fontSize: setSpText(17),

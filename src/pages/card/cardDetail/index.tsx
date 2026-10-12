@@ -76,7 +76,7 @@ export default function CardDetail({ navigation, route }: Props) {
   return (
     <View style={styles.container}>
       <ScrollView
-        style={styles.flex}
+        style={[styles.flex, tab === 2 && styles.scrollGray]}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={200}
         onScroll={({ nativeEvent }) => {
@@ -182,6 +182,9 @@ const styles = StyleSheet.create({
   },
   flex: {
     flex: 1,
+  },
+  scrollGray: {
+    backgroundColor: '#F6F7FB',
   },
   swiperEmpty: {
     backgroundColor: '#E5E5E5',
