@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -17,7 +17,7 @@ import { ChevronRightIcon } from '@/pages/square/bbsDetail/sheetIcons';
 import type { RootStackParamList } from '@/route/map';
 import BaseInfo from './BaseInfo';
 import ItemList from './ItemList';
-import PlazaList from './PlazaList';
+import PlazaList, { type PlazaListHandle } from './PlazaList';
 import { AuthPositionIcon, AuthRealIcon } from './icons';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'cardDetail'>;
@@ -40,6 +40,7 @@ export default function CardDetail({ navigation, route }: Props) {
   const [data, setData] = useState<any>(null);
   const [tab, setTab] = useState(0);
   const [current, setCurrent] = useState(0);
+  const plazaRef = useRef<PlazaListHandle>(null);
 
   useEffect(() => {
     (async () => {
@@ -74,7 +75,17 @@ export default function CardDetail({ navigation, route }: Props) {
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.flex} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.flex}
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={200}
+        onScroll={({ nativeEvent }) => {
+          const { contentOffset, contentSize, layoutMeasurement } = nativeEvent;
+          if (contentOffset.y + layoutMeasurement.height >= contentSize.height - 200) {
+            plazaRef.current?.loadMore();
+          }
+        }}
+      >
         {/* 头部轮播图（mediaLinkList，对齐小程序 swiper） */}
         <View style={{ height: screenWidth }}>
           {medias.length > 0 ? (
@@ -144,7 +155,7 @@ export default function CardDetail({ navigation, route }: Props) {
         <View style={styles.tabContent}>
           {tab === 0 && <BaseInfo userCard={userCard} userInfo={userInfo} />}
           {tab === 1 && <ItemList project={data?.projectList?.[0]} />}
-          {tab === 2 && <PlazaList userId={userCard?.userId} />}
+          {tab === 2 && <PlazaList ref={plazaRef} userId={userCard?.userId} />}
         </View>
 
         <View style={styles.bottomGap} />

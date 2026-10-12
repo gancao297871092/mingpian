@@ -96,9 +96,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   titleSquare: {
-    width: scaleSizeW(11),
-    height: scaleSizeW(11),
+    width: scaleSizeW(8),
+    height: scaleSizeW(8),
     backgroundColor: '#2962D4',
+    transform: [{ rotate: '45deg' }],
+    marginHorizontal: scaleSizeW(1.5),
   },
   cardTitle: {
     fontSize: setSpText(14),
