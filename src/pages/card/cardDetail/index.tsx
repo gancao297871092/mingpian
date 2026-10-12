@@ -89,101 +89,101 @@ export default function CardDetail({ navigation, route }: Props) {
 
   return (
     <View style={styles.container}>
-      <Animated.ScrollView
+      <Animated.FlatList
         style={[styles.flex, tab === 2 && styles.scrollGray]}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
+        data={['content']}
+        keyExtractor={(item: string) => item}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
           useNativeDriver: true,
-          listener: ({ nativeEvent }: any) => {
-            const { contentOffset, contentSize, layoutMeasurement } = nativeEvent;
-            if (contentOffset.y + layoutMeasurement.height >= contentSize.height - 200) {
-              plazaRef.current?.loadMore();
-            }
-          },
         })}
-      >
-        {/* 头部轮播图（mediaLinkList，对齐小程序 swiper）；下拉回弹时向上拉伸 */}
-        <View style={{ height: screenWidth }}>
-          <Animated.View
-            style={[
-              StyleSheet.absoluteFill,
-              { transform: [{ translateY: headerTranslateY }, { scale: headerScale }] },
-            ]}
-          >
-            {medias.length > 0 ? (
-              <ScrollView
-                horizontal
-                pagingEnabled
-                showsHorizontalScrollIndicator={false}
-                onMomentumScrollEnd={(e) =>
-                  setCurrent(Math.round(e.nativeEvent.contentOffset.x / screenWidth))
-                }
+        onEndReachedThreshold={0.3}
+        onEndReached={() => plazaRef.current?.loadMore()}
+        ListHeaderComponent={
+          <>
+            {/* 头部轮播图（mediaLinkList，对齐小程序 swiper）；下拉回弹时向上拉伸 */}
+            <View style={{ height: screenWidth }}>
+              <Animated.View
+                style={[
+                  StyleSheet.absoluteFill,
+                  { transform: [{ translateY: headerTranslateY }, { scale: headerScale }] },
+                ]}
               >
-                {medias.map((url, ix) => (
-                  <ExpoImage
-                    key={ix}
-                    source={{ uri: url }}
-                    style={{ width: screenWidth, height: screenWidth }}
-                    contentFit="cover"
-                    transition={150}
-                  />
-                ))}
-              </ScrollView>
-            ) : (
-              <View style={[styles.swiperEmpty, { width: screenWidth, height: screenWidth }]} />
-            )}
-          </Animated.View>
-          {medias.length > 1 && (
-            <View style={styles.dots} pointerEvents="none">
-              {medias.map((_, ix) => (
-                <View key={ix} style={[styles.dot, ix === current && styles.dotActive]} />
-              ))}
-            </View>
-          )}
-        </View>
-
-        {/* 白色信息面板（上叠轮播图） */}
-        <View style={styles.panel}>
-          <View style={styles.nameRow}>
-            <Text style={styles.name}>{userCard?.nameZh || ''}</Text>
-            {!!userCard?.nameEn && <Text style={styles.nameEn}>{userCard.nameEn}</Text>}
-          </View>
-          {!!userCard?.position && <Text style={styles.position}>{userCard.position}</Text>}
-          {!!userCard?.profile && <Text style={styles.profile}>{userCard.profile}</Text>}
-
-          {badges.length > 0 && (
-            <View style={styles.badgeCol}>
-              {badges.map((b) => (
-                <View key={b.key} style={styles.badgeRow}>
-                  {b.icon}
-                  <Text style={styles.badgeText}>{b.text}</Text>
+                {medias.length > 0 ? (
+                  <ScrollView
+                    horizontal
+                    pagingEnabled
+                    showsHorizontalScrollIndicator={false}
+                    onMomentumScrollEnd={(e) =>
+                      setCurrent(Math.round(e.nativeEvent.contentOffset.x / screenWidth))
+                    }
+                  >
+                    {medias.map((url, ix) => (
+                      <ExpoImage
+                        key={ix}
+                        source={{ uri: url }}
+                        style={{ width: screenWidth, height: screenWidth }}
+                        contentFit="cover"
+                        transition={150}
+                      />
+                    ))}
+                  </ScrollView>
+                ) : (
+                  <View style={[styles.swiperEmpty, { width: screenWidth, height: screenWidth }]} />
+                )}
+              </Animated.View>
+              {medias.length > 1 && (
+                <View style={styles.dots} pointerEvents="none">
+                  {medias.map((_, ix) => (
+                    <View key={ix} style={[styles.dot, ix === current && styles.dotActive]} />
+                  ))}
                 </View>
-              ))}
+              )}
             </View>
-          )}
 
-          {/* tab 栏 */}
-          <View style={styles.tabRow}>
-            {TABS.map((t, ix) => (
-              <TouchableOpacity key={t} style={styles.tabItem} activeOpacity={0.8} onPress={() => setTab(ix)}>
-                <Text style={[styles.tabText, tab === ix && styles.tabTextActive]}>{t}</Text>
-                <View style={[styles.tabBar, tab === ix && styles.tabBarActive]} />
-              </TouchableOpacity>
-            ))}
+            {/* 白色信息面板（上叠轮播图） */}
+            <View style={styles.panel}>
+              <View style={styles.nameRow}>
+                <Text style={styles.name}>{userCard?.nameZh || ''}</Text>
+                {!!userCard?.nameEn && <Text style={styles.nameEn}>{userCard.nameEn}</Text>}
+              </View>
+              {!!userCard?.position && <Text style={styles.position}>{userCard.position}</Text>}
+              {!!userCard?.profile && <Text style={styles.profile}>{userCard.profile}</Text>}
+
+              {badges.length > 0 && (
+                <View style={styles.badgeCol}>
+                  {badges.map((b) => (
+                    <View key={b.key} style={styles.badgeRow}>
+                      {b.icon}
+                      <Text style={styles.badgeText}>{b.text}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* tab 栏 */}
+              <View style={styles.tabRow}>
+                {TABS.map((t, ix) => (
+                  <TouchableOpacity key={t} style={styles.tabItem} activeOpacity={0.8} onPress={() => setTab(ix)}>
+                    <Text style={[styles.tabText, tab === ix && styles.tabTextActive]}>{t}</Text>
+                    <View style={[styles.tabBar, tab === ix && styles.tabBarActive]} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+            <View style={styles.tabDivider} />
+          </>
+        }
+        renderItem={() => (
+          <View style={styles.tabContent}>
+            {tab === 0 && <BaseInfo userCard={userCard} userInfo={userInfo} />}
+            {tab === 1 && <ItemList project={data?.projectList?.[0]} />}
+            {tab === 2 && <PlazaList ref={plazaRef} userId={userCard?.userId} />}
           </View>
-        </View>
-        <View style={styles.tabDivider} />
-
-        {/* tab 内容 */}
-        <View style={styles.tabContent}>
-          {tab === 0 && <BaseInfo userCard={userCard} userInfo={userInfo} />}
-          {tab === 1 && <ItemList project={data?.projectList?.[0]} />}
-          {tab === 2 && <PlazaList ref={plazaRef} userId={userCard?.userId} />}
-        </View>
-
-        <View style={styles.bottomGap} />
-      </Animated.ScrollView>
+        )}
+        ListFooterComponent={<View style={styles.bottomGap} />}
+      />
 
       {/* 悬浮返回按钮 */}
       <TouchableOpacity
