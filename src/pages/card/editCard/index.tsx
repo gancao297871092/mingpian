@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -37,16 +36,12 @@ export default function EditCard({ navigation, route }: Props) {
   const [stepData, setStepData] = useState<Record<string, any>>({});
   const stepRef = useRef<StepHandle>(null);
 
-  // 初始化加载
+  // 初始化加载（AppCardController：创建走 /card/prepare 取/建草稿，编辑走 /card/detail）
   useEffect(() => {
-    if (isEdit && id) {
-      loadCardDetail(Number(id));
-    } else {
-      initCreate();
-    }
+    loadCreatePre(isEdit && id ? Number(id) : -1);
   }, [isEdit, id]);
 
-  // 头部：左侧上一步（第2-4步），右侧下一步/完成（figma 创建名片1-4）
+  // 头部：左侧上一步（第2-4步），右侧下一步（第1-3步；第4步用页内「预览主页」按钮，对齐小程序）
   useLayoutEffect(() => {
     navigation.setOptions({
       headerLeft:
@@ -57,55 +52,23 @@ export default function EditCard({ navigation, route }: Props) {
               </Text>
             )
           : undefined,
-      headerRight: () => (
-        <Text style={styles.headerBtnPrimary} onPress={() => stepRef.current?.submit()}>
-          {step === 4 ? '完成' : '下一步'}
-        </Text>
-      ),
+      headerRight:
+        step < 4
+          ? () => (
+              <Text style={styles.headerBtnPrimary} onPress={() => stepRef.current?.submit()}>
+                下一步
+              </Text>
+            )
+          : undefined,
     });
   }, [navigation, step]);
 
-  const initCreate = async () => {
+  const loadCreatePre = async (cid: number) => {
     try {
-      const res = await API.card.prepare();
-      if (res.code === '200' && res.data) {
-        setCardId(res.data.id);
-        setStepData({
-          alias: res.data.alias || '',
-          nameZh: res.data.nameZh || '',
-          nameEn: res.data.nameEn || '',
-          phone: res.data.phone || '',
-          telNumber: res.data.telNumber || '',
-          fax: res.data.fax || '',
-          email: res.data.email || '',
-          province: res.data.province || '',
-          city: res.data.city || '',
-          district: res.data.district || '',
-          address: res.data.address || '',
-          profile: res.data.profile || '',
-          provinceCode: res.data.provinceCode || '',
-          cityCode: res.data.cityCode || '',
-          districtCode: res.data.districtCode || '',
-          isShow: res.data.isShow ?? 1,
-          isAuth: res.data.isAuth || 0,
-          styleCode: res.data.styleCode || 'NORMAL',
-          fontColor: res.data.fontColor || '#ffffff',
-          backColor: res.data.backColor || 'transparent',
-          positionList: res.data.positionList || [],
-          userId: res.data.userId,
-        });
-      }
-    } catch {
-      // ignore
-    }
-  };
-
-  const loadCardDetail = async (cid: number) => {
-    try {
-      const res = await API.card.detail({ cardId: cid });
+      const res = cid > 0 ? await API.card.detail({ cardId: cid }) : await API.card.prepare();
       if (res.code === '200' && res.data) {
         const data = res.data;
-        setCardId(data.id);
+        if (data.id) setCardId(data.id);
         setStepData({
           alias: data.alias || '',
           nameZh: data.nameZh || '',
@@ -124,11 +87,11 @@ export default function EditCard({ navigation, route }: Props) {
           districtCode: data.districtCode || '',
           isShow: data.isShow ?? 1,
           isAuth: data.isAuth || 0,
-          styleCode: data.styleCode || 'NORMAL',
-          fontColor: data.fontColor || '#ffffff',
-          backColor: data.backColor || 'transparent',
+          styleCode: data.styleCode || '',
+          fontColor: data.fontColor || '',
+          backColor: data.backColor || '',
           positionList: data.positionList || [],
-          mediaLinkList: data.mediaLinkList || [],
+          mediaList: (data.mediaList || data.mediaLinkList || []).filter((o: any) => !!o.media),
           userId: data.userId,
         });
       }
@@ -141,25 +104,11 @@ export default function EditCard({ navigation, route }: Props) {
     if (data) {
       setStepData((prev) => ({ ...prev, ...data }));
       // 第一步保存后拿到 preId，同步到 cardId 供后续步骤使用
-      const nextId = data.cardId ?? data.preId;
+      const nextId = data.preId ?? data.id ?? data.cardId;
       if (nextId) setCardId(Number(nextId));
     }
     setStep(nextStep);
   }, []);
-
-  const onPublish = useCallback(async () => {
-    if (!cardId) return;
-    try {
-      const res = await API.card.push({ cardId });
-      if (res.code === '200') {
-        Alert.alert('发布成功', '名片已保存并发布', [
-          { text: '确定', onPress: () => navigation.goBack() },
-        ]);
-      }
-    } catch {
-      Alert.alert('发布失败');
-    }
-  }, [cardId, navigation]);
 
   /** 步骤标题栏：标题+副标题，右侧 n/4（figma 创建名片1-4） */
   const renderHeader = () => (
@@ -184,7 +133,7 @@ export default function EditCard({ navigation, route }: Props) {
       case 3:
         return <StepThree ref={stepRef} cardId={cardId} data={stepData} onNext={onStepChange} />;
       case 4:
-        return <StepFour ref={stepRef} cardId={cardId} data={stepData} onNext={onStepChange} onPublish={onPublish} />;
+        return <StepFour ref={stepRef} cardId={cardId} data={stepData} onNext={onStepChange} isEdit={isEdit} />;
       default:
         return null;
     }

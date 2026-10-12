@@ -278,7 +278,7 @@ function HeaderDone({ onPress }: { onPress: () => void }) {
 }
 
 export default function LongTextEdit({ route, navigation }: Props) {
-  const { initialHtml, insertOnMount } = route.params || {};
+  const { initialHtml, insertOnMount, simple } = route.params || {};
   const quillRef = useRef<QuillEditor>(null!);
   const [plainLen, setPlainLen] = useState(() => htmlToPlainLength(initialHtml || ''));
   const [panelOpen, setPanelOpen] = useState(false);
@@ -681,13 +681,17 @@ export default function LongTextEdit({ route, navigation }: Props) {
             {plainLen}/{LONG_BODY_LIMIT}
           </Text>
           <View style={styles.toolbar}>
-            <TouchableOpacity style={styles.topicBtn} activeOpacity={0.8} onPress={onInsertTopic}>
-              <Text style={styles.topicStrong}>#</Text>
-              <Text style={styles.topicText}>话题</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.toolBtn} activeOpacity={0.8} onPress={onInsertImage}>
-              <ImageIcon />
-            </TouchableOpacity>
+            {!simple && (
+              <>
+                <TouchableOpacity style={styles.topicBtn} activeOpacity={0.8} onPress={onInsertTopic}>
+                  <Text style={styles.topicStrong}>#</Text>
+                  <Text style={styles.topicText}>话题</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.toolBtn} activeOpacity={0.8} onPress={onInsertImage}>
+                  <ImageIcon />
+                </TouchableOpacity>
+              </>
+            )}
             {/* <TouchableOpacity style={styles.toolBtn} activeOpacity={0.8} onPress={onInsertVideo}>
               <VideoIcon />
             </TouchableOpacity> */}

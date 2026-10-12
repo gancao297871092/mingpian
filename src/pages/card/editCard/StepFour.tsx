@@ -7,23 +7,25 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { API } from '@/api';
 import PersonalCard from '@/components/cards/PersonalCard';
 import { CheckWhiteIcon } from '@/components/cards/cardIcons';
 import {
-  FASHION_COLOR_PRESETS,
   normalizeCardStyle,
   type CardStyle,
   type FashionColor,
 } from '@/components/cards/types';
 import { scaleSizeW, setSpText } from '@/utils/screenUtils';
+import type { RootStackParamList } from '@/route/map';
 import type { StepHandle } from './types';
 
 interface StepFourProps {
   cardId: number | null;
   data: Record<string, any>;
   onNext: (step: number, data?: any) => void;
-  onPublish: () => void;
+  isEdit: boolean;
 }
 
 const FALLBACK_STYLES: { styleCode: string; name: string }[] = [
@@ -32,10 +34,11 @@ const FALLBACK_STYLES: { styleCode: string; name: string }[] = [
   { styleCode: 'FASHION', name: '简约' },
 ];
 
-const StepFour = forwardRef<StepHandle, StepFourProps>(function StepFourForm({ cardId, data, onPublish }, ref) {
-  const [styleCode, setStyleCode] = useState(data.styleCode || 'NORMAL');
-  const [fontColor, setFontColor] = useState(data.fontColor || '#000000');
-  const [backColor, setBackColor] = useState(data.backColor || '#FFFFFF');
+const StepFour = forwardRef<StepHandle, StepFourProps>(function StepFourForm({ cardId, data, isEdit }, ref) {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const [styleCode, setStyleCode] = useState<string | null>(data.styleCode || null);
+  const [fontColor, setFontColor] = useState<string | null>(data.fontColor || null);
+  const [backColor, setBackColor] = useState<string | null>(data.backColor || null);
   const [styleList, setStyleList] = useState<any[]>([]);
   const [colorList, setColorList] = useState<FashionColor[]>([]);
 
@@ -55,39 +58,43 @@ const StepFour = forwardRef<StepHandle, StepFourProps>(function StepFourForm({ c
           backColor: c.backColor || '#FFFFFF',
         }));
         setStyleList(list);
-        setColorList(colors.length > 0 ? colors : FASHION_COLOR_PRESETS);
+        setColorList(colors);
 
-        const hasMatch = list.some((s: any) => s.styleCode === styleCode);
-        if (list[0] && !hasMatch) {
+        // 对齐小程序：无风格或风格不在列表中（如草稿默认 style1）时默认第一个；无配色时默认第一组
+        if (list[0] && !list.some((s: any) => s.styleCode === styleCode)) {
           setStyleCode(list[0].styleCode);
         }
-
-        const effectiveColors = colors.length > 0 ? colors : FASHION_COLOR_PRESETS;
-        const hasColorMatch = effectiveColors.some(
-          c => c.fontColor === fontColor && c.backColor === backColor,
-        );
-        if (!hasColorMatch) {
-          setFontColor(effectiveColors[0].fontColor);
-          setBackColor(effectiveColors[0].backColor);
+        if (!fontColor && !backColor && colors[0]) {
+          setFontColor(colors[0].fontColor || '#fff');
+          setBackColor(colors[0].backColor || 'transparent');
         }
-      } else {
-        setColorList(FASHION_COLOR_PRESETS);
       }
     } catch {
-      setColorList(FASHION_COLOR_PRESETS);
+      // ignore
     }
   };
 
   const styleOptions = styleList.length > 0 ? styleList : FALLBACK_STYLES;
+  // 草稿默认 styleCode=style1 等不在风格列表中时，兜底选中第一个，保证有默认 tab
+  const effectiveStyleCode = styleOptions.some((s: any) => s.styleCode === styleCode)
+    ? (styleCode as string)
+    : styleOptions[0]?.styleCode || 'NORMAL';
+  const effectiveFontColor = fontColor || '#000000';
+  const effectiveBackColor = backColor || '#FFFFFF';
   const currentStyle: CardStyle = normalizeCardStyle(
-    styleCode,
-    styleOptions.find((s: any) => s.styleCode === styleCode)?.name,
+    effectiveStyleCode,
+    styleOptions.find((s: any) => s.styleCode === effectiveStyleCode)?.name,
   );
 
   const cardInfo = {
     nameZh: data.nameZh || '',
     nameEn: data.nameEn || '',
-    position: data.position || '',
+    position:
+      data.position ||
+      (data.positionList || [])
+        .filter((o: any) => o.isCheck)
+        .map((o: any) => o.name)
+        .join(','),
     cpName: data.cpName || '',
     phone: data.phone || '',
     email: data.email || '',
@@ -95,7 +102,7 @@ const StepFour = forwardRef<StepHandle, StepFourProps>(function StepFourForm({ c
     city: data.city || '',
     district: data.district || '',
     address: data.address || '',
-    mediaLinkList: data.mediaLinkList || [],
+    mediaLinkList: data.mediaList || data.mediaLinkList || [],
     isAuth: data.isAuth,
   };
 
@@ -104,12 +111,13 @@ const StepFour = forwardRef<StepHandle, StepFourProps>(function StepFourForm({ c
     try {
       const res = await API.card.styleCodeSave({
         id: cardId,
-        styleCode,
-        fontColor,
-        backColor,
+        styleCode: effectiveStyleCode,
+        fontColor: effectiveFontColor,
+        backColor: effectiveBackColor,
       });
       if (res.code === '200') {
-        onPublish();
+        // 对齐小程序：保存风格后跳转预览主页，在预览页确认发布
+        navigation.navigate('viewCard', { id: cardId, mode: isEdit ? 'update' : 'add' });
       }
     } catch {
       Alert.alert('保存失败');
@@ -123,7 +131,7 @@ const StepFour = forwardRef<StepHandle, StepFourProps>(function StepFourForm({ c
       {/* 风格分段选择（figma 创建名片4-1：商务/时尚/简约） */}
       <View style={styles.segmented}>
         {styleOptions.map((item: any) => {
-          const active = styleCode === item.styleCode;
+          const active = effectiveStyleCode === item.styleCode;
           return (
             <TouchableOpacity
               key={item.styleCode}
@@ -144,15 +152,14 @@ const StepFour = forwardRef<StepHandle, StepFourProps>(function StepFourForm({ c
         <PersonalCard
           data={cardInfo}
           style={currentStyle}
-          fontColor={fontColor}
-          backColor={backColor}
-          qrValue={cardId ? `mingpian://cardDetail?id=${cardId}` : ''}
+          fontColor={effectiveFontColor}
+          backColor={effectiveBackColor}
           placeholder
         />
       </View>
 
-      {/* 时尚风格：选择配色（figma 创建名片4-2） */}
-      {currentStyle === 'fashion' && (
+      {/* 时尚风格：选择配色（figma 创建名片4-2；对齐小程序 TRADITIONAL 才显示配色） */}
+      {currentStyle === 'fashion' && colorList.length > 0 && (
         <>
           <Text style={styles.colorTitle}>选择配色</Text>
           <ScrollView
@@ -161,7 +168,7 @@ const StepFour = forwardRef<StepHandle, StepFourProps>(function StepFourForm({ c
             showsVerticalScrollIndicator={false}
           >
             {colorList.map((it, ix) => {
-              const active = fontColor === it.fontColor && backColor === it.backColor;
+              const active = effectiveFontColor === it.fontColor && effectiveBackColor === it.backColor;
               return (
                 <TouchableOpacity
                   key={`${it.fontColor}-${ix}`}

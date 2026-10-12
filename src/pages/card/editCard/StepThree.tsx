@@ -101,7 +101,8 @@ const StepThree = forwardRef<StepHandle, StepThreeProps>(function StepThreeForm(
         id: pjId,
       });
       if (res.code === '200') {
-        onNext(4, { pjId: res.data?.id || pjId, itemsList });
+        // 对齐小程序：project/update 返回完整 cardInfo（含 styleCode/fontColor/backColor），传给第四步
+        onNext(4, { ...(res.data || {}), pjId: res.data?.id || pjId, itemsList });
         return;
       }
     } catch {

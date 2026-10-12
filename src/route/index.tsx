@@ -55,6 +55,7 @@ import OtherNumberLogin from '@/pages/login/OtherNumberLogin';
 import AgreementPage from '@/pages/login/AgreementPage';
 import EditCard from '@/pages/card/editCard';
 import MyCard from '@/pages/card/myCard';
+import ViewCard from '@/pages/card/viewCard';
 import AddItem from '@/pages/card/editCard/AddItem';
 import RichTextEdit from '@/pages/card/common/RichTextEdit';
 import Publish from '@/pages/square/publish';
@@ -188,9 +189,19 @@ export default function RootNavigator() {
           }}
         />
         <Stack.Screen
+          name="viewCard"
+          component={ViewCard}
+          options={{
+            title: '预览主页',
+            headerStyle: { backgroundColor: '#FFFFFF' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
           name="addItem"
           component={AddItem}
-          options={{ title: '', headerStyle: { backgroundColor: '#FFFFFF' }, headerShadowVisible: false, }}
+          options={{ title: '新增板块', headerStyle: { backgroundColor: '#FFFFFF' }, headerTitleStyle: { color: '#000000' }, headerShadowVisible: false, }}
         />
         <Stack.Screen
           name="richTextEdit"

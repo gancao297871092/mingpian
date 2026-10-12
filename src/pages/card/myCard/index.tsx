@@ -151,7 +151,6 @@ export default function MyCard() {
             style={normalizeCardStyle(currentCard.styleCode)}
             fontColor={currentCard.fontColor}
             backColor={currentCard.backColor}
-            qrValue={`mingpian://cardDetail?id=${currentCard.id}`}
           />
         </View>
         <View style={styles.actionRow}>

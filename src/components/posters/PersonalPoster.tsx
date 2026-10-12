@@ -19,7 +19,7 @@ interface PersonalPosterProps {
 export default function PersonalPoster({ data, style, fontColor, backColor, qrValue, width }: PersonalPosterProps) {
   return (
     <View style={[styles.container, width ? { width } : null]}>
-      <PersonalCard data={data} style={style} fontColor={fontColor} backColor={backColor} qrValue={qrValue} />
+      <PersonalCard data={data} style={style} fontColor={fontColor} backColor={backColor} />
       <View style={styles.footer}>
         <Text style={styles.footerText}>您好，这是我的名片，请扫码查看详情~</Text>
         <View style={styles.qrBox}>

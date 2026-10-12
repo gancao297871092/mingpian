@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   Image,
@@ -16,38 +16,15 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import ImagePicker from 'react-native-image-crop-picker';
-import RenderHtml from 'react-native-render-html';
 import { API } from '@/api';
 import { getEditorResult } from '@/utils/editorBridge';
-import { scaleSizeW } from '@/utils/screenUtils';
+import { scaleSizeW, setSpText } from '@/utils/screenUtils';
 import SafeView from '@/components/SafeView';
+import LongHtmlView from '@/components/LongHtmlView';
 import type { RootStackParamList } from '@/route/map';
+import { CameraGrayIcon, DelCircleIcon, ExpandIcon } from './stepIcons';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'addItem'>;
-
-/** 从 HTML 提取所有图片地址 */
-function extractImages(html?: string): string[] {
-  if (!html) return [];
-  const matches = html.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/gi) || [];
-  return matches
-    .map((tag) => {
-      const m = tag.match(/src=["']([^"']+)["']/);
-      return m ? m[1] : '';
-    })
-    .filter(Boolean);
-}
-
-/** 模块级 ref，供 ImgRenderer 调用 */
-const imgPreviewRef = { current: (_src: string) => {} };
-
-function ImgRenderer({ tnode, InternalRenderer, ...props }: any) {
-  const src = tnode?.attributes?.src;
-  return (
-    <TouchableOpacity onPress={() => imgPreviewRef.current(src)} activeOpacity={0.9}>
-      <InternalRenderer tnode={tnode} {...props} />
-    </TouchableOpacity>
-  );
-}
 
 export default function AddItem({ route, navigation }: Props) {
   const { itemId, cardId, userId, pjId } = route.params || {};
@@ -63,12 +40,11 @@ export default function AddItem({ route, navigation }: Props) {
   const [previewImages, setPreviewImages] = useState<string[]>([]);
   const [previewIndex, setPreviewIndex] = useState(0);
 
-  const allImages = useMemo(() => extractImages(itContent), [itContent]);
-
   useEffect(() => {
     if (itemId) {
       loadDetail();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [itemId]);
 
   // 从 RichTextEdit 页面返回后接收 HTML
@@ -136,9 +112,7 @@ export default function AddItem({ route, navigation }: Props) {
         })),
       });
       if (_res.code === '200') {
-        Alert.alert('保存成功', '', [
-          { text: '确定', onPress: () => navigation.goBack() },
-        ]);
+        navigation.goBack();
       }
     } catch {
       Alert.alert('保存失败');
@@ -146,22 +120,6 @@ export default function AddItem({ route, navigation }: Props) {
       setSaving(false);
     }
   };
-
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerLeft: () => (
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.navBtn}>取消</Text>
-        </TouchableOpacity>
-      ),
-      headerTitle: '新增板块',
-      headerRight: () => (
-        <TouchableOpacity onPress={onSave} disabled={saving}>
-          <Text style={[styles.navBtn, saving && { opacity: 0.5 }]}>保存</Text>
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation, saving, itTitle, itContent, mediaLinkList]);
 
   // 板块图片上传
   const uploadImg = async () => {
@@ -187,8 +145,8 @@ export default function AddItem({ route, navigation }: Props) {
         const mediaData = res.data;
         const newLink = {
           mdId: mediaData.id,
-          url: mediaData.url,
-          mdUrl: mediaData.url,
+          url: mediaData.mdUrl,
+          mdUrl: mediaData.mdUrl,
           isLocal: true,
           id: mediaData.id,
           fileType: 'image',
@@ -216,34 +174,29 @@ export default function AddItem({ route, navigation }: Props) {
     });
   };
 
+  // 板块内容编辑：与发布长图文动态同一编辑器（publishLongText，simple 去掉话题/图片），结果经 editorBridge 回传
   const goEditContent = () => {
-    navigation.navigate('richTextEdit', {
+    navigation.navigate('publishLongText', {
       initialHtml: itContent,
-      placeholder: '请输入板块内容',
+      simple: true,
     });
   };
 
   const hasContent = !!itContent && itContent !== '<p><br></p>';
 
-  useEffect(() => {
-    imgPreviewRef.current = (src: string) => {
-      const idx = allImages.indexOf(src);
-      setPreviewIndex(idx >= 0 ? idx : 0);
-      setPreviewImages(allImages.length ? allImages : [src]);
-      setPreviewVisible(true);
-    };
-  }, [allImages]);
+  const onImagePress = (urls: string[], index: number) => {
+    setPreviewImages(urls);
+    setPreviewIndex(index);
+    setPreviewVisible(true);
+  };
 
-  const renderers = { img: ImgRenderer };
-  const htmlSource = useMemo(() => ({ html: itContent || '<p></p>' }), [itContent]);
-
-  // 内容区可用宽度：屏幕宽 - 外层 scroll 左右 padding - box 内左右 padding
-  const contentWidth = screenWidth - scaleSizeW(64);
+  // 内容区可用宽度：屏幕宽 - 页面左右 padding
+  const contentWidth = screenWidth - scaleSizeW(32);
 
   return (
     <SafeView backgroundColor="#fff" disableTop>
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={0}
       >
@@ -252,115 +205,78 @@ export default function AddItem({ route, navigation }: Props) {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* 板块名称 */}
-          <View style={styles.box}>
-            <Text style={styles.boxLabel}>板块名称</Text>
-            <View style={styles.titleRow}>
-              <TextInput
-                style={styles.titleInput}
-                placeholder="添加标题"
-                placeholderTextColor="#a3a3a3"
-                value={itTitle}
-                onChangeText={setItTitle}
-                maxLength={40}
-              />
-              {!!itTitle && (
-                <TouchableOpacity onPress={() => setItTitle('')}>
-                  <Image source={require('@/assets/ming/del_1.png')} style={styles.clearIcon} />
+          {/* 图片（figma 新增板块：85x85 圆角10，右上角删除钮） */}
+          <View style={styles.imgGrid}>
+            {mediaLinkList.map((item, index) => (
+              <View key={item.mdId || index} style={styles.imgBox}>
+                <Image
+                  source={{ uri: item.url || item.mdUrl }}
+                  style={styles.img}
+                  resizeMode="cover"
+                />
+                <TouchableOpacity
+                  style={styles.imgDel}
+                  hitSlop={8}
+                  onPress={() => onDeleteMedia(index)}
+                >
+                  <DelCircleIcon size={16} />
                 </TouchableOpacity>
-              )}
-              <Text
-                style={[
-                  styles.charCount,
-                  { color: itTitle.length > 40 ? '#ff0000' : '#999999' },
-                ]}
-              >
-                {itTitle.length}/40
-              </Text>
-            </View>
-          </View>
-
-          {/* 板块内容 — 富文本回显（对齐小程序 mp-edit） */}
-          <View style={styles.box}>
-            <Text style={styles.boxLabel}>板块内容</Text>
-            {hasContent ? (
-              <RenderHtml
-                contentWidth={contentWidth}
-                source={htmlSource}
-                renderers={renderers as any}
-                tagsStyles={{
-                  p: {
-                    marginVertical: scaleSizeW(4),
-                    fontSize: scaleSizeW(14),
-                    color: '#333333',
-                    lineHeight: scaleSizeW(22),
-                  },
-                  img: {
-                    marginVertical: scaleSizeW(8),
-                    borderRadius: scaleSizeW(8),
-                  },
-                  h1: { fontSize: scaleSizeW(20), fontWeight: 'bold', marginVertical: scaleSizeW(8) },
-                  h2: { fontSize: scaleSizeW(18), fontWeight: 'bold', marginVertical: scaleSizeW(6) },
-                  h3: { fontSize: scaleSizeW(16), fontWeight: 'bold', marginVertical: scaleSizeW(4) },
-                  li: { fontSize: scaleSizeW(14), color: '#333333', lineHeight: scaleSizeW(22) },
-                  blockquote: {
-                    borderLeftWidth: 4,
-                    borderLeftColor: '#ddd',
-                    paddingLeft: scaleSizeW(12),
-                    marginVertical: scaleSizeW(8),
-                    color: '#666',
-                  },
-                }}
-              />
-            ) : (
-              <Text style={styles.contentPlaceholder}>请输入板块内容</Text>
+              </View>
+            ))}
+            {mediaLinkList.length < 9 && (
+              <TouchableOpacity style={styles.uploadBox} activeOpacity={0.8} onPress={uploadImg}>
+                <CameraGrayIcon size={33} />
+              </TouchableOpacity>
             )}
           </View>
 
-          {/* 点击进入深度编辑页 */}
-          <TouchableOpacity style={[styles.box, styles.editBtnBox]} onPress={goEditContent} activeOpacity={0.8}>
-            <Text style={styles.editBtnText}>点击进入深度编辑页</Text>
-          </TouchableOpacity>
+          {/* 板块名称 + 字数 */}
+          <View style={styles.titleRow}>
+            <TextInput
+              style={styles.titleInput}
+              placeholder="板块名称"
+              placeholderTextColor="#6C6C6C"
+              value={itTitle}
+              onChangeText={setItTitle}
+              maxLength={40}
+            />
+            <Text style={styles.charCount}>{itTitle.length}/40</Text>
+          </View>
+          <View style={styles.divider} />
 
-          {/* 图片上传 */}
-          <View style={{ marginTop: scaleSizeW(6) }}>
-            <View style={styles.imgGrid}>
-              {mediaLinkList.map((item, index) => (
-                <View
-                  key={item.mdId || index}
-                  style={[styles.imgBox, index % 2 === 1 && styles.imgBoxEven]}
-                >
-                  <TouchableOpacity
-                    style={styles.imgDel}
-                    onPress={() => onDeleteMedia(index)}
-                  >
-                    <Image source={require('@/assets/ming/del_1.png')} style={styles.imgDelIcon} />
-                  </TouchableOpacity>
-                  <Image
-                    source={{ uri: item.url || item.mdUrl }}
-                    style={styles.img}
-                    resizeMode="cover"
-                  />
-                </View>
-              ))}
-              {mediaLinkList.length < 9 && (
-                <TouchableOpacity
-                  style={[
-                    styles.uploadBox,
-                    mediaLinkList.length % 2 === 1 && styles.imgBoxEven,
-                  ]}
-                  onPress={uploadImg}
-                >
-                  <Image source={require('@/assets/ming/upload.png')} style={styles.uploadIcon} />
-                  <Text style={styles.uploadText}>
-                    上传图片（{mediaLinkList.length}/9）
-                  </Text>
-                </TouchableOpacity>
+          {/* 板块内容：富文本展示（复用长图文 LongHtmlView），点击进入编辑页 */}
+          <TouchableOpacity activeOpacity={0.8} onPress={goEditContent}>
+            <View style={styles.contentBox}>
+              {hasContent ? (
+                <LongHtmlView
+                  html={itContent}
+                  contentWidth={contentWidth}
+                  baseStyle={styles.richBase}
+                  onImagePress={onImagePress}
+                />
+              ) : (
+                <Text style={styles.contentPlaceholder}>添加板块内容...</Text>
               )}
             </View>
-          </View>
+            <View style={styles.contentFooter}>
+              <View style={styles.editBtn}>
+                <ExpandIcon size={16} />
+              </View>
+            </View>
+          </TouchableOpacity>
+          <View style={styles.divider} />
 
-          <View style={{ height: scaleSizeW(40) }} />
+          {/* 保存 */}
+          <TouchableOpacity
+            style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+            activeOpacity={0.8}
+            onPress={onSave}
+            disabled={saving}
+          >
+            <Text style={styles.saveText}>保存</Text>
+          </TouchableOpacity>
+
+          <View style={styles.bottomGap} />
         </ScrollView>
 
         {/* 图片预览弹窗 */}
@@ -389,85 +305,25 @@ export default function AddItem({ route, navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  navBtn: {
-    fontSize: scaleSizeW(15),
-    color: '#000000',
-    fontWeight: '500',
+  flex: {
+    flex: 1,
   },
   scroll: {
     flex: 1,
     paddingHorizontal: scaleSizeW(16),
-    paddingTop: scaleSizeW(16),
-  },
-  box: {
-    backgroundColor: '#f9f9f9',
-    borderRadius: scaleSizeW(11),
-    paddingHorizontal: scaleSizeW(16),
-    paddingVertical: scaleSizeW(12),
-    marginTop: scaleSizeW(11),
-    minHeight: scaleSizeW(70),
-  },
-  boxLabel: {
-    fontWeight: '500',
-    fontSize: scaleSizeW(13),
-    color: '#6c6c6c',
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: scaleSizeW(4),
-  },
-  titleInput: {
-    flex: 1,
-    fontWeight: 'bold',
-    fontSize: scaleSizeW(16),
-    color: '#000000',
-    padding: 0,
-    minHeight: scaleSizeW(28),
-  },
-  clearIcon: {
-    width: scaleSizeW(18),
-    height: scaleSizeW(18),
-    marginHorizontal: scaleSizeW(8),
-  },
-  charCount: {
-    fontSize: scaleSizeW(12),
-    color: '#999999',
-  },
-  contentPlaceholder: {
-    fontWeight: 'bold',
-    fontSize: scaleSizeW(15),
-    color: '#a3a3a3',
-    lineHeight: scaleSizeW(22),
-    marginTop: scaleSizeW(4),
-  },
-  editBtnBox: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: scaleSizeW(48),
-    marginTop: scaleSizeW(6),
-  },
-  editBtnText: {
-    fontSize: scaleSizeW(15),
-    color: '#576b95',
-    fontWeight: '500',
   },
   imgGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: scaleSizeW(11),
+    gap: scaleSizeW(10),
+    marginTop: scaleSizeW(39),
   },
   imgBox: {
-    width: '48%',
-    aspectRatio: 1,
-    borderRadius: scaleSizeW(18),
+    width: scaleSizeW(85),
+    height: scaleSizeW(85),
+    borderRadius: scaleSizeW(10),
     overflow: 'hidden',
-    marginBottom: scaleSizeW(10),
-    position: 'relative',
-    backgroundColor: '#f9f9f9',
-  },
-  imgBoxEven: {
-    marginLeft: '4%',
+    backgroundColor: '#F5F5F5',
   },
   img: {
     width: '100%',
@@ -475,38 +331,88 @@ const styles = StyleSheet.create({
   },
   imgDel: {
     position: 'absolute',
-    right: scaleSizeW(8),
-    top: scaleSizeW(8),
-    width: scaleSizeW(24),
-    height: scaleSizeW(24),
-    borderRadius: scaleSizeW(12),
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    right: scaleSizeW(3),
+    top: scaleSizeW(3),
     zIndex: 2,
   },
-  imgDelIcon: {
-    width: scaleSizeW(14),
-    height: scaleSizeW(14),
-  },
   uploadBox: {
-    width: '48%',
-    aspectRatio: 1,
-    borderRadius: scaleSizeW(18),
-    backgroundColor: '#f9f9f9',
+    width: scaleSizeW(85),
+    height: scaleSizeW(85),
+    borderRadius: scaleSizeW(10),
+    backgroundColor: '#F5F5F5',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: scaleSizeW(10),
   },
-  uploadIcon: {
-    width: scaleSizeW(24),
-    height: scaleSizeW(22),
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: scaleSizeW(30),
   },
-  uploadText: {
+  titleInput: {
+    flex: 1,
     fontWeight: '500',
-    fontSize: scaleSizeW(13),
+    fontSize: setSpText(16),
+    color: '#000000',
+    padding: 0,
+    height: scaleSizeW(24),
+  },
+  charCount: {
+    fontSize: setSpText(12),
+    fontWeight: '400',
     color: '#999999',
-    marginTop: scaleSizeW(11),
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#EDECEC',
+    marginTop: scaleSizeW(7),
+  },
+  contentBox: {
+    marginTop: scaleSizeW(10),
+    minHeight: scaleSizeW(88),
+  },
+  contentPlaceholder: {
+    fontWeight: '400',
+    fontSize: setSpText(14),
+    color: '#6C6C6C',
+    lineHeight: scaleSizeW(24),
+  },
+  richBase: {
+    fontSize: setSpText(14),
+    color: '#333333',
+    lineHeight: scaleSizeW(22),
+  },
+  contentFooter: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: scaleSizeW(4),
+  },
+  editBtn: {
+    width: scaleSizeW(36),
+    height: scaleSizeW(36),
+    borderRadius: scaleSizeW(8),
+    backgroundColor: '#F5F5F5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  saveBtn: {
+    height: scaleSizeW(48),
+    borderRadius: scaleSizeW(90),
+    backgroundColor: '#2962D4',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: scaleSizeW(20),
+  },
+  saveBtnDisabled: {
+    opacity: 0.6,
+  },
+  saveText: {
+    fontSize: setSpText(15),
+    fontWeight: '500',
+    color: '#FFFFFF',
+    letterSpacing: -0.4,
+  },
+  bottomGap: {
+    height: scaleSizeW(40),
   },
   previewOverlay: {
     flex: 1,
@@ -523,7 +429,7 @@ const styles = StyleSheet.create({
   },
   previewCloseText: {
     color: '#fff',
-    fontSize: scaleSizeW(16),
+    fontSize: setSpText(16),
   },
   previewPage: {
     justifyContent: 'center',

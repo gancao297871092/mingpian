@@ -2,7 +2,6 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import LinearGradient from 'react-native-linear-gradient';
-import QRCode from 'react-native-qrcode-svg';
 import { scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { CardCompanyIcon, CardEmailIcon, CardLocationIcon, CardVerifiedIcon } from './cardIcons';
 import { getCardPhoto, normalizeCardStyle, type CardData, type CardStyle } from './types';
@@ -14,8 +13,6 @@ interface PersonalCardProps {
   /** 仅时尚风格生效 */
   fontColor?: string;
   backColor?: string;
-  /** 商务风格右下角二维码内容，传空不渲染 */
-  qrValue?: string;
   /** 编辑预览模式：空字段显示占位文案 */
   placeholder?: boolean;
 }
@@ -24,8 +21,8 @@ function fullAddress(data: CardData): string {
   return `${data.province || ''}${data.city || ''}${data.district || ''}${data.address || ''}`;
 }
 
-/** 商务风格：白底 + 右侧装饰条 + 二维码（figma 二选一 / 创建名片4-1） */
-function BusinessCard({ data, qrValue, placeholder }: PersonalCardProps) {
+/** 商务风格：白底 + 右侧装饰条；右上角企业 logo，无 logo 时编辑态显示 LOGO 占位（对齐小程序 card1） */
+function BusinessCard({ data, placeholder }: PersonalCardProps) {
   const company = data.cpName || (placeholder ? '企业名称' : '');
   const email = data.email || (placeholder ? 'example@mail.com' : '');
   const address = fullAddress(data) || (placeholder ? '省市区 详细地址' : '');
@@ -35,9 +32,12 @@ function BusinessCard({ data, qrValue, placeholder }: PersonalCardProps) {
         <View style={[styles.decoBar, styles.decoBarBlue]} />
         <View style={[styles.decoBar, styles.decoBarGreen]} />
       </View>
-      {!!qrValue && (
-        <View style={styles.qrBox}>
-          <QRCode value={qrValue} size={scaleSizeW(98)} color="#000000" backgroundColor="#FFFFFF" />
+      {!!data.cpLogo && (
+        <ExpoImage source={{ uri: data.cpLogo }} style={styles.cpLogo} contentFit="cover" transition={150} />
+      )}
+      {!data.cpLogo && placeholder && (
+        <View style={styles.cpLogoPlaceholder}>
+          <Text style={styles.cpLogoPlaceholderText}>LOGO</Text>
         </View>
       )}
       <View style={styles.businessContent}>
@@ -205,16 +205,30 @@ const styles = StyleSheet.create({
     backgroundColor: '#36BE69',
     transform: [{ rotate: '-5deg' }],
   },
-  qrBox: {
+  cpLogo: {
     position: 'absolute',
     right: scaleSizeW(14),
     top: scaleSizeW(21),
     width: scaleSizeW(114),
     height: scaleSizeW(114),
     borderRadius: scaleSizeW(10),
-    backgroundColor: 'rgba(255,255,255,0.8)',
+    backgroundColor: '#F5F5F5',
+  },
+  cpLogoPlaceholder: {
+    position: 'absolute',
+    right: scaleSizeW(14),
+    top: scaleSizeW(21),
+    width: scaleSizeW(114),
+    height: scaleSizeW(114),
+    borderRadius: scaleSizeW(10),
+    backgroundColor: '#292929',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  cpLogoPlaceholderText: {
+    fontSize: setSpText(10),
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   businessContent: {
     flex: 1,

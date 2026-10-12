@@ -164,24 +164,52 @@ export namespace API {
     export function list(params?: { t?: number }) {
       return request.get<{ cardsList: any[] }>('/card/list', { params });
     }
-    /** 删除名片 */
+    /** 删除名片（软删除，AppCardController /card/delete） */
     export function del(params: { cardId: string | number }) {
-      return request.get<any>('/card/del', { params });
+      return request.get<any>('/card/delete', { params });
     }
-    /** 名片预创建（获取草稿） */
+    /** 名片草稿字段（/card/prepare 与 /card/detail 均返回 WqUserCards） */
+    export interface CardDraft {
+      id?: number;
+      alias?: string;
+      nameZh?: string;
+      nameEn?: string;
+      phone?: string;
+      telNumber?: string;
+      fax?: string;
+      email?: string;
+      province?: string;
+      city?: string;
+      district?: string;
+      address?: string;
+      profile?: string;
+      provinceCode?: string;
+      cityCode?: string;
+      districtCode?: string;
+      isShow?: number;
+      isAuth?: number;
+      styleCode?: string;
+      fontColor?: string;
+      backColor?: string;
+      positionList?: any[];
+      mediaList?: any[];
+      mediaLinkList?: any[];
+      userId?: number;
+    }
+    /** 名片预创建：查找草稿（status=2），不存在则自动创建（AppCardController /card/prepare，无入参） */
     export function prepare() {
-      return request.get<any>('/card/prepare');
+      return request.get<CardDraft>('/card/prepare');
     }
-    /** 名片详情 */
+    /** 名片详情（含 mediaLinkList 媒体链接） */
     export function detail(params: { cardId: string | number }) {
-      return request.get<any>('/card/detail', { params });
+      return request.get<CardDraft>('/card/detail', { params });
     }
     /** 保存名片基础信息 */
     export function save(data: any) {
-      return request.post<{ cardId: number; preId?: number }>('/card/save', data);
+      return request.post<{ cardId: number; preId?: number; id?: number }>('/card/save', data);
     }
     /** 发布名片 */
-    export function push(params: { cardId: number }) {
+    export function push(params: { cardId: string | number }) {
       return request.get<any>('/card/create/push', { params });
     }
     /** 项目预览 */
@@ -523,9 +551,9 @@ export namespace API {
   }
 
   export namespace file {
-    /** 图片上传 */
+    /** 图片上传（返回 WqUserMedia：id/mdUrl/mdUrlOss/width/height/fileType，无 url 字段） */
     export function upload(data: FormData) {
-      return request.post<{ id: number; url: string; mdUrl?: string; userId?: number; width: string; height: string }>('/file/uploadV2', data, {
+      return request.post<{ id: number; mdUrl: string; mdUrlOss?: string; url?: string; userId?: number; width: string; height: string }>('/file/uploadV2', data, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
     }

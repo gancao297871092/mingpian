@@ -27,6 +27,21 @@ const validatePhone = (phone: string) => {
   return /^(\+86)?1[3-9]\d{9}$/.test(phone.trim());
 };
 
+const validateFax = (fax: string) => {
+  if (!fax) return true;
+  return /^(\d{3,4}-)?\d{7,8}$|^\d{11}$/.test(fax.trim());
+};
+
+const validateTel = (tel: string) => {
+  if (!tel) return true;
+  return /^(\d{3,4}-)?\d{7,8}$/.test(tel.trim());
+};
+
+const validateEmail = (email: string) => {
+  if (!email) return true;
+  return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email.trim());
+};
+
 const StepOne = forwardRef<StepHandle, StepOneProps>(function StepOneForm({ cardId, data, onNext }, ref) {
   const [form, setForm] = useState<Record<string, any>>({
     alias: '',
@@ -89,12 +104,29 @@ const StepOne = forwardRef<StepHandle, StepOneProps>(function StepOneForm({ card
   };
 
   const onSubmit = async () => {
-    if (!form.nameZh) {
+    // 对齐小程序：提交前去除 alias/nameZh 空格
+    const alias = (form.alias || '').replace(/\s/g, '');
+    const nameZh = (form.nameZh || '').replace(/\s/g, '');
+    setForm((prev) => ({ ...prev, alias, nameZh }));
+
+    if (!nameZh) {
       Alert.alert('提示', '请输入姓名');
       return;
     }
-    if (form.phone && !validatePhone(form.phone)) {
+    if (!validatePhone(form.phone)) {
       Alert.alert('提示', '请输入正确的手机号码');
+      return;
+    }
+    if (!validateFax(form.fax)) {
+      Alert.alert('提示', '请输入正确的传真号码（格式：区号-号码）');
+      return;
+    }
+    if (!validateTel(form.telNumber)) {
+      Alert.alert('提示', '请输入正确的座机号码（格式：区号-号码）');
+      return;
+    }
+    if (!validateEmail(form.email)) {
+      Alert.alert('提示', '请输入正确的邮箱地址');
       return;
     }
     if (form.profile && form.profile.length > 100) {
@@ -103,9 +135,26 @@ const StepOne = forwardRef<StepHandle, StepOneProps>(function StepOneForm({ card
     }
 
     try {
+      // 对齐小程序 /user/card/create/base 的 payload
       const payload = {
-        id: cardId,
-        ...form,
+        id: cardId ?? null,
+        alias,
+        nameZh,
+        nameEn: form.nameEn || '',
+        phone: form.phone || '',
+        telNumber: form.telNumber || '',
+        fax: form.fax || '',
+        email: form.email || '',
+        provinceCode: form.provinceCode || '',
+        province: form.province || '',
+        cityCode: form.cityCode || '',
+        city: form.city || '',
+        districtCode: form.districtCode || '',
+        district: form.district || '',
+        address: form.address || '',
+        profile: form.profile || '',
+        isShow: form.isShow ?? 1,
+        isAuth: form.isAuth || 0,
         positionList: positionOptions.map((o: any) => ({
           ...o,
           isCheck: selectedPositions.includes(o.id) ? 1 : 0,
@@ -113,12 +162,10 @@ const StepOne = forwardRef<StepHandle, StepOneProps>(function StepOneForm({ card
       };
       const res = await API.card.save(payload);
       if (res.code === '200') {
-        const newCardId = res.data?.preId || res.data?.cardId || cardId;
+        // 对齐小程序：创建时缓存 preId，res.data 整个传给下一步
         onNext(2, {
           ...res.data,
-          ...form,
-          cardId: newCardId,
-          preId: newCardId,
+          preId: res.data?.preId ?? res.data?.id ?? cardId,
           positionList: payload.positionList,
         });
       }
@@ -190,12 +237,12 @@ const StepOne = forwardRef<StepHandle, StepOneProps>(function StepOneForm({ card
   return (
     <View style={styles.container}>
       <View style={styles.formCard}>
-        {renderInputRow('名片别名', 'alias', { last: true })}
+        {renderInputRow('名片别名', 'alias', { maxLength: 10, last: true })}
       </View>
 
       <View style={styles.formCard}>
-        {renderInputRow('姓名', 'nameZh', { required: true, disabled: !!form.isAuth })}
-        {renderInputRow('其他名称', 'nameEn')}
+        {renderInputRow('姓名', 'nameZh', { required: true, disabled: !!form.isAuth, maxLength: 10 })}
+        {renderInputRow('其他名称', 'nameEn', { maxLength: 10 })}
         {renderSelectRow('职位', positionText, () => setPositionModalVisible(true), { last: true })}
       </View>
 

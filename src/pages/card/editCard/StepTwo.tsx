@@ -76,8 +76,12 @@ const StepTwo = forwardRef<StepHandle, StepTwoProps>(function StepTwoForm({ card
 
         setMediaList([...mediaList, newLink]);
 
-        // 保存素材关系（失败不阻断，与小程序一致）
-        API.common.mediaLinkSave([newLink]).catch(() => {});
+        // 保存素材关系（失败不阻断，但需等待完成：下一步设封面按 mdId 查 link，未落库会更新失败）
+        try {
+          await API.common.mediaLinkSave([newLink]);
+        } catch {
+          // ignore
+        }
       }
     } catch (e: any) {
       if (e?.code !== 'E_PICKER_CANCELLED') {
@@ -90,10 +94,11 @@ const StepTwo = forwardRef<StepHandle, StepTwoProps>(function StepTwoForm({ card
 
   const onSetIndex = async (item: any) => {
     try {
+      // 对齐小程序：先设新封面，再取消旧封面
+      await API.common.mediaLinkUpdate({ mdId: item.mdId, isIndex: 1 });
       if (indexId && indexId !== item.mdId) {
         await API.common.mediaLinkUpdate({ mdId: indexId, isIndex: 0 });
       }
-      await API.common.mediaLinkUpdate({ mdId: item.mdId, isIndex: 1 });
       setIndexId(item.mdId);
     } catch {
       Alert.alert('设置失败');
@@ -101,18 +106,19 @@ const StepTwo = forwardRef<StepHandle, StepTwoProps>(function StepTwoForm({ card
   };
 
   const onDelete = async (item: any, index: number) => {
-    try {
-      if (item.mdId) {
+    // 乐观更新：先移除 UI，再调删除接口
+    if (indexId === item.mdId) {
+      setIndexId(null);
+    }
+    const newList = [...mediaList];
+    newList.splice(index, 1);
+    setMediaList(newList);
+    if (item.mdId) {
+      try {
         await API.common.mediaDel({ mediaId: item.mdId });
+      } catch {
+        Alert.alert('删除失败');
       }
-      const newList = [...mediaList];
-      newList.splice(index, 1);
-      setMediaList(newList);
-      if (indexId === item.mdId) {
-        setIndexId(null);
-      }
-    } catch {
-      Alert.alert('删除失败');
     }
   };
 
@@ -121,27 +127,32 @@ const StepTwo = forwardRef<StepHandle, StepTwoProps>(function StepTwoForm({ card
       Alert.alert('提示', '请上传名片照片');
       return;
     }
+    // 未手动设封面时默认第一张为封面（对齐小程序）；接口失败不影响本地封面态
     if (!indexId && mediaList[0]) {
       try {
         await API.common.mediaLinkUpdate({ mdId: mediaList[0].mdId, isIndex: 1 });
-        setIndexId(mediaList[0].mdId);
       } catch {
         // ignore
       }
+      setIndexId(mediaList[0].mdId);
     }
+    // 提前加载下一步的 itemsList（对齐小程序）
     try {
-      const res = await API.card.projectPre({ cardId: cardId! });
+      const res = await API.card.projectPre({ cardId: cid! });
       if (res.code === '200') {
         onNext(3, {
-          mediaLinkList: mediaList,
+          preId: cid,
+          userId: mediaList[0]?.userId ?? data.userId,
+          mediaList,
           itemsList: res.data?.[0]?.itemsList || [],
+          pjId: res.data?.[0]?.id,
         });
         return;
       }
     } catch {
       // ignore
     }
-    onNext(3, { mediaLinkList: mediaList });
+    onNext(3, { preId: cid, mediaList });
   };
 
   useImperativeHandle(ref, () => ({ submit: onSubmit }));
