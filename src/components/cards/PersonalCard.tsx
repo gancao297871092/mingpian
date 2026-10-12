@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import LinearGradient from 'react-native-linear-gradient';
+import { BlurView } from '@react-native-community/blur';
 import { scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { CardCompanyIcon, CardEmailIcon, CardLocationIcon, CardVerifiedIcon } from './cardIcons';
 import { getCardPhoto, normalizeCardStyle, type CardData, type CardStyle } from './types';
@@ -15,6 +16,8 @@ interface PersonalCardProps {
   backColor?: string;
   /** 编辑预览模式：空字段显示占位文案 */
   placeholder?: boolean;
+  /** 分享海报模式：底部直角，与黑色扫码条衔接 */
+  squareBottom?: boolean;
 }
 
 function fullAddress(data: CardData): string {
@@ -22,18 +25,28 @@ function fullAddress(data: CardData): string {
 }
 
 /** 商务风格：白底 + 右侧装饰条；右上角企业 logo，无 logo 时编辑态显示 LOGO 占位（对齐小程序 card1） */
-function BusinessCard({ data, placeholder }: PersonalCardProps) {
+function BusinessCard({ data, placeholder, squareBottom }: PersonalCardProps) {
   const company = data.cpName || (placeholder ? '企业名称' : '');
   const email = data.email || (placeholder ? 'example@mail.com' : '');
   const address = fullAddress(data) || (placeholder ? '省市区 详细地址' : '');
   return (
-    <View style={[styles.container, styles.businessBox]}>
+    <View style={[styles.container, styles.businessBox, squareBottom && styles.squareBottom]}>
       <View style={styles.decoBox} pointerEvents="none">
         <View style={[styles.decoBar, styles.decoBarBlue]} />
         <View style={[styles.decoBar, styles.decoBarGreen]} />
       </View>
       {!!data.cpLogo && (
-        <ExpoImage source={{ uri: data.cpLogo }} style={styles.cpLogo} contentFit="cover" transition={150} />
+        <View style={styles.cpLogo}>
+          {/* 磨砂玻璃底（figma 我的名片 image 17：backdrop blur 5px + 白色0.8） */}
+          <BlurView
+            style={StyleSheet.absoluteFill}
+            blurType="light"
+            blurAmount={5}
+            reducedTransparencyFallbackColor="rgba(255,255,255,0.5)"
+          />
+          <View style={[StyleSheet.absoluteFill, styles.cpLogoFrost]} pointerEvents="none" />
+          <ExpoImage source={{ uri: data.cpLogo }} style={styles.cpLogoImg} contentFit="cover" transition={150} />
+        </View>
       )}
       {!data.cpLogo && placeholder && (
         <View style={styles.cpLogoPlaceholder}>
@@ -89,10 +102,10 @@ function BusinessCard({ data, placeholder }: PersonalCardProps) {
 }
 
 /** 时尚风格：左图右文，支持文字/背景配色（figma 创建名片4-2） */
-function FashionCard({ data, fontColor = '#000000', backColor = '#FFFFFF', placeholder }: PersonalCardProps) {
+function FashionCard({ data, fontColor = '#000000', backColor = '#FFFFFF', placeholder, squareBottom }: PersonalCardProps) {
   const photo = getCardPhoto(data);
   return (
-    <View style={[styles.container, styles.fashionBox]}>
+    <View style={[styles.container, styles.fashionBox, squareBottom && styles.squareBottom]}>
       <View style={styles.fashionPhotoBox}>
         {photo ? (
           <ExpoImage source={{ uri: photo }} style={styles.fashionPhoto} contentFit="cover" transition={150} />
@@ -125,13 +138,13 @@ function FashionCard({ data, fontColor = '#000000', backColor = '#FFFFFF', place
 }
 
 /** 简约风格：整图 + 底部渐变信息（figma 创建名片4-3） */
-function SimpleCard({ data, placeholder }: PersonalCardProps) {
+function SimpleCard({ data, placeholder, squareBottom }: PersonalCardProps) {
   const photo = getCardPhoto(data);
   const sub = [data.cpName || (placeholder ? '企业名称' : ''), data.position || (placeholder ? '职位名称' : '')]
     .filter(Boolean)
     .join('·');
   return (
-    <View style={[styles.container, styles.simpleBox]}>
+    <View style={[styles.container, styles.simpleBox, squareBottom && styles.squareBottom]}>
       {photo ? (
         <ExpoImage source={{ uri: photo }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
       ) : (
@@ -173,6 +186,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#FFFFFF',
   },
+  squareBottom: {
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
   nameRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
@@ -212,7 +229,15 @@ const styles = StyleSheet.create({
     width: scaleSizeW(114),
     height: scaleSizeW(114),
     borderRadius: scaleSizeW(10),
-    backgroundColor: '#F5F5F5',
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.5)',
+  },
+  cpLogoFrost: {
+    backgroundColor: 'rgba(255,255,255,0.5)',
+  },
+  cpLogoImg: {
+    width: '100%',
+    height: '100%',
   },
   cpLogoPlaceholder: {
     position: 'absolute',
