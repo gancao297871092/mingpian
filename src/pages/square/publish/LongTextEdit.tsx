@@ -129,16 +129,6 @@ function RedoIcon({ color = '#999999' }: { color?: string }) {
   );
 }
 
-function VideoIcon({ color = TEXT_MAIN }: { color?: string }) {
-  return (
-    <Svg width={20} height={20} viewBox="0 0 20 20" fill="none">
-      <Path
-        d="M17.5 2.5H2.5C1.80833 2.5 1.25 3.05833 1.25 3.75V16.25C1.25 16.9417 1.80833 17.5 2.5 17.5H17.5C18.1917 17.5 18.75 16.9417 18.75 16.25V3.75C18.75 3.05833 18.1917 2.5 17.5 2.5ZM17.5 16.25H2.5V3.75H17.5V16.25ZM8.125 6.875L13.75 10L8.125 13.125V6.875Z"
-        fill={color}
-      />
-    </Svg>
-  );
-}
 
 function CollapseIcon() {
   return (
@@ -278,7 +268,7 @@ function HeaderDone({ onPress }: { onPress: () => void }) {
 }
 
 export default function LongTextEdit({ route, navigation }: Props) {
-  const { initialHtml, insertOnMount, simple } = route.params || {};
+  const { initialHtml, insertOnMount, simple, title = '编辑正文' } = route.params || {};
   const quillRef = useRef<QuillEditor>(null!);
   const [plainLen, setPlainLen] = useState(() => htmlToPlainLength(initialHtml || ''));
   const [panelOpen, setPanelOpen] = useState(false);
@@ -340,7 +330,7 @@ export default function LongTextEdit({ route, navigation }: Props) {
 
   useEffect(() => {
     navigation.setOptions({
-      title: '编辑正文',
+      title,
       headerBackVisible: false,
       headerLeft: undefined,
       headerRight: undefined,
@@ -359,7 +349,7 @@ export default function LongTextEdit({ route, navigation }: Props) {
         },
       ],
     });
-  }, [navigation, onDone]);
+  }, [navigation, onDone, title]);
 
   useEffect(() => {
     if (!insertOnMount) return;
@@ -407,21 +397,6 @@ export default function LongTextEdit({ route, navigation }: Props) {
       const url = await uploadToOss(image.path, image.mime || 'image/jpeg');
       const sel = await (quillRef.current as any).getSelection(true);
       quillRef.current.insertEmbed(sel?.index || 0, 'image', url);
-    } catch (e: any) {
-      if (e?.code !== 'E_PICKER_CANCELLED') {
-        Alert.alert('上传失败');
-      }
-    }
-  };
-
-  const onInsertVideo = async () => {
-    try {
-      const video = await ImagePicker.openPicker({
-        mediaType: 'video',
-      });
-      const url = await uploadToOss(video.path, video.mime || 'video/mp4');
-      const sel = await (quillRef.current as any).getSelection(true);
-      quillRef.current.insertEmbed(sel?.index || 0, 'mp4video', url);
     } catch (e: any) {
       if (e?.code !== 'E_PICKER_CANCELLED') {
         Alert.alert('上传失败');

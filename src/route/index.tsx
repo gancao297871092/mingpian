@@ -46,6 +46,7 @@ import CompanyMembers from '@/pages/my/company/CompanyMembers';
 import CompanyMemberAudit from '@/pages/my/company/CompanyMemberAudit';
 import CompanyBbsAudit from '@/pages/my/company/CompanyBbsAudit';
 import CompanyCapCards from '@/pages/my/company/CompanyCapCards';
+import CapCardEdit from '@/pages/my/company/CapCardEdit';
 import CompanyJoin from '@/pages/my/company/CompanyJoin';
 import CompanyApply from '@/pages/my/company/CompanyApply';
 import CompanyRealName from '@/pages/my/company/CompanyRealName';
@@ -584,6 +585,16 @@ export default function RootNavigator() {
           component={CompanyBbsAudit}
           options={{
             title: '动态审核',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="capCardEdit"
+          component={CapCardEdit}
+          options={{
+            title: '创建能力卡',
             headerStyle: { backgroundColor: '#F6F7FB' },
             headerTitleStyle: { color: '#000000' },
             headerShadowVisible: false,

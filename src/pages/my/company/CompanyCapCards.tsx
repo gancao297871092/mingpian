@@ -1,22 +1,27 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Toast from 'react-native-toast-message';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import SafeView from '@/components/SafeView';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
-import { CAP_CARDS, CAP_CARD_MAX, type CapCard } from '@/data/company';
+import { CAP_CARD_MAX, type CapCard } from '@/data/company';
+import { useCompanyStore } from '@/store/company';
+import type { RootStackParamList } from '@/route/map';
 import { EditPenIcon, PuzzleIcon, TrashLineIcon } from '../myIcons';
 
 const PRIMARY = '#2962D4';
 const GRAY = '#6C6C6C';
 
-/** 能力卡管理 */
+/** 能力卡管理（创建/编辑见 capCardEdit，figma 42.创建能力卡） */
 export default function CompanyCapCards() {
-  const [list, setList] = useState<CapCard[]>(CAP_CARDS);
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const list = useCompanyStore((s) => s.capCards);
+  const removeCapCard = useCompanyStore((s) => s.removeCapCard);
 
   const onDelete = (item: CapCard) => {
     Alert.alert('删除能力卡', `确认删除「${item.title}」？`, [
       { text: '取消', style: 'cancel' },
-      { text: '删除', style: 'destructive', onPress: () => setList(prev => prev.filter(c => c.id !== item.id)) },
+      { text: '删除', style: 'destructive', onPress: () => removeCapCard(item.id) },
     ]);
   };
 
@@ -37,7 +42,7 @@ export default function CompanyCapCards() {
               <TouchableOpacity
                 activeOpacity={0.7}
                 hitSlop={8}
-                onPress={() => Toast.show({ type: 'info', text1: '功能开发中' })}
+                onPress={() => navigation.navigate('capCardEdit', { id: item.id })}
               >
                 <EditPenIcon size={20} />
               </TouchableOpacity>
@@ -51,7 +56,7 @@ export default function CompanyCapCards() {
           <TouchableOpacity
             activeOpacity={0.7}
             style={styles.addCard}
-            onPress={() => Toast.show({ type: 'info', text1: '功能开发中' })}
+            onPress={() => navigation.navigate('capCardEdit', undefined)}
           >
             <Text style={styles.addText}>+ 新增能力卡 {list.length}/{CAP_CARD_MAX}</Text>
           </TouchableOpacity>

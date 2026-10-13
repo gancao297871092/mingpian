@@ -29,6 +29,8 @@ export interface AuditPost {
 export interface CapCard {
   id: string;
   title: string;
+  /** 富文本 HTML 内容 */
+  content?: string;
   updatedAt: string;
 }
 

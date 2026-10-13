@@ -1,14 +1,12 @@
 import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import {
   Alert,
-  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -24,9 +22,9 @@ import type { RootStackParamList } from '@/route/map';
 type Props = NativeStackScreenProps<RootStackParamList, 'richTextEdit'>;
 
 export default function RichTextEdit({ route, navigation }: Props) {
-  const { initialHtml, placeholder = '请输入板块内容' } = route.params || {};
+  const { initialHtml, placeholder = '请输入板块内容', title = '板块内容' } = route.params || {};
   const quillRef = useRef<QuillEditor>(null!);
-  const [html, setHtml] = useState(initialHtml || '<p><br></p>');
+  const [, setHtml] = useState(initialHtml || '<p><br></p>');
   const [headingModal, setHeadingModal] = useState(false);
 
   const onSave = useCallback(async () => {
@@ -34,7 +32,7 @@ export default function RichTextEdit({ route, navigation }: Props) {
       const result = await quillRef.current.getHtml();
       setEditorResult(result);
       navigation.goBack();
-    } catch (e) {
+    } catch {
       // ignore
     }
   }, [navigation]);
@@ -46,20 +44,20 @@ export default function RichTextEdit({ route, navigation }: Props) {
           <Text style={styles.navBtn}>取消</Text>
         </TouchableOpacity>
       ),
-      headerTitle: '板块内容',
+      headerTitle: title,
       headerRight: () => (
         <TouchableOpacity onPress={onSave}>
           <Text style={styles.navBtn}>保存</Text>
         </TouchableOpacity>
       ),
     });
-  }, [navigation, onSave]);
+  }, [navigation, onSave, title]);
 
   // 编辑器命令封装
   const exec = (fn: () => void) => {
     try {
       fn();
-    } catch (e) {
+    } catch {
       // ignore
     }
   };

@@ -13,8 +13,10 @@ export type RootStackParamList = {
   /** 名片预览主页（创建/编辑流程最后一步，mode 区分按钮文案与确认弹窗） */
   viewCard: { id: string | number; mode?: 'add' | 'update' };
   addItem: { itemId?: string | number; cardId?: string | number; userId?: string | number; pjId?: string | number };
-  richTextEdit: { initialHtml?: string; placeholder?: string };
-  publishLongText: { initialHtml?: string; insertOnMount?: string; simple?: boolean } | undefined;
+  richTextEdit: { initialHtml?: string; placeholder?: string; title?: string };
+  /** 创建/编辑能力卡（figma 42.创建能力卡；传 id 为编辑） */
+  capCardEdit: { id?: string } | undefined;
+  publishLongText: { initialHtml?: string; insertOnMount?: string; simple?: boolean; title?: string } | undefined;
   publish: { draft?: LocalDraft; editBbsId?: number } | undefined;
   publishCover: { videoUri: string; ratio?: '3:4' | '16:9'; title?: string };
   draftBox: undefined;
