@@ -535,6 +535,16 @@ export namespace API {
     export function managerGet() {
       return request.get<any[]>('/company/manager/getManager');
     }
+    /** 退出企业（/company/user/liveOut，对齐小程序 moreSets exitCp） */
+    export function liveOut() {
+      return request.get<any>('/company/user/liveOut');
+    }
+    /** 企业管理角标（/company/manager/tips：companyUserAuthCount 成员审核数 / bbsCount 动态审核数，对齐小程序 getTips） */
+    export function managerTips() {
+      return request.get<{ bbsCount?: number; companyUserAuthCount?: number; companyWorkCount?: number; userAuth?: number }>(
+        '/company/manager/tips',
+      );
+    }
     /** 企业名片公开开关（isShow: 1公开 0关闭） */
     export function bbsShow(isShow: number) {
       return request.get<any>(`/company/bbs/show?isShow=${isShow}`);
@@ -641,6 +651,35 @@ export namespace API {
         cdn_domain: string;
         upload_prefix: string;
       }>('/generate_signature');
+    }
+  }
+
+  /** 能力卡（AppCapabilityCardController：标题 + 富文本，保存后 AI 抽取五段回填） */
+  export namespace capability {
+    /** 新建/编辑（编辑传 id；企业卡需 ownerType=1 + cpId 且为管理员；cardName≤50、content≤20000 必填） */
+    export function cardSave(data: {
+      id?: number;
+      ownerType?: number;
+      cpId?: number | string;
+      cardName: string;
+      content: string;
+      cardCover?: string;
+      tags?: string;
+      attachments?: string;
+    }) {
+      return request.post<{ cardId: number }>('/capability/card/save', data);
+    }
+    /** 我的/本企业能力卡列表（ownerType 0个人默认 1企业需 cpId；按更新时间倒序） */
+    export function cardList(params: { ownerType?: number; cpId?: number | string }) {
+      return request.get<{ list: any[] }>('/capability/card/list', { params });
+    }
+    /** 详情（编辑回显） */
+    export function cardDetail(params: { id: number }) {
+      return request.get<any>('/capability/card/detail', { params });
+    }
+    /** 删除（软删） */
+    export function cardDelete(params: { id: number }) {
+      return request.get<any>('/capability/card/delete', { params });
     }
   }
 }

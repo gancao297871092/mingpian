@@ -26,14 +26,6 @@ export interface AuditPost {
   status: 'pending' | 'approved' | 'rejected';
 }
 
-export interface CapCard {
-  id: string;
-  title: string;
-  /** 富文本 HTML 内容 */
-  content?: string;
-  updatedAt: string;
-}
-
 export interface CompanyMenu {
   id: string;
   name: string;
@@ -162,11 +154,6 @@ export const AUDIT_POSTS: AuditPost[] = [
     image: 'https://picsum.photos/seed/qypost2/134/180',
     status: 'approved',
   },
-];
-
-export const CAP_CARDS: CapCard[] = [
-  { id: 'cap1', title: '自动化产线设计与设备集成', updatedAt: '2026-08-12' },
-  { id: 'cap2', title: '精密零部件定制加工', updatedAt: '2026-07-28' },
 ];
 
 export const CAP_CARD_MAX = 10;

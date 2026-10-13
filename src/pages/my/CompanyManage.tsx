@@ -1,14 +1,15 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { Image as ExpoImage } from 'expo-image';
+import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
 import AppBottomSheet from '@/components/AppBottomSheet';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
-import { useCompanyStore, type CompanyRole } from '@/store/company';
+import { useCompanyStore } from '@/store/company';
 import { useUserStore } from '@/store/user';
 import { API } from '@/api';
 import { SettingArrowIcon } from './settings/settingsIcons';
@@ -25,7 +26,6 @@ import {
   CompanyMemberIcon,
 } from './myIcons';
 
-const PRIMARY = '#2962D4';
 const DANGER = '#EF4444';
 const ORANGE = '#F2722C';
 
@@ -78,21 +78,35 @@ function ButlerSheet({ sheetRef, butlers }: { sheetRef: React.RefObject<BottomSh
   );
 }
 
-const ROLE_OPTIONS: { key: CompanyRole; label: string }[] = [
-  { key: 'admin', label: '管理员' },
-  { key: 'member', label: '普通成员' },
-  { key: 'none', label: '未加入企业' },
-];
-
 /** 100.企业管理（按角色渲染：超管/管理员、普通成员、未加入企业） */
 export default function CompanyManage() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const role = useCompanyStore(s => s.role);
-  const setRole = useCompanyStore(s => s.setRole);
   const memberAuditCount = useCompanyStore(s => s.memberAuditCount);
+  const bbsAuditCount = useCompanyStore(s => s.bbsAuditCount);
   const userInfo = useUserStore(s => s.userInfo);
+  // 真实角色（对齐小程序 moreSets）：isManager=管理端；cpId 且非管理员=普通成员；无 cpId=未加入企业
+  const role: 'admin' | 'member' | 'none' = !userInfo?.cpId ? 'none' : userInfo?.isManager === 1 ? 'admin' : 'member';
   const butlerRef = useRef<BottomSheetModal>(null);
   const [butlers, setButlers] = useState<Butler[]>([]);
+
+  // 每次进入刷新用户信息（移交超管/退出企业等操作后角色需同步）与审核角标（对齐小程序 getTips）
+  useFocusEffect(
+    useCallback(() => {
+      API.user
+        .info()
+        .then((r) => r.data && useUserStore.getState().setUserInfo(r.data))
+        .catch(() => {});
+      API.company
+        .managerTips()
+        .then((r) => {
+          if (r.code === '200' && r.data) {
+            useCompanyStore.getState().setMemberAuditCount(r.data.companyUserAuthCount ?? 0);
+            useCompanyStore.getState().setBbsAuditCount(r.data.bbsCount ?? 0);
+          }
+        })
+        .catch(() => {});
+    }, []),
+  );
 
   /** 查看管家：拉取后展开弹层（对齐小程序 viewManager） */
   const onViewButler = async () => {
@@ -107,10 +121,35 @@ export default function CompanyManage() {
     }
   };
 
+  /** 退出企业（对齐小程序 exitCp）：超管需先移交，普通成员确认后调 /company/user/liveOut */
   const onExit = () => {
-    Alert.alert('退出企业', '退出后将失去企业成员身份，确认退出？', [
+    if (userInfo?.isMaster === 1) {
+      Alert.alert('提示', '请先移交管理员权限，再退出企业', [
+        { text: '取消', style: 'cancel' },
+        { text: '去移交', onPress: () => navigation.navigate('companyMembers') },
+      ]);
+      return;
+    }
+    Alert.alert('提示', '确认退出企业吗？', [
       { text: '取消', style: 'cancel' },
-      { text: '退出', style: 'destructive', onPress: () => setRole('none') },
+      {
+        text: '退出',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const res = await API.company.liveOut();
+            if (res.code !== '200') return;
+            Toast.show({ type: 'success', text1: '已退出企业！' });
+            // 刷新用户信息（cpId/isManager 等失效，角色随之变为未加入企业）
+            API.user
+              .info()
+              .then((r) => r.data && useUserStore.getState().setUserInfo(r.data))
+              .catch(() => {});
+          } catch {
+            Toast.show({ type: 'error', text1: '操作失败' });
+          }
+        },
+      },
     ]);
   };
 
@@ -133,7 +172,7 @@ export default function CompanyManage() {
                 badge: memberAuditCount,
                 onPress: () => navigation.navigate('companyMemberAudit'),
               },
-              { label: '动态审核', icon: <CompanyBbsAuditIcon />, onPress: () => navigation.navigate('companyBbsAudit') },
+              { label: '动态审核', icon: <CompanyBbsAuditIcon />, badge: bbsAuditCount, onPress: () => navigation.navigate('companyBbsAudit') },
             ],
           },
           {
@@ -217,23 +256,6 @@ export default function CompanyManage() {
         {role !== 'none' && (
           <View style={[styles.card, styles.standaloneCard]}>
             {renderRow({ label: '退出企业', icon: <CompanyExitIcon color={DANGER} />, danger: true, onPress: onExit })}
-          </View>
-        )}
-        {__DEV__ && (
-          <View style={styles.devBox}>
-            <Text style={styles.devTitle}>演示角色切换（仅开发环境）</Text>
-            <View style={styles.devRow}>
-              {ROLE_OPTIONS.map(o => (
-                <TouchableOpacity
-                  key={o.key}
-                  activeOpacity={0.7}
-                  style={[styles.devBtn, role === o.key && styles.devBtnOn]}
-                  onPress={() => setRole(o.key)}
-                >
-                  <Text style={[styles.devBtnText, role === o.key && styles.devBtnTextOn]}>{o.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
           </View>
         )}
       </ScrollView>
@@ -368,37 +390,5 @@ const styles = StyleSheet.create({
   butlerCall: {
     marginLeft: 'auto',
     padding: scaleSizeW(6),
-  },
-  devBox: {
-    marginTop: scaleSizeH(24),
-  },
-  devTitle: {
-    fontSize: setSpText(12),
-    lineHeight: setSpText(14),
-    color: '#999999',
-    marginBottom: scaleSizeH(8),
-  },
-  devRow: {
-    flexDirection: 'row',
-    gap: scaleSizeW(8),
-  },
-  devBtn: {
-    flex: 1,
-    height: scaleSizeH(32),
-    borderRadius: scaleSizeW(90),
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  devBtnOn: {
-    backgroundColor: PRIMARY,
-  },
-  devBtnText: {
-    fontSize: setSpText(12),
-    lineHeight: setSpText(14),
-    color: '#000000',
-  },
-  devBtnTextOn: {
-    color: '#FFFFFF',
   },
 });

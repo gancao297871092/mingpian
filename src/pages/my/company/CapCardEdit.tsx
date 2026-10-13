@@ -1,12 +1,13 @@
-import React, { useCallback, useLayoutEffect, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import Toast from 'react-native-toast-message';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import SafeView from '@/components/SafeView';
+import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
-import { useCompanyStore } from '@/store/company';
+import { useUserStore } from '@/store/user';
 import { getEditorResult } from '@/utils/editorBridge';
 import type { RootStackParamList } from '@/route/map';
 
@@ -35,21 +36,35 @@ function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
 }
 
-/** 创建/编辑能力卡（figma 42.创建能力卡；内容走公用富文本编辑器 43.编辑能力卡内容） */
+/** 创建/编辑企业能力卡（figma 42.创建能力卡；内容走发布长图文同款富文本编辑器；/capability/card/*） */
 export default function CapCardEdit({ navigation, route }: Props) {
   const id = route.params?.id;
-  const capCards = useCompanyStore((s) => s.capCards);
-  const addCapCard = useCompanyStore((s) => s.addCapCard);
-  const updateCapCard = useCompanyStore((s) => s.updateCapCard);
-  const editing = id ? capCards.find((c) => c.id === id) : undefined;
+  const cpId = useUserStore((s) => s.userInfo?.cpId);
 
-  const [name, setName] = useState(editing?.title || '');
-  const [content, setContent] = useState(editing?.content || '');
+  const [name, setName] = useState('');
+  const [content, setContent] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  // 编辑模式：回显详情
+  useEffect(() => {
+    if (!id) return;
+    (async () => {
+      try {
+        const res = await API.capability.cardDetail({ id });
+        if (res.code === '200' && res.data) {
+          setName(res.data.cardName || '');
+          setContent(res.data.content || '');
+        }
+      } catch {
+        // ignore
+      }
+    })();
+  }, [id]);
 
   // 编辑模式动态改导航标题
   useLayoutEffect(() => {
-    navigation.setOptions({ title: editing ? '编辑能力卡' : '创建能力卡' });
-  }, [navigation, editing]);
+    navigation.setOptions({ title: id ? '编辑能力卡' : '创建能力卡' });
+  }, [navigation, id]);
 
   // 从 RichTextEdit 返回后接收 HTML（AddItem 同款桥接）
   useFocusEffect(
@@ -68,24 +83,28 @@ export default function CapCardEdit({ navigation, route }: Props) {
     });
   };
 
-  const canSubmit = !!name.trim() && !!stripHtml(content);
+  const canSubmit = !!name.trim() && !!stripHtml(content) && !submitting;
 
-  const onSubmit = () => {
+  const onSubmit = async () => {
     if (!canSubmit) return;
-    const card = {
-      id: editing?.id ?? `cap_${Date.now()}`,
-      title: name.trim(),
-      content,
-      updatedAt: new Date().toISOString().slice(0, 10),
-    };
-    if (editing) {
-      updateCapCard(card);
-      Toast.show({ type: 'success', text1: '已保存' });
-    } else {
-      addCapCard(card);
-      Toast.show({ type: 'success', text1: '已创建' });
+    setSubmitting(true);
+    try {
+      // 企业能力卡 ownerType=1（后端校验管理员身份与 10 张上限）
+      const res = await API.capability.cardSave({
+        id,
+        ownerType: 1,
+        cpId,
+        cardName: name.trim(),
+        content,
+      });
+      if (res.code !== '200') return;
+      Toast.show({ type: 'success', text1: id ? '已保存' : '已创建' });
+      navigation.goBack();
+    } catch {
+      Toast.show({ type: 'error', text1: '保存失败' });
+    } finally {
+      setSubmitting(false);
     }
-    navigation.goBack();
   };
 
   const contentText = stripHtml(content);
@@ -143,7 +162,7 @@ export default function CapCardEdit({ navigation, route }: Props) {
             disabled={!canSubmit}
             onPress={onSubmit}
           >
-            <Text style={styles.submitText}>{editing ? '保存' : '创建能力卡'}</Text>
+            <Text style={styles.submitText}>{id ? '保存' : '创建能力卡'}</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
