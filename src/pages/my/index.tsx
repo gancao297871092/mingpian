@@ -12,6 +12,15 @@ import {
   type NativeSyntheticEvent,
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
+import Reanimated, {
+  Extrapolation,
+  interpolate,
+  interpolateColor,
+  runOnJS,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -90,7 +99,11 @@ export default function My() {
     fav: 0,
     like: 0,
   });
-  const scrollY = useRef(new Animated.Value(0)).current;
+  /** 垂直滚动：Reanimated 共享值，吸顶动画全程 UI 线程（RN Animated 的 height 动画走 JS 线程会抖动） */
+  const scrollY = useSharedValue(0);
+  /** headerH 的 UI 线程副本（吸顶插值区间依赖它） */
+  const headerHSV = useSharedValue(0);
+  const barDarkSV = useSharedValue(false);
   const scrollX = useRef(new Animated.Value(0)).current;
   /** JS 侧副本，驱动标签颜色/图标跟手渐变（原生驱动只用于下指示器位移） */
   const scrollXJS = useRef(new Animated.Value(0)).current;
@@ -144,9 +157,10 @@ export default function My() {
   useFocusEffect(
     useCallback(() => {
       barDarkRef.current = false;
+      barDarkSV.value = false;
       StatusBar.setBarStyle('light-content');
       return () => StatusBar.setBarStyle('dark-content');
-    }, []),
+    }, [barDarkSV]),
   );
 
   const onRefresh = useCallback(() => {
@@ -164,19 +178,35 @@ export default function My() {
     Promise.all(tasks).finally(() => setRefreshing(false));
   }, [token, setUserInfo, tabRefs]);
 
-  const onScroll = useCallback(
-    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const y = e.nativeEvent.contentOffset.y;
-      scrollY.setValue(y);
+  /** 记录各 tab 滚动位置（UI 线程每帧回调到 JS，仅写 ref） */
+  const recordOffset = useCallback(
+    (y: number) => {
       scrollOffsetsRef[TAB_KEYS[pageIndexRef.current]] = y;
-      const dark = headerH > 0 && y >= headerH - STICKY_NICK_H;
-      if (dark !== barDarkRef.current) {
-        barDarkRef.current = dark;
-        StatusBar.setBarStyle(dark ? 'dark-content' : 'light-content');
+    },
+    [scrollOffsetsRef],
+  );
+  /** 吸顶状态切换：改状态栏图标颜色 */
+  const onStickyChange = useCallback((dark: boolean) => {
+    StatusBar.setBarStyle(dark ? 'dark-content' : 'light-content');
+  }, []);
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (e) => {
+      const y = e.contentOffset.y;
+      scrollY.value = y;
+      runOnJS(recordOffset)(y);
+      const dark = headerHSV.value > 0 && y >= headerHSV.value - STICKY_NICK_H;
+      if (dark !== barDarkSV.value) {
+        barDarkSV.value = dark;
+        runOnJS(onStickyChange)(dark);
       }
     },
-    [scrollY, headerH, scrollOffsetsRef],
-  );
+  });
+
+  // headerH 同步给 UI 线程（吸顶插值区间依赖它）
+  useEffect(() => {
+    headerHSV.value = headerH;
+  }, [headerH, headerHSV]);
 
   const onSettings = () => {
     navigation.navigate('settings');
@@ -198,19 +228,24 @@ export default function My() {
 
   const regionText = ['IP', wqUser?.city].filter(Boolean).join('·');
 
-  // ---- 吸顶动画：滚动经过头部时展开昵称栏（figma 101） ----
-  const stickRange: [number, number] = [Math.max(headerH - STICKY_NICK_H, 0), Math.max(headerH, 1)];
-  const nickHeight = scrollY.interpolate({
-    inputRange: stickRange,
-    outputRange: [0, STICKY_NICK_H],
-    extrapolate: 'clamp',
-  });
+  // ---- 吸顶动画：滚动经过头部时昵称栏展开（figma 101），全程 UI 线程 ----
+  /** 昵称栏高度 0→46 跟随滚动（Reanimated height 动画在 UI 线程布局，不抖） */
+  const nickStyle = useAnimatedStyle(() => ({
+    height: interpolate(
+      scrollY.value,
+      [Math.max(headerHSV.value - STICKY_NICK_H, 0), Math.max(headerHSV.value, 1)],
+      [0, STICKY_NICK_H],
+      Extrapolation.CLAMP,
+    ),
+  }));
   /** 吸顶途中背景由透明渐变为白色（状态栏占位 + 昵称栏共用） */
-  const topBarBg = scrollY.interpolate({
-    inputRange: stickRange,
-    outputRange: ['rgba(255,255,255,0)', '#FFFFFF'],
-    extrapolate: 'clamp',
-  });
+  const topBarStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      scrollY.value,
+      [Math.max(headerHSV.value - STICKY_NICK_H, 0), Math.max(headerHSV.value, 1)],
+      ['rgba(255,255,255,0)', '#FFFFFF'],
+    ),
+  }));
 
   // ---- 下指示器与标签颜色：跟随横向滚动（跟手） ----
   const position = Animated.divide(scrollX, windowWidth);
@@ -307,17 +342,14 @@ export default function My() {
             />
           </View>
         </View>
-        <Animated.View style={{
-          height: insets.top,
-          backgroundColor: topBarBg,
-        }} />
-        <Animated.FlatList
+        <Reanimated.View style={[{ height: insets.top }, topBarStyle]} />
+        <Reanimated.FlatList
           ref={outerRef}
           style={[styles.flex1]}
           data={[0, 1, 2]}
           keyExtractor={(i: number) => String(i)}
           stickyHeaderIndices={[1]}
-          onScroll={onScroll}
+          onScroll={scrollHandler}
           scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -424,9 +456,9 @@ export default function My() {
               </View>
             </View>
           ) : index === 1 ? (
-            /* 吸顶单元：昵称栏（吸顶后展开，figma 101）+ tab 行 */
+            /* 吸顶单元：昵称栏（吸顶时高度展开，UI 线程布局动画，figma 101）+ tab 行 */
             <Animated.View>
-              <Animated.View style={[styles.stickyNick, { height: nickHeight, backgroundColor: '#fff' }]}>
+              <Reanimated.View style={[styles.stickyNick, nickStyle]}>
                 <View style={styles.stickyNickInner}>
                   <Text style={styles.stickyName} numberOfLines={1}>
                     {wqUser?.username || wqUser?.nickname || ''}
@@ -443,7 +475,7 @@ export default function My() {
                     </TouchableOpacity>
                   </View>
                 </View>
-              </Animated.View>
+              </Reanimated.View>
               <Animated.View
                 style={[styles.tabCard, { backgroundColor: '#fff' }]}
                 onLayout={e => setTabBarH(e.nativeEvent.layout.height)}
@@ -704,6 +736,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   stickyNick: {
+    backgroundColor: '#FFFFFF',
     overflow: 'hidden',
   },
   stickyNickInner: {
