@@ -15,6 +15,7 @@ import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { useUserStore } from '@/store/user';
 import type { RootStackParamList } from '@/route/map';
 import { HistorySearchIcon } from '../myIcons';
+import { ClearIcon } from '@/pages/card/cardList/icons';
 
 const PRIMARY = '#2962D4';
 const GRAY = '#6C6C6C';
@@ -322,6 +323,18 @@ export default function CompanyMembers() {
             returnKeyType="search"
             onSubmitEditing={() => fetchPage(1, keyword)}
           />
+          {!!keyword && (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              hitSlop={8}
+              onPress={() => {
+                setKeyword('');
+                fetchPage(1, '');
+              }}
+            >
+              <ClearIcon />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity activeOpacity={0.8} style={styles.searchBtn} onPress={() => fetchPage(1, keyword)}>
             <Text style={styles.searchBtnText}>搜索</Text>
           </TouchableOpacity>
