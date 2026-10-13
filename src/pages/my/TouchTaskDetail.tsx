@@ -5,7 +5,8 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import Toast from 'react-native-toast-message';
 import { Image as ExpoImage } from 'expo-image';
 import SafeView from '@/components/SafeView';
-import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
+import LongHtmlView from '@/components/LongHtmlView';
+import { scaleSizeH, scaleSizeW, setSpText, SCREEN_WIDTH } from '@/utils/screenUtils';
 import { BlueBadgeIcon, CapPuzzleIcon } from './myIcons';
 
 const PRIMARY = '#2962D4';
@@ -100,7 +101,15 @@ export default function TouchTaskDetail() {
             </LinearGradient>
             <View style={styles.capBody}>
               <Text style={styles.capBbsCount}>关联动态 {detail?.capBbsCount ?? 0} 条</Text>
-              <Text style={styles.capContent}>{detail?.capContent || ''}</Text>
+              {!!detail?.capContent && (
+                <View style={styles.capContentBox}>
+                  <LongHtmlView
+                    html={detail.capContent}
+                    contentWidth={SCREEN_WIDTH - scaleSizeW(92)}
+                    baseStyle={styles.capContent}
+                  />
+                </View>
+              )}
               <View style={styles.capBtns}>
                 <TouchableOpacity activeOpacity={0.8} style={styles.capBtn}>
                   <Text style={styles.capBtnText}>能力卡详情</Text>
@@ -296,10 +305,12 @@ const styles = StyleSheet.create({
     fontSize: setSpText(10),
     color: TEXT_SUB,
   },
+  capContentBox: {
+    marginTop: scaleSizeH(6),
+  },
   capContent: {
     fontSize: setSpText(15),
     color: '#000000',
-    marginTop: scaleSizeH(6),
   },
   capBtns: {
     flexDirection: 'row',

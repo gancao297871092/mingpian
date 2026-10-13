@@ -16,6 +16,7 @@ import { useRoute, type RouteProp } from '@react-navigation/native';
 import { shareImage } from 'native-wechat';
 import Svg, { Path } from 'react-native-svg';
 import SafeView from '@/components/SafeView';
+import LongHtmlView from '@/components/LongHtmlView';
 import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText, SCREEN_WIDTH } from '@/utils/screenUtils';
 import { getDetailCache } from '@/utils/detailCache';
@@ -174,9 +175,13 @@ export default function BbsShareImage() {
                     </Text>
                   )}
                   {!!plainContent && (
-                    <Text style={styles.content} numberOfLines={15}>
-                      {plainContent}
-                    </Text>
+                    <View style={styles.contentBox}>
+                      <LongHtmlView
+                        html={detail.content}
+                        contentWidth={CARD_W - scaleSizeW(28)}
+                        baseStyle={styles.content}
+                      />
+                    </View>
                   )}
                   {detail.tags.length > 0 && <Text style={styles.tags}>{detail.tags.join('  ')}</Text>}
                   <Text style={styles.meta}>
@@ -312,11 +317,15 @@ const styles = StyleSheet.create({
     lineHeight: scaleSizeH(20),
     marginBottom: scaleSizeH(10),
   },
+  contentBox: {
+    maxHeight: scaleSizeH(24 * 15),
+    overflow: 'hidden',
+    marginBottom: scaleSizeH(10),
+  },
   content: {
     fontSize: setSpText(14),
     color: '#333333',
     lineHeight: scaleSizeH(24),
-    marginBottom: scaleSizeH(10),
   },
   tags: {
     fontSize: setSpText(14),

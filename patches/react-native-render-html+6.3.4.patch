@@ -1,0 +1,13 @@
+diff --git a/node_modules/react-native-render-html/src/TRenderEngineProvider.tsx b/node_modules/react-native-render-html/src/TRenderEngineProvider.tsx
+index 95b60df..ef9eec9 100644
+--- a/node_modules/react-native-render-html/src/TRenderEngineProvider.tsx
++++ b/node_modules/react-native-render-html/src/TRenderEngineProvider.tsx
+@@ -99,7 +99,7 @@ export default function TRenderEngineProvider({
+   children,
+   ...config
+ }: PropsWithChildren<TRenderEngineConfig>): ReactElement {
+-  const engine = useTRenderEngine(config);
++  const engine = useTRenderEngine({ ...defaultTRenderEngineProviderProps, ...config });
+   return (
+     <TRenderEngineContext.Provider value={engine}>
+       {children}

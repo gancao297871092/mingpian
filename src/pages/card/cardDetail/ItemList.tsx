@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { scaleSizeW, setSpText } from '@/utils/screenUtils';
 import EmptyState from '@/components/EmptyState';
+import LongHtmlView from '@/components/LongHtmlView';
 import { ChevronRightIcon } from '@/pages/square/bbsDetail/sheetIcons';
 
 interface ItemListProps {
@@ -20,6 +21,9 @@ function stripHtml(html?: string): string {
 export default function ItemList({ project }: ItemListProps) {
   const items: any[] = project?.itemsList || [];
   const [expandedId, setExpandedId] = useState<number | string | null>(items[0]?.id ?? null);
+  const { width: screenWidth } = useWindowDimensions();
+  // 屏幕宽 - 列表 padding 16*2 - 卡片 padding 14*2
+  const contentWidth = screenWidth - scaleSizeW(60);
 
   if (!items.length) {
     return <EmptyState variant="content" title="暂无内容" />;
@@ -53,7 +57,11 @@ export default function ItemList({ project }: ItemListProps) {
             {expanded && (
               <>
                 <View style={styles.divider} />
-                {!!contentText && <Text style={styles.content}>{contentText}</Text>}
+                {!!contentText && (
+                  <View style={styles.content}>
+                    <LongHtmlView html={item.itContent} contentWidth={contentWidth} baseStyle={styles.richBase} />
+                  </View>
+                )}
                 {images.length > 0 && (
                   <View style={styles.imgGrid}>
                     {images.map((url: string, ix: number) => (
@@ -119,11 +127,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(238,238,238,0.93)',
   },
   content: {
+    marginTop: scaleSizeW(10),
+  },
+  richBase: {
     fontSize: setSpText(14),
     fontWeight: '400',
     color: '#000000',
     lineHeight: scaleSizeW(20),
-    marginTop: scaleSizeW(10),
   },
   imgGrid: {
     flexDirection: 'row',

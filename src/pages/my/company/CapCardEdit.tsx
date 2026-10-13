@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import Toast from 'react-native-toast-message';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -9,6 +9,7 @@ import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { useUserStore } from '@/store/user';
 import { getEditorResult } from '@/utils/editorBridge';
+import LongHtmlView from '@/components/LongHtmlView';
 import type { RootStackParamList } from '@/route/map';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'capCardEdit'>;
@@ -108,6 +109,9 @@ export default function CapCardEdit({ navigation, route }: Props) {
   };
 
   const contentText = stripHtml(content);
+  const { width: screenWidth } = useWindowDimensions();
+  // 屏幕宽 - 页面 padding 16*2 - 卡片 padding 14*2
+  const contentWidth = screenWidth - scaleSizeW(60);
 
   return (
     <SafeView backgroundColor="#F6F7FB">
@@ -142,9 +146,9 @@ export default function CapCardEdit({ navigation, route }: Props) {
           </View>
           <TouchableOpacity activeOpacity={0.8} style={styles.contentCard} onPress={openEditor}>
             {contentText ? (
-              <Text style={styles.contentText} numberOfLines={8}>
-                {contentText}
-              </Text>
+              <View pointerEvents="none" style={styles.contentRich}>
+                <LongHtmlView html={content} contentWidth={contentWidth} baseStyle={styles.contentText} />
+              </View>
             ) : (
               <Text style={styles.contentPlaceholder}>{CONTENT_GUIDE}</Text>
             )}
@@ -217,6 +221,7 @@ const styles = StyleSheet.create({
     borderRadius: scaleSizeW(10),
     height: scaleSizeH(270),
     padding: scaleSizeW(14),
+    overflow: 'hidden',
   },
   contentPlaceholder: {
     fontSize: setSpText(14),
@@ -227,6 +232,9 @@ const styles = StyleSheet.create({
     fontSize: setSpText(14),
     lineHeight: setSpText(20),
     color: '#000000',
+  },
+  contentRich: {
+    flex: 1,
   },
   expandBtn: {
     position: 'absolute',
