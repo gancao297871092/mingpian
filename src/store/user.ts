@@ -68,6 +68,8 @@ export interface UserInfo {
   cpName?: string;
   /** 是否企业管理员（1是 0否） */
   isManager?: number;
+  /** 是否企业超级管理员（1是 0否） */
+  isMaster?: number;
   /** 企业内职位名称 */
   position?: string;
   /** 企业名片公开开关（1公开 0关闭） */

@@ -1,22 +1,43 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { FlatList } from 'react-native-gesture-handler';
+import { FlashList } from '@shopify/flash-list';
 import { SwipeRow } from 'react-native-swipe-list-view';
 import { Image as ExpoImage } from 'expo-image';
+import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
 import { NavBackButton } from '@/components/NavHeader';
+import EmptyState from '@/components/EmptyState';
+import ListFooter from '@/components/ListFooter';
+import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
-import { COMPANY_MEMBERS, type CompanyMember } from '@/data/company';
-import { useCompanyStore } from '@/store/company';
 import { useUserStore } from '@/store/user';
 import type { RootStackParamList } from '@/route/map';
 import { HistorySearchIcon } from '../myIcons';
 
 const PRIMARY = '#2962D4';
 const GRAY = '#6C6C6C';
+const PAGE_SIZE = 20;
 const ACTION_W = scaleSizeW(71);
+
+/** 企业成员（/company/user/list，对齐小程序 personManage） */
+interface Member {
+  /** 企业用户关系 id（操作接口的 cuId） */
+  id: number;
+  userId: number;
+  cpId?: number;
+  avatar?: string;
+  realName?: string;
+  position?: string;
+  /** 超管 */
+  isMaster?: number;
+  /** 管理员 */
+  isManager?: number;
+  /** 客服 */
+  isKf?: number;
+  defaultCardId?: number;
+}
 
 interface SwipeRowHandle {
   closeRow: () => void;
@@ -27,7 +48,8 @@ const SwipeableRow = SwipeRow as unknown as React.ForwardRefExoticComponent<
     rightOpenValue?: number;
     disableRightSwipe?: boolean;
     friction?: number;
-  }> & React.RefAttributes<SwipeRowHandle>
+  }> &
+    React.RefAttributes<SwipeRowHandle>
 >;
 
 interface Action {
@@ -36,138 +58,203 @@ interface Action {
   onPress: () => void;
 }
 
-function SearchBar() {
-  const setMemberKeyword = useCompanyStore(s => s.setMemberKeyword);
-  const [text, setText] = useState('');
-  return (
-    <View style={styles.searchBar}>
-      <HistorySearchIcon size={16} color="#AFB1BB" />
-      <TextInput
-        style={styles.searchInput}
-        value={text}
-        onChangeText={t => {
-          setText(t);
-          setMemberKeyword(t);
-        }}
-        placeholder="输入名称搜索"
-        placeholderTextColor="#AFB1BB"
-        returnKeyType="search"
-        onSubmitEditing={() => setMemberKeyword(text)}
-      />
-      <TouchableOpacity activeOpacity={0.8} style={styles.searchBtn} onPress={() => setMemberKeyword(text)}>
-        <Text style={styles.searchBtnText}>搜索</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-function roleBadge(member: CompanyMember): { text: string; color: string } | null {
-  if (member.isSuper) return { text: '超管', color: '#F2722C' };
-  if (member.isAdmin) return { text: '管理员', color: '#36BE69' };
-  if (member.isService) return { text: '客服', color: PRIMARY };
+function roleBadge(m: Member): { text: string; color: string } | null {
+  if (m.isMaster === 1) return { text: '超管', color: '#F2722C' };
+  if (m.isManager === 1) return { text: '管理员', color: '#36BE69' };
+  if (m.isKf === 1) return { text: '客服', color: PRIMARY };
   return null;
 }
 
-/** 成员管理（左滑出操作：踢出/管理员/编辑职位/客服/移交超管） */
+/** 成员管理（figma 成员管理 1205:4972，对齐小程序 personManage：左滑 踢出/管理员/编辑职位/客服/移交超管） */
 export default function CompanyMembers() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const keyword = useCompanyStore(s => s.memberKeyword);
-  const cpId = useUserStore(s => s.userInfo?.cpId);
-  const [members, setMembers] = useState<CompanyMember[]>(COMPANY_MEMBERS);
+  const { userInfo } = useUserStore();
+  const myId = userInfo?.wqUser?.id ?? 0;
+  const myIsMaster = userInfo?.isMaster === 1;
+  const myIsManager = userInfo?.isManager === 1;
 
-  const onEditPosition = (member: CompanyMember, closeRow?: () => void) => {
-    closeRow?.();
+  const [list, setList] = useState<Member[]>([]);
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [keyword, setKeyword] = useState('');
+
+  const fetchPage = useCallback(async (pageNum: number, name: string) => {
+    setLoading(true);
+    try {
+      const res = await API.company.memberList({ name: name || undefined, pageNum, pageSize: PAGE_SIZE });
+      if (res.code === '200') {
+        const newList: Member[] = res.data?.list || [];
+        setList((prev) => (pageNum === 1 ? newList : [...prev, ...newList]));
+        setPage(res.data?.pageNum || pageNum);
+        setPages(res.data?.pages || 1);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+      setLoaded(true);
+    }
+  }, []);
+
+  // 每次进入刷新（编辑职位等操作返回后同步）
+  useFocusEffect(
+    useCallback(() => {
+      fetchPage(1, '');
+    }, [fetchPage]),
+  );
+
+  const onEndReached = useCallback(() => {
+    if (loading || page >= pages) return;
+    fetchPage(page + 1, keyword);
+  }, [loading, page, pages, keyword, fetchPage]);
+
+  const refresh = useCallback(() => fetchPage(1, keyword), [fetchPage, keyword]);
+
+  /** 操作统一入口（对齐小程序 onBtn：操作成功后刷新列表） */
+  const runAction = useCallback(
+    async (fn: () => Promise<any>, successText?: string) => {
+      try {
+        const res = await fn();
+        if (res.code !== '200') return;
+        if (successText) Toast.show({ type: 'success', text1: successText });
+        refresh();
+      } catch {
+        Toast.show({ type: 'error', text1: '操作失败' });
+      }
+    },
+    [refresh],
+  );
+
+  const onEditPosition = (m: Member, closeRow: () => void) => {
+    closeRow();
     navigation.navigate('companyApply', {
-      cpId: cpId ?? '',
+      cpId: m.cpId ?? userInfo?.cpId ?? '',
       type: '3',
-      userId: member.id,
-      position: member.positions.filter(p => p !== '企业客服').join(','),
+      userId: m.userId,
+      position: m.position || '',
     });
   };
 
-  const list = useMemo(
-    () => members.filter(m => !keyword || m.name.includes(keyword)),
-    [members, keyword],
-  );
-
-  const buildActions = (member: CompanyMember, closeRow: () => void): Action[] => {
-    if (member.isSuper) {
-      return [{ label: '编辑\n职位', color: '#8B5CF6', onPress: () => onEditPosition(member, closeRow) }];
+  const onToggleKf = (m: Member, closeRow: () => void) => {
+    closeRow();
+    const params = { cuId: m.id, toUserId: m.userId };
+    if (m.isKf === 1) {
+      runAction(() => API.company.memberDelKf(params));
+      return;
     }
-    return [
-      {
-        label: '踢出',
-        color: '#EF4444',
-        onPress: () => {
-          closeRow();
-          Alert.alert('踢出成员', `确认将「${member.name}」移出企业？`, [
+    // 设客服前检查：已有客服时需确认是否移交
+    (async () => {
+      try {
+        const check = await API.company.memberSetKfCheck(params);
+        if (check.code !== '200') return;
+        if (!check.data) {
+          Alert.alert('提示', `是否将客服移交给${m.realName || '该成员'}？`, [
             { text: '取消', style: 'cancel' },
-            {
-              text: '踢出',
-              style: 'destructive',
-              onPress: () => setMembers(prev => prev.filter(m => m.id !== member.id)),
-            },
+            { text: '确认', onPress: () => runAction(() => API.company.memberSetKf(params), '设置成功') },
           ]);
-        },
-      },
-      {
-        label: member.isAdmin ? '取消\n管理员' : '设为\n管理员',
-        color: '#36BE69',
-        onPress: () => {
-          setMembers(prev => prev.map(m => (m.id === member.id ? { ...m, isAdmin: !m.isAdmin } : m)));
-          closeRow();
-        },
-      },
-      {
-        label: '编辑\n职位',
-        color: '#8B5CF6',
-        onPress: () => onEditPosition(member, closeRow),
-      },
-      {
-        label: member.isService ? '取消\n客服' : '设为\n客服',
-        color: PRIMARY,
-        onPress: () => {
-          setMembers(prev =>
-            prev.map(m =>
-              m.id === member.id
-                ? {
-                    ...m,
-                    isService: !m.isService,
-                    positions: m.isService
-                      ? m.positions.filter(p => p !== '企业客服')
-                      : [...m.positions, '企业客服'],
-                  }
-                : m,
-            ),
-          );
-          closeRow();
-        },
-      },
-      {
-        label: '移交\n超管',
-        color: '#F2722C',
-        onPress: () => {
-          closeRow();
-          Alert.alert('移交超管', `确认将超级管理员移交给「${member.name}」？`, [
-            { text: '取消', style: 'cancel' },
-            {
-              text: '确认',
-              onPress: () =>
-                setMembers(prev => prev.map(m => ({ ...m, isSuper: m.id === member.id, isAdmin: m.id === member.id ? false : m.isAdmin }))),
-            },
-          ]);
-        },
-      },
-    ];
+          return;
+        }
+        runAction(() => API.company.memberSetKf(params), '设置成功');
+      } catch {
+        Toast.show({ type: 'error', text1: '操作失败' });
+      }
+    })();
   };
 
-  const renderItem = ({ item }: { item: CompanyMember }) => {
+  const buildActions = (m: Member, closeRow: () => void): Action[] => {
+    // 自己：只能编辑职位
+    if (myId === m.userId) {
+      return [{ label: '编辑\n职位', color: '#8B5CF6', onPress: () => onEditPosition(m, closeRow) }];
+    }
+    const params = { cuId: m.id, toUserId: m.userId };
+    if (myIsMaster) {
+      return [
+        {
+          label: '踢出',
+          color: '#EF4444',
+          onPress: () => {
+            closeRow();
+            Alert.alert('踢出成员', `确认将「${m.realName || ''}」移出企业？`, [
+              { text: '取消', style: 'cancel' },
+              { text: '踢出', style: 'destructive', onPress: () => runAction(() => API.company.memberDel(params)) },
+            ]);
+          },
+        },
+        {
+          label: m.isManager === 1 ? '取消\n管理员' : '设为\n管理员',
+          color: '#36BE69',
+          onPress: () => {
+            closeRow();
+            runAction(() => (m.isManager === 1 ? API.company.memberDelMaster(params) : API.company.memberSetMaster(params)));
+          },
+        },
+        { label: '编辑\n职位', color: '#8B5CF6', onPress: () => onEditPosition(m, closeRow) },
+        {
+          label: m.isKf === 1 ? '取消\n客服' : '设为\n客服',
+          color: PRIMARY,
+          onPress: () => onToggleKf(m, closeRow),
+        },
+        {
+          label: '移交\n超管',
+          color: '#F2722C',
+          onPress: () => {
+            closeRow();
+            Alert.alert('提示', '移交后您将失去管理员权限，确认移交吗？', [
+              { text: '取消', style: 'cancel' },
+              {
+                text: '确认',
+                onPress: async () => {
+                  try {
+                    const res = await API.company.memberHandOver(params);
+                    if (res.code !== '200') return;
+                    Toast.show({ type: 'success', text1: '移交成功' });
+                    setTimeout(() => navigation.goBack(), 500);
+                  } catch {
+                    Toast.show({ type: 'error', text1: '操作失败' });
+                  }
+                },
+              },
+            ]);
+          },
+        },
+      ];
+    }
+    if (myIsManager) {
+      if (m.isManager === 1) return [];
+      return [
+        {
+          label: '踢出',
+          color: '#EF4444',
+          onPress: () => {
+            closeRow();
+            Alert.alert('踢出成员', `确认将「${m.realName || ''}」移出企业？`, [
+              { text: '取消', style: 'cancel' },
+              { text: '踢出', style: 'destructive', onPress: () => runAction(() => API.company.memberDel(params)) },
+            ]);
+          },
+        },
+        { label: '编辑\n职位', color: '#8B5CF6', onPress: () => onEditPosition(m, closeRow) },
+        {
+          label: m.isKf === 1 ? '取消\n客服' : '设为\n客服',
+          color: PRIMARY,
+          onPress: () => onToggleKf(m, closeRow),
+        },
+      ];
+    }
+    return [];
+  };
+
+  const renderItem = ({ item }: { item: Member }) => {
     let rowRef: SwipeRowHandle | null = null;
-    const actions = buildActions(item, () => rowRef?.closeRow());
+    const closeRow = () => rowRef?.closeRow();
+    const actions = buildActions(item, closeRow);
     const badge = roleBadge(item);
+    const positions = (item.position || '').split(/[,，]/).filter(Boolean);
     return (
       <SwipeableRow
-        ref={ref => {
+        ref={(ref) => {
           rowRef = ref;
         }}
         rightOpenValue={-ACTION_W * actions.length}
@@ -175,7 +262,7 @@ export default function CompanyMembers() {
         friction={8}
       >
         <View style={styles.hiddenRow}>
-          {actions.map(a => (
+          {actions.map((a) => (
             <TouchableOpacity
               key={a.label}
               activeOpacity={0.8}
@@ -186,9 +273,20 @@ export default function CompanyMembers() {
             </TouchableOpacity>
           ))}
         </View>
-        <View style={styles.row}>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          style={styles.row}
+          disabled={!item.defaultCardId}
+          onPress={() => item.defaultCardId && navigation.navigate('cardDetail', { id: item.defaultCardId, userId: item.userId })}
+        >
           <View style={styles.avatarWrap}>
-            <ExpoImage source={{ uri: item.avatar }} style={styles.avatar} contentFit="cover" transition={150} recyclingKey={item.avatar} />
+            <ExpoImage
+              source={{ uri: item.avatar }}
+              style={styles.avatar}
+              contentFit="cover"
+              transition={150}
+              recyclingKey={item.avatar}
+            />
             {badge && (
               <View style={[styles.roleBadge, { backgroundColor: badge.color }]}>
                 <Text style={styles.roleBadgeText}>{badge.text}</Text>
@@ -196,16 +294,15 @@ export default function CompanyMembers() {
             )}
           </View>
           <View style={styles.rowText}>
-            <Text style={styles.rowName}>{item.name}</Text>
+            <Text style={styles.rowName}>{item.realName || ''}</Text>
             <Text style={styles.rowPosition}>
-              {item.positions.map((p, i) => (
-                <Text key={p} style={p === '企业客服' && styles.positionService}>
-                  {i > 0 ? `·${p}` : p}
-                </Text>
+              {positions.map((p, i) => (
+                <Text key={p}>{i > 0 || item.isKf === 1 ? `·${p}` : p}</Text>
               ))}
+              {item.isKf === 1 && <Text style={styles.positionService}>{positions.length ? '·企业客服' : '企业客服'}</Text>}
             </Text>
           </View>
-        </View>
+        </TouchableOpacity>
       </SwipeableRow>
     );
   };
@@ -214,15 +311,33 @@ export default function CompanyMembers() {
     <SafeView backgroundColor="#FFFFFF" disableTop={false}>
       <View style={styles.header}>
         <NavBackButton color="#1A1A1A" onPress={() => navigation.goBack()} />
-        <SearchBar />
+        <View style={styles.searchBar}>
+          <HistorySearchIcon size={16} color="#AFB1BB" />
+          <TextInput
+            style={styles.searchInput}
+            value={keyword}
+            onChangeText={setKeyword}
+            placeholder="输入名称搜索"
+            placeholderTextColor="#AFB1BB"
+            returnKeyType="search"
+            onSubmitEditing={() => fetchPage(1, keyword)}
+          />
+          <TouchableOpacity activeOpacity={0.8} style={styles.searchBtn} onPress={() => fetchPage(1, keyword)}>
+            <Text style={styles.searchBtnText}>搜索</Text>
+          </TouchableOpacity>
+        </View>
       </View>
       <Text style={styles.hint}>左滑进行更多操作</Text>
-      <FlatList
+      <FlashList
         data={list}
-        keyExtractor={item => item.id}
+        keyExtractor={(item: Member) => String(item.id)}
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
+        onEndReached={onEndReached}
+        onEndReachedThreshold={0.3}
         ItemSeparatorComponent={() => <View style={styles.divider} />}
+        ListEmptyComponent={loaded && !loading ? <EmptyState variant="content" title="暂无内容" /> : null}
+        ListFooterComponent={<ListFooter fetching={loading} isLastPage={page >= pages} listLength={list.length} />}
       />
     </SafeView>
   );

@@ -491,6 +491,38 @@ export namespace API {
     export function positionEdit(data: { cpId: number | string; submitPosition: string; submitMsg?: string; userId?: number | string | null }) {
       return request.post<any>('/company/user/position/edit', data);
     }
+    /** 成员列表（/company/user/list，对齐小程序 personManage） */
+    export function memberList(data: { name?: string; pageNum?: number; pageSize?: number }) {
+      return request.post<any>('/company/user/list', data);
+    }
+    /** 踢出成员 */
+    export function memberDel(data: { cuId: number | string; toUserId: number | string }) {
+      return request.post<any>('/company/user/del', data);
+    }
+    /** 设为管理员 */
+    export function memberSetMaster(data: { cuId: number | string; toUserId: number | string }) {
+      return request.post<any>('/company/user/setMaster', data);
+    }
+    /** 取消管理员 */
+    export function memberDelMaster(data: { cuId: number | string; toUserId: number | string }) {
+      return request.post<any>('/company/user/delMaster', data);
+    }
+    /** 设为客服 */
+    export function memberSetKf(data: { cuId: number | string; toUserId: number | string }) {
+      return request.post<any>('/company/user/setKf', data);
+    }
+    /** 取消客服 */
+    export function memberDelKf(data: { cuId: number | string; toUserId: number | string }) {
+      return request.post<any>('/company/user/delKf', data);
+    }
+    /** 设客服前检查：data 为 false 时需确认是否移交客服 */
+    export function memberSetKfCheck(data: { cuId: number | string; toUserId: number | string }) {
+      return request.post<any>('/company/user/setKf/check', data);
+    }
+    /** 移交超管 */
+    export function memberHandOver(data: { cuId: number | string; toUserId: number | string }) {
+      return request.post<any>('/company/user/master/handOver', data);
+    }
     /** 企业名片公开开关（isShow: 1公开 0关闭） */
     export function bbsShow(isShow: number) {
       return request.get<any>(`/company/bbs/show?isShow=${isShow}`);
