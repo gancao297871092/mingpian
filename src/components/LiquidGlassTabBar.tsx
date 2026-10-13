@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
   },
   toolbar: {
     width: '100%',
-    height: scaleSizeH(70) + getBottomSpaces(),
+    height: scaleSizeH(80),
     overflow: 'hidden',
     ...Platform.select({
       ios: {
