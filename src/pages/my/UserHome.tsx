@@ -237,7 +237,9 @@ export default function UserHome() {
     [],
   );
 
-  const minPagerHeight = Math.max(contentH - insets.top - tabBarH, 0);
+  /** 内层列表不滚动，需保证内容够长让外层可滚动（吸顶才能触发）；
+   *  减去 bottomPad，使短内容时外层滚动正好停在头部完全收起处，避免吸顶后还有一截空白滚动区 */
+  const minPagerHeight = Math.max(contentH - insets.top - tabBarH - scaleSizeH(100), 0);
   const pagerHeightFor = useCallback(
     (tab: TabKey) => Math.max(listHeights[tab] || 0, tab === 'like' ? scaleSizeH(500) : minPagerHeight),
     [listHeights, minPagerHeight],
