@@ -523,6 +523,18 @@ export namespace API {
     export function memberHandOver(data: { cuId: number | string; toUserId: number | string }) {
       return request.post<any>('/company/user/master/handOver', data);
     }
+    /** 成员审核列表（/company/auth/list，对齐小程序 persionExamine） */
+    export function authList(data: { pageNum?: number; pageSize?: number }) {
+      return request.post<any>('/company/auth/list', data);
+    }
+    /** 成员审核操作（status: 1通过 0拒绝） */
+    export function authCheck(params: { authId: number | string; status: number }) {
+      return request.get<any>('/company/auth/check', { params });
+    }
+    /** 查看管家（/company/manager/getManager，对齐小程序 moreSets viewManager） */
+    export function managerGet() {
+      return request.get<any[]>('/company/manager/getManager');
+    }
     /** 企业名片公开开关（isShow: 1公开 0关闭） */
     export function bbsShow(isShow: number) {
       return request.get<any>(`/company/bbs/show?isShow=${isShow}`);

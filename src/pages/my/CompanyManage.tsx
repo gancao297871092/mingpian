@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -10,7 +10,7 @@ import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
 import { useCompanyStore, type CompanyRole } from '@/store/company';
 import { useUserStore } from '@/store/user';
-import { COMPANY_BUTLER } from '@/data/company';
+import { API } from '@/api';
 import { SettingArrowIcon } from './settings/settingsIcons';
 import {
   ButlerPhoneIcon,
@@ -38,21 +38,42 @@ interface RowItem {
   onPress: () => void;
 }
 
-function ButlerSheet({ sheetRef }: { sheetRef: React.RefObject<BottomSheetModal | null> }) {
-  const onCall = () => Linking.openURL(`tel:${COMPANY_BUTLER.phone}`).catch(() => undefined);
+/** 企业管家（/company/manager/getManager，对齐小程序 moreSets viewManager） */
+interface Butler {
+  id: number;
+  realName?: string;
+  mobile?: string;
+  phone?: string;
+  tel?: string;
+  avatar?: string;
+}
+
+function ButlerSheet({ sheetRef, butlers }: { sheetRef: React.RefObject<BottomSheetModal | null>; butlers: Butler[] }) {
   return (
     <AppBottomSheet ref={sheetRef}>
       <Text style={styles.sheetTitle}>查看管家</Text>
-      <View style={styles.butlerCard}>
-        <ExpoImage source={{ uri: COMPANY_BUTLER.avatar }} style={styles.butlerAvatar} contentFit="cover" transition={150} />
-        <View style={styles.butlerText}>
-          <Text style={styles.butlerName}>{COMPANY_BUTLER.name}</Text>
-          <Text style={styles.butlerPhone}>{COMPANY_BUTLER.phone}</Text>
-        </View>
-        <TouchableOpacity activeOpacity={0.7} style={styles.butlerCall} onPress={onCall}>
-          <ButlerPhoneIcon />
-        </TouchableOpacity>
-      </View>
+      {butlers.length === 0 && <Text style={styles.butlerEmpty}>未设置管家</Text>}
+      {butlers.map((b) => {
+        const phone = b.mobile || b.phone || b.tel || '';
+        return (
+          <View key={b.id} style={styles.butlerCard}>
+            <ExpoImage source={{ uri: b.avatar }} style={styles.butlerAvatar} contentFit="cover" transition={150} recyclingKey={b.avatar} />
+            <View style={styles.butlerText}>
+              <Text style={styles.butlerName}>{b.realName || ''}</Text>
+              <Text style={styles.butlerPhone}>{phone || '未设置'}</Text>
+            </View>
+            {!!phone && (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={styles.butlerCall}
+                onPress={() => Linking.openURL(`tel:${phone.replace(/[^\d+]/g, '')}`).catch(() => undefined)}
+              >
+                <ButlerPhoneIcon />
+              </TouchableOpacity>
+            )}
+          </View>
+        );
+      })}
     </AppBottomSheet>
   );
 }
@@ -71,6 +92,20 @@ export default function CompanyManage() {
   const memberAuditCount = useCompanyStore(s => s.memberAuditCount);
   const userInfo = useUserStore(s => s.userInfo);
   const butlerRef = useRef<BottomSheetModal>(null);
+  const [butlers, setButlers] = useState<Butler[]>([]);
+
+  /** 查看管家：拉取后展开弹层（对齐小程序 viewManager） */
+  const onViewButler = async () => {
+    try {
+      const res = await API.company.managerGet();
+      if (res.code === '200') {
+        setButlers(res.data || []);
+        butlerRef.current?.present();
+      }
+    } catch {
+      // ignore
+    }
+  };
 
   const onExit = () => {
     Alert.alert('退出企业', '退出后将失去企业成员身份，确认退出？', [
@@ -105,7 +140,7 @@ export default function CompanyManage() {
             title: '其他',
             rows: [
               { label: '能力卡管理', icon: <CompanyCapIcon />, onPress: () => navigation.navigate('companyCapCards') },
-              { label: '查看管家', icon: <CompanyButlerIcon />, onPress: () => butlerRef.current?.present() },
+              { label: '查看管家', icon: <CompanyButlerIcon />, onPress: onViewButler },
             ],
           },
         ]
@@ -202,7 +237,7 @@ export default function CompanyManage() {
           </View>
         )}
       </ScrollView>
-      <ButlerSheet sheetRef={butlerRef} />
+      <ButlerSheet sheetRef={butlerRef} butlers={butlers} />
     </SafeView>
   );
 }
@@ -297,6 +332,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: scaleSizeW(10),
     padding: scaleSizeW(14),
+    marginBottom: scaleSizeH(10),
+  },
+  butlerEmpty: {
+    fontSize: setSpText(13),
+    lineHeight: setSpText(18),
+    color: '#BBBBBB',
+    textAlign: 'center',
+    paddingVertical: scaleSizeH(20),
   },
   butlerAvatar: {
     width: scaleSizeW(48),
