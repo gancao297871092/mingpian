@@ -13,6 +13,15 @@ import {
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import Toast from 'react-native-toast-message';
+import Reanimated, {
+  Extrapolation,
+  interpolate,
+  interpolateColor,
+  runOnJS,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -84,7 +93,11 @@ export default function UserHome() {
     fav: 0,
     like: 0,
   });
-  const scrollY = useRef(new Animated.Value(0)).current;
+  /** 垂直滚动：Reanimated 共享值，吸顶动画全程 UI 线程（对齐「我的」主页，避免 JS 线程布局抖动） */
+  const scrollY = useSharedValue(0);
+  /** headerH 的 UI 线程副本（吸顶插值区间依赖它） */
+  const headerHSV = useSharedValue(0);
+  const barDarkSV = useSharedValue(false);
   const scrollX = useRef(new Animated.Value(0)).current;
   const scrollXJS = useRef(new Animated.Value(0)).current;
   const swiperRef = useRef<any>(null);
@@ -149,10 +162,11 @@ export default function UserHome() {
   useFocusEffect(
     useCallback(() => {
       barDarkRef.current = false;
+      barDarkSV.value = false;
       setBarDark(false);
       StatusBar.setBarStyle('light-content');
       return () => StatusBar.setBarStyle('dark-content');
-    }, []),
+    }, [barDarkSV]),
   );
 
   const onRefresh = useCallback(() => {
@@ -164,20 +178,36 @@ export default function UserHome() {
     Promise.all(tasks).finally(() => setRefreshing(false));
   }, [tabRefs, fetchProfile]);
 
-  const onScroll = useCallback(
-    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const y = e.nativeEvent.contentOffset.y;
-      scrollY.setValue(y);
+  /** 记录各 tab 滚动位置（UI 线程每帧回调到 JS，仅写 ref） */
+  const recordOffset = useCallback(
+    (y: number) => {
       scrollOffsetsRef[TAB_KEYS[pageIndexRef.current]] = y;
-      const dark = headerH > 0 && y >= headerH - STICKY_NICK_H;
-      if (dark !== barDarkRef.current) {
-        barDarkRef.current = dark;
-        setBarDark(dark);
-        StatusBar.setBarStyle(dark ? 'dark-content' : 'light-content');
+    },
+    [scrollOffsetsRef],
+  );
+  /** 吸顶状态切换：状态栏图标 + 返回按钮配色 */
+  const onStickyChange = useCallback((dark: boolean) => {
+    setBarDark(dark);
+    StatusBar.setBarStyle(dark ? 'dark-content' : 'light-content');
+  }, []);
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (e) => {
+      const y = e.contentOffset.y;
+      scrollY.value = y;
+      runOnJS(recordOffset)(y);
+      const dark = headerHSV.value > 0 && y >= headerHSV.value - STICKY_NICK_H;
+      if (dark !== barDarkSV.value) {
+        barDarkSV.value = dark;
+        runOnJS(onStickyChange)(dark);
       }
     },
-    [scrollY, headerH, scrollOffsetsRef],
-  );
+  });
+
+  // headerH 同步给 UI 线程（吸顶插值区间依赖它）
+  useEffect(() => {
+    headerHSV.value = headerH;
+  }, [headerH, headerHSV]);
 
   const onToggleFollow = useCallback(() => {
     if (!targetUserId || followBusy) return;
@@ -204,17 +234,24 @@ export default function UserHome() {
 
   const ipText = wqUser?.city || wqUser?.province || '';
 
-  const stickRange: [number, number] = [Math.max(headerH - STICKY_NICK_H, 0), Math.max(headerH, 1)];
-  const nickHeight = scrollY.interpolate({
-    inputRange: stickRange,
-    outputRange: [0, STICKY_NICK_H],
-    extrapolate: 'clamp',
-  });
-  const topBarBg = scrollY.interpolate({
-    inputRange: stickRange,
-    outputRange: ['rgba(255,255,255,0)', '#FFFFFF'],
-    extrapolate: 'clamp',
-  });
+  // ---- 吸顶动画：滚动经过头部时昵称栏展开（figma 101），全程 UI 线程 ----
+  /** 昵称栏高度 0→46 跟随滚动（Reanimated height 动画在 UI 线程布局，不抖） */
+  const nickStyle = useAnimatedStyle(() => ({
+    height: interpolate(
+      scrollY.value,
+      [Math.max(headerHSV.value - STICKY_NICK_H, 0), Math.max(headerHSV.value, 1)],
+      [0, STICKY_NICK_H],
+      Extrapolation.CLAMP,
+    ),
+  }));
+  /** 吸顶途中背景由透明渐变为白色（状态栏占位 + 昵称栏共用） */
+  const topBarStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      scrollY.value,
+      [Math.max(headerHSV.value - STICKY_NICK_H, 0), Math.max(headerHSV.value, 1)],
+      ['rgba(255,255,255,0)', '#FFFFFF'],
+    ),
+  }));
 
   const position = Animated.divide(scrollX, windowWidth);
   const onTabPress = (i: number) => {
@@ -268,11 +305,18 @@ export default function UserHome() {
     : Math.max(scaleSizeH(64) - insets.top, scaleSizeH(8));
   const profileRowMT = Math.max(scaleSizeH(107) - insets.top - headerBtnsMT - scaleSizeH(44), scaleSizeH(2));
   /** 吸顶过程中，覆盖层导航按钮平移到吸顶栏内（不跟随下拉） */
-  const navTranslateY = scrollY.interpolate({
-    inputRange: stickRange,
-    outputRange: [0, 1 - headerBtnsMT],
-    extrapolate: 'clamp',
-  });
+  const navStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        translateY: interpolate(
+          scrollY.value,
+          [Math.max(headerHSV.value - STICKY_NICK_H, 0), Math.max(headerHSV.value, 1)],
+          [0, 1 - headerBtnsMT],
+          Extrapolation.CLAMP,
+        ),
+      },
+    ],
+  }));
 
   const renderTabPage = (tab: TabKey) => (
     <View style={{ width: windowWidth, height: pagerHeight, backgroundColor: '#F6F7FB' }}>
@@ -320,14 +364,14 @@ export default function UserHome() {
             />
           </View>
         </View>
-        <Animated.View style={{ height: insets.top, backgroundColor: topBarBg }} />
-        <Animated.FlatList
+        <Reanimated.View style={[{ height: insets.top }, topBarStyle]} />
+        <Reanimated.FlatList
           ref={outerRef}
           style={styles.flex1}
           data={[0, 1, 2]}
           keyExtractor={(i: number) => String(i)}
           stickyHeaderIndices={[1]}
-          onScroll={onScroll}
+          onScroll={scrollHandler}
           scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -405,13 +449,13 @@ export default function UserHome() {
             </View>
           ) : index === 1 ? (
             <Animated.View>
-              <Animated.View style={[styles.stickyNick, { height: nickHeight, backgroundColor: '#fff' }]}>
+              <Reanimated.View style={[styles.stickyNick, nickStyle]}>
                 <View style={styles.stickyNickInner}>
                   <Text style={styles.stickyName} numberOfLines={1}>
                     {wqUser?.username || wqUser?.nickname || ''}
                   </Text>
                 </View>
-              </Animated.View>
+              </Reanimated.View>
               <Animated.View
                 style={[styles.tabCard, { backgroundColor: '#fff' }]}
                 onLayout={e => setTabBarH(e.nativeEvent.layout.height)}
@@ -483,15 +527,15 @@ export default function UserHome() {
             />
           )}
         />
-        <Animated.View
+        <Reanimated.View
           pointerEvents="box-none"
           style={[
             styles.navOverlay,
             {
               paddingTop: insets.top,
               marginTop: headerBtnsMT,
-              transform: [{ translateY: navTranslateY }],
             },
+            navStyle,
           ]}
         >
           <View style={styles.navOverlayRow} pointerEvents="box-none">
@@ -515,7 +559,7 @@ export default function UserHome() {
               </TouchableOpacity>
             )}
           </View>
-        </Animated.View>
+        </Reanimated.View>
       </View>
       <LikesDialog
         visible={likesVisible}
@@ -705,6 +749,7 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
   stickyNick: {
+    backgroundColor: '#FFFFFF',
     overflow: 'hidden',
   },
   stickyNickInner: {
