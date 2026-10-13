@@ -205,8 +205,8 @@ export namespace API {
       return request.post<any>('/card/favorite/do', data);
     }
     /** 名片夹列表（/user/favorite/cards/list，对齐小程序 cardList） */
-    export function favoriteCards(params: { nickname?: string; pageNum?: number; pageSize?: number }) {
-      return request.get<any>('/user/favorite/cards/list', { params });
+    export function favoriteCards(data: { nickname?: string; pageNum?: number; pageSize?: number }) {
+      return request.post<any>('/user/favorite/cards/list', data);
     }
     /** 名片预创建：查找草稿（status=2），不存在则自动创建（AppCardController /card/prepare，无入参） */
     export function prepare() {

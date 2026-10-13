@@ -1,5 +1,5 @@
 import React from 'react';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Circle, Path } from 'react-native-svg';
 import { scaleSizeW } from '@/utils/screenUtils';
 
 interface IconProps {
@@ -24,6 +24,17 @@ export function ChatIcon({ size = 18, color = '#2962D4' }: IconProps) {
         d="M10.7952 8.20419C10.7952 8.54775 10.9317 8.87724 11.1746 9.12018C11.4175 9.36311 11.747 9.49959 12.0906 9.49959C12.4342 9.49959 12.7637 9.36311 13.0066 9.12018C13.2495 8.87724 13.386 8.54775 13.386 8.20419C13.386 7.86062 13.2495 7.53113 13.0066 7.28819C12.7637 7.04526 12.4342 6.90878 12.0906 6.90878C11.747 6.90878 11.4175 7.04526 11.1746 7.28819C10.9317 7.53113 10.7952 7.86062 10.7952 8.20419Z"
         fill={color}
       />
+    </Svg>
+  );
+}
+
+/** 搜索框清除按钮（对齐小程序 cardList 清空图标） */
+export function ClearIcon({ size = 16 }: IconProps) {
+  const s = scaleSizeW(size);
+  return (
+    <Svg width={s} height={s} viewBox="0 0 16 16" fill="none">
+      <Circle cx={8} cy={8} r={8} fill="#C4C4C6" />
+      <Path d="M5 5L11 11M11 5L5 11" stroke="#FFFFFF" strokeWidth={1.2} strokeLinecap="round" />
     </Svg>
   );
 }

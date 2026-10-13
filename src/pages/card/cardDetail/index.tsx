@@ -40,6 +40,8 @@ function maskName(name?: string): string {
 /** 名片详情（figma 预览1-3）：头部轮播图 + 三个 tab，数据 /bbs/cardDetail（对齐小程序 cardDetail） */
 export default function CardDetail({ navigation, route }: Props) {
   const { id } = route.params;
+  // const id = 437
+  // console.log('CardDetail id:', id);
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
 

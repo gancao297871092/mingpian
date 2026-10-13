@@ -15,7 +15,7 @@ import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
 import { HistorySearchIcon } from '@/pages/my/myIcons';
-import { ChatIcon } from './icons';
+import { ChatIcon, ClearIcon } from './icons';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'cardList'>;
 
@@ -44,6 +44,8 @@ const SwipeableRow = SwipeRow as unknown as React.ForwardRefExoticComponent<
     rightOpenValue?: number;
     disableRightSwipe?: boolean;
     friction?: number;
+    onRowOpen?: () => void;
+    onRowClose?: () => void;
   }> &
     React.RefAttributes<SwipeRowHandle>
 >;
@@ -57,6 +59,16 @@ export default function CardList({ navigation }: Props) {
   const [loaded, setLoaded] = useState(false);
   const [keyword, setKeyword] = useState('');
   const [shareCard, setShareCard] = useState<CardData | null>(null);
+  /** 打开中的行数：>0 时禁用页面右滑返回手势，避免与行的右滑关闭冲突 */
+  const openRowsRef = React.useRef(0);
+
+  const setRowGestures = useCallback(
+    (delta: number) => {
+      openRowsRef.current = Math.max(0, openRowsRef.current + delta);
+      navigation.setOptions({ gestureEnabled: openRowsRef.current === 0 });
+    },
+    [navigation],
+  );
 
   const fetchPage = useCallback(
     async (pageNum: number, nickname: string) => {
@@ -104,9 +116,11 @@ export default function CardList({ navigation }: Props) {
   const onShare = async (item: CardFavItem, closeRow: () => void) => {
     closeRow();
     try {
-      const res = await API.card.detail({ cardId: item.cardId });
-      if (res.code === '200' && res.data) {
-        setShareCard({ ...res.data, id: res.data.id ?? item.cardId });
+      // 对齐名片详情分享：取 aggregate 的 userCard（含海报所需的 styleCode/cardPoster/mediaLinkList）
+      const res = await API.card.aggregate({ cardId: item.cardId });
+      const userCard = res.data?.userCard;
+      if (res.code === '200' && userCard) {
+        setShareCard({ ...userCard, id: userCard.id ?? item.cardId });
       }
     } catch {
       Toast.show({ type: 'error', text1: '分享失败' });
@@ -125,6 +139,8 @@ export default function CardList({ navigation }: Props) {
         rightOpenValue={-ACTION_W * (deleted ? 1 : 2)}
         disableRightSwipe
         friction={8}
+        onRowOpen={() => setRowGestures(1)}
+        onRowClose={() => setRowGestures(-1)}
       >
         <View style={styles.hiddenRow}>
           {!deleted && (
@@ -144,37 +160,40 @@ export default function CardList({ navigation }: Props) {
             <Text style={styles.actionText}>删除</Text>
           </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          activeOpacity={0.8}
-          style={styles.row}
-          onPress={() => navigation.navigate('cardDetail', { id: item.cardId, userId: item.userId })}
-        >
-          <ExpoImage
-            source={{ uri: item.avatar }}
-            style={[styles.avatar, deleted && styles.avatarDeleted]}
-            contentFit="cover"
-            transition={150}
-            recyclingKey={item.avatar}
-          />
-          <View style={styles.rowText}>
-            <Text style={styles.rowName} numberOfLines={1}>
-              {item.cardName || ''}
-              {deleted && <Text style={styles.rowNameDeleted}>（对方已删除）</Text>}
-            </Text>
-            <Text style={styles.rowSub} numberOfLines={1}>
-              {item.cpName || ''}
-              {item.position ? ` · ${item.position}` : ''}
-            </Text>
-          </View>
+        {/* 可见层：外层不透明白底，内层按压变暗，避免按下去透出底下的操作按钮 */}
+        <View style={styles.rowWrap}>
           <TouchableOpacity
             activeOpacity={0.8}
-            style={styles.chatBtn}
-            hitSlop={6}
-            onPress={() => Toast.show({ type: 'info', text1: '功能开发中' })}
+            style={styles.row}
+            onPress={() => navigation.navigate('cardDetail', { id: item.cardId, userId: item.userId })}
           >
-            <ChatIcon />
+            <ExpoImage
+              source={{ uri: item.avatar }}
+              style={[styles.avatar, deleted && styles.avatarDeleted]}
+              contentFit="cover"
+              transition={150}
+              recyclingKey={item.avatar}
+            />
+            <View style={styles.rowText}>
+              <Text style={styles.rowName} numberOfLines={1}>
+                {item.cardName || ''}
+                {deleted && <Text style={styles.rowNameDeleted}>（对方已删除）</Text>}
+              </Text>
+              <Text style={styles.rowSub} numberOfLines={1}>
+                {item.cpName || ''}
+                {item.position ? ` · ${item.position}` : ''}
+              </Text>
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={styles.chatBtn}
+              hitSlop={6}
+              onPress={() => Toast.show({ type: 'info', text1: '功能开发中' })}
+            >
+              <ChatIcon />
+            </TouchableOpacity>
           </TouchableOpacity>
-        </TouchableOpacity>
+        </View>
       </SwipeableRow>
     );
   };
@@ -194,6 +213,18 @@ export default function CardList({ navigation }: Props) {
             returnKeyType="search"
             onSubmitEditing={() => fetchPage(1, keyword)}
           />
+          {!!keyword && (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              hitSlop={8}
+              onPress={() => {
+                setKeyword('');
+                fetchPage(1, '');
+              }}
+            >
+              <ClearIcon />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity activeOpacity={0.8} style={styles.searchBtn} onPress={() => fetchPage(1, keyword)}>
             <Text style={styles.searchBtnText}>搜索</Text>
           </TouchableOpacity>
@@ -267,6 +298,9 @@ const styles = StyleSheet.create({
     marginHorizontal: scaleSizeW(16),
     marginTop: scaleSizeH(8),
     marginBottom: scaleSizeH(10),
+  },
+  rowWrap: {
+    backgroundColor: '#FFFFFF',
   },
   row: {
     flexDirection: 'row',
