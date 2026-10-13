@@ -54,6 +54,8 @@
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>需要使用相机拍照和扫描二维码</string>
+	<key>NSContactsUsageDescription</key>
+	<string>需要访问通讯录以保存名片联系人</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>需要访问您的位置信息以提供地图服务</string>
 	<key>NSMicrophoneUsageDescription</key>

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,15 +12,19 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image as ExpoImage } from 'expo-image';
+import * as Contacts from 'expo-contacts';
+import Toast from 'react-native-toast-message';
 import { API } from '@/api';
-import { scaleSizeW, setSpText } from '@/utils/screenUtils';
+import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { CardVerifiedIcon } from '@/components/cards/cardIcons';
+import CardShareSheet from '@/components/cards/CardShareSheet';
 import { ChevronRightIcon } from '@/pages/square/bbsDetail/sheetIcons';
+import { useUserStore } from '@/store/user';
 import type { RootStackParamList } from '@/route/map';
 import BaseInfo from './BaseInfo';
 import ItemList from './ItemList';
 import PlazaList, { type PlazaListHandle } from './PlazaList';
-import { AuthPositionIcon, AuthRealIcon } from './icons';
+import { AuthPositionIcon, AuthRealIcon, ContactAddIcon, FavStarIcon, ForwardIcon } from './icons';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'cardDetail'>;
 
@@ -41,8 +46,12 @@ export default function CardDetail({ navigation, route }: Props) {
   const [data, setData] = useState<any>(null);
   const [tab, setTab] = useState(0);
   const [current, setCurrent] = useState(0);
+  const [favored, setFavored] = useState(false);
+  const [shareVisible, setShareVisible] = useState(false);
+  const [savingContact, setSavingContact] = useState(false);
   const plazaRef = useRef<PlazaListHandle>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
+  const myId = useUserStore((s) => s.userInfo?.wqUser?.id);
 
   // iOS 下拉回弹时头部图片拉伸（原生驱动 transform，避免 JS 重渲染抖动）
   const headerScale = scrollY.interpolate({
@@ -62,6 +71,7 @@ export default function CardDetail({ navigation, route }: Props) {
         const res = await API.card.aggregate({ cardId: id });
         if (res.code === '200' && res.data) {
           setData(res.data);
+          setFavored(Number(res.data.userCard?.userIsFavorite) === 1);
         }
       } catch {
         // ignore
@@ -72,6 +82,59 @@ export default function CardDetail({ navigation, route }: Props) {
   const userCard = data?.userCard;
   const userInfo = data?.userInfo;
   const wqUser = userInfo?.wqUser;
+  // 自己的名片不展示「收藏名片/存入通讯录」
+  const isSelf = !!myId && !!wqUser?.id && Number(myId) === Number(wqUser.id);
+
+  /** 收藏/取消收藏名片（对齐小程序 cardPanel onCollect） */
+  const onToggleFav = async () => {
+    if (!userCard) return;
+    const next = !favored;
+    setFavored(next);
+    try {
+      const res = await API.card.favoriteDo({ cardId: id, type: next ? 1 : 0 });
+      if (res.code !== '200') throw new Error(String(res.code));
+      Toast.show({ type: 'success', text1: next ? '已收藏名片' : '已取消收藏' });
+    } catch {
+      setFavored(!next);
+      Toast.show({ type: 'error', text1: '操作失败' });
+    }
+  };
+
+  /** 存入系统通讯录（expo-contacts） */
+  const onSaveContact = async () => {
+    if (savingContact || !userCard) return;
+    setSavingContact(true);
+    try {
+      const { status } = await Contacts.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Toast.show({ type: 'error', text1: '请允许访问通讯录' });
+        return;
+      }
+      const street = `${userCard.province || ''}${userCard.city || ''}${userCard.district || ''}${userCard.address || ''}`;
+      const contact = {
+        contactType: Contacts.ContactTypes.Person,
+        name: userCard.nameZh || '',
+        firstName: userCard.nameZh || '',
+        company: userInfo?.cpName || '',
+        jobTitle: userCard.position || '',
+        phoneNumbers: [
+          ...(userCard.phone ? [{ label: 'mobile', number: String(userCard.phone) }] : []),
+          ...(userCard.telNumber ? [{ label: 'work', number: String(userCard.telNumber) }] : []),
+        ],
+        emails: userCard.email ? [{ label: 'work', email: String(userCard.email) }] : [],
+        addresses: street
+          ? [{ label: 'work', street, city: userCard.city || '', region: userCard.province || '', country: '中国' }]
+          : [],
+      };
+      const containerId = Platform.OS === 'ios' ? await Contacts.getDefaultContainerIdAsync() : undefined;
+      await Contacts.addContactAsync(contact, containerId);
+      Toast.show({ type: 'success', text1: '已存入通讯录' });
+    } catch {
+      Toast.show({ type: 'error', text1: '保存失败' });
+    } finally {
+      setSavingContact(false);
+    }
+  };
   const medias: string[] = (userCard?.mediaLinkList || [])
     .map((o: any) => o?.media?.mdUrl || o?.mdUrl)
     .filter(Boolean);
@@ -162,6 +225,28 @@ export default function CardDetail({ navigation, route }: Props) {
                 </View>
               )}
 
+              {/* 收藏名片 / 存入通讯录（figma 实际 2228:5932，自己的名片不展示） */}
+              {!isSelf && !!userCard && (
+                <View style={styles.actionRow}>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={[styles.actionBtn, styles.actionBtnPrimary]}
+                    onPress={onToggleFav}
+                  >
+                    <FavStarIcon />
+                    <Text style={styles.actionTextPrimary}>{favored ? '已收藏' : '收藏名片'}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={[styles.actionBtn, styles.actionBtnGray]}
+                    onPress={onSaveContact}
+                  >
+                    <ContactAddIcon />
+                    <Text style={styles.actionTextDark}>存入通讯录</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
               {/* tab 栏 */}
               <View style={styles.tabRow}>
                 {TABS.map((t, ix) => (
@@ -195,6 +280,21 @@ export default function CardDetail({ navigation, route }: Props) {
           <ChevronRightIcon />
         </View>
       </TouchableOpacity>
+
+      {/* 悬浮转发按钮（figma 实际 2228:5908，自己的名片也可分享） */}
+      <TouchableOpacity
+        style={[styles.shareBtn, { top: insets.top + scaleSizeW(10) }]}
+        activeOpacity={0.8}
+        onPress={() => userCard && setShareVisible(true)}
+      >
+        <ForwardIcon />
+      </TouchableOpacity>
+
+      <CardShareSheet
+        visible={shareVisible}
+        onClose={() => setShareVisible(false)}
+        card={userCard ? { ...userCard, id: userCard.id ?? id } : undefined}
+      />
     </View>
   );
 }
@@ -290,6 +390,34 @@ const styles = StyleSheet.create({
     gap: scaleSizeW(34),
     marginTop: scaleSizeW(30),
   },
+  actionRow: {
+    flexDirection: 'row',
+    gap: scaleSizeW(10),
+    marginTop: scaleSizeH(24),
+  },
+  actionBtn: {
+    flex: 1,
+    height: scaleSizeH(40),
+    borderRadius: scaleSizeW(5),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: scaleSizeW(5),
+  },
+  actionBtnPrimary: {
+    backgroundColor: '#2962D4',
+  },
+  actionBtnGray: {
+    backgroundColor: '#F3F3F1',
+  },
+  actionTextPrimary: {
+    fontSize: setSpText(14),
+    color: '#FFFFFF',
+  },
+  actionTextDark: {
+    fontSize: setSpText(14),
+    color: '#000000',
+  },
   tabItem: {
     alignItems: 'center',
   },
@@ -335,5 +463,15 @@ const styles = StyleSheet.create({
   },
   backFlip: {
     transform: [{ scaleX: -1 }],
+  },
+  shareBtn: {
+    position: 'absolute',
+    right: scaleSizeW(16),
+    width: scaleSizeW(36),
+    height: scaleSizeW(36),
+    borderRadius: scaleSizeW(18),
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
