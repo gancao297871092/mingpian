@@ -55,6 +55,7 @@ import OtherNumberLogin from '@/pages/login/OtherNumberLogin';
 import AgreementPage from '@/pages/login/AgreementPage';
 import EditCard from '@/pages/card/editCard';
 import MyCard from '@/pages/card/myCard';
+import CardList from '@/pages/card/cardList';
 import ViewCard from '@/pages/card/viewCard';
 import CardDetail from '@/pages/card/cardDetail';
 import AddItem from '@/pages/card/editCard/AddItem';
@@ -188,6 +189,11 @@ export default function RootNavigator() {
             headerTitleStyle: { color: '#000000' },
             headerShadowVisible: false,
           }}
+        />
+        <Stack.Screen
+          name="cardList"
+          component={CardList}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="cardDetail"

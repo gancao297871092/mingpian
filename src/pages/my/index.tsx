@@ -12,7 +12,6 @@ import {
   type NativeSyntheticEvent,
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
-import Toast from 'react-native-toast-message';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -182,8 +181,6 @@ export default function My() {
   const onSettings = () => {
     navigation.navigate('settings');
   };
-
-  const todo = () => Toast.show({ type: 'info', text1: '功能开发中' });
 
   const stats: { num: string | number; label: string; tab?: 'mutual' | 'follow' | 'fans'; onPress?: () => void }[] = [
     { num: userInfo?.likeCount ?? 0, label: '获赞', onPress: () => setLikesVisible(true) },
@@ -367,7 +364,7 @@ export default function My() {
                     <Text style={styles.entryCardSub}>个人名片3/5 · 企业名片</Text>
                   </View>
                 </TouchableOpacity>
-                <TouchableOpacity activeOpacity={0.8} style={styles.entryCard} onPress={todo}>
+                <TouchableOpacity activeOpacity={0.8} style={styles.entryCard} onPress={() => navigation.navigate('cardList')}>
                   <View>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <CardBoxIcon />

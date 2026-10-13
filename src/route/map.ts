@@ -7,6 +7,8 @@ export type RootStackParamList = {
   agreement: { type: string; title?: string };
   cardDetail: { id: string | number; userId?: string | number };
   myCard: undefined;
+  /** 名片夹（收藏的名片列表，左滑分享/删除） */
+  cardList: undefined;
   editCard: { id?: string | number };
   /** 名片预览主页（创建/编辑流程最后一步，mode 区分按钮文案与确认弹窗） */
   viewCard: { id: string | number; mode?: 'add' | 'update' };
