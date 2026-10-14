@@ -56,6 +56,8 @@ interface ImageUploaderProps {
   addBackgroundColor?: string;
   maxBytes?: number;
   uploadFn?: (uri: string, mime?: string) => Promise<string>;
+  /** 条目附加操作区（渲染在图片左下角，如「设为封面」） */
+  renderItemActions?: (item: UploadImage, index: number) => React.ReactNode;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -74,9 +76,10 @@ interface MediaItemProps {
   onRemove: (key: string) => void;
   onRetry: (item: UploadImage) => void;
   onPreview: (index: number) => void;
+  renderItemActions?: (item: UploadImage, index: number) => React.ReactNode;
 }
 
-function MediaItem({ item, index, itemSize, showCoverBadge, onRemove, onRetry, onPreview }: MediaItemProps) {
+function MediaItem({ item, index, itemSize, showCoverBadge, onRemove, onRetry, onPreview, renderItemActions }: MediaItemProps) {
   return (
     <View style={[styles.mediaItem, { width: itemSize, height: itemSize, borderRadius: itemSize * 0.12 }]}>
       <TouchableOpacity style={styles.mediaImgTouch} activeOpacity={0.9} onPress={() => onPreview(index)}>
@@ -100,6 +103,7 @@ function MediaItem({ item, index, itemSize, showCoverBadge, onRemove, onRetry, o
       <TouchableOpacity style={styles.mediaRemove} hitSlop={6} onPress={() => onRemove(item.key)}>
         <Image source={ICONS.remove} style={styles.mediaRemoveIcon} />
       </TouchableOpacity>
+      {!item.uploading && !item.failed && renderItemActions?.(item, index)}
     </View>
   );
 }
@@ -115,6 +119,7 @@ interface SharedListProps {
   onRemove: (key: string) => void;
   onRetry: (item: UploadImage) => void;
   onPreview: (index: number) => void;
+  renderItemActions?: (item: UploadImage, index: number) => React.ReactNode;
 }
 
 interface HorizontalListProps extends SharedListProps {
@@ -132,6 +137,7 @@ function HorizontalList({
   onRemove,
   onRetry,
   onPreview,
+  renderItemActions,
   onDrop,
 }: HorizontalListProps) {
   const data = useMemo(() => images.map(item => ({ ...item, id: item.key })), [images]);
@@ -181,6 +187,7 @@ function HorizontalList({
                 onRemove={onRemove}
                 onRetry={onRetry}
                 onPreview={onPreview}
+                renderItemActions={renderItemActions}
               />
             </SortableItem>
           );
@@ -227,6 +234,7 @@ function GridList({
   onRemove,
   onRetry,
   onPreview,
+  renderItemActions,
   onDrop,
 }: GridListProps) {
   const data = useMemo(() => images.map(item => ({ ...item, id: item.key })), [images]);
@@ -277,6 +285,7 @@ function GridList({
                 onRemove={onRemove}
                 onRetry={onRetry}
                 onPreview={onPreview}
+                renderItemActions={renderItemActions}
               />
             </SortableGridItem>
           );
@@ -329,6 +338,7 @@ export default function ImageUploader({
   addBackgroundColor = '#F5F5F5',
   maxBytes = MAX_IMAGE_BYTES,
   uploadFn = uploadToOss,
+  renderItemActions,
   style,
 }: ImageUploaderProps) {
   const [innerItems, setInnerItems] = useState<UploadImage[]>(() => urlsToUploadImages(value));
@@ -445,6 +455,7 @@ export default function ImageUploader({
       uploadImageItem(item.key, item.uri);
     },
     onPreview: (index: number) => setPreviewIndex(index),
+    renderItemActions,
   };
 
   const listKey = innerItems.map(item => item.key).join('|');

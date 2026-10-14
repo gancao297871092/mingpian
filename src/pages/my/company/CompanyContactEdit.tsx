@@ -4,22 +4,25 @@ import { useNavigation, useRoute, type RouteProp } from '@react-navigation/nativ
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
+import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
-import { COMPANY_CONTACTS } from '@/data/company';
 
 const PRIMARY = '#2962D4';
+const PHONE_REG = /^[\d+\-\s]{5,20}$/;
 
-/** 编辑模块：编辑联系方式（联系人/职位/联系电话） */
+/** 编辑模块：编辑联系方式（联系人/职位/联系电话；传 id 为编辑，不传为新增，对齐小程序 editContact.vue） */
 export default function CompanyContactEdit() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'companyContactEdit'>>();
-  const contact = COMPANY_CONTACTS.find(c => c.id === route.params?.id);
-  const [name, setName] = useState(contact?.name ?? '');
-  const [position, setPosition] = useState(contact?.position ?? '');
-  const [phone, setPhone] = useState(contact?.phone ?? '');
+  const id = route.params?.id;
+  const [name, setName] = useState(route.params?.name ?? '');
+  const [position, setPosition] = useState(route.params?.position ?? '');
+  const [phone, setPhone] = useState(route.params?.phone ?? '');
+  const [saving, setSaving] = useState(false);
 
-  const onSave = useCallback(() => {
+  const onSave = useCallback(async () => {
+    if (saving) return;
     if (!name.trim()) {
       Toast.show({ type: 'error', text1: '请输入联系人' });
       return;
@@ -28,9 +31,28 @@ export default function CompanyContactEdit() {
       Toast.show({ type: 'error', text1: '请输入联系电话' });
       return;
     }
-    Toast.show({ type: 'success', text1: '已保存' });
-    navigation.goBack();
-  }, [name, phone, navigation]);
+    if (!PHONE_REG.test(phone.trim())) {
+      Toast.show({ type: 'error', text1: '请输入正确的联系电话' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload: { id?: number | string; name: string; position: string; phone: string } = {
+        name: name.trim(),
+        position: position.trim(),
+        phone: phone.trim(),
+      };
+      if (id != null) payload.id = id;
+      const res = await API.company.contactSave(payload);
+      if (res.code !== '200') return;
+      Toast.show({ type: 'success', text1: '保存成功' });
+      navigation.goBack();
+    } catch {
+      Toast.show({ type: 'error', text1: '保存失败' });
+    } finally {
+      setSaving(false);
+    }
+  }, [saving, name, position, phone, id, navigation]);
 
   useEffect(() => {
     navigation.setOptions({

@@ -1,35 +1,101 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Image as ExpoImage } from 'expo-image';
 import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
-import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
+import LongHtmlView from '@/components/LongHtmlView';
+import { API } from '@/api';
+import { getEditorResult } from '@/utils/editorBridge';
+import { scaleSizeH, scaleSizeW, setSpText, SCREEN_WIDTH } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
-import { COMPANY_MENUS } from '@/data/company';
 import { EditPenIcon } from '../myIcons';
 
 const PRIMARY = '#2962D4';
 const GRAY = '#6C6C6C';
 const NAME_MAX = 24;
 
-/** 编辑模块：编辑菜单模块（模块名称 + 模块内容） */
+function stripHtml(html: string): string {
+  return (html || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+}
+
+/** 编辑模块：编辑菜单模块（模块名称 + 富文本模块内容，对齐小程序 editModule.vue） */
 export default function CompanyModuleEdit() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'companyModuleEdit'>>();
-  const menu = COMPANY_MENUS.find(m => m.id === route.params?.id);
-  const [name, setName] = useState(route.params?.name ?? menu?.name ?? '万企小刘');
-  const [content, setContent] = useState(menu?.content ?? '');
+  const mdId = route.params?.id;
 
-  const onSave = useCallback(() => {
+  const [cpId, setCpId] = useState<number | string | null>(null);
+  const [ctId, setCtId] = useState<number | string | null>(null);
+  const [name, setName] = useState('');
+  const [content, setContent] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  // 回显模块名称与内容
+  useEffect(() => {
+    if (!mdId) return;
+    (async () => {
+      try {
+        const res = await API.company.moduleContentPre({ mdId });
+        if (res.code !== '200' || !res.data) return;
+        setName(res.data.module?.mdName || '');
+        setCpId(res.data.module?.cpId ?? null);
+        if (res.data.content) {
+          setCtId(res.data.content.id ?? null);
+          setContent(res.data.content.content || '');
+        }
+      } catch {
+        // ignore
+      }
+    })();
+  }, [mdId]);
+
+  // 从 publishLongText 返回后接收 HTML（AddItem 同款桥接）
+  useFocusEffect(
+    useCallback(() => {
+      const result = getEditorResult();
+      if (result !== null) {
+        setContent(result);
+      }
+    }, []),
+  );
+
+  const onOpenEditor = useCallback(() => {
+    navigation.navigate('publishLongText', {
+      title: '模块内容',
+      initialHtml: content || undefined,
+    });
+  }, [navigation, content]);
+
+  const onSave = useCallback(async () => {
+    if (saving) return;
     if (!name.trim()) {
       Toast.show({ type: 'error', text1: '请输入模块名称' });
       return;
     }
-    Toast.show({ type: 'success', text1: '已保存' });
-    navigation.goBack();
-  }, [name, navigation]);
+    if (!stripHtml(content)) {
+      Toast.show({ type: 'error', text1: '请输入模块内容' });
+      return;
+    }
+    if (!mdId || !cpId) return;
+    setSaving(true);
+    try {
+      const res = await API.company.moduleContentSave({
+        ctId,
+        cpId,
+        mdId,
+        mdName: name.trim(),
+        content,
+      });
+      if (res.code !== '200') return;
+      Toast.show({ type: 'success', text1: '保存成功' });
+      navigation.goBack();
+    } catch {
+      Toast.show({ type: 'error', text1: '保存失败' });
+    } finally {
+      setSaving(false);
+    }
+  }, [saving, name, content, mdId, cpId, ctId, navigation]);
 
   useEffect(() => {
     navigation.setOptions({
@@ -38,6 +104,8 @@ export default function CompanyModuleEdit() {
       ),
     });
   }, [navigation, onSave]);
+
+  const hasContent = !!stripHtml(content) || /<(img|video)\b/i.test(content);
 
   return (
     <SafeView backgroundColor="#F6F7FB">
@@ -57,28 +125,18 @@ export default function CompanyModuleEdit() {
           </View>
           <Text style={styles.label}>模块内容</Text>
           <View style={styles.contentCard}>
-            {!!menu?.content && (
-              <ExpoImage
-                source={{ uri: 'https://picsum.photos/seed/qymodule/684/210' }}
-                style={styles.contentImage}
-                contentFit="cover"
-                transition={150}
-              />
-            )}
-            <TextInput
-              style={styles.contentInput}
-              value={content}
-              onChangeText={setContent}
-              placeholder="请输入模块内容"
-              placeholderTextColor="#999999"
-              multiline
-              textAlignVertical="top"
-            />
-            <TouchableOpacity
-              activeOpacity={0.8}
-              style={styles.deepEdit}
-              onPress={() => Toast.show({ type: 'info', text1: '功能开发中' })}
-            >
+            <TouchableOpacity activeOpacity={0.8} style={styles.contentTouch} onPress={onOpenEditor}>
+              {hasContent ? (
+                <LongHtmlView
+                  html={content}
+                  contentWidth={SCREEN_WIDTH - scaleSizeW(60)}
+                  baseStyle={styles.contentText}
+                />
+              ) : (
+                <Text style={styles.contentPlaceholder}>请输入模块内容</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity activeOpacity={0.8} style={styles.deepEdit} onPress={onOpenEditor}>
               <EditPenIcon size={20} color={PRIMARY} />
               <Text style={styles.deepEditText}>深度编辑</Text>
             </TouchableOpacity>
@@ -139,19 +197,19 @@ const styles = StyleSheet.create({
     padding: scaleSizeW(14),
     minHeight: scaleSizeH(200),
   },
-  contentImage: {
-    width: '100%',
-    height: scaleSizeH(105),
-    borderRadius: scaleSizeW(6),
-    backgroundColor: '#F5F5F5',
-    marginBottom: scaleSizeH(13),
-  },
-  contentInput: {
-    padding: 0,
+  contentTouch: {
+    flexGrow: 1,
     minHeight: scaleSizeH(80),
+  },
+  contentText: {
     fontSize: setSpText(14),
     lineHeight: setSpText(20),
     color: '#000000',
+  },
+  contentPlaceholder: {
+    fontSize: setSpText(14),
+    lineHeight: setSpText(20),
+    color: '#999999',
   },
   deepEdit: {
     flexDirection: 'row',

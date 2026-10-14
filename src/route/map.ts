@@ -53,8 +53,10 @@ export type RootStackParamList = {
   browseHistorySearch: undefined;
   companyManage: undefined;
   companyInfo: undefined;
-  companyModuleEdit: { id?: string; name?: string } | undefined;
-  companyContactEdit: { id?: string } | undefined;
+  /** 模块编辑：id 为模块 mdId（新增时先调 moduleAdd 拿到 id 再进入） */
+  companyModuleEdit: { id?: number | string } | undefined;
+  /** 联系方式编辑：无按 id 查询接口，列表项字段带入回显（对齐小程序 editContact） */
+  companyContactEdit: { id?: number | string; name?: string; position?: string; phone?: string } | undefined;
   companyMembers: undefined;
   companyMemberAudit: undefined;
   companyBbsAudit: undefined;

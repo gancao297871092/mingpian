@@ -581,6 +581,66 @@ export namespace API {
     export function certLink(data: any) {
       return request.post<any>('/company/auth/step/link', data);
     }
+    /** 企业信息/相册预查询（对齐小程序 enterInfo：cpId、avatar、cardPoster、posterTitle、des、mediaList） */
+    export function infoPosterPre() {
+      return request.get<any>('/company/info/poster/pre');
+    }
+    /** 保存企业信息（简介/LOGO/海报封面/分享卡企业名，id 为 cpId） */
+    export function infoSaveDes(data: {
+      id: number | string;
+      des: string;
+      desTxt?: string;
+      avatar: string;
+      cardPoster?: string;
+      posterTitle?: string;
+    }) {
+      return request.post<any>('/company/info/save/des', data);
+    }
+    /** 菜单模块预查询（moduleList 含 isMust 固定模块，需过滤） */
+    export function modulePre() {
+      return request.get<{ cpId: number | string; moduleList: any[] }>('/company/info/module/pre');
+    }
+    /** 新增菜单模块（返回新模块，随后进编辑页填内容） */
+    export function moduleAdd(params: { cpId: number | string }) {
+      return request.get<any>('/company/info/module/add', { params });
+    }
+    /** 删除菜单模块 */
+    export function moduleDel(params: { mdId: number | string }) {
+      return request.get<any>('/company/info/module/del', { params });
+    }
+    /** 菜单模块排序 */
+    export function moduleSort(data: { id: number | string; mdSort: number }[]) {
+      return request.post<any>('/company/info/module/sort', data);
+    }
+    /** 模块内容回显（content 可能为 null） */
+    export function moduleContentPre(params: { mdId: number | string }) {
+      return request.get<{ module: any; content: { id: number | string; content: string } | null }>(
+        '/company/info/content/pre',
+        { params },
+      );
+    }
+    /** 保存模块名称与富文本内容（ctId 有则更新内容记录） */
+    export function moduleContentSave(data: {
+      ctId?: number | string | null;
+      cpId: number | string;
+      mdId: number | string;
+      mdName: string;
+      content: string;
+    }) {
+      return request.post<any>('/company/info/content/save', data);
+    }
+    /** 联系方式列表（data 可能是数组或 {list/records/rows} 包装） */
+    export function contactList() {
+      return request.get<any>('/company/contact/list');
+    }
+    /** 保存联系方式（传 id 为编辑，不传为新增） */
+    export function contactSave(data: { id?: number | string; name: string; position?: string; phone: string }) {
+      return request.post<any>('/company/contact/save', data);
+    }
+    /** 删除联系方式 */
+    export function contactDel(params: { id: number | string }) {
+      return request.get<any>('/company/contact/del', { params });
+    }
   }
 
   /** 浏览历史（我的-浏览记录；动态详情登录时服务端自动记录） */
