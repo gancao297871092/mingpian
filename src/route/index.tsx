@@ -40,6 +40,7 @@ import BrowseHistory from '@/pages/my/BrowseHistory';
 import BrowseHistorySearch from '@/pages/my/BrowseHistorySearch';
 import CompanyManage from '@/pages/my/CompanyManage';
 import CompanyInfo from '@/pages/my/company/CompanyInfo';
+import CompanyPage from '@/pages/my/company/CompanyPage';
 import CompanyModuleEdit from '@/pages/my/company/CompanyModuleEdit';
 import CompanyContactEdit from '@/pages/my/company/CompanyContactEdit';
 import CompanyMembers from '@/pages/my/company/CompanyMembers';
@@ -540,6 +541,16 @@ export default function RootNavigator() {
           component={CompanyInfo}
           options={{
             title: '企业信息',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="companyPage"
+          component={CompanyPage}
+          options={{
+            title: '企业主页',
             headerStyle: { backgroundColor: '#F6F7FB' },
             headerTitleStyle: { color: '#000000' },
             headerShadowVisible: false,

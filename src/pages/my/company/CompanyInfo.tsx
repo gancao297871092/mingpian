@@ -104,7 +104,7 @@ function InfoTab({
           <Text style={styles.infoCardLabel}>企业LOGO</Text>
           <TouchableOpacity activeOpacity={0.8} style={styles.logoWrap} onPress={() => onPick('avatar')}>
             {form.avatar ? (
-              <ExpoImage source={{ uri: form.avatar }} style={styles.logo} contentFit="cover" transition={150} />
+              <ExpoImage source={{ uri: form.avatar }} recyclingKey={form.avatar} style={styles.logo} contentFit="cover" transition={150} />
             ) : (
               <View style={styles.logo} />
             )}
@@ -119,7 +119,7 @@ function InfoTab({
         </View>
         <TouchableOpacity activeOpacity={0.9} style={styles.posterCard} onPress={() => onPick('cardPoster')}>
           {form.cardPoster ? (
-            <ExpoImage source={{ uri: form.cardPoster }} style={styles.poster} contentFit="cover" transition={150} />
+            <ExpoImage source={{ uri: form.cardPoster }} recyclingKey={form.cardPoster} style={styles.poster} contentFit="cover" transition={150} />
           ) : (
             <View style={styles.poster} />
           )}
@@ -543,14 +543,11 @@ export default function CompanyInfo() {
     }
   }, [tab, saving, form, pre]);
 
-  useEffect(() => {
-    navigation.setOptions({
-      headerRight:
-        tab === '企业信息'
-          ? () => <Text style={styles.headerSave} onPress={onSave}>保存</Text>
-          : undefined,
-    });
-  }, [navigation, tab, onSave]);
+  // 预览主页（对齐小程序 enterInfo onPreview：跳企业主页 companyPage）
+  const onPreview = useCallback(() => {
+    if (!pre?.cpId) return;
+    navigation.navigate('companyPage', { id: pre.cpId });
+  }, [navigation, pre]);
 
   return (
     <SafeView backgroundColor="#F6F7FB">
@@ -569,24 +566,30 @@ export default function CompanyInfo() {
             </TouchableOpacity>
           ))}
         </View>
-        {/* 四个 tab 保持挂载不卸载（小程序 v-show 同款），切换时保留各自现状数据 */}
-        <View style={tab === '企业信息' ? undefined : styles.tabHidden}>
-          <InfoTab
-            form={form}
-            onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
-            onOpenIntroEditor={onOpenIntroEditor}
-          />
-        </View>
-        <View style={tab === '企业相册' ? undefined : styles.tabHidden}>
-          <PhotosTab />
-        </View>
-        <View style={tab === '菜单模块' ? undefined : styles.tabHidden}>
-          <MenusTab navigation={navigation} />
-        </View>
-        <View style={tab === '联系方式' ? undefined : styles.tabHidden}>
-          <ContactsTab navigation={navigation} />
-        </View>
+        {/* 四个 tab 保持挂载不卸载（小程序 v-show 同款），切换时保留各自现状数据；
+            隐藏用透明+绝对定位而非 display:none，避免原生图片视图被回收复用导致闪图 */}
+        {([
+          ['企业信息', <InfoTab key="info" form={form} onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))} onOpenIntroEditor={onOpenIntroEditor} />],
+          ['企业相册', <PhotosTab key="photos" />],
+          ['菜单模块', <MenusTab key="menus" navigation={navigation} />],
+          ['联系方式', <ContactsTab key="contacts" navigation={navigation} />],
+        ] as [TabKey, React.ReactNode][]).map(([key, node]) => (
+          <View key={key} style={tab === key ? undefined : styles.tabHidden} pointerEvents={tab === key ? 'auto' : 'none'}>
+            {node}
+          </View>
+        ))}
       </ScrollView>
+
+      {/* 底部固定按钮（对齐小程序：企业信息 tab 为保存信息，其余 tab 为预览主页） */}
+      <View style={styles.footer}>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          style={styles.footerBtn}
+          onPress={tab === '企业信息' ? onSave : onPreview}
+        >
+          <Text style={styles.footerBtnText}>{tab === '企业信息' ? '保存信息' : '预览主页'}</Text>
+        </TouchableOpacity>
+      </View>
     </SafeView>
   );
 }
@@ -595,6 +598,23 @@ const styles = StyleSheet.create({
   content: {
     padding: scaleSizeW(16),
     paddingBottom: scaleSizeH(40),
+  },
+  footer: {
+    paddingHorizontal: scaleSizeW(16),
+    paddingTop: scaleSizeH(12),
+    paddingBottom: scaleSizeH(20),
+  },
+  footerBtn: {
+    height: scaleSizeH(48),
+    borderRadius: scaleSizeW(90),
+    backgroundColor: PRIMARY,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footerBtnText: {
+    fontSize: setSpText(15),
+    lineHeight: setSpText(24),
+    color: '#FFFFFF',
   },
   headerSave: {
     fontSize: setSpText(15),
@@ -643,7 +663,11 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   tabHidden: {
-    display: 'none',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    opacity: 0,
   },
   tip: {
     flexDirection: 'row',

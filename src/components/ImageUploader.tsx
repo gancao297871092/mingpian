@@ -13,6 +13,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import ImagePicker from 'react-native-image-crop-picker';
+import { Image as ExpoImage } from 'expo-image';
 import Animated from 'react-native-reanimated';
 import { LegacyScrollView as GestureScrollView } from 'react-native-gesture-handler';
 import { GestureViewer } from 'react-native-gesture-image-viewer';
@@ -83,7 +84,8 @@ function MediaItem({ item, index, itemSize, showCoverBadge, onRemove, onRetry, o
   return (
     <View style={[styles.mediaItem, { width: itemSize, height: itemSize, borderRadius: itemSize * 0.12 }]}>
       <TouchableOpacity style={styles.mediaImgTouch} activeOpacity={0.9} onPress={() => onPreview(index)}>
-        <Image source={{ uri: item.uri }} style={styles.mediaImg} />
+        {/* expo-image 内存+磁盘双缓存：tab 切换（display:none）恢复时不重新加载 */}
+        <ExpoImage source={{ uri: item.uri }} style={styles.mediaImg} contentFit="cover" cachePolicy="memory-disk" transition={0} />
       </TouchableOpacity>
       {showCoverBadge && index === 0 && (
         <View style={styles.coverBadge}>
@@ -478,7 +480,7 @@ export default function ImageUploader({
             data={innerItems.map(item => item.uri)}
             initialIndex={previewIndex}
             renderItem={(uri: string) => (
-              <Image source={{ uri }} style={styles.previewViewerImage} resizeMode="contain" />
+              <ExpoImage source={{ uri }} style={styles.previewViewerImage} contentFit="contain" cachePolicy="memory-disk" transition={0} />
             )}
             ListComponent={ScrollView}
             onDismiss={() => setPreviewIndex(null)}
