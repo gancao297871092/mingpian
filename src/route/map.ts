@@ -20,7 +20,7 @@ export type RootStackParamList = {
   publish: { draft?: LocalDraft; editBbsId?: number } | undefined;
   publishCover: { videoUri: string; ratio?: '3:4' | '16:9'; title?: string };
   draftBox: undefined;
-  bbsDetail: { id: string; isFollowed?: boolean; fromMy?: boolean };
+  bbsDetail: { id: string; isFollowed?: boolean; fromMy?: boolean; audit?: boolean };
   bbsShareImage: { id: string };
   search: undefined;
   editProfile: undefined;

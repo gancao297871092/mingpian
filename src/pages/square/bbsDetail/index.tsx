@@ -413,6 +413,8 @@ function CommentItem({
 export default function BbsDetail() {
   const route = useRoute<RouteProp<RootStackParamList, 'bbsDetail'>>();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  // 审核模式（对齐小程序 details.vue from=dynamicsEx）：详情走审核接口，底部为拒绝/通过
+  const isAudit = route.params.audit === true;
   const currentAvatar = useUserStore(s => s.userInfo?.wqUser?.avatar);
   const currentName = useUserStore(s => s.userInfo?.wqUser?.nameZh || s.userInfo?.wqUser?.username);
 
@@ -459,6 +461,49 @@ export default function BbsDetail() {
   const [actionVariant, setActionVariant] = useState<'user' | 'author' | 'manage'>('user');
   // 二级回复可弹出操作层但不提供置顶
   const [canPin, setCanPin] = useState(true);
+
+  // 审核模式：拒绝理由弹层 + 提交中
+  const rejectSheetRef = useRef<BottomSheetModal>(null);
+  const [auditSubmitting, setAuditSubmitting] = useState(false);
+
+  // 审核操作（status: 1通过 4拒绝，对齐小程序 details.vue onBtn）
+  const onAuditDo = useCallback(
+    async (status: number, msg?: string) => {
+      if (auditSubmitting) return;
+      setAuditSubmitting(true);
+      try {
+        const res = await API.company.bbsCheckDo({ bbsId: Number(route.params.id), status, msg });
+        if (res.code !== '200') return;
+        Toast.show({ type: 'success', text1: status === 1 ? '已通过！' : '已拒绝！' });
+        navigation.goBack();
+      } catch {
+        Toast.show({ type: 'error', text1: '操作失败' });
+      } finally {
+        setAuditSubmitting(false);
+      }
+    },
+    [auditSubmitting, route.params.id, navigation],
+  );
+
+  // 通过前二次确认（对齐小程序 onPass）
+  const onAuditPass = useCallback(() => {
+    Alert.alert('提示', '请再次确认操作！', [
+      { text: '取消', style: 'cancel' },
+      { text: '确认', onPress: () => onAuditDo(1) },
+    ]);
+  }, [onAuditDo]);
+
+  const onSendRejectReason = useCallback(
+    (text: string) => {
+      if (!text) {
+        Toast.show({ type: 'info', text1: '请输入拒绝理由！' });
+        return;
+      }
+      rejectSheetRef.current?.dismiss();
+      onAuditDo(4, text);
+    },
+    [onAuditDo],
+  );
 
   const loadComments = useCallback(
     (page: number) => {
@@ -686,8 +731,8 @@ export default function BbsDetail() {
 
   useEffect(() => {
     let mounted = true;
-    // 优先用列表带过来的缓存数据渲染，详情接口返回后再更新
-    const cached = getDetailCache(route.params.id);
+    // 优先用列表带过来的缓存数据渲染，详情接口返回后再更新（审核模式不用缓存，避免与广场缓存串数据）
+    const cached = isAudit ? null : getDetailCache(route.params.id);
     if (cached) {
       const d = transformDetail(cached);
       setDetail(d);
@@ -700,14 +745,29 @@ export default function BbsDetail() {
       setLoading(false);
     }
     const fromMy = route.params.fromMy === true;
-    const detailReq = fromMy
-      ? API.bbs.bbsDetail({ bbsId: Number(route.params.id) })
-      : API.square.bbsDetail({ bbsId: route.params.id });
+    const detailReq = isAudit
+      ? API.company.bbsCheckDetail({ bbsId: Number(route.params.id) })
+      : fromMy
+        ? API.bbs.bbsDetail({ bbsId: Number(route.params.id) })
+        : API.square.bbsDetail({ bbsId: route.params.id });
     detailReq
       .then(res => {
         console.log(res.data);
         if (!mounted) return;
-        const d = transformDetail(res.data?.bbs ?? res.data ?? {});
+        // 审核详情接口的作者信息在 res.data.userInfo（wqUser 嵌套头像/昵称，cpName 同级），映射为 userInfoVo 供 transformDetail 使用
+        const rawBbs = res.data?.bbs ?? res.data ?? {};
+        const auditUser = res.data?.userInfo;
+        if (isAudit && auditUser && !rawBbs.userInfoVo) {
+          const wqUser = auditUser.wqUser || {};
+          rawBbs.userInfoVo = {
+            ...wqUser,
+            nickname: wqUser.nickname || wqUser.nameZh || wqUser.realName || wqUser.username || '',
+            cpName: auditUser.cpName || '',
+            isFollow: auditUser.isFollow,
+          };
+          rawBbs.userId = rawBbs.userId ?? wqUser.id ?? 0;
+        }
+        const d = transformDetail(rawBbs);
 
         setDetail(d);
         setLiked(d.isLiked);
@@ -727,11 +787,11 @@ export default function BbsDetail() {
     return () => {
       mounted = false;
     };
-  }, [route.params.id, route.params.isFollowed, route.params.fromMy]);
+  }, [route.params.id, route.params.isFollowed, route.params.fromMy, isAudit]);
 
   useEffect(() => {
-    if (!commentRestricted) loadComments(1);
-  }, [loadComments, commentRestricted]);
+    if (!isAudit && !commentRestricted) loadComments(1);
+  }, [loadComments, commentRestricted, isAudit]);
 
   const onToggleFollow = useCallback(() => {
     if (!detail || refreshing) return;
@@ -916,25 +976,28 @@ export default function BbsDetail() {
               onImagePress={onRichImagePress}
             />
           )}
-          {!commentRestricted && (
+          {!isAudit && !commentRestricted && (
             <>
               <View style={styles.divider} />
               <Text style={styles.commentCount}>共 {commentCount} 条评论</Text>
             </>
           )}
-          <View style={styles.commentInputRow}>
-            <ExpoImage
-              source={{ uri: currentAvatar || 'https://i.pravatar.cc/100?img=8' }}
-              style={styles.commentAvatar}
-              contentFit="cover"
-              transition={150}
-            />
-            <TouchableOpacity activeOpacity={0.7} style={styles.commentInput} onPress={() => openCommentInput()}>
-              <Text style={styles.commentInputText}>
-                {commentRestricted ? commentLockText : '留下你的看法'}
-              </Text>
-            </TouchableOpacity>
-          </View>
+          {!isAudit && (
+            <View style={styles.commentInputRow}>
+              <ExpoImage
+                source={{ uri: currentAvatar || 'https://i.pravatar.cc/100?img=8' }}
+                style={styles.commentAvatar}
+                contentFit="cover"
+                transition={150}
+              />
+              <TouchableOpacity activeOpacity={0.7} style={styles.commentInput} onPress={() => openCommentInput()}>
+                <Text style={styles.commentInputText}>
+                  {commentRestricted ? commentLockText : '留下你的看法'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {isAudit && <View style={styles.divider} />}
         </View>
       </View>
     );
@@ -962,6 +1025,7 @@ export default function BbsDetail() {
           ) : null
         }
         right={
+          isAudit ? null : (
           <>
             {!isBbsAuthor && (
               <TouchableOpacity
@@ -986,6 +1050,7 @@ export default function BbsDetail() {
               </Svg>
             </TouchableOpacity>
           </>
+          )
         }
       />
       <View style={styles.flex1}>
@@ -994,7 +1059,7 @@ export default function BbsDetail() {
           <DetailSkeleton />
         ) : (
         <FlatList
-          data={commentRestricted ? [] : comments}
+          data={isAudit || commentRestricted ? [] : comments}
           keyExtractor={item => item.id}
           renderItem={({ item }) => (
             <CommentItem
@@ -1007,7 +1072,7 @@ export default function BbsDetail() {
           )}
           ListHeaderComponent={renderHeader()}
           ListEmptyComponent={
-            commentRestricted ? (
+            isAudit ? null : commentRestricted ? (
               <View style={styles.restrictedEmpty}>
                 <RNImage
                   source={require('@/assets/empty-state/comment-restricted.png')}
@@ -1022,12 +1087,34 @@ export default function BbsDetail() {
           }
           onEndReachedThreshold={0.3}
           onEndReached={() => {
-            if (commentPage < commentPages) loadComments(commentPage + 1);
+            if (!isAudit && commentPage < commentPages) loadComments(commentPage + 1);
           }}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
         />
       )}
+      {isAudit ? (
+        <View style={[styles.bottomBar, styles.auditBottomBar]}>
+          <View style={styles.auditBtnRow}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={[styles.auditBtn, styles.auditBtnReject]}
+              disabled={auditSubmitting}
+              onPress={() => rejectSheetRef.current?.present()}
+            >
+              <Text style={styles.auditBtnRejectText}>拒绝</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={[styles.auditBtn, styles.auditBtnApprove]}
+              disabled={auditSubmitting}
+              onPress={onAuditPass}
+            >
+              <Text style={styles.auditBtnApproveText}>通过</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : (
       <View style={[styles.bottomBar, { paddingBottom: scaleSizeH(10) }]}>
         <View style={styles.bottomBarRow}>
           {isBbsAuthor ? (
@@ -1074,7 +1161,14 @@ export default function BbsDetail() {
           </TouchableOpacity>
         </View>
       </View>
+      )}
       </View>
+      {/* 审核模式：拒绝理由输入（复用评论输入弹层） */}
+      <CommentInputSheet
+        ref={rejectSheetRef}
+        placeholder="请输入拒绝理由"
+        onSend={onSendRejectReason}
+      />
       <CommentInputSheet
         ref={inputSheetRef}
         placeholder={replyTarget ? `回复 @${replyTarget.name}` : '留下你的看法'}
@@ -1554,6 +1648,42 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#ECEBEB',
+  },
+  auditBtnRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: scaleSizeW(10),
+    paddingHorizontal: scaleSizeW(16),
+    paddingTop: scaleSizeH(14),
+  },
+  auditBottomBar: {
+    // figma 审核动态详情底栏高 90：上间距 14 + 按钮 48 + 下间距 28（含 Home Indicator 区域）
+    paddingBottom: scaleSizeH(28),
+  },
+  auditBtn: {
+    width: scaleSizeW(180),
+    height: scaleSizeH(48),
+    borderRadius: scaleSizeW(90),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  auditBtnReject: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D9D9D9',
+  },
+  auditBtnApprove: {
+    backgroundColor: BLUE,
+  },
+  auditBtnRejectText: {
+    fontSize: setSpText(15),
+    lineHeight: setSpText(24),
+    color: '#000000',
+  },
+  auditBtnApproveText: {
+    fontSize: setSpText(15),
+    lineHeight: setSpText(24),
+    color: '#FFFFFF',
   },
   bottomBarRow: {
     height: scaleSizeH(72),

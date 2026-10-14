@@ -84,8 +84,8 @@ function MediaItem({ item, index, itemSize, showCoverBadge, onRemove, onRetry, o
   return (
     <View style={[styles.mediaItem, { width: itemSize, height: itemSize, borderRadius: itemSize * 0.12 }]}>
       <TouchableOpacity style={styles.mediaImgTouch} activeOpacity={0.9} onPress={() => onPreview(index)}>
-        {/* expo-image 内存+磁盘双缓存：tab 切换（display:none）恢复时不重新加载 */}
-        <ExpoImage source={{ uri: item.uri }} style={styles.mediaImg} contentFit="cover" cachePolicy="memory-disk" transition={0} />
+        {/* expo-image 内存+磁盘双缓存 + recyclingKey 防回收池复用闪图：tab 切换（display:none）恢复时不重新加载 */}
+        <ExpoImage source={{ uri: item.uri }} recyclingKey={item.uri} style={styles.mediaImg} contentFit="cover" cachePolicy="memory-disk" transition={0} />
       </TouchableOpacity>
       {showCoverBadge && index === 0 && (
         <View style={styles.coverBadge}>
@@ -480,7 +480,7 @@ export default function ImageUploader({
             data={innerItems.map(item => item.uri)}
             initialIndex={previewIndex}
             renderItem={(uri: string) => (
-              <ExpoImage source={{ uri }} style={styles.previewViewerImage} contentFit="contain" cachePolicy="memory-disk" transition={0} />
+              <ExpoImage source={{ uri }} recyclingKey={uri} style={styles.previewViewerImage} contentFit="contain" cachePolicy="memory-disk" transition={0} />
             )}
             ListComponent={ScrollView}
             onDismiss={() => setPreviewIndex(null)}

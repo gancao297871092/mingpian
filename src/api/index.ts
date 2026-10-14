@@ -641,6 +641,18 @@ export namespace API {
     export function contactDel(params: { id: number | string }) {
       return request.get<any>('/company/contact/del', { params });
     }
+    /** 动态审核列表（对齐小程序 dynamicsEx） */
+    export function bbsCheckList(data: { name?: string; pageNum?: number; pageSize?: number }) {
+      return request.post<any>('/company/bbs/check/list', data);
+    }
+    /** 动态审核详情（审核场景替代 /circle/bbs/getOne） */
+    export function bbsCheckDetail(params: { bbsId: number | string }) {
+      return request.get<any>('/company/bbs/check/detail', { params });
+    }
+    /** 动态审核操作（status: 1通过 4拒绝；拒绝需传 msg 理由） */
+    export function bbsCheckDo(data: { bbsId: number | string; status: number; msg?: string }) {
+      return request.post<any>('/company/bbs/check/do', data);
+    }
   }
 
   /** 浏览历史（我的-浏览记录；动态详情登录时服务端自动记录） */
