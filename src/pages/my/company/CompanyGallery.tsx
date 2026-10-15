@@ -15,9 +15,11 @@ const GREEN = '#36BE69';
 interface CompanyGalleryProps {
   /** 企业主页详情（/company/main），用于核验条与主体信息 */
   main: any;
-  /** 可信档案图片分组（/company/gallery，由主页提前请求） */
+  /** 可信档案图片分组（/company/gallery，由主页提前请求，切 tab 不再等待） */
   groups: any[];
   groupsLoaded: boolean;
+  /** 内容高度变化（外层 FlatList 统一滚动，需要撑开高度） */
+  onHeight: (h: number) => void;
 }
 
 /** 核验条盾牌图标（figma 企业主页2 1722:5113） */
@@ -60,7 +62,7 @@ function MapPinIcon() {
 }
 
 /** 可信档案 tab（figma 企业主页2）：核验条 + 主体信息工商表 + 横滑图组（公司实拍/资质证书等） */
-export default function CompanyGallery({ main, groups, groupsLoaded }: CompanyGalleryProps) {
+export default function CompanyGallery({ main, groups, groupsLoaded, onHeight }: CompanyGalleryProps) {
   const verifyTime = main?.verifyTime || main?.checkTime || main?.authTime || '';
   const verified = !!main?.creditCode || main?.verifyStatus === 1;
   const bizRows = [
@@ -74,7 +76,7 @@ export default function CompanyGallery({ main, groups, groupsLoaded }: CompanyGa
   ].filter((r) => !!r.value);
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} onLayout={(e) => onHeight(e.nativeEvent.layout.height)}>
       {verified && (
         <LinearGradient
           colors={['#FEF4E9', '#FFE4C1']}

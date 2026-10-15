@@ -1,4 +1,4 @@
-import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from 'react';
+import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useNavigation } from '@react-navigation/native';
@@ -12,19 +12,28 @@ import { setDetailCache } from '@/utils/detailCache';
 import { ossVideoSnapshot } from '@/pages/square/bbsDetail/detailTransform';
 import { scaleSizeW } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
+import type { TabHandle } from '../tabs/common';
 
 interface CompanyPostListProps {
   cpId: number | string;
-}
-
-export interface CompanyPostListHandle {
-  loadMore: () => void;
+  /** 是否为当前展示页（懒加载触发） */
+  active: boolean;
+  /** 列表内容高度变化（外层 FlatList 统一滚动，需要撑开高度） */
+  onHeight: (h: number) => void;
 }
 
 const PAGE_SIZE = 10;
 const GO_SQUARE_ID = '__go_square__';
 
 type FeedItem = WaterfallItem & { isPlazaCard?: boolean };
+
+interface PostState {
+  list: WaterfallItem[];
+  page: number;
+  pages: number;
+  loading: boolean;
+  loaded: boolean;
+}
 
 function transformBbsToItem(bbs: any): WaterfallItem {
   const media = bbs.mediaLinkList?.[0]?.media;
@@ -65,66 +74,86 @@ function withPlazaCard(list: WaterfallItem[]): FeedItem[] {
   return items;
 }
 
-/** 最新动态 tab（figma 企业主页）：企业员工动态 FlashList masonry 双列瀑布流 + 穿插「去广场发现更多」 */
-const CompanyPostList = forwardRef<CompanyPostListHandle, CompanyPostListProps>(function CompanyPostFeed({ cpId }, ref) {
+/** 最新动态 tab（figma 企业主页）：企业员工动态 FlashList masonry 双列瀑布流 + 穿插「去广场发现更多」；
+ *  外层统一滚动，自身 scrollEnabled=false，高度通过 onHeight 上报（对齐 UserHome 的 WaterfallTab） */
+const CompanyPostList = forwardRef<TabHandle, CompanyPostListProps>(function CompanyPostFeed(
+  { cpId, active, onHeight },
+  ref,
+) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const [list, setList] = useState<WaterfallItem[]>([]);
-  const [page, setPage] = useState(1);
-  const [pages, setPages] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+  const [state, setState] = useState<PostState>({ list: [], page: 1, pages: 1, loading: false, loaded: false });
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
-  const getList = useCallback(
+  const fetchPage = useCallback(
     async (pageNum: number) => {
-      setLoading(true);
+      if (stateRef.current.loading) return;
+      setState((prev) => ({ ...prev, loading: true }));
       try {
         const res = await API.company.bbsMain({ cpId, pageNum, pageSize: PAGE_SIZE });
         if (res.code === '200') {
-          const newItems = (res.data?.list || []).map(transformBbsToItem);
-          setList((prev) => (pageNum === 1 ? newItems : [...prev, ...newItems]));
-          setPage(res.data?.pageNum || pageNum);
-          setPages(res.data?.pages || 1);
+          const list = (res.data?.list ?? []).map(transformBbsToItem);
+          setState((prev) => ({
+            list: pageNum === 1 ? list : [...prev.list, ...list],
+            page: res.data?.pageNum || pageNum,
+            pages: res.data?.pages ?? 1,
+            loading: false,
+            loaded: true,
+          }));
+        } else {
+          setState((prev) => ({ ...prev, loading: false, loaded: true }));
         }
       } catch {
-        // ignore
-      } finally {
-        setLoading(false);
-        setLoaded(true);
+        setState((prev) => ({ ...prev, loading: false, loaded: true }));
       }
     },
     [cpId],
   );
 
   useEffect(() => {
-    getList(1);
-  }, [getList]);
+    if (active && !state.loaded) fetchPage(1);
+  }, [active, state.loaded, fetchPage]);
 
-  const loadMore = useCallback(() => {
-    if (loading || page >= pages) return;
-    getList(page + 1);
-  }, [loading, page, pages, getList]);
-
-  useImperativeHandle(ref, () => ({ loadMore }), [loadMore]);
+  useImperativeHandle(
+    ref,
+    () => ({
+      onRefresh: () => fetchPage(1),
+      onEndReached: () => {
+        const s = stateRef.current;
+        if (!s.loading && s.loaded && s.page < s.pages) {
+          return fetchPage(s.page + 1);
+        }
+      },
+      ensureLoaded: () => {
+        if (!stateRef.current.loaded) fetchPage(1);
+      },
+    }),
+    [fetchPage],
+  );
 
   const squareCard = () => <GoSquareCard onPress={() => navigation.navigate('MainTabs' as never)} />;
 
   const onToggleLike = (id: string) => {
-    const target = list.find((item) => item.id === id);
+    const target = state.list.find((item) => item.id === id);
     if (!target) return;
     const next = !target.isLiked;
     const likeCount = target.likeCount + (next ? 1 : -1);
-    setList((prev) => prev.map((item) => (item.id === id ? { ...item, isLiked: next, likeCount } : item)));
+    setState((prev) => ({
+      ...prev,
+      list: prev.list.map((item) => (item.id === id ? { ...item, isLiked: next, likeCount } : item)),
+    }));
     API.bbs
       .like({ bbsId: Number(id), status: next ? 1 : 0 })
       .then(() => {
         useBbsInteractionStore.getState().setLike(id, { isLiked: next, likeCount });
       })
       .catch(() => {
-        setList((prev) =>
-          prev.map((item) =>
+        setState((prev) => ({
+          ...prev,
+          list: prev.list.map((item) =>
             item.id === id ? { ...item, isLiked: !next, likeCount: item.likeCount + (next ? -1 : 1) } : item,
           ),
-        );
+        }));
       });
   };
 
@@ -144,22 +173,19 @@ const CompanyPostList = forwardRef<CompanyPostListHandle, CompanyPostListProps>(
     );
   };
 
-  if (!loaded) {
-    return null;
-  }
-
   return (
     <FlashList
       scrollEnabled={false}
-      data={withPlazaCard(list)}
+      onContentSizeChange={(_w, h) => onHeight(h)}
+      data={withPlazaCard(state.list)}
       keyExtractor={(item: FeedItem) => item.id}
       masonry
       numColumns={2}
       renderItem={renderItem}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.listContent}
-      ListEmptyComponent={<View style={styles.emptyWrap}>{squareCard()}</View>}
-      ListFooterComponent={<ListFooter fetching={loading} isLastPage={page >= pages} listLength={list.length} />}
+      ListEmptyComponent={state.loaded ? <View style={styles.emptyWrap}>{squareCard()}</View> : null}
+      ListFooterComponent={<ListFooter fetching={state.loading} isLastPage={state.page >= state.pages} listLength={state.list.length} />}
     />
   );
 });
