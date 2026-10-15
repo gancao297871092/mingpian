@@ -657,6 +657,10 @@ export namespace API {
     export function main(params: { cpId: number | string }) {
       return request.get<any>('/company/main', { params });
     }
+    /** 企业基本信息卡片（免登录；不含图片分组，走 /company/gallery） */
+    export function infoBasic(params: { cpId: number | string }) {
+      return request.get<any>('/company/info/basic', { params });
+    }
     /** 可信档案图片分组（verifyStatus: 0未核验 1已核验；images: [{imageId,imageUrl,title}]） */
     export function gallery(params: { cpId: number | string }) {
       return request.get<{ groups: any[] }>('/company/gallery', { params });

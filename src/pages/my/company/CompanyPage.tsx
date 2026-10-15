@@ -119,9 +119,9 @@ export default function CompanyPage() {
     }, [barDarkSV]),
   );
 
-  const fetchMain = useCallback(() => {
+  const fetchBasicInfo = useCallback(() => {
     return API.company
-      .main({ cpId })
+      .infoBasic({ cpId })
       .then((res) => {
         if (res.code === '200' && res.data) setData(res.data);
       })
@@ -140,17 +140,17 @@ export default function CompanyPage() {
   }, [cpId]);
 
   useEffect(() => {
-    fetchMain();
+    fetchBasicInfo();
     fetchGallery();
-  }, [fetchMain, fetchGallery]);
+  }, [fetchBasicInfo, fetchGallery]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    const tasks: Promise<unknown>[] = [fetchMain(), fetchGallery()];
+    const tasks: Promise<unknown>[] = [fetchBasicInfo(), fetchGallery()];
     const handle = tabRefs[TAB_KEYS[pageIndexRef.current]];
     if (handle) tasks.push(handle.onRefresh());
     Promise.all(tasks).finally(() => setRefreshing(false));
-  }, [tabRefs, fetchMain, fetchGallery]);
+  }, [tabRefs, fetchBasicInfo, fetchGallery]);
 
   /** 记录各 tab 滚动位置（UI 线程每帧回调到 JS，仅写 ref） */
   const recordOffset = useCallback(
