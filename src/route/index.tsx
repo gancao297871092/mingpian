@@ -550,10 +550,8 @@ export default function RootNavigator() {
           name="companyPage"
           component={CompanyPage}
           options={{
-            title: '企业主页',
-            headerStyle: { backgroundColor: '#F6F7FB' },
-            headerTitleStyle: { color: '#000000' },
-            headerShadowVisible: false,
+            // 封面图延伸至状态栏（figma 企业主页），自定义悬浮返回按钮
+            headerShown: false,
           }}
         />
         <Stack.Screen

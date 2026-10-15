@@ -1,18 +1,16 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
-import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { API } from '@/api';
 import WaterfallCard, { WaterfallItem } from '@/components/WaterfallCard';
+import GoSquareCard from '@/components/GoSquareCard';
 import ListFooter from '@/components/ListFooter';
 import { useBbsInteractionStore } from '@/store/bbsInteraction';
 import { setDetailCache } from '@/utils/detailCache';
-import { scaleSizeW, setSpText } from '@/utils/screenUtils';
+import { scaleSizeW } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
-import { ChevronRightIcon } from '@/pages/square/bbsDetail/sheetIcons';
-import { SparklesIcon } from './icons';
 
 interface PlazaListProps {
   userId?: number;
@@ -113,29 +111,7 @@ const PlazaList = forwardRef<PlazaListHandle, PlazaListProps>(function PlazaList
 
   useImperativeHandle(ref, () => ({ loadMore }), [loadMore]);
 
-  const squareCard = () => (
-    <TouchableOpacity
-      activeOpacity={0.9}
-      style={styles.squareCard}
-      onPress={() => navigation.navigate('MainTabs' as never)}
-    >
-      <LinearGradient
-        colors={['#2962D4', '#224FA8']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-      <View style={styles.squareCardBody}>
-        <SparklesIcon />
-        <Text style={styles.squareTitle}>去广场发现更多</Text>
-        <Text style={styles.squareSub}>查看更多同行动态与合作机会</Text>
-        <View style={styles.squareBtn}>
-          <Text style={styles.squareBtnText}>去广场逛逛</Text>
-          <ChevronRightIcon color="#000000" />
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+  const squareCard = () => <GoSquareCard onPress={() => navigation.navigate('MainTabs' as never)} />;
 
   const onToggleLike = (id: string) => {
     const target = list.find((item) => item.id === id);
@@ -203,48 +179,5 @@ const styles = StyleSheet.create({
   },
   emptyWrap: {
     paddingVertical: scaleSizeW(5),
-  },
-  squareCard: {
-    borderRadius: scaleSizeW(4),
-    overflow: 'hidden',
-    marginHorizontal: scaleSizeW(2),
-    marginBottom: scaleSizeW(5),
-  },
-  squareCardBody: {
-    paddingHorizontal: scaleSizeW(11),
-    paddingTop: scaleSizeW(14),
-    paddingBottom: scaleSizeW(14),
-    gap: scaleSizeW(10),
-  },
-  squareTitle: {
-    fontSize: setSpText(17),
-    fontWeight: '500',
-    color: '#FFFFFF',
-    lineHeight: scaleSizeW(24),
-    letterSpacing: -0.4,
-  },
-  squareSub: {
-    fontSize: setSpText(12),
-    fontWeight: '400',
-    color: '#FFFFFF',
-    lineHeight: scaleSizeW(24),
-    letterSpacing: -0.4,
-  },
-  squareBtn: {
-    marginTop: scaleSizeW(32),
-    height: scaleSizeW(35),
-    borderRadius: scaleSizeW(90),
-    backgroundColor: 'rgba(255,255,255,0.7)',
-    borderWidth: 1,
-    borderColor: '#FFFFFF',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: scaleSizeW(5),
-  },
-  squareBtnText: {
-    fontSize: setSpText(14),
-    fontWeight: '400',
-    color: '#000000',
   },
 });

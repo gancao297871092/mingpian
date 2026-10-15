@@ -299,7 +299,7 @@ export default function LongTextEdit({ route, navigation }: Props) {
         toValue: e.endCoordinates.height,
         duration: e.duration || 250,
         easing: Easing.out(Easing.ease),
-        useNativeDriver: false,
+        useNativeDriver: false, 
       }).start();
     };
     const onHide = (e: KeyboardEvent) => {

@@ -653,6 +653,18 @@ export namespace API {
     export function bbsCheckDo(data: { bbsId: number | string; status: number; msg?: string }) {
       return request.post<any>('/company/bbs/check/do', data);
     }
+    /** 企业主页详情（免登录，Redis 缓存 7 天；含 mediaLinkList 封面媒体、treeVOList 菜单树；每次调用浏览量+1） */
+    export function main(params: { cpId: number | string }) {
+      return request.get<any>('/company/main', { params });
+    }
+    /** 可信档案图片分组（verifyStatus: 0未核验 1已核验；images: [{imageId,imageUrl,title}]） */
+    export function gallery(params: { cpId: number | string }) {
+      return request.get<{ groups: any[] }>('/company/gallery', { params });
+    }
+    /** 企业员工动态列表（企业主页-最新动态瀑布流） */
+    export function bbsMain(data: { cpId: number | string; pageNum?: number; pageSize?: number }) {
+      return request.post<any>('/company/bbs/main', data);
+    }
   }
 
   /** 浏览历史（我的-浏览记录；动态详情登录时服务端自动记录） */
