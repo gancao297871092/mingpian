@@ -16,7 +16,6 @@ import Svg, { Path } from 'react-native-svg';
 import Reanimated, {
   Extrapolation,
   interpolate,
-  interpolateColor,
   runOnJS,
   useAnimatedScrollHandler,
   useAnimatedStyle,
@@ -195,21 +194,13 @@ export default function CompanyPage() {
     ],
   }));
 
-  /** 吸顶昵称栏高度 0→46 跟随滚动（UI 线程布局，不抖） */
+  /** 吸顶昵称栏高度 0→(状态栏+46) 跟随滚动；状态栏占位含在容器内，未展开时不占空间（UI 线程布局，不抖） */
   const nickStyle = useAnimatedStyle(() => ({
     height: interpolate(
       scrollY.value,
       [Math.max(headerHSV.value - STICKY_NICK_H, 0), Math.max(headerHSV.value, 1)],
-      [0, STICKY_NICK_H],
+      [0, insets.top + STICKY_NICK_H],
       Extrapolation.CLAMP,
-    ),
-  }));
-  /** 吸顶途中状态栏占位背景由透明渐变为白色 */
-  const topBarStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(
-      scrollY.value,
-      [Math.max(headerHSV.value - STICKY_NICK_H, 0), Math.max(headerHSV.value, 1)],
-      ['rgba(255,255,255,0)', '#FFFFFF'],
     ),
   }));
   /** 吸顶过程中，覆盖层返回按钮平移到吸顶栏内（不跟随下拉） */
@@ -264,7 +255,7 @@ export default function CompanyPage() {
       const saved = scrollOffsetsRef[tab] || 0;
       const viewportH = contentH - insets.top;
       const nextPagerH = pagerHeightFor(tab);
-      const totalH = headerH + STICKY_NICK_H + tabBarH + nextPagerH + scaleSizeH(100);
+      const totalH = headerH + insets.top + STICKY_NICK_H + tabBarH + nextPagerH + scaleSizeH(100);
       const maxOffset = Math.max(totalH - viewportH, 0);
       setSettledIndex(i);
       outerRef.current?.scrollToOffset({ offset: Math.min(saved, maxOffset), animated: false });
@@ -307,7 +298,6 @@ export default function CompanyPage() {
   return (
     <SafeView backgroundColor="#F6F7FB">
       <View style={styles.flex1} onLayout={(e) => setContentH(e.nativeEvent.layout.height)}>
-        <Reanimated.View style={[{ height: insets.top }, topBarStyle]} />
         <Reanimated.FlatList
           ref={outerRef}
           style={styles.flex1}
@@ -324,7 +314,7 @@ export default function CompanyPage() {
           renderItem={({ index }: { index: number }) =>
             index === 0 ? (
               <View onLayout={(e) => setHeaderH(e.nativeEvent.layout.height)}>
-                {/* 顶部 banner 轮播（mediaLinkList，延伸至状态栏）；下拉回弹时向上拉伸 */}
+                {/* 顶部 banner 轮播（mediaLinkList，上方由状态栏背景条衔接）；下拉回弹时向上拉伸 */}
                 <View style={{ height: bannerH }}>
                   <Reanimated.View style={[StyleSheet.absoluteFill, bannerStretch]}>
                     {medias.length > 0 ? (
@@ -424,7 +414,7 @@ export default function CompanyPage() {
               </View>
             ) : index === 1 ? (
               <Animated.View>
-                {/* 吸顶昵称栏：滚动接近吸顶点时展开（全程 UI 线程） */}
+                {/* 吸顶昵称栏：滚动接近吸顶点时展开，内部含状态栏占位，贴底滑出（全程 UI 线程） */}
                 <Reanimated.View style={[styles.stickyNick, nickStyle]}>
                   <View style={styles.stickyNickInner}>
                     <Text style={styles.stickyName} numberOfLines={1}>
@@ -518,6 +508,13 @@ const styles = StyleSheet.create({
   },
   swiperEmpty: {
     backgroundColor: '#E5E5E5',
+  },
+  topBand: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1,
   },
   dots: {
     position: 'absolute',
@@ -658,7 +655,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     overflow: 'hidden',
   },
+  /** 昵称贴容器底滑出，上方留白即状态栏占位 */
   stickyNickInner: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     height: STICKY_NICK_H,
     alignItems: 'center',
     justifyContent: 'center',
