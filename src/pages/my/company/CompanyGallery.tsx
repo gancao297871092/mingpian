@@ -1,10 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import LinearGradient from 'react-native-linear-gradient';
 import Toast from 'react-native-toast-message';
 import Svg, { Path } from 'react-native-svg';
-import { API } from '@/api';
 import EmptyState from '@/components/EmptyState';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 
@@ -14,9 +13,11 @@ const BROWN = '#4C3416';
 const GREEN = '#36BE69';
 
 interface CompanyGalleryProps {
-  cpId: number | string;
   /** 企业主页详情（/company/main），用于核验条与主体信息 */
   main: any;
+  /** 可信档案图片分组（/company/gallery，由主页提前请求） */
+  groups: any[];
+  groupsLoaded: boolean;
 }
 
 /** 核验条盾牌图标（figma 企业主页2 1722:5113） */
@@ -59,20 +60,7 @@ function MapPinIcon() {
 }
 
 /** 可信档案 tab（figma 企业主页2）：核验条 + 主体信息工商表 + 横滑图组（公司实拍/资质证书等） */
-export default function CompanyGallery({ cpId, main }: CompanyGalleryProps) {
-  const [groups, setGroups] = useState<any[]>([]);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    API.company
-      .gallery({ cpId })
-      .then((res) => {
-        if (res.code === '200') setGroups(res.data?.groups || []);
-      })
-      .catch(() => {})
-      .finally(() => setLoaded(true));
-  }, [cpId]);
-
+export default function CompanyGallery({ main, groups, groupsLoaded }: CompanyGalleryProps) {
   const verifyTime = main?.verifyTime || main?.checkTime || main?.authTime || '';
   const verified = !!main?.creditCode || main?.verifyStatus === 1;
   const bizRows = [
@@ -157,7 +145,7 @@ export default function CompanyGallery({ cpId, main }: CompanyGalleryProps) {
           )}
         </View>
       ))}
-      {loaded && !groups.length && <EmptyState variant="content" title="暂无档案" />}
+      {groupsLoaded && !groups.length && <EmptyState variant="content" title="暂无档案" />}
     </View>
   );
 }

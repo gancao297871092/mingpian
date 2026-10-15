@@ -48,6 +48,8 @@ export default function CompanyPage() {
   const cpId = route.params.id;
 
   const [data, setData] = useState<any>(null);
+  const [groups, setGroups] = useState<any[]>([]);
+  const [groupsLoaded, setGroupsLoaded] = useState(false);
   const [tab, setTab] = useState(0);
   const [current, setCurrent] = useState(0);
   const postRef = useRef<CompanyPostListHandle>(null);
@@ -81,6 +83,14 @@ export default function CompanyPage() {
         if (res.code === '200' && res.data) setData(res.data);
       })
       .catch(() => {});
+    // 可信档案图片分组随主页一并请求，切 tab 不再等待
+    API.company
+      .gallery({ cpId })
+      .then((res) => {
+        if (res.code === '200') setGroups(res.data?.groups || []);
+      })
+      .catch(() => {})
+      .finally(() => setGroupsLoaded(true));
   }, [cpId]);
 
   const medias: string[] = (data?.mediaLinkList || [])
@@ -229,7 +239,7 @@ export default function CompanyPage() {
           tab === 0 ? (
             <CompanyPostList ref={postRef} cpId={cpId} />
           ) : (
-            <CompanyGallery cpId={cpId} main={data} />
+            <CompanyGallery main={data} groups={groups} groupsLoaded={groupsLoaded} />
           )
         }
         ListFooterComponent={<View style={styles.bottomGap} />}
