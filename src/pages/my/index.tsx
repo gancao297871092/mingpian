@@ -55,21 +55,15 @@ const STICKY_NICK_H = 46;
 
 type TabKey = 'post' | 'comment' | 'fav' | 'like';
 
-const TAB_KEYS: TabKey[] = ['post', 'comment', 'fav', 'like'];
+// 评论列表功能暂时隐藏（代码保留，后续恢复时取消注释即可）
+const TAB_KEYS: TabKey[] = ['post', /* 'comment', */ 'fav', 'like'];
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'post', label: '发布' },
-  { key: 'comment', label: '评论' },
+  // { key: 'comment', label: '评论' },
   { key: 'fav', label: '收藏' },
   { key: 'like', label: '点赞' },
 ];
-
-const TAB_ICONS: Record<TabKey, (color: string) => React.ReactNode> = {
-  post: () => null,
-  comment: color => <TabCommentIcon color={color} />,
-  fav: color => <TabFavIcon color={color} />,
-  like: color => <TabLikeIcon color={color} />,
-};
 
 export default function My() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -80,6 +74,16 @@ export default function My() {
   const wqUser = userInfo?.wqUser;
   const cpName = userInfo?.cpName || wqUser?.cpName;
   const myId = wqUser?.id ?? 0;
+
+  /** 锁图标：tab 始终显示，仅锁样式受隐私字段控制（0-私密显示锁 1-公开不显示） */
+  const favLocked = Number(wqUser?.isFavoritePrivate ?? 1) === 0;
+  const likeLocked = Number(wqUser?.isLikePrivate ?? 1) === 0;
+  const renderTabIcon = (key: TabKey, color: string): React.ReactNode => {
+    if (key === 'comment') return <TabCommentIcon color={color} />;
+    if (key === 'fav') return favLocked ? <TabFavIcon color={color} /> : null;
+    if (key === 'like') return likeLocked ? <TabLikeIcon color={color} /> : null;
+    return null;
+  };
 
   const [pageIndex, setPageIndex] = useState(0);
   /** 横向滑动已停稳的页码：高度切换/位置恢复以它为准（滑动途中不动，避免跳变） */
@@ -512,10 +516,10 @@ export default function My() {
                       >
                         <View style={styles.tabIconWrap}>
                           <Animated.View style={{ opacity: Animated.subtract(1, iconBlack) }}>
-                            {TAB_ICONS[t.key]('#6C6C6C')}
+                            {renderTabIcon(t.key, '#6C6C6C')}
                           </Animated.View>
                           <Animated.View style={[styles.tabIconActive, { opacity: iconBlack }]}>
-                            {TAB_ICONS[t.key]('#000000')}
+                            {renderTabIcon(t.key, '#000000')}
                           </Animated.View>
                         </View>
                         <Animated.Text style={[styles.tabText, { color: textColor }, pageIndex === i && styles.tabTextActive]}>

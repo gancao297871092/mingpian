@@ -119,19 +119,25 @@ export default forwardRef<TabHandle, Props>(function LikeTab({ myId, targetUserI
     { key: 'comment', label: '评论', total: commentTotal },
   ];
 
+  /** 他人主页：评论点赞列表接口仅支持查自己，隐藏子 tab 栏 */
+  const showSubBar = targetUserId == null;
+  const curSubTab: SubTab = showSubBar ? subTab : 'bbs';
+
   return (
     <View style={styles.flex1}>
-      <View style={styles.subBar} onLayout={e => onSubBarLayout(e.nativeEvent.layout.height)}>
-        {subTabs.map(t => (
-          <TouchableOpacity key={t.key} activeOpacity={0.7} onPress={() => onSwitchSubTab(t.key)}>
-            <Text style={[styles.subTabText, subTab === t.key && styles.subTabTextActive]}>
-              {t.label}
-              {t.total != null ? ` ${t.total}` : ''}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-      {subTab === 'bbs' ? (
+      {showSubBar && (
+        <View style={styles.subBar} onLayout={e => onSubBarLayout(e.nativeEvent.layout.height)}>
+          {subTabs.map(t => (
+            <TouchableOpacity key={t.key} activeOpacity={0.7} onPress={() => onSwitchSubTab(t.key)}>
+              <Text style={[styles.subTabText, subTab === t.key && styles.subTabTextActive]}>
+                {t.label}
+                {t.total != null ? ` ${t.total}` : ''}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+      {curSubTab === 'bbs' ? (
         <WaterfallTab
           ref={h => { waterfallRef.current = h; }}
           tab="like"

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   RefreshControl,
@@ -31,7 +31,7 @@ import { useUserStore, type UserInfo, type WqUser } from '@/store/user';
 import { toggleFollow, useFollowStore, setFollow } from '@/store/follow';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { getUserHomeCache, setUserHomeCache } from '@/utils/userHomeCache';
-import { BackArrowIcon, ChatBubbleIcon, CompanyIcon, PlusIcon, TabCommentIcon, TabFavIcon, TabLikeIcon } from './myIcons';
+import { BackArrowIcon, ChatBubbleIcon, CompanyIcon, PlusIcon } from './myIcons';
 import WaterfallTab from './tabs/WaterfallTab';
 import CommentTab from './tabs/CommentTab';
 import LikeTab from './tabs/LikeTab';
@@ -44,21 +44,15 @@ const STICKY_NICK_H = 46;
 
 type TabKey = 'post' | 'comment' | 'fav' | 'like';
 
-const TAB_KEYS: TabKey[] = ['post', 'comment', 'fav', 'like'];
+// 评论列表功能暂时隐藏（代码保留，后续恢复时取消注释即可）
+const TAB_KEYS: TabKey[] = ['post', /* 'comment', */ 'fav', 'like'];
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'post', label: '发布' },
-  { key: 'comment', label: '评论' },
+  // { key: 'comment', label: '评论' },
   { key: 'fav', label: '收藏' },
   { key: 'like', label: '点赞' },
 ];
-
-const TAB_ICONS: Record<TabKey, (color: string) => React.ReactNode> = {
-  post: () => null,
-  comment: color => <TabCommentIcon color={color} />,
-  fav: color => <TabFavIcon color={color} />,
-  like: color => <TabLikeIcon color={color} />,
-};
 
 /** 66.预览主页：兼作他人主页（传 userId），相比「64.我的」去掉名片区与管理区 */
 export default function UserHome() {
@@ -83,6 +77,17 @@ export default function UserHome() {
   const profile: UserInfo | null = isSelf ? selfInfo : otherInfo;
   const wqUser: WqUser | undefined = profile?.wqUser;
   const listUserId = isSelf ? undefined : targetUserId;
+
+  /** 他人主页：收藏/点赞 tab 受对方隐私设置控制（0-不显示 1-显示，缺省按显示）；自己主页全部显示 */
+  const tabKeys = useMemo<TabKey[]>(() => {
+    if (isSelf) return TAB_KEYS;
+    return TAB_KEYS.filter(k => {
+      if (k === 'fav') return Number(wqUser?.isFavoritePrivate ?? 1) === 1;
+      if (k === 'like') return Number(wqUser?.isLikePrivate ?? 1) === 1;
+      return true;
+    });
+  }, [isSelf, wqUser?.isFavoritePrivate, wqUser?.isLikePrivate]);
+  const tabs = useMemo(() => TABS.filter(t => tabKeys.includes(t.key)), [tabKeys]);
 
   const [pageIndex, setPageIndex] = useState(0);
   const [settledIndex, setSettledIndex] = useState(0);
@@ -117,8 +122,8 @@ export default function UserHome() {
     like: null,
   }).current;
 
-  const activeTab = TAB_KEYS[pageIndex];
-  const settledTab = TAB_KEYS[settledIndex];
+  const activeTab = tabKeys[pageIndex] ?? 'post';
+  const settledTab = tabKeys[settledIndex] ?? 'post';
   const scrollOffsetsRef = useRef<Record<TabKey, number>>({ post: 0, comment: 0, fav: 0, like: 0 }).current;
   const outerRef = useRef<any>(null);
 
@@ -126,12 +131,22 @@ export default function UserHome() {
     const id = scrollX.addListener(({ value }) => {
       scrollXJS.setValue(value);
       const i = Math.round(value / windowWidth);
-      if (i >= 0 && i < TAB_KEYS.length && i !== pageIndexRef.current) {
+      if (i >= 0 && i < tabKeys.length && i !== pageIndexRef.current) {
         setPageIndex(i);
       }
     });
     return () => scrollX.removeListener(id);
-  }, [scrollX, scrollXJS, windowWidth]);
+  }, [scrollX, scrollXJS, windowWidth, tabKeys.length]);
+
+  // 隐私设置导致 tab 数量变化时：重置 tab 布局与当前页，避免越界
+  useEffect(() => {
+    setTabLayouts([]);
+    if (pageIndexRef.current >= tabKeys.length) {
+      setPageIndex(0);
+      setSettledIndex(0);
+      swiperRef.current?.scrollToOffset({ offset: 0, animated: false });
+    }
+  }, [tabKeys.length]);
 
   const fetchProfile = useCallback(() => {
     if (isSelf) {
@@ -191,11 +206,12 @@ export default function UserHome() {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     const tasks: Promise<unknown>[] = [];
-    const handle = tabRefs[TAB_KEYS[pageIndexRef.current]];
+    const key = tabKeys[pageIndexRef.current];
+    const handle = key ? tabRefs[key] : undefined;
     if (handle) tasks.push(handle.onRefresh());
     fetchProfile();
     Promise.all(tasks).finally(() => setRefreshing(false));
-  }, [tabRefs, fetchProfile]);
+  }, [tabRefs, fetchProfile, tabKeys]);
 
   /** 记录各 tab 滚动位置（UI 线程每帧回调到 JS，仅写 ref） */
   const recordOffset = useCallback(
@@ -273,13 +289,14 @@ export default function UserHome() {
 
   const position = Animated.divide(scrollX, windowWidth);
   const onTabPress = (i: number) => {
-    tabRefs[TAB_KEYS[i]]?.ensureLoaded?.();
+    const key = tabKeys[i];
+    if (key) tabRefs[key]?.ensureLoaded?.();
     swiperRef.current?.scrollToOffset({ offset: i * windowWidth, animated: true });
   };
   const indicatorTranslate =
-    tabLayouts.length === TAB_KEYS.length
+    tabKeys.length > 1 && tabLayouts.length === tabKeys.length
       ? position.interpolate({
-          inputRange: TAB_KEYS.map((_, i) => i),
+          inputRange: tabKeys.map((_, i) => i),
           outputRange: tabLayouts.map(l => l.x + (l.w - scaleSizeW(24)) / 2),
           extrapolate: 'clamp',
         })
@@ -304,8 +321,8 @@ export default function UserHome() {
   const onSwiperMomentumEnd = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const i = Math.round(e.nativeEvent.contentOffset.x / windowWidth);
-      if (i < 0 || i >= TAB_KEYS.length) return;
-      const tab = TAB_KEYS[i];
+      if (i < 0 || i >= tabKeys.length) return;
+      const tab = tabKeys[i];
       tabRefs[tab]?.ensureLoaded?.();
       const saved = scrollOffsetsRef[tab] || 0;
       const viewportH = contentH - insets.top;
@@ -315,7 +332,7 @@ export default function UserHome() {
       setSettledIndex(i);
       outerRef.current?.scrollToOffset({ offset: Math.min(saved, maxOffset), animated: false });
     },
-    [windowWidth, tabRefs, scrollOffsetsRef, contentH, insets.top, pagerHeightFor, headerH, tabBarH],
+    [windowWidth, tabRefs, scrollOffsetsRef, contentH, insets.top, pagerHeightFor, headerH, tabBarH, tabKeys],
   );
 
   const headerBtnsMT = isPreview
@@ -393,7 +410,10 @@ export default function UserHome() {
           scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          onEndReached={() => tabRefs[TAB_KEYS[pageIndexRef.current]]?.onEndReached()}
+          onEndReached={() => {
+            const key = tabKeys[pageIndexRef.current];
+            if (key) tabRefs[key]?.onEndReached();
+          }}
           onEndReachedThreshold={0.3}
           ListFooterComponent={<View style={styles.bottomPad} />}
           renderItem={({ index }: { index: number }) => index === 0 ? (
@@ -479,15 +499,10 @@ export default function UserHome() {
                 onLayout={e => setTabBarH(e.nativeEvent.layout.height)}
               >
                 <View style={styles.tabBar}>
-                {TABS.map((t, i) => {
+                {tabs.map((t, i) => {
                   const textColor = scrollXJS.interpolate({
                     inputRange: [i - 1, i, i + 1],
                     outputRange: ['#6C6C6C', '#000000', '#6C6C6C'],
-                    extrapolate: 'clamp',
-                  });
-                  const iconBlack = scrollXJS.interpolate({
-                    inputRange: [i - 1, i, i + 1],
-                    outputRange: [0, 1, 0],
                     extrapolate: 'clamp',
                   });
                   return (
@@ -506,14 +521,6 @@ export default function UserHome() {
                       }}
                       onPress={() => onTabPress(i)}
                     >
-                      <View style={styles.tabIconWrap}>
-                        <Animated.View style={{ opacity: Animated.subtract(1, iconBlack) }}>
-                          {TAB_ICONS[t.key]('#6C6C6C')}
-                        </Animated.View>
-                        <Animated.View style={[styles.tabIconActive, { opacity: iconBlack }]}>
-                          {TAB_ICONS[t.key]('#000000')}
-                        </Animated.View>
-                      </View>
                       <Animated.Text style={[styles.tabText, { color: textColor }, pageIndex === i && styles.tabTextActive]}>
                         {t.label}
                       </Animated.Text>
@@ -521,7 +528,7 @@ export default function UserHome() {
                   );
                 })}
               </View>
-              {tabLayouts.length === TAB_KEYS.length && (
+              {tabKeys.length > 1 && tabLayouts.length === tabKeys.length && (
                 <Animated.View style={[styles.tabIndicator, { transform: [{ translateX: indicatorTranslate }] }]} />
               )}
               </Animated.View>
@@ -535,7 +542,7 @@ export default function UserHome() {
               bounces={false}
               overScrollMode="never"
               showsHorizontalScrollIndicator={false}
-              data={TAB_KEYS}
+              data={tabKeys}
               keyExtractor={(t: TabKey) => t}
               getItemLayout={(_data, i) => ({ length: windowWidth, offset: windowWidth * i, index: i })}
               onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], { useNativeDriver: true })}
@@ -795,16 +802,7 @@ const styles = StyleSheet.create({
   tabItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scaleSizeW(5),
     paddingVertical: scaleSizeH(12),
-  },
-  tabIconWrap: {
-    justifyContent: 'center',
-  },
-  tabIconActive: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
   },
   tabText: {
     fontSize: setSpText(15),
