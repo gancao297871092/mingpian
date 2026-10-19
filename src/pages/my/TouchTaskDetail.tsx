@@ -129,10 +129,10 @@ export default function TouchTaskDetail() {
           </View>
           <View style={styles.scriptBox}>
             <Text style={styles.scriptText}>{detail?.script || ''}</Text>
+            <TouchableOpacity activeOpacity={0.8} style={styles.copyBtn} onPress={onCopy}>
+              <Text style={styles.copyBtnText}>点击复制</Text>
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity activeOpacity={0.8} style={styles.copyBtn} onPress={onCopy}>
-            <Text style={styles.copyBtnText}>点击复制</Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeView>
@@ -167,8 +167,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#FFFFFF',
     borderRadius: scaleSizeW(10),
-    padding: scaleSizeW(14),
-    gap: scaleSizeW(11),
+    paddingHorizontal: scaleSizeW(14),
+    paddingVertical: scaleSizeH(15),
+    gap: scaleSizeW(5),
   },
   avatar: {
     width: scaleSizeW(36),
@@ -206,20 +207,20 @@ const styles = StyleSheet.create({
   execImg: {
     position: 'absolute',
     left: 0,
-    top: -scaleSizeH(34),
+    top: 0,
     width: scaleSizeW(75),
     height: scaleSizeW(75),
     zIndex: 2,
   },
   analysisBanner: {
     alignSelf: 'flex-start',
+    marginTop: scaleSizeH(20),
     marginLeft: scaleSizeW(38),
     backgroundColor: GREEN,
     borderTopRightRadius: scaleSizeW(90),
     borderBottomRightRadius: scaleSizeW(90),
     paddingLeft: scaleSizeW(30),
     paddingRight: scaleSizeW(10),
-    paddingVertical: scaleSizeH(10),
     zIndex: 1,
   },
   analysisBannerText: {
@@ -229,13 +230,13 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   analysisCard: {
-    marginTop: -scaleSizeH(20),
+    marginTop: scaleSizeH(10),
     backgroundColor: CARD_BG,
     borderWidth: 1,
     borderColor: '#FFFFFF',
     borderRadius: scaleSizeW(10),
     paddingHorizontal: scaleSizeW(14),
-    paddingTop: scaleSizeH(40),
+    paddingTop: scaleSizeH(20),
     paddingBottom: scaleSizeH(18),
   },
   analysisText: {
@@ -244,12 +245,14 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
   card: {
-    marginTop: scaleSizeH(10),
+    marginTop: scaleSizeH(20),
     backgroundColor: CARD_BG,
     borderWidth: 1,
     borderColor: '#FFFFFF',
     borderRadius: scaleSizeW(10),
-    padding: scaleSizeW(14),
+    paddingHorizontal: scaleSizeW(14),
+    paddingTop: scaleSizeH(18),
+    paddingBottom: scaleSizeH(18),
   },
   sectionTitleRow: {
     flexDirection: 'row',
@@ -281,7 +284,7 @@ const styles = StyleSheet.create({
     height: scaleSizeH(58),
     paddingHorizontal: scaleSizeW(16),
     justifyContent: 'center',
-    gap: scaleSizeH(4),
+    gap: scaleSizeH(5),
   },
   capHeadRow: {
     flexDirection: 'row',
@@ -299,14 +302,15 @@ const styles = StyleSheet.create({
   capBody: {
     backgroundColor: '#EEF3FF',
     paddingHorizontal: scaleSizeW(16),
-    paddingVertical: scaleSizeH(10),
+    paddingTop: scaleSizeH(10),
+    paddingBottom: scaleSizeH(22),
   },
   capBbsCount: {
     fontSize: setSpText(10),
     color: TEXT_SUB,
   },
   capContentBox: {
-    marginTop: scaleSizeH(6),
+    marginTop: scaleSizeH(7),
   },
   capContent: {
     fontSize: setSpText(15),
@@ -315,11 +319,11 @@ const styles = StyleSheet.create({
   capBtns: {
     flexDirection: 'row',
     gap: scaleSizeW(10),
-    marginTop: scaleSizeH(14),
+    marginTop: scaleSizeH(10),
   },
   capBtn: {
     flex: 1,
-    height: scaleSizeH(39),
+    paddingVertical: scaleSizeH(10),
     borderRadius: scaleSizeW(90),
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
@@ -333,15 +337,17 @@ const styles = StyleSheet.create({
     marginTop: scaleSizeH(14),
     backgroundColor: '#EEF3FF',
     borderRadius: scaleSizeW(10),
-    padding: scaleSizeW(16),
+    paddingHorizontal: scaleSizeW(16),
+    paddingTop: scaleSizeH(14),
+    paddingBottom: scaleSizeH(20),
   },
   scriptText: {
     fontSize: setSpText(14),
-    lineHeight: setSpText(24),
+    lineHeight: setSpText(20),
     color: TEXT_SUB,
   },
   copyBtn: {
-    marginTop: scaleSizeH(14),
+    marginTop: scaleSizeH(8),
     height: scaleSizeH(39),
     borderRadius: scaleSizeW(90),
     backgroundColor: '#FFFFFF',
