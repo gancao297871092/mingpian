@@ -133,13 +133,6 @@ export namespace API {
         data,
       );
     }
-    /** 我点赞的评论列表（字段为预设，待后端联调确认） */
-    export function likedCommentList(data: { targetUserId: number; pageNum?: number; pageSize?: number }) {
-      return request.post<{ list: any[]; total: number; pageNum: number; pages: number }>(
-        '/bbs/user/like-comment/list',
-        data,
-      );
-    }
   }
 
   export namespace interaction {
@@ -147,6 +140,13 @@ export namespace API {
     export function commentList(params: { targetUserId?: number; pageNum?: number; pageSize?: number }) {
       return request.get<{ list: any[]; total: number; pageNum: number; pages: number }>(
         '/interaction/comment/list',
+        { params },
+      );
+    }
+    /** 我点赞过的评论列表（按点赞时间倒序；评论/动态已删除时对应字段为 null、status=0） */
+    export function likeCommentList(params: { pageNum?: number; pageSize?: number }) {
+      return request.get<{ list: any[]; total: number; pageNum: number; pages: number }>(
+        '/interaction/like/comment/list',
         { params },
       );
     }

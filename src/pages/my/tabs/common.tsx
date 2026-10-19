@@ -73,18 +73,23 @@ export interface LikedCommentData {
   content: string;
   bbsTitle: string;
   likeCount: number;
+  /** 评论状态：1正常 0已删除 */
+  commentStatus?: number;
+  /** 动态状态：1正常可见 0已删除或不可见（不可点击跳转） */
+  bbsStatus?: number;
 }
 
 export function mapLikedComment(c: any): LikedCommentData {
-  const info = c?.userInfoVo ?? {};
   return {
-    id: String(c?.id ?? Math.random()),
+    id: String(c?.commentId ?? Math.random()),
     bbsId: Number(c?.bbsId ?? 0),
-    avatar: info.avatar || '',
-    name: info.nickname || info.username || '',
-    content: c?.content || '',
+    avatar: c?.commenterAvatar || '',
+    name: c?.commenterNickname || '',
+    content: c?.content || (c?.commentStatus === 0 ? '该评论已删除' : ''),
     bbsTitle: c?.bbsTitle || '',
-    likeCount: Number(c?.countLike ?? c?.likeCount ?? 0),
+    likeCount: Number(c?.likeCount ?? 0),
+    commentStatus: c?.commentStatus,
+    bbsStatus: c?.bbsStatus,
   };
 }
 
@@ -209,7 +214,7 @@ export function LikedCommentCard({ item, onPress }: { item: LikedCommentData; on
             <Text style={tabStyles.likedCommentOrigin} numberOfLines={1}>来自动态·{item.bbsTitle}</Text>
           )}
           <View style={tabStyles.likedCommentLike}>
-            <CardLikeIcon />
+            <CardLikeIcon color={item.bbsStatus === 1 ? '#FE2955' : '#666666'} />
             <Text style={tabStyles.likedCommentLikeText}>{item.likeCount}</Text>
           </View>
         </View>

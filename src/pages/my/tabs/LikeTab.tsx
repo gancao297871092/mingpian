@@ -4,37 +4,24 @@ import { FlashList } from '@shopify/flash-list';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
+import EmptyState from '@/components/EmptyState';
+import ListFooter from '@/components/ListFooter';
+import { API } from '@/api';
 import type { RootStackParamList } from '@/route/map';
 import WaterfallTab from './WaterfallTab';
 import {
   LikedCommentCard,
+  initialTabState,
+  mapLikedComment,
+  tabStyles,
   type LikedCommentData,
   type TabHandle,
+  type TabState,
 } from './common';
 
-type SubTab = 'bbs' | 'comment';
+const PAGE_SIZE = 20;
 
-/** 静态 mock（接口待联调） */
-const MOCK_LIKED_COMMENTS: LikedCommentData[] = [
-  {
-    id: 'mock-1',
-    bbsId: 0,
-    avatar: '',
-    name: 'WQ_26703882',
-    content: '首件前建议把夹具基准与刀具补偿做成检查清单。',
-    bbsTitle: '自动化产线调试中最容易忽略的五个问题',
-    likeCount: 157,
-  },
-  {
-    id: 'mock-2',
-    bbsId: 0,
-    avatar: '',
-    name: 'WQ_26703882',
-    content: '批量交付前建议先做一轮小批试产，确认规格稳定性。',
-    bbsTitle: '新增自动化产线投入使用，交付效率提升60%',
-    likeCount: 32,
-  },
-];
+type SubTab = 'bbs' | 'comment';
 
 interface Props {
   myId: number;
@@ -56,13 +43,35 @@ export default forwardRef<TabHandle, Props>(function LikeTab({ myId, targetUserI
   const heightsRef = useRef<Record<SubTab, number>>({ bbs: 0, comment: 0 });
   const waterfallRef = useRef<TabHandle | null>(null);
 
-  // 评论点赞列表：静态 mock（接口待联调）
-  const [commentList] = useState<LikedCommentData[]>(MOCK_LIKED_COMMENTS);
-  const commentLoadedRef = useRef(false);
+  // 评论点赞列表
+  const [commentState, setCommentState] = useState<TabState<LikedCommentData>>(initialTabState);
+  const commentStateRef = useRef(commentState);
+  commentStateRef.current = commentState;
+  const [commentTotal, setCommentTotal] = useState<number | undefined>(undefined);
+
+  const fetchComments = useCallback(async (pageNum: number) => {
+    if (commentStateRef.current.loading) return;
+    setCommentState(prev => ({ ...prev, loading: true }));
+    try {
+      const res = await API.interaction.likeCommentList({ pageNum, pageSize: PAGE_SIZE });
+      const list = (res.data?.list ?? []).map(mapLikedComment);
+      const pages = res.data?.pages ?? 1;
+      setCommentTotal(res.data?.total ?? 0);
+      setCommentState(prev => ({
+        list: pageNum === 1 ? list : [...prev.list, ...list],
+        page: pageNum,
+        pages,
+        loading: false,
+        loaded: true,
+      }));
+    } catch {
+      setCommentState(prev => ({ ...prev, loading: false, loaded: true }));
+    }
+  }, []);
 
   const ensureCommentsLoaded = useCallback(() => {
-    commentLoadedRef.current = true;
-  }, []);
+    if (!commentStateRef.current.loaded) fetchComments(1);
+  }, [fetchComments]);
 
   const forwardHeight = useCallback(
     (sub: SubTab, h: number) => {
@@ -88,21 +97,26 @@ export default forwardRef<TabHandle, Props>(function LikeTab({ myId, targetUserI
     () => ({
       onRefresh: async () => {
         if (subTab === 'bbs') return waterfallRef.current?.onRefresh();
+        return fetchComments(1);
       },
       onEndReached: () => {
         if (subTab === 'bbs') return waterfallRef.current?.onEndReached();
+        const s = commentStateRef.current;
+        if (!s.loading && s.loaded && s.page < s.pages) {
+          return fetchComments(s.page + 1);
+        }
       },
       ensureLoaded: () => {
         waterfallRef.current?.ensureLoaded?.();
         if (subTab === 'comment') ensureCommentsLoaded();
       },
     }),
-    [subTab, ensureCommentsLoaded],
+    [subTab, ensureCommentsLoaded, fetchComments],
   );
 
   const subTabs: { key: SubTab; label: string; total?: number }[] = [
     { key: 'bbs', label: '动态', total: bbsTotal },
-    { key: 'comment', label: '评论', total: MOCK_LIKED_COMMENTS.length },
+    { key: 'comment', label: '评论', total: commentTotal },
   ];
 
   return (
@@ -134,12 +148,25 @@ export default forwardRef<TabHandle, Props>(function LikeTab({ myId, targetUserI
           <FlashList
             scrollEnabled={false}
             onContentSizeChange={(_w, h) => forwardHeight('comment', h)}
-            data={commentList}
+            data={commentState.list}
             keyExtractor={(item: LikedCommentData) => item.id}
             renderItem={({ item }: { item: LikedCommentData }) => (
-              <LikedCommentCard item={item} onPress={() => item.bbsId && navigation.navigate('bbsDetail', { id: String(item.bbsId) })} />
+              <LikedCommentCard
+                item={item}
+                onPress={() => item.bbsStatus === 1 && item.bbsId && navigation.navigate('bbsDetail', { id: String(item.bbsId) })}
+              />
             )}
             showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              !commentState.loaded && commentState.loading ? (
+                <View style={tabStyles.loadingPad} />
+              ) : commentState.loaded ? (
+                <EmptyState variant="content" title="暂无内容" style={tabStyles.emptyBox} />
+              ) : null
+            }
+            ListFooterComponent={
+              <ListFooter fetching={commentState.loading} isLastPage={commentState.page >= commentState.pages} listLength={commentState.list.length} />
+            }
           />
         </View>
       )}
