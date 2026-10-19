@@ -45,7 +45,7 @@ export type RootStackParamList = {
   reportBbs: { id: string };
   companyPage: { id: string | number; userId?: string | number };
   certification: { openIndex?: number };
-  follows: { tab?: 'mutual' | 'follow' | 'fans' } | undefined;
+  follows: { tab?: 'mutual' | 'follow' | 'fans'; userId?: number; nickname?: string; followShow?: number; fansShow?: number } | undefined;
   workbench: undefined;
   touchTasks: { tab?: 'todo' | 'sent' | 'viewed' } | undefined;
   touchTaskDetail: { id: string | number };

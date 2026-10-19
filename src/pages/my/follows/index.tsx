@@ -5,8 +5,8 @@ import {
   Text,
   TouchableOpacity,
   View,
+  FlatList
 } from 'react-native';
-import { FlashList } from '@shopify/flash-list';
 import { Image as ExpoImage } from 'expo-image';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -29,6 +29,12 @@ type FollowTab = 'mutual' | 'follow' | 'fans';
 
 const TABS: { key: FollowTab; label: string }[] = [
   { key: 'mutual', label: '互关' },
+  { key: 'follow', label: '关注' },
+  { key: 'fans', label: '粉丝' },
+];
+
+/** 他人主页的关注/粉丝：无互关 tab（参考小红书） */
+const TABS_OTHER: { key: FollowTab; label: string }[] = [
   { key: 'follow', label: '关注' },
   { key: 'fans', label: '粉丝' },
 ];
@@ -81,10 +87,22 @@ function RowSeparator() {
   return <View style={styles.separator} />;
 }
 
-function FollowButton({ item, tab, onToggle }: { item: FollowUser; tab: FollowTab; onToggle: (item: FollowUser) => void }) {
+function FollowButton({ item, tab, other, onToggle }: { item: FollowUser; tab: FollowTab; other: boolean; onToggle: (item: FollowUser) => void }) {
   if (tab === 'mutual') return null;
-  const filled = !item.isFollow;
   const label = item.isFollow ? (item.isMutual ? '互相关注' : '已关注') : tab === 'fans' ? '回关' : '关注';
+  // 他人主页（参考小红书）：未关注=蓝色描边白底，已关注=灰描边灰字
+  if (other) {
+    return (
+      <TouchableOpacity
+        activeOpacity={0.8}
+        style={[styles.actionBtn, item.isFollow ? styles.otherBtnDone : styles.otherBtn]}
+        onPress={() => onToggle(item)}
+      >
+        <Text style={[styles.actionBtnText, item.isFollow ? styles.otherBtnTextDone : styles.otherBtnText]}>{label}</Text>
+      </TouchableOpacity>
+    );
+  }
+  const filled = !item.isFollow;
   return (
     <TouchableOpacity
       activeOpacity={0.8}
@@ -101,7 +119,16 @@ export default function Follows() {
   const route = useRoute<RouteProp<RootStackParamList, 'follows'>>();
   const token = useUserStore(s => s.token);
   const myId = useUserStore(s => s.userInfo?.wqUser?.id ?? 0);
-  const [tab, setTab] = useState<FollowTab>(route.params?.tab ?? 'mutual');
+  /** 他人模式：传 userId 进入，只显示 关注/粉丝 两个 tab */
+  const targetUserId = route.params?.userId;
+  const isOther = targetUserId != null && targetUserId !== myId;
+  const listUserId = isOther ? targetUserId : myId;
+  const tabs = isOther ? TABS_OTHER : TABS;
+  const [tab, setTab] = useState<FollowTab>(() => {
+    const t = route.params?.tab;
+    if (isOther) return t === 'fans' ? 'fans' : 'follow';
+    return t ?? 'mutual';
+  });
   const [data, setData] = useState<Record<FollowTab, TabData>>({
     mutual: initialTabData,
     follow: initialTabData,
@@ -110,7 +137,21 @@ export default function Follows() {
   const dataRef = useRef(data);
   dataRef.current = data;
 
+  /** 对方隐私锁定（0-不公开）：当前 tab 禁止查看，仅提示 */
+  const tabLocked =
+    isOther &&
+    (tab === 'follow'
+      ? Number(route.params?.followShow ?? 1) === 0
+      : tab === 'fans'
+        ? Number(route.params?.fansShow ?? 1) === 0
+        : false);
+
   useEffect(() => {
+    // 他人模式：头部只显示对方昵称，tab 栏放在页面内容区
+    if (isOther) {
+      navigation.setOptions({ title: route.params?.nickname ?? '' });
+      return;
+    }
     navigation.setOptions({
       headerTitle: () => (
         <View style={styles.tabsRow}>
@@ -123,7 +164,7 @@ export default function Follows() {
         </View>
       ),
     });
-  }, [navigation, tab]);
+  }, [navigation, tab, isOther, route.params?.nickname]);
 
   const fetchPage = useCallback(
     async (key: FollowTab, pageNum: number) => {
@@ -139,8 +180,8 @@ export default function Follows() {
           key === 'mutual'
             ? await API.user.mutualList({ pageNum, pageSize: PAGE_SIZE })
             : key === 'follow'
-              ? await API.user.followList({ targetUserId: myId, pageNum, pageSize: PAGE_SIZE })
-              : await API.user.fansList({ targetUserId: myId, pageNum, pageSize: PAGE_SIZE });
+              ? await API.user.followList({ targetUserId: listUserId, pageNum, pageSize: PAGE_SIZE })
+              : await API.user.fansList({ targetUserId: listUserId, pageNum, pageSize: PAGE_SIZE });
         const list = (res.data?.list ?? []).map(mapUser);
         const pages = res.data?.pages ?? 1;
         setData(prev => ({
@@ -158,14 +199,15 @@ export default function Follows() {
         setData(prev => ({ ...prev, [key]: { ...prev[key], loading: false, loaded: true } }));
       }
     },
-    [token, myId],
+    [token, listUserId],
   );
 
-  // tab 懒加载第一页
+  // tab 懒加载第一页（锁定 tab 不请求）
   useEffect(() => {
+    if (tabLocked) return;
     const d = dataRef.current[tab];
     if (!d.loaded && !d.loading) fetchPage(tab, 1);
-  }, [tab, fetchPage]);
+  }, [tab, tabLocked, fetchPage]);
 
   const onEndReached = useCallback(() => {
     const d = dataRef.current[tab];
@@ -218,33 +260,48 @@ export default function Follows() {
           </View>
           {!!item.company && <Text style={styles.company} numberOfLines={1}>{item.company}</Text>}
         </View>
-        <FollowButton item={item} tab={tab} onToggle={onToggleFollow} />
+        <FollowButton item={item} tab={tab} other={isOther} onToggle={onToggleFollow} />
       </View>
     ),
-    [tab, onToggleFollow],
+    [tab, isOther, onToggleFollow],
   );
 
   return (
     <SafeView backgroundColor="#FFFFFF">
-      <View style={styles.divider} />
-      <Text style={styles.subtitle}>{`${SUBTITLES[tab]}（${current.total}人）`}</Text>
-      <FlashList
-        data={current.list}
-        keyExtractor={item => item.id}
-        renderItem={renderItem}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl refreshing={current.loading && current.loaded} onRefresh={onRefresh} tintColor={PRIMARY} />
-        }
-        ItemSeparatorComponent={tab === 'mutual' ? undefined : RowSeparator}
-        onEndReached={onEndReached}
-        onEndReachedThreshold={0.3}
-        ListEmptyComponent={
-          current.loaded ? <EmptyState variant="content" title="暂无内容" style={styles.emptyBox} /> : null
-        }
-        ListFooterComponent={<ListFooter fetching={current.loading} isLastPage={current.page >= current.pages} listLength={current.list.length} />}
-      />
+      {!isOther && <View style={styles.divider} />}
+      {isOther ? (
+        <View style={styles.otherTabsRow}>
+          {tabs.map(t => (
+            <TouchableOpacity key={t.key} activeOpacity={0.7} style={styles.tabItem} onPress={() => setTab(t.key)}>
+              <Text style={[styles.tabText, tab === t.key && styles.tabTextActive]}>{t.label}</Text>
+              <View style={[styles.tabIndicator, tab !== t.key && styles.tabIndicatorHidden]} />
+            </TouchableOpacity>
+          ))}
+        </View>
+      ) : (
+        <Text style={styles.subtitle}>{`${SUBTITLES[tab]}（${current.total}人）`}</Text>
+      )}
+      {tabLocked ? (
+        <EmptyState variant="permission" title="对方未公开" style={styles.emptyBox} />
+      ) : (
+        <FlatList
+          data={current.list}
+          keyExtractor={item => item.id}
+          renderItem={renderItem}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl refreshing={current.loading && current.loaded} onRefresh={onRefresh} tintColor={PRIMARY} />
+          }
+          ItemSeparatorComponent={tab === 'mutual' || isOther ? undefined : RowSeparator}
+          onEndReached={onEndReached}
+          onEndReachedThreshold={0.3}
+          ListEmptyComponent={
+            current.loaded ? <EmptyState variant="content" title="暂无内容" style={styles.emptyBox} /> : null
+          }
+          ListFooterComponent={<ListFooter fetching={current.loading} isLastPage={current.page >= current.pages} listLength={current.list.length} />}
+        />
+      )}
     </SafeView>
   );
 }
@@ -254,6 +311,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: scaleSizeW(30),
+  },
+  otherTabsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: scaleSizeW(40),
+    paddingTop: scaleSizeH(6),
+    paddingBottom: scaleSizeH(8),
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEEEEE',
   },
   tabItem: {
     alignItems: 'center',
@@ -349,6 +416,19 @@ const styles = StyleSheet.create({
   },
   actionBtnTextFilled: {
     color: '#FFFFFF',
+  },
+  otherBtn: {
+    borderColor: PRIMARY,
+  },
+  otherBtnDone: {
+    borderColor: '#EDECEC',
+    backgroundColor: '#F6F6F6',
+  },
+  otherBtnText: {
+    color: PRIMARY,
+  },
+  otherBtnTextDone: {
+    color: '#999999',
   },
   separator: {
     height: 1,

@@ -262,8 +262,8 @@ export default function UserHome() {
   const stats: { num: string | number; label: string; tab?: 'mutual' | 'follow' | 'fans'; onPress?: () => void }[] = [
     { num: profile?.likeCount ?? 0, label: '获赞', ...(isSelf ? { onPress: () => setLikesVisible(true) } : {}) },
     // { num: profile?.mutualCount ?? '-', label: '互关', ...(isSelf ? { tab: 'mutual' as const } : {}) },
-    { num: profile?.followCount ?? 0, label: '关注', ...(isSelf ? { tab: 'follow' as const } : {}) },
-    { num: profile?.fansCount ?? 0, label: '粉丝', ...(isSelf ? { tab: 'fans' as const } : {}) },
+    { num: profile?.followCount ?? 0, label: '关注', tab: 'follow' },
+    { num: profile?.fansCount ?? 0, label: '粉丝', tab: 'fans' },
   ];
 
   const ipText = wqUser?.city || wqUser?.province || '';
@@ -444,7 +444,35 @@ export default function UserHome() {
                       activeOpacity={s.tab || s.onPress ? 0.7 : 1}
                       style={styles.statItem}
                       disabled={!s.tab && !s.onPress}
-                      onPress={() => (s.tab ? navigation.navigate('follows', { tab: s.tab }) : s.onPress?.())}
+                      onPress={() => {
+                        if (s.tab) {
+                          // 对方隐私锁定（isFollowShow/isFansShow 0-不公开）：禁止进入列表
+                          if (!isSelf) {
+                            const locked =
+                              s.tab === 'follow'
+                                ? Number(wqUser?.isFollowShow ?? 1) === 0
+                                : Number(wqUser?.isFansShow ?? 1) === 0;
+                            if (locked) {
+                              Toast.show({ type: 'info', text1: '对方未公开' });
+                              return;
+                            }
+                          }
+                          navigation.navigate(
+                            'follows',
+                            isSelf
+                              ? { tab: s.tab }
+                              : {
+                                  tab: s.tab,
+                                  userId: targetUserId,
+                                  nickname: wqUser?.username || wqUser?.nickname || '',
+                                  followShow: wqUser?.isFollowShow,
+                                  fansShow: wqUser?.isFansShow,
+                                },
+                          );
+                        } else {
+                          s.onPress?.();
+                        }
+                      }}
                     >
                       <Text style={styles.statNum}>{s.num}</Text>
                       <Text style={styles.statLabel}>{s.label}</Text>
@@ -721,7 +749,7 @@ const styles = StyleSheet.create({
   chipsRow: {
     flexDirection: 'row',
     gap: scaleSizeW(5),
-    marginTop: scaleSizeH(6),
+    marginTop: scaleSizeH(10),
   },
   chip: {
     backgroundColor: '#F3F3F1',
