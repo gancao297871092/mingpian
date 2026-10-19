@@ -337,6 +337,7 @@ export const tabStyles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: scaleSizeW(10),
     padding: scaleSizeW(12),
+    marginBottom: scaleSizeH(10),
   },
   commentHead: {
     flexDirection: 'row',
