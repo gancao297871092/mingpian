@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Text } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useTheme } from '@/theme';
 import { useSettingStore } from '@/store/setting';
+import { useUserStore } from '@/store/user';
 import LiquidGlassTabBar from '@/components/LiquidGlassTabBar';
 import { navigationRef } from './navigationRef';
 import type { RootStackParamList, MainTabParamList } from './map';
@@ -92,6 +93,18 @@ function useNavTheme() {
 
 function MainTabs() {
   const defaultHome = useSettingStore(s => s.defaultHome);
+  const token = useUserStore(s => s.token);
+
+  /** 未登录点击消息/我的：拦截 tab 切换，直接进入登录页 */
+  const requireLogin = useCallback(
+    (e: { preventDefault: () => void }) => {
+      if (!token) {
+        e.preventDefault();
+        navigationRef.navigate('login');
+      }
+    },
+    [token],
+  );
   const homeScreen = (
     <Tab.Screen
       key="home"
@@ -123,11 +136,13 @@ function MainTabs() {
         name="message"
         component={MessagePage}
         options={{ title: '消息', headerShown: false }}
+        listeners={{ tabPress: requireLogin }}
       />
       <Tab.Screen
         name="my"
         component={My}
         options={{ title: '我的', headerShown: false }}
+        listeners={{ tabPress: requireLogin }}
       />
     </Tab.Navigator>
   );

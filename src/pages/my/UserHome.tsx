@@ -227,7 +227,7 @@ export default function UserHome() {
 
   const stats: { num: string | number; label: string; tab?: 'mutual' | 'follow' | 'fans'; onPress?: () => void }[] = [
     { num: profile?.likeCount ?? 0, label: '获赞', ...(isSelf ? { onPress: () => setLikesVisible(true) } : {}) },
-    { num: profile?.mutualCount ?? '-', label: '互关', ...(isSelf ? { tab: 'mutual' as const } : {}) },
+    // { num: profile?.mutualCount ?? '-', label: '互关', ...(isSelf ? { tab: 'mutual' as const } : {}) },
     { num: profile?.followCount ?? 0, label: '关注', ...(isSelf ? { tab: 'follow' as const } : {}) },
     { num: profile?.fansCount ?? 0, label: '粉丝', ...(isSelf ? { tab: 'fans' as const } : {}) },
   ];

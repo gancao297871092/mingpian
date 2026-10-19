@@ -214,7 +214,7 @@ export default function My() {
 
   const stats: { num: string | number; label: string; tab?: 'mutual' | 'follow' | 'fans'; onPress?: () => void }[] = [
     { num: userInfo?.likeCount ?? 0, label: '获赞', onPress: () => setLikesVisible(true) },
-    { num: userInfo?.mutualCount ?? '-', label: '互关', tab: 'mutual' },
+    { num: userInfo?.mutualFollowCount ?? '-', label: '互关', tab: 'mutual' },
     { num: userInfo?.followCount ?? 0, label: '关注', tab: 'follow' },
     { num: userInfo?.fansCount ?? 0, label: '粉丝', tab: 'fans' },
   ];

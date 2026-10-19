@@ -59,10 +59,24 @@ export namespace API {
     export function followOperate(data: { targetUserId: number; isFollow: number }) {
       return request.post<any>('/user/follow/operate', data);
     }
-    /** 互关/关注/粉丝列表（字段为预设，待后端联调确认） */
-    export function followList(data: { type: 'mutual' | 'follow' | 'fans'; pageNum?: number; pageSize?: number }) {
+    /** 关注列表（targetUserId 必填；对方关闭「我的关注」公开时返回空分页） */
+    export function followList(data: { targetUserId: number; pageNum?: number; pageSize?: number }) {
       return request.post<{ list: any[]; total: number; pageNum: number; pages: number }>(
         '/user/follow/list',
+        data,
+      );
+    }
+    /** 粉丝列表（targetUserId 必填；对方关闭「我的粉丝」公开时返回空分页） */
+    export function fansList(data: { targetUserId: number; pageNum?: number; pageSize?: number }) {
+      return request.post<{ list: any[]; total: number; pageNum: number; pages: number }>(
+        '/user/fans/list',
+        data,
+      );
+    }
+    /** 互相关注列表（仅登录用户查看自己，无需 targetUserId） */
+    export function mutualList(data: { pageNum?: number; pageSize?: number }) {
+      return request.post<{ list: any[]; total: number; pageNum: number; pages: number }>(
+        '/user/follow/mutual/list',
         data,
       );
     }

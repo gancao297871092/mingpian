@@ -7,6 +7,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import EmptyState from '@/components/EmptyState';
 import ListFooter from '@/components/ListFooter';
 import { API } from '@/api';
+import { useUserStore } from '@/store/user';
 import { setDetailCache } from '@/utils/detailCache';
 import type { RootStackParamList } from '@/route/map';
 import { DraftIcon } from '../myIcons';
@@ -43,14 +44,22 @@ interface Props {
 
 export default forwardRef<TabHandle, Props>(function WaterfallTab({ tab, myId, targetUserId, active, draftCount, draftCover, onHeight, onTotal }, ref) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const token = useUserStore(s => s.token);
   const [state, setState] = useState<TabState<PostCardData>>(initialTabState);
   const stateRef = useRef(state);
   stateRef.current = state;
   const listUserId = targetUserId ?? myId;
+  /** 「我的发布」依赖登录态（/my/bbs/list 未登录不调用），记录是否因未登录跳过 */
+  const skippedByGuestRef = useRef(false);
 
   const fetchPage = useCallback(
     async (pageNum: number) => {
       if (stateRef.current.loading) return;
+      if (tab === 'post' && !targetUserId && !token) {
+        skippedByGuestRef.current = true;
+        setState(prev => ({ ...prev, loading: false, loaded: true }));
+        return;
+      }
       setState(prev => ({ ...prev, loading: true }));
       try {
         const res =
@@ -73,12 +82,20 @@ export default forwardRef<TabHandle, Props>(function WaterfallTab({ tab, myId, t
         setState(prev => ({ ...prev, loading: false, loaded: true }));
       }
     },
-    [tab, targetUserId, listUserId, onTotal],
+    [tab, targetUserId, listUserId, onTotal, token],
   );
 
   useEffect(() => {
     if (active && !state.loaded) fetchPage(1);
   }, [active, state.loaded, fetchPage]);
+
+  // 未登录跳过过，登录后补拉第一页
+  useEffect(() => {
+    if (active && token && skippedByGuestRef.current) {
+      skippedByGuestRef.current = false;
+      fetchPage(1);
+    }
+  }, [active, token, fetchPage]);
 
   useImperativeHandle(
     ref,

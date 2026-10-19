@@ -9,7 +9,9 @@ import {
 } from 'react-native';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { LiquidGlass } from '@/components/capabilities';
-import { getBottomSpaces, scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
+import { useUserStore } from '@/store/user';
+import { navigationRef } from '@/route/navigationRef';
+import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 
 const TAB_ICONS: Record<string, { active: number; inactive: number }> = {
   home: {
@@ -106,6 +108,17 @@ function TabItem({
 }
 
 export default function LiquidGlassTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+  const token = useUserStore(s => s.token);
+
+  /** 未登录点击发布：与消息/我的一致，直接进入登录页 */
+  const onPressPublish = () => {
+    if (!token) {
+      navigationRef.navigate('login');
+      return;
+    }
+    navigation.navigate('publish' as never);
+  };
+
   return (
     <View style={styles.container} pointerEvents="box-none">
       <LiquidGlass
@@ -126,7 +139,7 @@ export default function LiquidGlassTabBar({ state, descriptors, navigation }: Bo
             accessibilityLabel="发布"
             activeOpacity={0.8}
             style={styles.publishBtn}
-            onPress={() => navigation.navigate('publish' as never)}
+            onPress={onPressPublish}
           >
             <Image
               source={require('@/assets/tab-icons/publish.png')}

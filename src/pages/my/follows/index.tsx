@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -10,6 +10,10 @@ import { Image as ExpoImage } from 'expo-image';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import SafeView from '@/components/SafeView';
+import EmptyState from '@/components/EmptyState';
+import ListFooter from '@/components/ListFooter';
+import { API } from '@/api';
+import { useUserStore } from '@/store/user';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
 import { BlueBadgeIcon } from '../myIcons';
@@ -17,6 +21,7 @@ import { BlueBadgeIcon } from '../myIcons';
 const PRIMARY = '#2962D4';
 const TEXT_SUB = '#6C6C6C';
 const DIVIDER = '#EBEBEB';
+const PAGE_SIZE = 20;
 
 type FollowTab = 'mutual' | 'follow' | 'fans';
 
@@ -43,27 +48,27 @@ interface FollowUser {
   isMutual: boolean;
 }
 
-/** 静态 mock（接口待联调） */
-const MOCK_USERS: Record<FollowTab, FollowUser[]> = {
-  mutual: [
-    { id: 'm1', avatar: '', name: '华北设备服务', company: '云南赣云供应链管理有限公司', verified: true, isFollow: true, isMutual: true },
-    { id: 'm2', avatar: '', name: '华北设备服务', company: '云南赣云供应链管理有限公司', verified: false, isFollow: true, isMutual: true },
-    { id: 'm3', avatar: '', name: '苏州自动化集成', company: '', verified: false, isFollow: true, isMutual: true },
-    { id: 'm4', avatar: '', name: '华北设备服务', company: '云南赣云供应链管理有限公司', verified: true, isFollow: true, isMutual: true },
-    { id: 'm5', avatar: '', name: '华北设备服务', company: '云南赣云供应链管理有限公司', verified: false, isFollow: true, isMutual: true },
-    { id: 'm6', avatar: '', name: '苏州自动化集成', company: '', verified: false, isFollow: true, isMutual: true },
-  ],
-  follow: [
-    { id: 'f1', avatar: '', name: '华北设备服务', company: '云南赣云供应链管理有限公司', verified: false, isFollow: true, isMutual: false },
-    { id: 'f2', avatar: '', name: '华北设备服务', company: '云南赣云供应链管理有限公司', verified: true, isFollow: true, isMutual: false },
-    { id: 'f3', avatar: '', name: '华北设备服务', company: '', verified: false, isFollow: true, isMutual: false },
-  ],
-  fans: [
-    { id: 'fa1', avatar: '', name: '华北设备服务', company: '云南赣云供应链管理有限公司', verified: false, isFollow: false, isMutual: false },
-    { id: 'fa2', avatar: '', name: '华北设备服务', company: '', verified: false, isFollow: true, isMutual: true },
-    { id: 'fa3', avatar: '', name: '苏州自动化集成', company: '', verified: false, isFollow: true, isMutual: true },
-  ],
-};
+interface TabData {
+  list: FollowUser[];
+  total: number;
+  page: number;
+  pages: number;
+  loading: boolean;
+  loaded: boolean;
+}
+
+const initialTabData: TabData = { list: [], total: 0, page: 0, pages: 1, loading: false, loaded: false };
+
+/** 对齐小程序 user.vue 字段：avatar/username/currentUserIsFollow/id */
+const mapUser = (u: any): FollowUser => ({
+  id: String(u.id ?? u.userId ?? ''),
+  avatar: u.avatar ?? '',
+  name: u.username ?? u.nickname ?? '',
+  company: u.cpName ?? u.companyName ?? '',
+  verified: !!(u.authCompany || u.authRealCard || u.isAuth),
+  isFollow: Number(u.currentUserIsFollow ?? u.isFollow ?? 0) === 1,
+  isMutual: Number(u.isMutual ?? 0) === 1,
+});
 
 /** 昵称旁蓝色认证徽章（figma 互关/关注/粉丝列表 Vector） */
 function VerifiedBadge() {
@@ -92,8 +97,16 @@ function FollowButton({ item, tab, onToggle }: { item: FollowUser; tab: FollowTa
 export default function Follows() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'follows'>>();
+  const token = useUserStore(s => s.token);
+  const myId = useUserStore(s => s.userInfo?.wqUser?.id ?? 0);
   const [tab, setTab] = useState<FollowTab>(route.params?.tab ?? 'mutual');
-  const [lists, setLists] = useState<Record<FollowTab, FollowUser[]>>(MOCK_USERS);
+  const [data, setData] = useState<Record<FollowTab, TabData>>({
+    mutual: initialTabData,
+    follow: initialTabData,
+    fans: initialTabData,
+  });
+  const dataRef = useRef(data);
+  dataRef.current = data;
 
   useEffect(() => {
     navigation.setOptions({
@@ -110,21 +123,76 @@ export default function Follows() {
     });
   }, [navigation, tab]);
 
-  const list = lists[tab];
+  const fetchPage = useCallback(
+    async (key: FollowTab, pageNum: number) => {
+      // 未登录不调用关注/粉丝接口（对齐 my/bbs/list 处理）
+      if (!token) {
+        setData(prev => ({ ...prev, [key]: { ...prev[key], loaded: true } }));
+        return;
+      }
+      if (dataRef.current[key].loading) return;
+      setData(prev => ({ ...prev, [key]: { ...prev[key], loading: true } }));
+      try {
+        const res =
+          key === 'mutual'
+            ? await API.user.mutualList({ pageNum, pageSize: PAGE_SIZE })
+            : key === 'follow'
+              ? await API.user.followList({ targetUserId: myId, pageNum, pageSize: PAGE_SIZE })
+              : await API.user.fansList({ targetUserId: myId, pageNum, pageSize: PAGE_SIZE });
+        const list = (res.data?.list ?? []).map(mapUser);
+        const pages = res.data?.pages ?? 1;
+        setData(prev => ({
+          ...prev,
+          [key]: {
+            list: pageNum === 1 ? list : [...prev[key].list, ...list],
+            total: res.data?.total ?? 0,
+            page: pageNum,
+            pages,
+            loading: false,
+            loaded: true,
+          },
+        }));
+      } catch {
+        setData(prev => ({ ...prev, [key]: { ...prev[key], loading: false, loaded: true } }));
+      }
+    },
+    [token, myId],
+  );
 
-  // 本地联动：纯本地切换关注状态（接口待联调）
+  // tab 懒加载第一页
+  useEffect(() => {
+    const d = dataRef.current[tab];
+    if (!d.loaded && !d.loading) fetchPage(tab, 1);
+  }, [tab, fetchPage]);
+
+  const onEndReached = useCallback(() => {
+    const d = dataRef.current[tab];
+    if (d.loaded && !d.loading && d.page < d.pages) fetchPage(tab, d.page + 1);
+  }, [tab, fetchPage]);
+
+  // 关注/回关：对齐小程序 user.vue，调 /user/follow/operate 成功后本地切换
   const onToggleFollow = useCallback(
     (item: FollowUser) => {
       const next = !item.isFollow;
-      setLists(prev => ({
-        ...prev,
-        [tab]: prev[tab].map(u =>
-          u.id === item.id ? { ...u, isFollow: next, isMutual: tab === 'fans' ? u.isMutual || next : u.isMutual } : u,
-        ),
-      }));
+      API.user
+        .followOperate({ targetUserId: Number(item.id), isFollow: next ? 1 : 0 })
+        .then(() => {
+          setData(prev => ({
+            ...prev,
+            [tab]: {
+              ...prev[tab],
+              list: prev[tab].list.map(u =>
+                u.id === item.id ? { ...u, isFollow: next, isMutual: tab === 'fans' ? u.isMutual || next : u.isMutual } : u,
+              ),
+            },
+          }));
+        })
+        .catch(() => { });
     },
     [tab],
   );
+
+  const current = data[tab];
 
   const renderItem = useCallback(
     ({ item }: { item: FollowUser }) => (
@@ -150,14 +218,20 @@ export default function Follows() {
   return (
     <SafeView backgroundColor="#FFFFFF">
       <View style={styles.divider} />
-      <Text style={styles.subtitle}>{`${SUBTITLES[tab]}（${list.length}人）`}</Text>
+      <Text style={styles.subtitle}>{`${SUBTITLES[tab]}（${current.total}人）`}</Text>
       <FlashList
-        data={list}
+        data={current.list}
         keyExtractor={item => item.id}
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
         ItemSeparatorComponent={tab === 'mutual' ? undefined : RowSeparator}
+        onEndReached={onEndReached}
+        onEndReachedThreshold={0.3}
+        ListEmptyComponent={
+          current.loaded ? <EmptyState variant="content" title="暂无内容" style={styles.emptyBox} /> : null
+        }
+        ListFooterComponent={<ListFooter fetching={current.loading} isLastPage={current.page >= current.pages} listLength={current.list.length} />}
       />
     </SafeView>
   );
@@ -203,6 +277,9 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: scaleSizeW(16),
     paddingBottom: scaleSizeH(16),
+  },
+  emptyBox: {
+    paddingTop: scaleSizeH(80),
   },
   row: {
     flexDirection: 'row',

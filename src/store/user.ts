@@ -60,7 +60,7 @@ export interface UserInfo {
   followCount?: number;
   fansCount?: number;
   /** 互关数（后端暂未返回时前端展示 '-'） */
-  mutualCount?: number;
+  mutualFollowCount?: number;
   bbsCount?: number;
   likeCount?: number;
   favoriteCount?: number;
