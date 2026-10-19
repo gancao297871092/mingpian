@@ -213,7 +213,7 @@ export default function My() {
   };
 
   const stats: { num: string | number; label: string; tab?: 'mutual' | 'follow' | 'fans'; onPress?: () => void }[] = [
-    { num: userInfo?.likeCount ?? 0, label: '获赞', onPress: () => setLikesVisible(true) },
+    { num: userInfo?.totalLikeCount ?? 0, label: '获赞', onPress: () => setLikesVisible(true) },
     { num: userInfo?.mutualFollowCount ?? '-', label: '互关', tab: 'mutual' },
     { num: userInfo?.followCount ?? 0, label: '关注', tab: 'follow' },
     { num: userInfo?.fansCount ?? 0, label: '粉丝', tab: 'fans' },
@@ -393,7 +393,9 @@ export default function My() {
                       <MyCardIcon />
                       <Text style={styles.entryCardTitle}>我的名片</Text>
                     </View>
-                    <Text style={styles.entryCardSub}>个人名片3/5 · 企业名片</Text>
+                    <Text style={styles.entryCardSub}>
+                      个人名片{userInfo?.cardCount ?? 0}/{userInfo?.cardMaxLimit ?? 0} · 企业名片
+                    </Text>
                   </View>
                 </TouchableOpacity>
                 <TouchableOpacity activeOpacity={0.8} style={styles.entryCard} onPress={() => navigation.navigate('cardList')}>
@@ -402,7 +404,7 @@ export default function My() {
                       <CardBoxIcon />
                       <Text style={styles.entryCardTitle}>名片夹</Text>
                     </View>
-                    <Text style={styles.entryCardSub}>已存3张名片</Text>
+                    <Text style={styles.entryCardSub}>已存{userInfo?.favoriteCardCount ?? 0}张名片</Text>
                   </View>
                 </TouchableOpacity>
               </View>
@@ -552,9 +554,9 @@ export default function My() {
       <LikesDialog
         visible={likesVisible}
         nickname={wqUser?.username || wqUser?.nickname || ''}
-        likeCount={userInfo?.likeCount ?? 0}
-        bbsCount={userInfo?.bbsCount ?? 0}
-        favoriteCount={userInfo?.favoriteCount ?? 0}
+        likeCount={userInfo?.totalLikeCount ?? 0}
+        bbsCount={userInfo?.bbsTotalCount ?? 0}
+        favoriteCount={userInfo?.totalFavoriteCount ?? 0}
         onClose={() => setLikesVisible(false)}
       />
     </SafeView>

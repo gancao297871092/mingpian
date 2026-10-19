@@ -64,6 +64,18 @@ export interface UserInfo {
   bbsCount?: number;
   likeCount?: number;
   favoriteCount?: number;
+  /** 我的名片数量（有效名片 status=1） */
+  cardCount?: number;
+  /** 名片总数量上限（base_config USER_MAX_LIMIT，未配置或非法时为 0） */
+  cardMaxLimit?: number;
+  /** 收藏的名片数量 */
+  favoriteCardCount?: number;
+  /** 发布的动态总数量（不含草稿与已删除） */
+  bbsTotalCount?: number;
+  /** 动态获得的总点赞数量 */
+  totalLikeCount?: number;
+  /** 动态被收藏的总数量 */
+  totalFavoriteCount?: number;
   cpId?: number;
   cpName?: string;
   /** 是否企业管理员（1是 0否） */

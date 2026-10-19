@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  RefreshControl,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -171,6 +172,11 @@ export default function Follows() {
     if (d.loaded && !d.loading && d.page < d.pages) fetchPage(tab, d.page + 1);
   }, [tab, fetchPage]);
 
+  // 下拉刷新：重新拉第一页
+  const onRefresh = useCallback(() => {
+    fetchPage(tab, 1);
+  }, [tab, fetchPage]);
+
   // 关注/回关：对齐小程序 user.vue，调 /user/follow/operate 成功后本地切换
   const onToggleFollow = useCallback(
     (item: FollowUser) => {
@@ -228,6 +234,9 @@ export default function Follows() {
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl refreshing={current.loading && current.loaded} onRefresh={onRefresh} tintColor={PRIMARY} />
+        }
         ItemSeparatorComponent={tab === 'mutual' ? undefined : RowSeparator}
         onEndReached={onEndReached}
         onEndReachedThreshold={0.3}
