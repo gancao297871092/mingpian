@@ -93,11 +93,16 @@ export default function TouchTaskDetail() {
               end={{ x: 1, y: 0 }}
               style={styles.capHead}
             >
-              <View style={styles.capHeadRow}>
-                <CapPuzzleIcon />
-                <Text style={styles.capLabel}>能力卡</Text>
+              <View style={{
+                paddingHorizontal: scaleSizeW(16),
+              }}>
+                <View style={styles.capHeadRow}>
+                  <CapPuzzleIcon />
+                  <Text style={styles.capLabel}>能力卡</Text>
+                </View>
+                <Text style={styles.capCompany} numberOfLines={1}>{detail?.capCompany || ''}</Text>
               </View>
-              <Text style={styles.capCompany} numberOfLines={1}>{detail?.capCompany || ''}</Text>
+
             </LinearGradient>
             <View style={styles.capBody}>
               <Text style={styles.capBbsCount}>关联动态 {detail?.capBbsCount ?? 0} 条</Text>
@@ -282,7 +287,6 @@ const styles = StyleSheet.create({
   },
   capHead: {
     height: scaleSizeH(58),
-    paddingHorizontal: scaleSizeW(16),
     justifyContent: 'center',
     gap: scaleSizeH(5),
   },
@@ -298,6 +302,7 @@ const styles = StyleSheet.create({
   capCompany: {
     fontSize: setSpText(12),
     color: '#FFFFFF',
+    marginTop: scaleSizeH(5),
   },
   capBody: {
     backgroundColor: '#EEF3FF',
@@ -347,7 +352,7 @@ const styles = StyleSheet.create({
     color: TEXT_SUB,
   },
   copyBtn: {
-    marginTop: scaleSizeH(8),
+    marginTop: scaleSizeH(16),
     height: scaleSizeH(39),
     borderRadius: scaleSizeW(90),
     backgroundColor: '#FFFFFF',
