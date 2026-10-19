@@ -29,6 +29,7 @@ import SafeView from '@/components/SafeView';
 import { API } from '@/api';
 import { useUserStore, type UserInfo, type WqUser } from '@/store/user';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
+import { getUserHomeCache, setUserHomeCache } from '@/utils/userHomeCache';
 import { BackArrowIcon, ChatBubbleIcon, CompanyIcon, PlusIcon, TabCommentIcon, TabFavIcon, TabLikeIcon } from './myIcons';
 import WaterfallTab from './tabs/WaterfallTab';
 import CommentTab from './tabs/CommentTab';
@@ -74,6 +75,8 @@ export default function UserHome() {
   const [otherInfo, setOtherInfo] = useState<UserInfo | null>(null);
   const [followed, setFollowed] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
+  const otherInfoRef = useRef(otherInfo);
+  otherInfoRef.current = otherInfo;
 
   const profile: UserInfo | null = isSelf ? selfInfo : otherInfo;
   const wqUser: WqUser | undefined = profile?.wqUser;
@@ -140,18 +143,32 @@ export default function UserHome() {
           if (!res.data) return;
           const d = res.data;
           const ui = d.userInfo ?? {};
-          setOtherInfo({
+          const nextProfile = {
             ...ui,
             wqUser: ui.wqUser ? { ...ui.wqUser, cpName: ui.cpName } : undefined,
             followCount: ui.followCount ?? d.followCount,
             fansCount: ui.fansCount ?? d.fansCount,
             bbsCount: ui.bbsCount ?? d.bbsCount,
-          });
-          setFollowed(!!(d.isFollowed ?? ui.wqUser?.currentUserIsFollow));
+          };
+          const isFollowed = !!(d.isFollowed ?? ui.wqUser?.currentUserIsFollow);
+          setOtherInfo(nextProfile);
+          setFollowed(isFollowed);
+          // 刷新本地缓存，下次进入他人主页优先展示
+          setUserHomeCache(targetUserId, { profile: nextProfile, isFollowed });
         })
         .catch(() => {});
     }
   }, [isSelf, targetUserId, setUserInfo]);
+
+  // 他人主页：优先加载上次缓存的资料与关注状态，接口返回后再刷新（fetchProfile 由 useFocusEffect 触发）
+  useEffect(() => {
+    if (isSelf || !targetUserId) return;
+    const cached = getUserHomeCache(targetUserId);
+    if (cached) {
+      setOtherInfo(cached.profile);
+      setFollowed(cached.isFollowed);
+    }
+  }, [isSelf, targetUserId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -216,6 +233,12 @@ export default function UserHome() {
     setFollowBusy(true);
     API.user
       .followOperate({ targetUserId, isFollow: next ? 1 : 0 })
+      .then(() => {
+        // 关注状态变更后同步更新缓存，避免下次进入闪回旧状态
+        if (otherInfoRef.current) {
+          setUserHomeCache(targetUserId, { profile: otherInfoRef.current, isFollowed: next });
+        }
+      })
       .catch(() => {
         setFollowed(!next);
         Toast.show({ type: 'error', text1: '操作失败，请重试' });
