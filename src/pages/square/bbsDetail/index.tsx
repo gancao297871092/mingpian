@@ -36,6 +36,7 @@ import { formatLikeCount } from '@/utils/format';
 import { useUserStore } from '@/store/user';
 import { useSettingStore } from '@/store/setting';
 import { useBbsInteractionStore } from '@/store/bbsInteraction';
+import { toggleFollow, useFollowStore, setFollow } from '@/store/follow';
 import { getDetailCache } from '@/utils/detailCache';
 import CommentInputSheet from './CommentInputSheet';
 import CommentActionSheet, { type CommentAction } from './CommentActionSheet';
@@ -425,7 +426,6 @@ export default function BbsDetail() {
   const [comments, setComments] = useState<CommentData[]>([]);
   const [commentPage, setCommentPage] = useState(1);
   const [commentPages, setCommentPages] = useState(1);
-  const [following, setFollowing] = useState(false);
   const [liked, setLiked] = useState(false);
   const [faved, setFaved] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
@@ -434,6 +434,9 @@ export default function BbsDetail() {
   const [previewIndex, setPreviewIndex] = useState(-1);
   const [previewImages, setPreviewImages] = useState<string[] | null>(null);
   const [visibility, setVisibility] = useState<VisibilityKey>('public');
+  /** 关注状态走全局 follow store（key=作者 userId），他人主页变更后返回自动同步 */
+  const authorId = detail?.authorId;
+  const following = useFollowStore(s => (authorId != null ? s.map[String(authorId)] : undefined)) ?? false;
   const likeNextRef = useRef({ isLiked: false, likeCount: 0 });
   const favNextRef = useRef({ isFaved: false, favCount: 0 });
 
@@ -738,7 +741,7 @@ export default function BbsDetail() {
       setDetail(d);
       setLiked(d.isLiked);
       setFaved(d.isFaved);
-      setFollowing(d.isFollowed || route.params.isFollowed === true);
+      setFollow(d.authorId, d.isFollowed || route.params.isFollowed === true);
       setVisibility(d.visibility === 2 ? 'private' : d.visibility === 1 ? 'mutual' : 'public');
       setLikeCount(d.likeCount);
       setFavCount(d.favCount);
@@ -772,7 +775,7 @@ export default function BbsDetail() {
         setDetail(d);
         setLiked(d.isLiked);
         setFaved(d.isFaved);
-        setFollowing((fromMy ? d.isFollowed : res.data.isFollowed === 1) || route.params.isFollowed === true);
+        setFollow(d.authorId, (fromMy ? d.isFollowed : res.data.isFollowed === 1) || route.params.isFollowed === true);
         setVisibility(d.visibility === 2 ? 'private' : d.visibility === 1 ? 'mutual' : 'public');
         setLikeCount(d.likeCount);
         setFavCount(d.favCount);
@@ -794,13 +797,9 @@ export default function BbsDetail() {
   }, [loadComments, commentRestricted, isAudit]);
 
   const onToggleFollow = useCallback(() => {
-    if (!detail || refreshing) return;
-    const next = !following;
-    setFollowing(next);
-    API.user
-      .followOperate({ targetUserId: detail.authorId, isFollow: next ? 1 : 0 })
-      .catch(() => setFollowing(!next));
-  }, [detail, following, refreshing]);
+    if (!authorId || refreshing) return;
+    toggleFollow(authorId, following);
+  }, [authorId, following, refreshing]);
 
   const DEFAULT_IMG_HEIGHT = SCREEN_WIDTH * (535 / 402);
   const [imgHeight, setImgHeight] = useState(DEFAULT_IMG_HEIGHT);

@@ -14,6 +14,7 @@ import EmptyState from '@/components/EmptyState';
 import ListFooter from '@/components/ListFooter';
 import { API } from '@/api';
 import { useUserStore } from '@/store/user';
+import { setFollow } from '@/store/follow';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
 import { BlueBadgeIcon } from '../myIcons';
@@ -177,6 +178,8 @@ export default function Follows() {
       API.user
         .followOperate({ targetUserId: Number(item.id), isFollow: next ? 1 : 0 })
         .then(() => {
+          // 同步全局关注状态，详情页/他人主页订阅同一数据源
+          setFollow(Number(item.id), next);
           setData(prev => ({
             ...prev,
             [tab]: {

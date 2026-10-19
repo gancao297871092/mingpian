@@ -28,6 +28,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SafeView from '@/components/SafeView';
 import { API } from '@/api';
 import { useUserStore, type UserInfo, type WqUser } from '@/store/user';
+import { toggleFollow, useFollowStore, setFollow } from '@/store/follow';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { getUserHomeCache, setUserHomeCache } from '@/utils/userHomeCache';
 import { BackArrowIcon, ChatBubbleIcon, CompanyIcon, PlusIcon, TabCommentIcon, TabFavIcon, TabLikeIcon } from './myIcons';
@@ -73,7 +74,8 @@ export default function UserHome() {
   const isPreview = isSelf && route.params?.preview === true;
 
   const [otherInfo, setOtherInfo] = useState<UserInfo | null>(null);
-  const [followed, setFollowed] = useState(false);
+  /** 关注状态走全局 follow store（key=userId），详情页等处变更后此处自动同步 */
+  const followed = useFollowStore(s => (targetUserId != null ? s.map[String(targetUserId)] : undefined)) ?? false;
   const [followBusy, setFollowBusy] = useState(false);
   const otherInfoRef = useRef(otherInfo);
   otherInfoRef.current = otherInfo;
@@ -152,7 +154,7 @@ export default function UserHome() {
           };
           const isFollowed = !!(d.isFollowed ?? ui.wqUser?.currentUserIsFollow);
           setOtherInfo(nextProfile);
-          setFollowed(isFollowed);
+          setFollow(targetUserId, isFollowed);
           // 刷新本地缓存，下次进入他人主页优先展示
           setUserHomeCache(targetUserId, { profile: nextProfile, isFollowed });
         })
@@ -166,7 +168,7 @@ export default function UserHome() {
     const cached = getUserHomeCache(targetUserId);
     if (cached) {
       setOtherInfo(cached.profile);
-      setFollowed(cached.isFollowed);
+      setFollow(targetUserId, cached.isFollowed);
     }
   }, [isSelf, targetUserId]);
 
@@ -228,22 +230,15 @@ export default function UserHome() {
 
   const onToggleFollow = useCallback(() => {
     if (!targetUserId || followBusy) return;
-    const next = !followed;
-    setFollowed(next);
     setFollowBusy(true);
-    API.user
-      .followOperate({ targetUserId, isFollow: next ? 1 : 0 })
-      .then(() => {
-        // 关注状态变更后同步更新缓存，避免下次进入闪回旧状态
-        if (otherInfoRef.current) {
-          setUserHomeCache(targetUserId, { profile: otherInfoRef.current, isFollowed: next });
-        }
-      })
-      .catch(() => {
-        setFollowed(!next);
-        Toast.show({ type: 'error', text1: '操作失败，请重试' });
-      })
-      .finally(() => setFollowBusy(false));
+    toggleFollow(targetUserId, followed).finally(() => {
+      setFollowBusy(false);
+      // 关注状态变更后同步主页缓存，避免下次进入闪回旧状态
+      if (otherInfoRef.current) {
+        const settled = useFollowStore.getState().map[String(targetUserId)] ?? followed;
+        setUserHomeCache(targetUserId, { profile: otherInfoRef.current, isFollowed: settled });
+      }
+    });
   }, [targetUserId, followed, followBusy]);
 
   const todo = () => Toast.show({ type: 'info', text1: '功能开发中' });
