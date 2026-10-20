@@ -12,15 +12,22 @@ interface RegionNode {
   children?: RegionNode[];
 }
 
-function buildTree(): RegionNode[] {
+function buildTree(initialChecked?: Set<string>): RegionNode[] {
   const wrap = (list: any[]): RegionNode[] =>
-    list.map(o => ({
-      code: String(o.code),
-      name: o.name,
-      checked: 0,
-      children: o.children ? wrap(o.children) : undefined,
-    }));
-  return wrap(areaData as any[]);
+    list.map(o => {
+      const node: RegionNode = {
+        code: String(o.code),
+        name: o.name,
+        checked: 0,
+        children: o.children ? wrap(o.children) : undefined,
+      };
+      // 存储的是整选节点的 code，回显时整棵子树勾上（refresh 会重算父级半选态）
+      if (initialChecked?.has(node.code)) setSubtree(node, 2);
+      return node;
+    });
+  const tree = wrap(areaData as any[]);
+  tree.forEach(refresh);
+  return tree;
 }
 
 function setSubtree(node: RegionNode, v: 0 | 1 | 2) {
@@ -42,6 +49,13 @@ function collectNames(nodes: RegionNode[], out: string[]) {
   }
 }
 
+function collectCodes(nodes: RegionNode[], out: string[]) {
+  for (const n of nodes) {
+    if (n.checked === 2) out.push(n.code);
+    else if (n.checked === 1 && n.children) collectCodes(n.children, out);
+  }
+}
+
 function Checkbox({ state }: { state: 0 | 1 | 2 }) {
   return (
     <View style={[styles.checkbox, state !== 0 && styles.checkboxActive]}>
@@ -53,12 +67,20 @@ function Checkbox({ state }: { state: 0 | 1 | 2 }) {
 
 export interface RegionFilterPanelProps {
   onClose: () => void;
-  onConfirm: (label: string, names: string[]) => void;
+  onConfirm: (label: string, names: string[], codes: string[]) => void;
+  /** 上次确认选中的 code（重新打开时回显勾选） */
+  selectedCodes?: string[];
 }
 
-export default function RegionFilterPanel({ onClose, onConfirm }: RegionFilterPanelProps) {
-  const [options] = useState<RegionNode[]>(buildTree);
+export default function RegionFilterPanel({ onClose, onConfirm, selectedCodes }: RegionFilterPanelProps) {
+  const [options] = useState<RegionNode[]>(() => buildTree(selectedCodes?.length ? new Set(selectedCodes) : undefined));
   const [path, setPath] = useState<string[]>(() => {
+    // 有选中回显时，默认定位到第一个含选中项的省/市列，打开即可见
+    const province = options.find(p => p.checked !== 0);
+    if (province) {
+      const city = province.children?.find(c => c.checked !== 0) ?? province.children?.[0];
+      return [province.code, city?.code ?? ''];
+    }
     const p = options[0];
     return p ? [p.code, p.children?.[0]?.code ?? ''] : [];
   });
@@ -92,9 +114,11 @@ export default function RegionFilterPanel({ onClose, onConfirm }: RegionFilterPa
 
   const onOk = () => {
     const names: string[] = [];
+    const codes: string[] = [];
     collectNames(options, names);
+    collectCodes(options, codes);
     const label = names.length === 0 ? '地区' : names.length <= 2 ? names.join('、') : `${names.slice(0, 2).join('、')}等${names.length}`;
-    onConfirm(label, names);
+    onConfirm(label, names, codes);
     onClose();
   };
 

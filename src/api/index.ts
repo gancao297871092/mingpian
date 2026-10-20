@@ -153,6 +153,20 @@ export namespace API {
   }
 
   export namespace square {
+    /** 全站搜索（searchType: all综合/company企业/bbs动态/user用户；无需登录） */
+    export function search(data: {
+      keyword: string;
+      searchType: 'all' | 'company' | 'bbs' | 'user';
+      industry?: string;
+      honors?: string;
+      provinceStr?: string;
+      cityStr?: string;
+      districtStr?: string;
+      pageNum?: number;
+      pageSize?: number;
+    }) {
+      return request.post<any>('/search', data);
+    }
     /** 广场动态流 */
     export function feed(data: {
       tab?: string;
