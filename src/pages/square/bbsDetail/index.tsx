@@ -28,6 +28,7 @@ import Video from 'react-native-video';
 import SafeView from '@/components/SafeView';
 import EmptyState from '@/components/EmptyState';
 import NavHeader from '@/components/NavHeader';
+import PermissionButton from '@/components/PermissionButton';
 import RichText from '@/components/RichText';
 import LongHtmlView from '@/components/LongHtmlView';
 import { API } from '@/api';
@@ -283,7 +284,7 @@ function CommentLike({
     API.bbsComment.like({ commentId: Number(commentId), status: next ? 1 : 0 }).catch(() => setLiked(!next));
   };
   return (
-    <TouchableOpacity activeOpacity={0.7} hitSlop={8} style={styles.commentLike} onPress={onPress}>
+    <PermissionButton activeOpacity={0.7} hitSlop={8} style={styles.commentLike} onPress={onPress}>
       <Svg width={scaleSizeW(13)} height={scaleSizeW(14)} viewBox="0 0 13 14">
         <Path d={THUMB_SMALL_PATH} fill={liked ? LIKE_RED : '#666666'} />
       </Svg>
@@ -292,7 +293,7 @@ function CommentLike({
           {formatLikeCount(count + delta)}
         </Text>
       )}
-    </TouchableOpacity>
+    </PermissionButton>
   );
 }
 
@@ -324,9 +325,9 @@ function ReplyRow({
         <View style={styles.commentMetaRow}>
           <View style={styles.commentMetaLeft}>
             <Text style={styles.commentMetaText}>{reply.time} {reply.location}</Text>
-            <TouchableOpacity activeOpacity={0.7} hitSlop={6} onPress={() => onReply?.(reply.userName, reply.userId)}>
+            <PermissionButton activeOpacity={0.7} hitSlop={6} onPress={() => onReply?.(reply.userName, reply.userId)}>
               <Text style={styles.commentReplyText}>回复</Text>
-            </TouchableOpacity>
+            </PermissionButton>
           </View>
           <CommentLike commentId={reply.id} count={reply.likeCount} isLike={reply.isLike} showCount={false} />
         </View>
@@ -372,13 +373,13 @@ function CommentItem({
         <View style={styles.commentMetaRow}>
           <View style={styles.commentMetaLeft}>
             <Text style={styles.commentMetaText}>{item.time} {item.location}</Text>
-            <TouchableOpacity
+            <PermissionButton
               activeOpacity={0.7}
               hitSlop={6}
               onPress={() => onReply?.({ name: item.userName, commentId: item.id, replyToUserId: item.userId })}
             >
               <Text style={styles.commentReplyText}>回复</Text>
-            </TouchableOpacity>
+            </PermissionButton>
           </View>
           <CommentLike commentId={item.id} count={item.likeCount} isLike={item.isLike} />
         </View>
@@ -441,6 +442,13 @@ export default function BbsDetail() {
   const favNextRef = useRef({ isFaved: false, favCount: 0 });
 
   const myId = useUserStore(s => s.userInfo?.wqUser?.id);
+  const token = useUserStore(s => s.token);
+  /** 未登录操作拦截（非按钮入口，如弹层内举报）：直接进入登录页；返回 true 已登录可继续 */
+  const requireLogin = useCallback(() => {
+    if (token) return true;
+    navigation.navigate('login');
+    return false;
+  }, [token, navigation]);
   const isBbsAuthor = !!detail && !!myId && detail.authorId === myId;
   // commentScope：0所有人 1粉丝 2互关 3仅自己；不满足条件时评论区锁定
   const commentLockText = (() => {
@@ -677,6 +685,10 @@ export default function BbsDetail() {
   const onCommentAction = useCallback(
     (action: CommentAction) => {
       if (action === 'report') {
+        if (!requireLogin()) {
+          actionSheetRef.current?.dismiss();
+          return;
+        }
         pendingActionRef.current = 'report';
       } else if (action === 'permission') {
         pendingActionRef.current = 'visibility';
@@ -692,7 +704,7 @@ export default function BbsDetail() {
       }
       actionSheetRef.current?.dismiss();
     },
-    [selectedComment, onToggleTop, onDeleteComment, navigation, route.params.id],
+    [selectedComment, onToggleTop, onDeleteComment, navigation, route.params.id, requireLogin],
   );
 
   const onActionSheetClose = useCallback(() => {
@@ -724,12 +736,13 @@ export default function BbsDetail() {
     (action: MoreAction) => {
       moreSheetRef.current?.dismiss();
       if (action === 'report') {
+        if (!requireLogin()) return;
         navigation.navigate('reportBbs', { id: route.params.id });
       } else if (action === 'shareImage') {
         navigation.navigate('bbsShareImage', { id: route.params.id });
       }
     },
-    [navigation, route.params.id],
+    [navigation, route.params.id, requireLogin],
   );
 
   useEffect(() => {
@@ -989,11 +1002,11 @@ export default function BbsDetail() {
                 contentFit="cover"
                 transition={150}
               />
-              <TouchableOpacity activeOpacity={0.7} style={styles.commentInput} onPress={() => openCommentInput()}>
+              <PermissionButton activeOpacity={0.7} style={styles.commentInput} onPress={() => openCommentInput()}>
                 <Text style={styles.commentInputText}>
                   {commentRestricted ? commentLockText : '留下你的看法'}
                 </Text>
-              </TouchableOpacity>
+              </PermissionButton>
             </View>
           )}
           {isAudit && <View style={styles.divider} />}
@@ -1027,14 +1040,14 @@ export default function BbsDetail() {
           isAudit ? null : (
           <>
             {!isBbsAuthor && (
-              <TouchableOpacity
+              <PermissionButton
                 activeOpacity={0.7}
                 disabled={refreshing}
                 style={[styles.followBtn, following && styles.followedBtn, refreshing && styles.actionDisabled]}
                 onPress={onToggleFollow}
               >
                 <Text style={[styles.followText, following && styles.followedText]}>{following ? '已关注' : '关注'}</Text>
-              </TouchableOpacity>
+              </PermissionButton>
             )}
             <TouchableOpacity
               activeOpacity={0.7}
@@ -1086,8 +1099,23 @@ export default function BbsDetail() {
           }
           onEndReachedThreshold={0.3}
           onEndReached={() => {
-            if (!isAudit && commentPage < commentPages) loadComments(commentPage + 1);
+            // 未登录只允许看第一页评论，更多内容引导登录
+            if (!isAudit && token && commentPage < commentPages) loadComments(commentPage + 1);
           }}
+          ListFooterComponent={
+            !isAudit && !token && comments.length > 0 ? (
+              <View style={styles.loginBar}>
+                <Text style={styles.loginBarText}>登录后查看全部评论</Text>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  style={styles.loginBarBtn}
+                  onPress={() => navigation.navigate('login')}
+                >
+                  <Text style={styles.loginBarBtnText}>立即登录</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null
+          }
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
         />
@@ -1131,25 +1159,25 @@ export default function BbsDetail() {
               </TouchableOpacity>
             </>
           ) : (
-            <TouchableOpacity activeOpacity={0.7} style={styles.bottomInput} onPress={() => openCommentInput()}>
+            <PermissionButton activeOpacity={0.7} style={styles.bottomInput} onPress={() => openCommentInput()}>
               <Text style={styles.commentInputText}>
                 {commentRestricted ? commentLockText : '留下你的看法'}
               </Text>
-            </TouchableOpacity>
+            </PermissionButton>
           )}
-          <TouchableOpacity activeOpacity={0.7} hitSlop={6} disabled={refreshing} style={[styles.bottomAction, refreshing && styles.actionDisabled]} onPress={onToggleLike}>
+          <PermissionButton activeOpacity={0.7} hitSlop={6} disabled={refreshing} style={[styles.bottomAction, refreshing && styles.actionDisabled]} onPress={onToggleLike}>
             <Svg width={scaleSizeW(20)} height={scaleSizeW(21)} viewBox="0 0 20 21">
               <Path d={THUMB_PATH} fill={liked ? LIKE_RED : '#000000'} />
             </Svg>
             <Text style={[styles.bottomActionText, { color: liked ? LIKE_RED : '#000000' }]}>{formatLikeCount(likeCount)}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity activeOpacity={0.7} hitSlop={6} disabled={refreshing} style={[styles.bottomAction, refreshing && styles.actionDisabled]} onPress={onToggleFav}>
+          </PermissionButton>
+          <PermissionButton activeOpacity={0.7} hitSlop={6} disabled={refreshing} style={[styles.bottomAction, refreshing && styles.actionDisabled]} onPress={onToggleFav}>
             <Svg width={scaleSizeW(22)} height={scaleSizeW(21)} viewBox="0 0 22 21">
               <Path d={STAR_PATH} fill={faved ? '#FFB800' : '#000000'} />
             </Svg>
             <Text style={[styles.bottomActionText, { color: faved ? '#FFB800' : '#000000' }]}>{formatLikeCount(favCount)}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+          </PermissionButton>
+          <PermissionButton
             onPress={() => openCommentInput()}
             style={styles.bottomAction}
           >
@@ -1157,7 +1185,7 @@ export default function BbsDetail() {
               <Path d={COMMENT_PATH} fill="#000000" />
             </Svg>
             <Text style={styles.bottomActionText}>{formatLikeCount(commentCount)}</Text>
-          </TouchableOpacity>
+          </PermissionButton>
         </View>
       </View>
       )}
@@ -1213,6 +1241,34 @@ export default function BbsDetail() {
 const styles = StyleSheet.create({
   flex1: {
     flex: 1,
+  },
+  loginBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F6F7FB',
+    borderRadius: scaleSizeW(10),
+    paddingLeft: scaleSizeW(14),
+    paddingRight: scaleSizeW(16),
+    paddingVertical: scaleSizeH(10),
+    marginTop: scaleSizeH(10),
+    marginHorizontal: scaleSizeW(16),
+  },
+  loginBarText: {
+    fontSize: setSpText(14),
+    color: '#000000',
+  },
+  loginBarBtn: {
+    width: scaleSizeW(90),
+    height: scaleSizeH(35),
+    borderRadius: scaleSizeW(90),
+    backgroundColor: BLUE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loginBarBtnText: {
+    fontSize: setSpText(14),
+    color: '#FFFFFF',
   },
   progressTrack: {
     position: 'absolute',

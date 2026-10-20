@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   Image,
   StyleSheet,
   Text,
@@ -16,6 +17,7 @@ import WaterfallSkeleton from './WaterfallSkeleton';
 import EmptyState from '@/components/EmptyState';
 import { API } from '@/api';
 import { useBbsInteractionStore } from '@/store/bbsInteraction';
+import { useUserStore } from '@/store/user';
 import { setDetailCache } from '@/utils/detailCache';
 import { usePageList } from '@/hooks/usePageList';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
@@ -81,8 +83,21 @@ type HomeTab = 'recommend' | 'follow';
 
 export default function Home() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const token = useUserStore(s => s.token);
   const [activeTab, setActiveTab] = useState<HomeTab>('recommend');
   const params = useMemo(() => ({ tab: activeTab }), [activeTab]);
+
+  /** 关注 tab 需要登录：未登录提示去登录，不切换 */
+  const onPressFollowTab = useCallback(() => {
+    if (!token) {
+      Alert.alert('提示', '您还未登录，请前往登录!', [
+        { text: '取消', style: 'cancel' },
+        { text: '去登录', onPress: () => navigation.navigate('login') },
+      ]);
+      return;
+    }
+    setActiveTab('follow');
+  }, [token, navigation]);
 
   const {
     list,
@@ -155,6 +170,11 @@ export default function Home() {
     }
   }, [fetching, isLastPage, loadMore]);
 
+  // 关注 tab 上登出：切回推荐
+  useEffect(() => {
+    if (!token && activeTab === 'follow') setActiveTab('recommend');
+  }, [token, activeTab]);
+
   const renderHeader = () => (
     <View style={styles.header}>
       <View style={styles.headerTop}>
@@ -165,7 +185,7 @@ export default function Home() {
               {activeTab === 'recommend' && <View style={styles.tabIndicator} />}
             </View>
           </TouchableOpacity>
-          <TouchableOpacity activeOpacity={0.7} onPress={() => setActiveTab('follow')}>
+          <TouchableOpacity activeOpacity={0.7} onPress={onPressFollowTab}>
             <View style={styles.tabItem}>
               <Text style={[styles.tabText, activeTab === 'follow' && styles.tabTextActive]}>关注</Text>
               <View style={styles.tabBadge}>

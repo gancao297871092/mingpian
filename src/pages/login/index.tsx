@@ -8,7 +8,9 @@ import {
   View,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
+import { NavBackButton } from '@/components/NavHeader';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { isWechatAvailable, isWechatConfigured, wechatLogin } from '@/utils/wechat';
 import { PhoneIcon, WechatIcon } from '@/assets/login/icons';
@@ -19,6 +21,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'login'>;
 
 export default function LoginHome({ navigation }: Props) {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const [agreed, setAgreed] = useState(false);
   const [wechatLoading, setWechatLoading] = useState(false);
 
@@ -50,6 +53,11 @@ export default function LoginHome({ navigation }: Props) {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
+      {navigation.canGoBack() && (
+        <View style={[styles.backWrap, { top: insets.top + scaleSizeH(10) }]}>
+          <NavBackButton onPress={() => navigation.goBack()} />
+        </View>
+      )}
       <View style={styles.brand}>
         <Image source={require('@/assets/login/logo.png')} style={styles.logo} />
         <Text style={styles.brandName}>联诚采信</Text>
@@ -110,6 +118,11 @@ export default function LoginHome({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  backWrap: {
+    position: 'absolute',
+    left: scaleSizeW(16),
+    zIndex: 10,
   },
   brand: {
     flexDirection: 'row',
