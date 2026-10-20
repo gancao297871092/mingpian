@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Alert,
   Image,
   StyleSheet,
   Text,
@@ -87,16 +86,22 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<HomeTab>('recommend');
   const params = useMemo(() => ({ tab: activeTab }), [activeTab]);
 
-  /** 关注 tab 需要登录：未登录提示去登录，不切换 */
+  /** 关注 tab 需要登录：未登录直接进入登录页，不切换 */
   const onPressFollowTab = useCallback(() => {
     if (!token) {
-      Alert.alert('提示', '您还未登录，请前往登录!', [
-        { text: '取消', style: 'cancel' },
-        { text: '去登录', onPress: () => navigation.navigate('login') },
-      ]);
+      navigation.navigate('login');
       return;
     }
     setActiveTab('follow');
+  }, [token, navigation]);
+
+  /** 搜索需要登录：未登录直接进入登录页 */
+  const onPressSearch = useCallback(() => {
+    if (!token) {
+      navigation.navigate('login');
+      return;
+    }
+    navigation.navigate('search');
   }, [token, navigation]);
 
   const {
@@ -195,7 +200,7 @@ export default function Home() {
             </View>
           </TouchableOpacity>
         </View>
-        <TouchableOpacity activeOpacity={0.7} style={styles.msgBtn} onPress={() => navigation.navigate('search')}>
+        <TouchableOpacity activeOpacity={0.7} style={styles.msgBtn} onPress={onPressSearch}>
           <Image source={require('@/assets/tab-icons/search-icon.png')} style={styles.msgIcon} resizeMode="contain" />
         </TouchableOpacity>
       </View>
