@@ -4,7 +4,6 @@ import {
   Image,
   Keyboard,
   Pressable,
-  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -22,7 +21,7 @@ import SafeView from '@/components/SafeView';
 import EmptyState from '@/components/EmptyState';
 import ListFooter from '@/components/ListFooter';
 import PermissionButton from '@/components/PermissionButton';
-import WaterfallCard, { CARD_WIDTH, type WaterfallItem } from '@/components/WaterfallCard';
+import WaterfallCard, { type WaterfallItem } from '@/components/WaterfallCard';
 import { NavBackButton } from '@/components/NavHeader';
 import { API } from '@/api';
 import { setFollow } from '@/store/follow';
@@ -40,6 +39,12 @@ const HISTORY_KEY = 'square_search_history';
 const HISTORY_LIMIT = 10;
 const HOT_WORDS = ['设备集成', '工业连接器', '智能制造', '数控机床'];
 const PAGE_SIZE = 10;
+/** 用户搜索每页 20 条 */
+const USER_PAGE_SIZE = 20;
+/** 相关动态横滑卡片：宽 194、图片高 237、底部信息区 98（对齐 Figma 搜索结果设计稿） */
+const BBS_STRIP_WIDTH = scaleSizeW(194);
+const BBS_STRIP_IMG_H = scaleSizeH(237);
+const BBS_STRIP_CARD_H = scaleSizeH(237 + 98);
 
 type PanelState = { type: 'region' } | { type: 'tree'; tab: number } | null;
 
@@ -90,10 +95,10 @@ function ChevronDown({ up }: { up?: boolean }) {
   );
 }
 
-function CloseIcon() {
+function CloseIcon({ color = '#999999' }: { color?: string }) {
   return (
     <Svg width={scaleSizeW(10)} height={scaleSizeW(10)} viewBox="0 0 10 10">
-      <Path d="M1 1L9 9M9 1L1 9" stroke="#999999" strokeWidth={1.2} strokeLinecap="round" />
+      <Path d="M1 1L9 9M9 1L1 9" stroke={color} strokeWidth={1.2} strokeLinecap="round" />
     </Svg>
   );
 }
@@ -267,8 +272,9 @@ export default function SearchPage() {
           honors: treeValue.honor,
           cityStr: regionNames.length ? regionNames.join(',') : undefined,
           pageNum,
-          pageSize: PAGE_SIZE,
+          pageSize: searchType === 'user' ? USER_PAGE_SIZE : PAGE_SIZE,
         });
+        console.log('search', res);
         const d = res.data ?? {};
         const cpPick = pickList(d, 'cpList');
         const bbsPick = pickList(d, 'bbsList');
@@ -328,10 +334,6 @@ export default function SearchPage() {
   const onRefresh = useCallback(() => {
     runSearch(1);
   }, [runSearch]);
-
-  const refreshControl = (
-    <RefreshControl refreshing={loading && loaded} onRefresh={onRefresh} tintColor={BLUE} />
-  );
 
   const removeHistory = useCallback(
     (word: string) => persistHistory(history.filter(h => h !== word)),
@@ -436,7 +438,9 @@ export default function SearchPage() {
           {bbsItems.map(item => (
             <View key={item.id} style={styles.bbsCardWrap}>
               <WaterfallCard
-                item={{ ...item, imageHeight: 237 }}
+                item={item}
+                imageHeightPx={BBS_STRIP_IMG_H}
+                cardHeight={BBS_STRIP_CARD_H}
                 onToggleLike={onToggleBbsLike}
                 onPress={id => navigation.navigate('bbsDetail', { id })}
               />
@@ -574,7 +578,9 @@ export default function SearchPage() {
             />
           )}
           showsVerticalScrollIndicator={false}
-          refreshControl={refreshControl}
+          style={styles.flex1}
+          refreshing={loading && loaded}
+          onRefresh={onRefresh}
           onEndReached={onLoadMore}
           onEndReachedThreshold={0.3}
           ListEmptyComponent={emptyResult}
@@ -592,7 +598,9 @@ export default function SearchPage() {
           keyExtractor={(item: UserItem) => item.id}
           renderItem={renderUserRow}
           showsVerticalScrollIndicator={false}
-          refreshControl={refreshControl}
+          style={styles.flex1}
+          refreshing={loading && loaded}
+          onRefresh={onRefresh}
           contentContainerStyle={styles.listContent}
           ItemSeparatorComponent={UserSeparator}
           onEndReached={onLoadMore}
@@ -610,7 +618,9 @@ export default function SearchPage() {
         keyExtractor={(item: any) => item.key ?? item.id}
         renderItem={searchType === 'all' ? renderMixedRow : (renderCompanyRow as any)}
         showsVerticalScrollIndicator={false}
-        refreshControl={refreshControl}
+        style={styles.flex1}
+        refreshing={loading && loaded}
+        onRefresh={onRefresh}
         contentContainerStyle={styles.listContent}
         ItemSeparatorComponent={searchType === 'company' ? CompanySeparator : undefined}
         onEndReached={onLoadMore}
@@ -642,6 +652,16 @@ export default function SearchPage() {
             returnKeyType="search"
             onSubmitEditing={() => doSearch(keyword)}
           />
+          {keyword.length > 0 && (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              hitSlop={6}
+              style={styles.clearBtn}
+              onPress={() => setKeyword('')}
+            >
+              <CloseIcon color="#FFFFFF" />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity activeOpacity={0.7} style={styles.searchBtn} onPress={() => doSearch(keyword)}>
             <Text style={styles.searchBtnText}>搜索</Text>
           </TouchableOpacity>
@@ -793,6 +813,15 @@ const styles = StyleSheet.create({
     padding: 0,
     fontSize: setSpText(14),
     color: '#000000',
+  },
+  clearBtn: {
+    width: scaleSizeW(16),
+    height: scaleSizeW(16),
+    borderRadius: scaleSizeW(8),
+    backgroundColor: '#C4C4C4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: scaleSizeW(12),
   },
   searchBtn: {
     paddingHorizontal: scaleSizeW(13),
@@ -1061,7 +1090,7 @@ const styles = StyleSheet.create({
     gap: scaleSizeW(10),
   },
   bbsCardWrap: {
-    width: CARD_WIDTH,
+    width: BBS_STRIP_WIDTH,
   },
   userRow: {
     flexDirection: 'row',

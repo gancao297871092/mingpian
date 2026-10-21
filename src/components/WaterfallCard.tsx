@@ -35,15 +35,32 @@ interface CardProps {
   item: WaterfallItem;
   onToggleLike: (id: string) => void;
   onPress?: (id: string) => void;
+  /** 固定图片高度（px），用于横滑区等需要统一尺寸的场景 */
+  imageHeightPx?: number;
+  /** 固定卡片整体高度（px） */
+  cardHeight?: number;
+  /** 隐藏标题（横滑区对齐小程序：只展示图片+信息） */
+  hideTitle?: boolean;
 }
 
-export default function WaterfallCard({ item, onToggleLike, onPress }: CardProps) {
+export default function WaterfallCard({
+  item,
+  onToggleLike,
+  onPress,
+  imageHeightPx,
+  cardHeight,
+  hideTitle,
+}: CardProps) {
   return (
-    <TouchableOpacity activeOpacity={0.9} style={styles.card} onPress={() => onPress?.(item.id)}>
+    <TouchableOpacity
+      activeOpacity={0.9}
+      style={[styles.card, cardHeight ? { height: cardHeight } : null]}
+      onPress={() => onPress?.(item.id)}
+    >
       {!!item.imageUrl && (
         <ExpoImage
           source={{ uri: item.imageUrl }}
-          style={[styles.cardImage, { height: scaleSizeH(item.imageHeight) }]}
+          style={[styles.cardImage, { height: imageHeightPx ?? scaleSizeH(item.imageHeight) }]}
           contentFit="cover"
           transition={200}
           cachePolicy="memory-disk"
@@ -60,11 +77,11 @@ export default function WaterfallCard({ item, onToggleLike, onPress }: CardProps
         </View>
       )}
       <View style={styles.cardContent}>
-        {!!item.title
-          ? <Text style={styles.cardTitle} numberOfLines={2}>
+        {!hideTitle && !!item.title ? (
+          <Text style={styles.cardTitle} numberOfLines={2}>
             {item.title}
           </Text>
-          : null}
+        ) : null}
         <View style={styles.cardMeta}>
           <ExpoImage
             source={{ uri: item.avatarUrl }}
