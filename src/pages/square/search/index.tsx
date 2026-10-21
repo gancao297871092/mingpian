@@ -1,9 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
   Keyboard,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,6 +14,7 @@ import {
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { Image as ExpoImage } from 'expo-image';
+import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path } from 'react-native-svg';
@@ -20,7 +22,7 @@ import SafeView from '@/components/SafeView';
 import EmptyState from '@/components/EmptyState';
 import ListFooter from '@/components/ListFooter';
 import PermissionButton from '@/components/PermissionButton';
-import WaterfallCard, { type WaterfallItem } from '@/components/WaterfallCard';
+import WaterfallCard, { CARD_WIDTH, type WaterfallItem } from '@/components/WaterfallCard';
 import { NavBackButton } from '@/components/NavHeader';
 import { API } from '@/api';
 import { setFollow } from '@/store/follow';
@@ -28,9 +30,9 @@ import { useBbsInteractionStore } from '@/store/bbsInteraction';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { storageUtils } from '@/utils/storage';
 import type { RootStackParamList } from '@/route/map';
-import { BlueBadgeIcon } from '@/pages/my/myIcons';
+import { LocationAuthIcon, SearchBadgeIcon, SearchEyeIcon, SearchLocationIcon } from './searchIcons';
 import RegionFilterPanel from './RegionFilterPanel';
-import TreeFilterPanel, { type TreeFilterResult } from './TreeFilterPanel';
+import TreeFilterPanel, { useFilterTrees, type TreeFilterResult } from './TreeFilterPanel';
 
 const BLUE = '#2962D4';
 const TEXT_SUB = '#6C6C6C';
@@ -56,6 +58,9 @@ interface CompanyItem {
   name: string;
   verified: boolean;
   honors: string[];
+  tags: string[];
+  /** authTypeList 含 LOCATION：显示「企核·实地核查」渐变标 */
+  hasLocationAuth: boolean;
   browse: number;
   des: string;
   address: string;
@@ -108,13 +113,25 @@ function FilterIcon({ color }: { color: string }) {
 }
 
 function EyeIcon() {
+  return <SearchEyeIcon size={11} />;
+}
+
+function LocationIcon() {
+  return <SearchLocationIcon size={14} />;
+}
+
+/** 企核·实地核查（authTypeList 含 LOCATION，渐变金底，对齐设计稿） */
+function LocationAuthChip() {
   return (
-    <Svg width={scaleSizeW(11)} height={scaleSizeW(11)} viewBox="0 0 11 11" fill="none">
-      <Path
-        d="M5.5 2.2C3.3 2.2 1.4 3.6 0.6 5.5c0.8 1.9 2.7 3.3 4.9 3.3s4.1-1.4 4.9-3.3c-0.8-1.9-2.7-3.3-4.9-3.3zm0 5.5a2.2 2.2 0 1 1 0-4.4 2.2 2.2 0 0 1 0 4.4zm0-3.3a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2z"
-        fill="#999999"
-      />
-    </Svg>
+    <LinearGradient
+      colors={['#FEF4E9', '#FFE4C1']}
+      start={{ x: 0, y: 0.5 }}
+      end={{ x: 1, y: 0.5 }}
+      style={styles.locationChip}
+    >
+      <LocationAuthIcon size={10} />
+      <Text style={styles.locationChipText}>企核·实地核查</Text>
+    </LinearGradient>
   );
 }
 
@@ -123,11 +140,14 @@ function ossVideoSnapshot(videoUrl: string): string {
   return `${videoUrl}?x-oss-process=video/snapshot,t_0,f_jpg,w_388,h_640,m_fast`;
 }
 
-/** 后端返回可能是数组或 PageInfo（{list, pages}），统一取出 */
+/** 后端返回可能是数组或 PageInfo（{list, pages}），统一取出；综合模式企业分页信息在 data.pageInfo */
 function pickList(data: any, key: string): { list: any[]; pages: number } {
   const v = data?.[key];
-  if (Array.isArray(v)) return { list: v, pages: 1 };
   if (Array.isArray(v?.list)) return { list: v.list, pages: v.pages ?? 1 };
+  if (Array.isArray(v)) {
+    const pages = key === 'cpList' ? data?.pageInfo?.pages ?? 1 : 1;
+    return { list: v, pages };
+  }
   if (Array.isArray(data?.list)) return { list: data.list, pages: data.pages ?? 1 };
   return { list: [], pages: 1 };
 }
@@ -138,12 +158,17 @@ function mapCompany(c: any): CompanyItem {
     const h = JSON.parse(c.cpHonor || '{}');
     honors = (h.records ?? []).map((r: any) => r?.honorName).filter(Boolean);
   } catch {}
+  const authTypeList: string[] = Array.isArray(c.authTypeList)
+    ? c.authTypeList.map((o: any) => o?.authTypeCode).filter(Boolean)
+    : [];
   return {
     id: String(c.cpId ?? Math.random()),
     logo: c.cpLogo || '',
     name: c.cpName || '',
     verified: c.cpSource === 'AUTH_SUCCESS',
     honors,
+    tags: String(c.propertyTags || '').split(',').map(s => s.trim()).filter(Boolean),
+    hasLocationAuth: authTypeList.includes('LOCATION'),
     browse: Number(c.cpBrowse ?? 0),
     des: String(c.cpDesTxt || c.cpDes || '').replace(/<[^>]*>/g, ''),
     address: c.cpAddress || '',
@@ -212,6 +237,8 @@ export default function SearchPage() {
   const [filterRowH, setFilterRowH] = useState(0);
 
   const searchType: SearchType = CATEGORY_TYPE[treeValue.category ?? '综合'] ?? 'all';
+  // 行业/荣誉筛选数据：页面挂载即预取（对齐小程序 mounted 加载时机，模块级缓存）
+  const filterTrees = useFilterTrees();
   const [companies, setCompanies] = useState<CompanyItem[]>([]);
   const [bbsItems, setBbsItems] = useState<WaterfallItem[]>([]);
   const [users, setUsers] = useState<UserItem[]>([]);
@@ -253,7 +280,8 @@ export default function SearchPage() {
         }
         if (searchType === 'all' || searchType === 'bbs') {
           const list = bbsPick.list.map(mapBbs);
-          setBbsItems(prev => (pageNum === 1 ? list : [...prev, ...list]));
+          // 综合模式动态区只展示第一页（小程序同样仅首次拉 8 条），分类动态才追加分页
+          setBbsItems(prev => (pageNum === 1 ? list : searchType === 'bbs' ? [...prev, ...list] : prev));
         }
         if (searchType === 'user') {
           const list = userPick.list.map(mapUser);
@@ -293,9 +321,17 @@ export default function SearchPage() {
   );
 
   const onLoadMore = useCallback(() => {
-    if (searchType === 'all') return;
     if (!loading && loaded && pageInfo.page < pageInfo.pages) runSearch(pageInfo.page + 1);
-  }, [searchType, loading, loaded, pageInfo, runSearch]);
+  }, [loading, loaded, pageInfo, runSearch]);
+
+  // 下拉刷新：重拉第一页（小程序 ScrollViews _reload 同样刷新动态区）
+  const onRefresh = useCallback(() => {
+    runSearch(1);
+  }, [runSearch]);
+
+  const refreshControl = (
+    <RefreshControl refreshing={loading && loaded} onRefresh={onRefresh} tintColor={BLUE} />
+  );
 
   const removeHistory = useCallback(
     (word: string) => persistHistory(history.filter(h => h !== word)),
@@ -381,7 +417,7 @@ export default function SearchPage() {
     </TouchableOpacity>
   );
 
-  /** 综合结果底部：相关动态横滑区（查看更多 → 切到动态分类） */
+  /** 综合结果：相关动态横滑区（查看更多 → 切到动态分类） */
   const bbsSection =
     searchType === 'all' && bbsItems.length > 0 ? (
       <View style={styles.bbsSection}>
@@ -398,16 +434,41 @@ export default function SearchPage() {
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.bbsRow}>
           {bbsItems.map(item => (
-            <WaterfallCard
-              key={item.id}
-              item={item}
-              onToggleLike={onToggleBbsLike}
-              onPress={id => navigation.navigate('bbsDetail', { id })}
-            />
+            <View key={item.id} style={styles.bbsCardWrap}>
+              <WaterfallCard
+                item={{ ...item, imageHeight: 237 }}
+                onToggleLike={onToggleBbsLike}
+                onPress={id => navigation.navigate('bbsDetail', { id })}
+              />
+            </View>
           ))}
         </ScrollView>
       </View>
     ) : null;
+
+  /** 综合模式混排（对齐小程序 company.vue）：前 2 个企业 → 相关动态区 → 剩余企业 */
+  type MixedItem =
+    | { kind: 'company'; key: string; item: CompanyItem }
+    | { kind: 'bbs'; key: string };
+  const mixedItems = useMemo<MixedItem[]>(() => {
+    const rows: MixedItem[] = companies.map(item => ({ kind: 'company', key: `cp-${item.id}`, item }));
+    if (searchType === 'all' && bbsItems.length > 0) {
+      rows.splice(Math.min(2, rows.length), 0, { kind: 'bbs', key: 'bbs-section' });
+    }
+    return rows;
+  }, [companies, bbsItems, searchType]);
+
+  const renderMixedRow = ({ item, index }: { item: MixedItem; index: number }) => {
+    if (item.kind === 'bbs') return bbsSection;
+    // 分割线只在相邻企业之间（动态区前后不加，对齐小程序：仅动态区下方有边框）
+    const next = mixedItems[index + 1];
+    return (
+      <View>
+        {renderCompanyRow({ item: item.item })}
+        {next?.kind === 'company' && <CompanySeparator />}
+      </View>
+    );
+  };
 
   const renderCompanyRow = ({ item }: { item: CompanyItem }) => (
     <TouchableOpacity
@@ -423,26 +484,33 @@ export default function SearchPage() {
       <View style={styles.cpBody}>
         <View style={styles.cpNameRow}>
           <Text style={styles.cpName} numberOfLines={1}>{item.name}</Text>
-          {item.verified && <BlueBadgeIcon size={14} />}
+          {item.verified && <SearchBadgeIcon size={14} />}
           <View style={styles.cpBrowseRow}>
             <EyeIcon />
             <Text style={styles.cpBrowseText}>{item.browse}</Text>
           </View>
         </View>
-        {item.honors.length > 0 && (
+        {(item.hasLocationAuth || item.honors.length > 0 || item.tags.length > 0) && (
           <View style={styles.cpChipsRow}>
-            {item.honors.slice(0, 3).map(h => (
-              <View key={h} style={styles.cpChip}>
+            {item.hasLocationAuth && <LocationAuthChip />}
+            {item.honors.map(h => (
+              <View key={`h-${h}`} style={styles.cpChip}>
                 <Text style={styles.cpChipText} numberOfLines={1}>{h}</Text>
+              </View>
+            ))}
+            {item.tags.map(t => (
+              <View key={`t-${t}`} style={styles.cpChip}>
+                <Text style={styles.cpChipText} numberOfLines={1}>{t}</Text>
               </View>
             ))}
           </View>
         )}
-        {!!item.des && <Text style={styles.cpDes} numberOfLines={2}>{item.des}</Text>}
+        {!!item.des && <Text style={styles.cpDes} numberOfLines={2}>“{item.des}”</Text>}
         {(!!item.address || item.km != null) && (
           <View style={styles.cpAddrRow}>
+            <LocationIcon />
             <Text style={styles.cpAddr} numberOfLines={1}>{item.address}</Text>
-            {item.km != null && item.km >= 0 && <Text style={styles.cpKm}>{item.km.toFixed(2)}km</Text>}
+            {item.km != null && <Text style={styles.cpKm}>{item.km < 0 ? '未知' : `${item.km.toFixed(2)}km`}</Text>}
           </View>
         )}
       </View>
@@ -506,6 +574,7 @@ export default function SearchPage() {
             />
           )}
           showsVerticalScrollIndicator={false}
+          refreshControl={refreshControl}
           onEndReached={onLoadMore}
           onEndReachedThreshold={0.3}
           ListEmptyComponent={emptyResult}
@@ -523,6 +592,7 @@ export default function SearchPage() {
           keyExtractor={(item: UserItem) => item.id}
           renderItem={renderUserRow}
           showsVerticalScrollIndicator={false}
+          refreshControl={refreshControl}
           contentContainerStyle={styles.listContent}
           ItemSeparatorComponent={UserSeparator}
           onEndReached={onLoadMore}
@@ -536,21 +606,18 @@ export default function SearchPage() {
     }
     return (
       <FlashList
-        data={companies}
-        keyExtractor={(item: CompanyItem) => item.id}
-        renderItem={renderCompanyRow}
+        data={searchType === 'all' ? mixedItems : (companies as any[])}
+        keyExtractor={(item: any) => item.key ?? item.id}
+        renderItem={searchType === 'all' ? renderMixedRow : (renderCompanyRow as any)}
         showsVerticalScrollIndicator={false}
+        refreshControl={refreshControl}
         contentContainerStyle={styles.listContent}
-        ItemSeparatorComponent={CompanySeparator}
+        ItemSeparatorComponent={searchType === 'company' ? CompanySeparator : undefined}
         onEndReached={onLoadMore}
         onEndReachedThreshold={0.3}
         ListEmptyComponent={emptyResult}
         ListFooterComponent={
-          searchType === 'all' ? (
-            companies.length > 0 ? bbsSection : null
-          ) : (
-            <ListFooter fetching={loading} isLastPage={pageInfo.page >= pageInfo.pages} listLength={companies.length} />
-          )
+          <ListFooter fetching={loading} isLastPage={pageInfo.page >= pageInfo.pages} listLength={companies.length} />
         }
       />
     );
@@ -682,6 +749,8 @@ export default function SearchPage() {
               <TreeFilterPanel
                 initialTab={panel.tab}
                 value={treeValue}
+                industryData={filterTrees.industry}
+                honorData={filterTrees.honor}
                 onClose={() => setPanel(null)}
                 onConfirm={setTreeValue}
               />
@@ -913,6 +982,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: scaleSizeW(5),
     paddingVertical: scaleSizeH(2),
   },
+  locationChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSizeW(3),
+    borderRadius: scaleSizeW(5),
+    paddingHorizontal: scaleSizeW(5),
+    paddingVertical: scaleSizeH(2),
+  },
+  locationChipText: {
+    fontSize: setSpText(10),
+    lineHeight: setSpText(14),
+    color: '#4C3416',
+  },
   cpChipText: {
     fontSize: setSpText(10),
     lineHeight: setSpText(14),
@@ -977,6 +1059,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: scaleSizeW(14),
     paddingTop: scaleSizeH(12),
     gap: scaleSizeW(10),
+  },
+  bbsCardWrap: {
+    width: CARD_WIDTH,
   },
   userRow: {
     flexDirection: 'row',

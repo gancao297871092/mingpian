@@ -37,6 +37,14 @@ export namespace API {
     export function mediaLinkSave(data: any[]) {
       return request.post<any>('/common/media/link/save', data);
     }
+    /** 企业行业树（搜索筛选） */
+    export function companyIndustry() {
+      return request.get<any[]>('/common/company-industry');
+    }
+    /** 企业荣誉列表（搜索筛选） */
+    export function companyHonors() {
+      return request.get<any[]>('/common/company-honors');
+    }
     /** 更新素材封面索引 */
     export function mediaLinkUpdate(data: { mdId: number; isIndex: number }) {
       return request.post<any>('/common/media/link/update', data);
