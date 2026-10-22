@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Linking,
   Modal,
   ScrollView,
@@ -235,6 +236,14 @@ export default function UnjoinedCompanyInfo() {
   const tabScrollRef = useRef<ScrollView>(null);
   const sectionOffsets = useRef<Record<string, number>>({});
   const tabOffsets = useRef<Record<string, number>>({});
+  const tabWidths = useRef<Record<string, number>>({});
+  const tabScrollX = useRef(0);
+  const tabViewportW = useRef(0);
+  /** 程序化滚动期间锁定，避免滚动回调反写 activeTab 造成指示器来回跳 */
+  const scrollLock = useRef(false);
+  const lockTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeTabRef = useRef<SectionKey>('address');
+  const indicatorX = useRef(new Animated.Value(0)).current;
 
   const fetchDetail = useCallback(async () => {
     if (!id) {
@@ -282,32 +291,86 @@ export default function UnjoinedCompanyInfo() {
     fetchDetail();
   }, [fetchDetail]);
 
-  const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const y = e.nativeEvent.contentOffset.y;
-    const threshold = y + scaleSizeH(70);
-    let current: SectionKey = 'address';
-    for (const s of SECTIONS) {
-      const offset = sectionOffsets.current[s.key];
-      if (offset !== undefined && offset <= threshold) current = s.key;
-    }
-    setActiveTab((prev) => (prev === current ? prev : current));
+  /** 指示器平滑滑动到激活 tab 下方 */
+  const animateIndicator = useCallback(
+    (key: SectionKey) => {
+      const x = tabOffsets.current[key];
+      const w = tabWidths.current[key];
+      if (x === undefined || w === undefined) return;
+      const target = x + (w - scaleSizeW(24)) / 2;
+      Animated.timing(indicatorX, {
+        toValue: target,
+        duration: 180,
+        useNativeDriver: false,
+      }).start();
+    },
+    [indicatorX],
+  );
+
+  /** 激活 tab 若不在可视区域则滚动到可视区域（不做居中，避免多余位移） */
+  const ensureTabVisible = useCallback((key: SectionKey) => {
+    const x = tabOffsets.current[key];
+    const w = tabWidths.current[key];
+    const vw = tabViewportW.current;
+    if (x === undefined || w === undefined || vw <= 0) return;
+    const sx = tabScrollX.current;
+    if (x >= sx && x + w <= sx + vw) return;
+    const maxX = Math.max(0, (tabOffsets.current[SECTIONS[SECTIONS.length - 1].key] ?? 0) + (tabWidths.current[SECTIONS[SECTIONS.length - 1].key] ?? 0) - vw);
+    tabScrollRef.current?.scrollTo({ x: Math.min(Math.max(0, x - 8), maxX), animated: true });
   }, []);
 
-  const onTabPress = useCallback((key: SectionKey) => {
-    setActiveTab(key);
-    const offset = sectionOffsets.current[key];
-    if (offset !== undefined) {
-      scrollRef.current?.scrollTo({ y: Math.max(0, offset - TAB_BAR_HEIGHT - scaleSizeH(8)), animated: true });
-    }
+  const onScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (scrollLock.current) return;
+      const y = e.nativeEvent.contentOffset.y;
+      const threshold = y + scaleSizeH(70);
+      let current: SectionKey = 'address';
+      for (const s of SECTIONS) {
+        const offset = sectionOffsets.current[s.key];
+        if (offset !== undefined && offset <= threshold) current = s.key;
+      }
+      if (current === activeTabRef.current) return;
+      activeTabRef.current = current;
+      setActiveTab(current);
+      ensureTabVisible(current);
+    },
+    [ensureTabVisible],
+  );
+
+  const onTabPress = useCallback(
+    (key: SectionKey) => {
+      if (key !== activeTabRef.current) {
+        activeTabRef.current = key;
+        setActiveTab(key);
+        animateIndicator(key);
+      }
+      const offset = sectionOffsets.current[key];
+      if (offset !== undefined) {
+        // 程序化滚动期间锁定滚动回调，防止 activeTab 被回写导致指示器抖动
+        scrollLock.current = true;
+        if (lockTimer.current) clearTimeout(lockTimer.current);
+        lockTimer.current = setTimeout(() => {
+          scrollLock.current = false;
+        }, 600);
+        scrollRef.current?.scrollTo({ y: Math.max(0, offset - TAB_BAR_HEIGHT - scaleSizeH(8)), animated: true });
+      }
+    },
+    [animateIndicator],
+  );
+
+  const onTabScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    tabScrollX.current = e.nativeEvent.contentOffset.x;
   }, []);
 
-  // 激活 tab 自动滚动到可视区域
   useEffect(() => {
-    const x = tabOffsets.current[activeTab];
-    if (x !== undefined) {
-      tabScrollRef.current?.scrollTo({ x: Math.max(0, x - scaleSizeW(24)), animated: true });
-    }
-  }, [activeTab]);
+    animateIndicator(activeTab);
+  }, [activeTab, animateIndicator]);
+
+  useEffect(() => {
+    return () => {
+      if (lockTimer.current) clearTimeout(lockTimer.current);
+    };
+  }, []);
 
   const onClaim = useCallback(() => {
     if (!detail) return;
@@ -420,6 +483,9 @@ export default function UnjoinedCompanyInfo() {
             showsVerticalScrollIndicator={false}
             scrollEventThrottle={16}
             onScroll={onScroll}
+            onMomentumScrollEnd={() => {
+              scrollLock.current = false;
+            }}
             stickyHeaderIndices={[TAB_BAR_INDEX]}
             contentContainerStyle={styles.content}
           >
@@ -494,6 +560,11 @@ export default function UnjoinedCompanyInfo() {
                 ref={tabScrollRef}
                 horizontal
                 showsHorizontalScrollIndicator={false}
+                onScroll={onTabScroll}
+                scrollEventThrottle={16}
+                onLayout={(e) => {
+                  tabViewportW.current = e.nativeEvent.layout.width;
+                }}
                 contentContainerStyle={styles.tabBarContent}
               >
                 {SECTIONS.map((s) => (
@@ -503,13 +574,15 @@ export default function UnjoinedCompanyInfo() {
                     style={styles.tabItem}
                     onLayout={(e) => {
                       tabOffsets.current[s.key] = e.nativeEvent.layout.x;
+                      tabWidths.current[s.key] = e.nativeEvent.layout.width;
+                      if (activeTabRef.current === s.key) animateIndicator(s.key);
                     }}
                     onPress={() => onTabPress(s.key)}
                   >
                     <Text style={[styles.tabText, activeTab === s.key && styles.tabTextOn]}>{s.label}</Text>
-                    {activeTab === s.key && <View style={styles.tabIndicator} />}
                   </TouchableOpacity>
                 ))}
+                <Animated.View style={[styles.tabIndicator, { left: indicatorX }]} />
               </ScrollView>
             </View>
 
@@ -841,6 +914,7 @@ const styles = StyleSheet.create({
     marginRight: -scaleSizeW(16),
   },
   tabBarContent: {
+    position: 'relative',
     alignItems: 'center',
     paddingHorizontal: scaleSizeW(16),
     gap: scaleSizeW(34),
@@ -860,6 +934,7 @@ const styles = StyleSheet.create({
   tabIndicator: {
     position: 'absolute',
     bottom: 0,
+    left: 0,
     width: scaleSizeW(24),
     height: scaleSizeH(2),
     borderRadius: scaleSizeW(1),
