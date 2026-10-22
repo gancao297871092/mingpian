@@ -66,6 +66,16 @@ export type RootStackParamList = {
   companyApply: { cpId: string | number; type?: '1' | '2' | '3'; position?: string; userId?: string | number };
   companyRealName: undefined;
   companyCert: undefined;
+  /** 企业查询（快启API）：未入驻企业信息入口 */
+  companySearch: undefined;
+  /** 未入驻企业信息（figma 1954:6162）：source=api 时 id 为快启API企业id；source=collect 时 id 为采集记录id */
+  unjoinedCompanyInfo: { id: string | number; source?: 'api' | 'collect' };
+  /** 高级版企业信息：已认证企业（cpSource=AUTH_SUCCESS） */
+  companyAdvancedInfo: { id: string | number; userId?: string | number };
+  /** 普通版企业信息：已录入未认证企业（占位） */
+  companyNormalInfo: { id: string | number; name?: string };
+  /** 我要纠错：collectId 为企业采集记录id */
+  companyErrorCorrection: { collectId?: number; companyName?: string } | undefined;
 };
 
 export type MainTabParamList = {

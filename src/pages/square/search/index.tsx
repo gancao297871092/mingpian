@@ -71,6 +71,8 @@ interface CompanyItem {
   address: string;
   km: number | null;
   keUserId?: number;
+  /** 企业来源：AUTH_SUCCESS=已认证（高级版）；bs_company_info_collect/AUTH_NONE=未录入；wq_company=普通版 */
+  cpSource?: string;
 }
 
 interface UserItem {
@@ -179,6 +181,7 @@ function mapCompany(c: any): CompanyItem {
     address: c.cpAddress || '',
     km: typeof c.km === 'number' ? c.km : null,
     keUserId: c.keUserId,
+    cpSource: c.cpSource,
   };
 }
 
@@ -474,11 +477,28 @@ export default function SearchPage() {
     );
   };
 
+  /** 企业搜索结果跳转：按企业来源区分高级版/普通版/未录入版本（对齐小程序 search/components/company.vue） */
+  const onCompanyPress = useCallback(
+    (item: CompanyItem) => {
+      const source = item.cpSource || '';
+      if (source === 'AUTH_SUCCESS') {
+        navigation.navigate('companyAdvancedInfo', { id: item.id, userId: item.keUserId });
+        return;
+      }
+      if (source === 'wq_company') {
+        navigation.navigate('companyNormalInfo', { id: item.id, name: item.name });
+        return;
+      }
+      navigation.navigate('unjoinedCompanyInfo', { id: item.id, source: 'collect' });
+    },
+    [navigation],
+  );
+
   const renderCompanyRow = ({ item }: { item: CompanyItem }) => (
     <TouchableOpacity
       activeOpacity={0.8}
       style={styles.cpRow}
-      onPress={() => navigation.navigate('companyPage', { id: item.id, userId: item.keUserId })}
+      onPress={() => onCompanyPress(item)}
     >
       {item.logo ? (
         <ExpoImage source={{ uri: item.logo }} style={styles.cpLogo} contentFit="cover" transition={150} />

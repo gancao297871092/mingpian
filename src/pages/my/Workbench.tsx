@@ -49,6 +49,22 @@ export default function Workbench() {
             <Text style={styles.actionBtnText}>查看任务</Text>
           </TouchableOpacity>
         </View>
+
+        <View style={styles.card}>
+          <View style={styles.cardHead}>
+            <SignalTaskIcon />
+            <Text style={styles.cardTitle}>企业查询</Text>
+          </View>
+          <View style={styles.divider} />
+          <Text style={styles.desc}>查询未入驻的企业信息，可直接认领录入平台</Text>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={styles.actionBtn}
+            onPress={() => navigation.navigate('companySearch')}
+          >
+            <Text style={styles.actionBtnText}>去查询</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeView>
   );

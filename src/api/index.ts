@@ -53,6 +53,15 @@ export namespace API {
     export function mediaDel(params: { mediaId: number }) {
       return request.get<any>('/common/media/media/del', { params });
     }
+    /** 企业信息纠错提交（collectId 为企业采集记录id，errorImg 多图逗号拼接） */
+    export function companyError(data: {
+      collectId: number;
+      errorContent?: string;
+      errorImg?: string;
+      linkPhone?: string;
+    }) {
+      return request.post<any>('/common/company/error', data);
+    }
   }
 
   export namespace user {
@@ -704,6 +713,30 @@ export namespace API {
     /** 企业员工动态列表（企业主页-最新动态瀑布流） */
     export function bbsMain(data: { cpId: number | string; pageNum?: number; pageSize?: number }) {
       return request.post<any>('/company/bbs/main', data);
+    }
+  }
+
+  /** 业务采录（未入驻企业，数据来源快启API） */
+  export namespace business {
+    /** 企业模糊查询（data: {records: CompanyRecord[], total}，isExist=1 表示平台已存在） */
+    export function collectQuery(data: { keywords: string }) {
+      return request.post<{ records?: any[]; total?: number }>('/business/collect/query', data);
+    }
+    /** 企业（工商）详情：id 为快启API企业id */
+    export function collectDetail(data: { id: string | number }) {
+      return request.post<any>('/business/collect/detail', data);
+    }
+    /** 企业录入（认领企业）：提交完整企业信息 */
+    export function collectAdd(data: any) {
+      return request.post<any>('/business/collect/add', data);
+    }
+    /** 展客（已录入企业）列表 */
+    export function collectList(data: { pageNum?: number; pageSize?: number; name?: string }) {
+      return request.post<{ list?: any[]; total?: number }>('/user/collect/list', data);
+    }
+    /** 展客详情（已录入的企业采集记录，id 为采集记录id） */
+    export function collectInfo(params: { id: string | number }) {
+      return request.get<any>('/user/collect/detail', { params });
     }
   }
 

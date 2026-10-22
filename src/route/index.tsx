@@ -53,6 +53,11 @@ import CompanyJoin from '@/pages/my/company/CompanyJoin';
 import CompanyApply from '@/pages/my/company/CompanyApply';
 import CompanyRealName from '@/pages/my/company/CompanyRealName';
 import CompanyCert from '@/pages/my/company/CompanyCert';
+import UnjoinedCompanyInfo from '@/pages/company/UnjoinedCompanyInfo';
+import CompanySearch from '@/pages/company/CompanySearch';
+import CompanyErrorCorrection from '@/pages/company/CompanyErrorCorrection';
+import CompanyAdvancedInfo from '@/pages/company/CompanyAdvancedInfo';
+import CompanyNormalInfo from '@/pages/company/CompanyNormalInfo';
 import LoginHome from '@/pages/login';
 import OtherNumberLogin from '@/pages/login/OtherNumberLogin';
 import AgreementPage from '@/pages/login/AgreementPage';
@@ -153,6 +158,7 @@ export default function RootNavigator() {
   return (
     <NavigationContainer ref={navigationRef} theme={navTheme}>
       <Stack.Navigator
+        initialRouteName="unjoinedCompanyInfo"
         screenOptions={{
           headerTitleAlign: 'center',
           headerBackButtonDisplayMode: 'minimal',
@@ -665,6 +671,55 @@ export default function RootNavigator() {
           options={{
             title: '企业认证',
             headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="companySearch"
+          component={CompanySearch}
+          options={{
+            title: '企业查询',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="unjoinedCompanyInfo"
+          component={UnjoinedCompanyInfo}
+          initialParams={{ id: 9304, source: 'collect' }}
+          options={{
+            title: '企业信息',
+            headerStyle: { backgroundColor: '#FFFFFF' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="companyErrorCorrection"
+          component={CompanyErrorCorrection}
+          options={{
+            title: '我要纠错',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="companyAdvancedInfo"
+          component={CompanyAdvancedInfo}
+          options={{
+            title: '企业信息',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="companyNormalInfo"
+          component={CompanyNormalInfo}
+          options={{
+            title: '企业信息',
+            headerStyle: { backgroundColor: '#FFFFFF' },
             headerTitleStyle: { color: '#000000' },
             headerShadowVisible: false,
           }}
