@@ -1,18 +1,21 @@
-import React from 'react';
+import React, { forwardRef } from 'react';
 import { Linking, StyleSheet, Text, View } from 'react-native';
+import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import Toast from 'react-native-toast-message';
-import { setSpText } from '@/utils/screenUtils';
-import CompanyBottomSheet from './CompanyBottomSheet';
+import AppBottomSheet from '@/components/AppBottomSheet';
+import { scaleSizeH, setSpText } from '@/utils/screenUtils';
 
 const SERVICE_PHONE = '023-68163883';
 
-interface DisclaimerSheetProps {
-  visible: boolean;
-  onClose: () => void;
+export interface DisclaimerSheetProps {
+  onClose?: () => void;
 }
 
 /** 免责声明（figma 1970:6719） */
-export default function DisclaimerSheet({ visible, onClose }: DisclaimerSheetProps) {
+const DisclaimerSheet = forwardRef<BottomSheetModal, DisclaimerSheetProps>(function Sheet(
+  { onClose },
+  ref,
+) {
   const onCall = () => {
     Linking.openURL(`tel:${SERVICE_PHONE}`).catch(() => {
       Toast.show({ type: 'error', text1: '拨号失败' });
@@ -20,7 +23,8 @@ export default function DisclaimerSheet({ visible, onClose }: DisclaimerSheetPro
   };
 
   return (
-    <CompanyBottomSheet visible={visible} title="免责声明" contentGap={17} onClose={onClose}>
+    <AppBottomSheet ref={ref} backgroundColor="#FFFFFF" onClose={onClose}>
+      <Text style={styles.title}>免责声明</Text>
       <Text style={styles.content}>
         当前企业的工商信息与联系方式均来自网络公开信息(快启api)，我们不对该内容的真实性、准确性、有效性等做任何保证或承担任何责任。如您发现相关内容涉嫌侵犯他人合法权益，请及时通过反馈渠道与我们联系
       </Text>
@@ -30,12 +34,22 @@ export default function DisclaimerSheet({ visible, onClose }: DisclaimerSheetPro
           {SERVICE_PHONE}
         </Text>
       </View>
-    </CompanyBottomSheet>
+    </AppBottomSheet>
   );
-}
+});
+
+export default DisclaimerSheet;
 
 const styles = StyleSheet.create({
+  title: {
+    marginTop: scaleSizeH(20),
+    fontSize: setSpText(17),
+    fontWeight: '500',
+    lineHeight: setSpText(23),
+    color: '#000000',
+  },
   content: {
+    marginTop: scaleSizeH(17),
     fontSize: setSpText(14),
     lineHeight: setSpText(24),
     color: '#000000',

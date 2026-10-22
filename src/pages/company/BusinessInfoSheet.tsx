@@ -1,17 +1,17 @@
-import React from 'react';
+import React, { forwardRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import type { BottomSheetModal } from '@gorhom/bottom-sheet';
+import AppBottomSheet from '@/components/AppBottomSheet';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
-import CompanyBottomSheet from './CompanyBottomSheet';
 import type { CompanyDetailModel } from './UnjoinedCompanyInfo';
 
 const PRIMARY = '#2962D4';
 const GRAY = '#6C6C6C';
 const LIGHT_BLUE = '#F2F6FF';
 
-interface BusinessInfoSheetProps {
-  visible: boolean;
+export interface BusinessInfoSheetProps {
   detail: CompanyDetailModel;
-  onClose: () => void;
+  onClose?: () => void;
 }
 
 function Field({ label, value, longText }: { label: string; value: string; longText?: boolean }) {
@@ -24,9 +24,20 @@ function Field({ label, value, longText }: { label: string; value: string; longT
 }
 
 /** 工商信息详情（figma 1970:6569） */
-export default function BusinessInfoSheet({ visible, detail, onClose }: BusinessInfoSheetProps) {
+const BusinessInfoSheet = forwardRef<BottomSheetModal, BusinessInfoSheetProps>(function Sheet(
+  { detail, onClose },
+  ref,
+) {
   return (
-    <CompanyBottomSheet visible={visible} title="工商信息" onClose={onClose}>
+    <AppBottomSheet
+      ref={ref}
+      backgroundColor="#FFFFFF"
+      scrollable
+      heightRatio={0.85}
+      onClose={onClose}
+    >
+      <Text style={styles.title}>工商信息</Text>
+
       <Field label="企业名称" value={detail.companyName} />
       <Field label="统一社会信用代码" value={detail.creditNumber} />
 
@@ -66,14 +77,23 @@ export default function BusinessInfoSheet({ visible, detail, onClose }: Business
 
       {!!detail.companyProfile && <Field label="企业简介" value={detail.companyProfile} longText />}
       {!!detail.businessScope && <Field label="经营范围" value={detail.businessScope} longText />}
-    </CompanyBottomSheet>
+    </AppBottomSheet>
   );
-}
+});
+
+export default BusinessInfoSheet;
 
 const styles = StyleSheet.create({
+  title: {
+    marginTop: scaleSizeH(20),
+    fontSize: setSpText(17),
+    fontWeight: '500',
+    lineHeight: setSpText(23),
+    color: '#000000',
+  },
   field: {
     gap: scaleSizeH(3),
-    marginBottom: scaleSizeH(20),
+    marginTop: scaleSizeH(20),
   },
   label: {
     fontSize: setSpText(12),
@@ -99,7 +119,7 @@ const styles = StyleSheet.create({
     paddingLeft: scaleSizeW(16),
   },
   honorBlock: {
-    marginBottom: scaleSizeH(20),
+    marginTop: scaleSizeH(20),
   },
   honorList: {
     flexDirection: 'row',

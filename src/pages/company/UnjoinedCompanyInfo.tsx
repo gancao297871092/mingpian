@@ -20,6 +20,7 @@ import Toast from 'react-native-toast-message';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import SafeView from '@/components/SafeView';
 import PermissionButton from '@/components/PermissionButton';
 import { useUserStore } from '@/store/user';
@@ -228,12 +229,12 @@ export default function UnjoinedCompanyInfo() {
   const [claiming, setClaiming] = useState(false);
   const [collectId, setCollectId] = useState<number | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<SectionKey>('address');
-  const [infoSheetVisible, setInfoSheetVisible] = useState(false);
-  const [disclaimerVisible, setDisclaimerVisible] = useState(false);
   const [preview, setPreview] = useState<{ urls: string[]; index: number } | null>(null);
 
   const scrollRef = useRef<ScrollView>(null);
   const tabScrollRef = useRef<ScrollView>(null);
+  const bizSheetRef = useRef<BottomSheetModal>(null);
+  const disclaimerSheetRef = useRef<BottomSheetModal>(null);
   const sectionOffsets = useRef<Record<string, number>>({});
   const tabOffsets = useRef<Record<string, number>>({});
   const tabWidths = useRef<Record<string, number>>({});
@@ -518,7 +519,7 @@ export default function UnjoinedCompanyInfo() {
               <TouchableOpacity
                 activeOpacity={0.8}
                 style={styles.bizMore}
-                onPress={() => setInfoSheetVisible(true)}
+                onPress={() => bizSheetRef.current?.present()}
               >
                 <Text style={styles.bizMoreText}>全部</Text>
                 <ChevronRightIcon />
@@ -645,9 +646,6 @@ export default function UnjoinedCompanyInfo() {
                       <ExpoImage source={{ uri: url }} style={styles.posterMoreImage} contentFit="cover" transition={150} />
                     </TouchableOpacity>
                   ))}
-                  {Array.from({ length: Math.max(0, 4 - detail.posterMore.length) }).map((_, i) => (
-                    <View key={`ph-${i}`} style={styles.posterMoreImage} />
-                  ))}
                 </ScrollView>
               </Section>
             )}
@@ -725,7 +723,7 @@ export default function UnjoinedCompanyInfo() {
             <TouchableOpacity
               activeOpacity={0.8}
               style={styles.footerBtn}
-              onPress={() => setDisclaimerVisible(true)}
+              onPress={() => disclaimerSheetRef.current?.present()}
             >
               <Text style={styles.footerBtnText}>免责声明</Text>
             </TouchableOpacity>
@@ -735,12 +733,12 @@ export default function UnjoinedCompanyInfo() {
 
       {!!detail && (
         <BusinessInfoSheet
-          visible={infoSheetVisible}
+          ref={bizSheetRef}
           detail={detail}
-          onClose={() => setInfoSheetVisible(false)}
+          onClose={() => bizSheetRef.current?.dismiss()}
         />
       )}
-      <DisclaimerSheet visible={disclaimerVisible} onClose={() => setDisclaimerVisible(false)} />
+      <DisclaimerSheet ref={disclaimerSheetRef} onClose={() => disclaimerSheetRef.current?.dismiss()} />
 
       <Modal transparent visible={!!preview} onRequestClose={() => setPreview(null)}>
         {!!preview && (

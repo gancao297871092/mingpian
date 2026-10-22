@@ -1,8 +1,9 @@
-import React, { forwardRef, useCallback } from 'react';
+import React, { forwardRef, useCallback, useMemo } from 'react';
 import { StyleSheet } from 'react-native';
 import {
   BottomSheetBackdrop,
   BottomSheetModal,
+  BottomSheetScrollView,
   BottomSheetView,
   type BottomSheetBackdropProps,
 } from '@gorhom/bottom-sheet';
@@ -17,6 +18,10 @@ export interface AppBottomSheetProps {
   backdropOpacity?: number;
   enablePanDownToClose?: boolean;
   bottomGap?: boolean;
+  /** 内容超长时可滚动（内部使用 BottomSheetScrollView，弹层高度由 heightRatio 决定） */
+  scrollable?: boolean;
+  /** scrollable 模式下的弹层高度占比（0~1），默认 0.85 */
+  heightRatio?: number;
 }
 
 const AppBottomSheet = forwardRef<BottomSheetModal, AppBottomSheetProps>(function Sheet(
@@ -28,10 +33,14 @@ const AppBottomSheet = forwardRef<BottomSheetModal, AppBottomSheetProps>(functio
     backdropOpacity = 0.25,
     enablePanDownToClose = true,
     bottomGap = true,
+    scrollable = false,
+    heightRatio = 0.85,
   },
   ref,
 ) {
   const insets = useSafeAreaInsets();
+
+  const snapPoints = useMemo(() => [`${Math.round(heightRatio * 100)}%`], [heightRatio]);
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -46,10 +55,15 @@ const AppBottomSheet = forwardRef<BottomSheetModal, AppBottomSheetProps>(functio
     [backdropOpacity],
   );
 
+  const contentStyle = {
+    paddingBottom: bottomGap ? insets.bottom + scaleSizeH(20) : scaleSizeH(20),
+  };
+
   return (
     <BottomSheetModal
       ref={ref}
-      enableDynamicSizing
+      enableDynamicSizing={!scrollable}
+      snapPoints={scrollable ? snapPoints : undefined}
       enablePanDownToClose={enablePanDownToClose}
       onDismiss={onClose}
       backdropComponent={renderBackdrop}
@@ -57,9 +71,16 @@ const AppBottomSheet = forwardRef<BottomSheetModal, AppBottomSheetProps>(functio
       handleIndicatorStyle={styles.handle}
       backgroundStyle={[styles.background, { backgroundColor }]}
     >
-      <BottomSheetView style={[styles.content, { paddingBottom: bottomGap ? insets.bottom + scaleSizeH(20) : scaleSizeH(20) }]}>
-        {children}
-      </BottomSheetView>
+      {scrollable ? (
+        <BottomSheetScrollView
+          contentContainerStyle={[styles.content, contentStyle]}
+          showsVerticalScrollIndicator={false}
+        >
+          {children}
+        </BottomSheetScrollView>
+      ) : (
+        <BottomSheetView style={[styles.content, contentStyle]}>{children}</BottomSheetView>
+      )}
     </BottomSheetModal>
   );
 });
