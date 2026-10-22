@@ -75,7 +75,7 @@ export type RootStackParamList = {
   /** 普通版企业信息：已录入未认证企业（占位） */
   companyNormalInfo: { id: string | number; name?: string };
   /** 我要纠错：collectId 为企业采集记录id */
-  companyErrorCorrection: { collectId?: number; companyName?: string } | undefined;
+  companyErrorCorrection: { collectId?: number } | undefined;
 };
 
 export type MainTabParamList = {

@@ -716,7 +716,7 @@ export default function UnjoinedCompanyInfo() {
             <PermissionButton
               activeOpacity={0.8}
               style={styles.footerBtn}
-              onPress={() => navigation.navigate('companyErrorCorrection', { collectId, companyName: detail.companyName })}
+              onPress={() => navigation.navigate('companyErrorCorrection', { collectId })}
             >
               <Text style={styles.footerBtnText}>我要纠错</Text>
             </PermissionButton>

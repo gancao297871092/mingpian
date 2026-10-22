@@ -8,13 +8,11 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
-import ImagePicker from 'react-native-image-crop-picker';
 import Toast from 'react-native-toast-message';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import Svg, { Path } from 'react-native-svg';
 import SafeView from '@/components/SafeView';
+import ImageUploader from '@/components/ImageUploader';
 import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
@@ -22,59 +20,23 @@ import type { RootStackParamList } from '@/route/map';
 const PRIMARY = '#2962D4';
 const GRAY = '#999999';
 
-function PlusIcon() {
-  return (
-    <Svg width={scaleSizeW(20)} height={scaleSizeW(20)} viewBox="0 0 20 20" fill="none">
-      <Path d="M10 4v12M4 10h12" stroke="#B4B4B9" strokeWidth={1.6} strokeLinecap="round" />
-    </Svg>
-  );
-}
-
 /** 我要纠错（figma 1970:6636） */
 export default function CompanyErrorCorrection() {
   const route = useRoute<RouteProp<RootStackParamList, 'companyErrorCorrection'>>();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const collectId = route.params?.collectId;
-  const companyName = route.params?.companyName;
 
   const [content, setContent] = useState('');
   const [phone, setPhone] = useState('');
   const [images, setImages] = useState<string[]>([]);
-  const [uploading, setUploading] = useState(false);
+  const [imgBusy, setImgBusy] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const onPick = useCallback(async () => {
-    if (images.length >= 9) {
-      Toast.show({ type: 'error', text1: '最多上传9张图片' });
+  const onSubmit = useCallback(async () => {
+    if (imgBusy) {
+      Toast.show({ type: 'error', text1: '图片上传中或存在上传失败，请稍候' });
       return;
     }
-    setUploading(true);
-    try {
-      const picked = await ImagePicker.openPicker({
-        width: 800,
-        height: 800,
-        cropping: false,
-        compressImageQuality: 0.8,
-        mediaType: 'photo',
-      });
-      const formData = new FormData();
-      formData.append('file', {
-        uri: picked.path,
-        type: picked.mime || 'image/jpeg',
-        name: picked.filename || `error_${Date.now()}.jpg`,
-      } as any);
-      const res = await API.file.upload(formData);
-      if (res.code === '200' && res.data?.mdUrl) {
-        setImages((prev) => [...prev, res.data.mdUrl]);
-      }
-    } catch (e: any) {
-      if (e?.code !== 'E_PICKER_CANCELLED') Toast.show({ type: 'error', text1: '上传失败' });
-    } finally {
-      setUploading(false);
-    }
-  }, [images.length]);
-
-  const onSubmit = useCallback(async () => {
     if (!content.trim() && images.length === 0) {
       Toast.show({ type: 'error', text1: '没有任何纠错内容！' });
       return;
@@ -103,33 +65,27 @@ export default function CompanyErrorCorrection() {
     } finally {
       setSubmitting(false);
     }
-  }, [collectId, content, images, phone, navigation]);
+  }, [collectId, content, images, imgBusy, phone, navigation]);
 
   return (
     <SafeView backgroundColor="#F6F7FB">
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        {!!companyName && <Text style={styles.companyName}>{companyName}</Text>}
-
-        {/* 上传图片 */}
+        {/* 上传图片（公用 ImageUploader，OSS 直传，4 列九宫格，对齐小程序 UploadImages） */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>上传图片</Text>
-          <View style={styles.imageRow}>
-            {images.map((url, i) => (
-              <TouchableOpacity
-                key={`${url}-${i}`}
-                activeOpacity={0.8}
-                style={styles.imageItem}
-                onPress={() => setImages((prev) => prev.filter((_, idx) => idx !== i))}
-              >
-                <ExpoImage source={{ uri: url }} style={styles.image} contentFit="cover" transition={150} />
-              </TouchableOpacity>
-            ))}
-            {images.length < 9 && (
-              <TouchableOpacity activeOpacity={0.8} style={styles.addImage} onPress={onPick}>
-                {uploading ? <ActivityIndicator size="small" color="#B4B4B9" /> : <PlusIcon />}
-              </TouchableOpacity>
-            )}
-          </View>
+          <ImageUploader
+            value={images}
+            onChange={setImages}
+            onBusyChange={setImgBusy}
+            layout="grid"
+            columns={4}
+            itemSize={scaleSizeW(78)}
+            gap={scaleSizeW(10)}
+            maxCount={9}
+            showCoverBadge={false}
+            addBackgroundColor="#F5F5F5"
+            style={styles.uploader}
+          />
         </View>
 
         {/* 纠错内容 */}
@@ -166,7 +122,7 @@ export default function CompanyErrorCorrection() {
 
         <TouchableOpacity
           activeOpacity={0.8}
-          style={[styles.submitBtn, (submitting || uploading) && styles.submitBtnDisabled]}
+          style={[styles.submitBtn, (submitting || imgBusy) && styles.submitBtnDisabled]}
           onPress={onSubmit}
           disabled={submitting}
         >
@@ -186,11 +142,6 @@ const styles = StyleSheet.create({
     padding: scaleSizeW(16),
     paddingBottom: scaleSizeH(60),
   },
-  companyName: {
-    fontSize: setSpText(14),
-    color: '#000000',
-    marginBottom: scaleSizeH(12),
-  },
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: scaleSizeW(10),
@@ -202,30 +153,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#000000',
   },
-  imageRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: scaleSizeW(10),
+  uploader: {
     marginTop: scaleSizeH(14),
-  },
-  imageItem: {
-    width: scaleSizeW(78),
-    height: scaleSizeW(78),
-    borderRadius: scaleSizeW(10),
-    overflow: 'hidden',
-    backgroundColor: '#F5F5F5',
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-  },
-  addImage: {
-    width: scaleSizeW(78),
-    height: scaleSizeW(78),
-    borderRadius: scaleSizeW(10),
-    backgroundColor: '#F5F5F5',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   textarea: {
     marginTop: scaleSizeH(14),
