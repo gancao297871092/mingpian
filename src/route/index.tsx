@@ -158,7 +158,6 @@ export default function RootNavigator() {
   return (
     <NavigationContainer ref={navigationRef} theme={navTheme}>
       <Stack.Navigator
-        initialRouteName="unjoinedCompanyInfo"
         screenOptions={{
           headerTitleAlign: 'center',
           headerBackButtonDisplayMode: 'minimal',
@@ -688,7 +687,6 @@ export default function RootNavigator() {
         <Stack.Screen
           name="unjoinedCompanyInfo"
           component={UnjoinedCompanyInfo}
-          initialParams={{ id: 9304, source: 'collect' }}
           options={{
             title: '企业信息',
             headerStyle: { backgroundColor: '#FFFFFF' },
