@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Animated,
   Modal,
   ScrollView,
@@ -380,9 +381,10 @@ export default function WebsiteFree({ cpId, fromShare }: WebsiteFreeProps) {
                   </ScrollView>
                 </>
               )}
-              {!stripHtml(introHtml) && medias.length === 0 && (
+              {!!data && !stripHtml(introHtml) && medias.length === 0 && (
                 <Text style={styles.emptyText}>暂无内容</Text>
               )}
+              {!data && <ActivityIndicator style={styles.contentLoading} color="#2962D4" />}
             </View>
           ) : (
             <View style={styles.infoContent}>
@@ -392,7 +394,7 @@ export default function WebsiteFree({ cpId, fromShare }: WebsiteFreeProps) {
         </HtmlScrollPage>
       );
     },
-    [activeIndexSV, scrollY, onScrollJS, windowWidth, padTop, pageMinHeight, registerRef, cpId, introHtml, medias, onPreviewImage],
+    [activeIndexSV, scrollY, onScrollJS, windowWidth, padTop, pageMinHeight, registerRef, cpId, data, introHtml, medias, onPreviewImage],
   );
 
   return (
@@ -440,14 +442,22 @@ export default function WebsiteFree({ cpId, fromShare }: WebsiteFreeProps) {
                 )}
               </View>
               <View style={styles.nameCol}>
-                <Text style={styles.name}>{data?.name || ''}</Text>
+                {data ? (
+                  <Text style={styles.name}>{data.name || ''}</Text>
+                ) : (
+                  <View style={styles.skeletonName} />
+                )}
                 {auths.includes('LOCATION') && <GoldBadge />}
               </View>
             </View>
 
             {/* 公司地址 */}
             <Text style={styles.sectionLabel}>公司地址</Text>
-            <Text style={styles.address}>{data?.address || ''}</Text>
+            {data ? (
+              <Text style={styles.address}>{data.address || ''}</Text>
+            ) : (
+              <View style={styles.skeletonAddress} />
+            )}
 
             {/* 导航 / 查看联系方式 */}
             <View style={styles.btnRow}>
@@ -629,6 +639,23 @@ const styles = StyleSheet.create({
     fontSize: setSpText(13),
     color: '#999999',
     textAlign: 'center',
+  },
+  skeletonName: {
+    width: scaleSizeW(180),
+    height: scaleSizeW(22),
+    borderRadius: scaleSizeW(4),
+    backgroundColor: '#F5F5F5',
+  },
+  skeletonAddress: {
+    width: scaleSizeW(240),
+    height: scaleSizeW(14),
+    borderRadius: scaleSizeW(4),
+    backgroundColor: '#F5F5F5',
+    marginTop: scaleSizeH(10),
+  },
+  contentLoading: {
+    marginTop: scaleSizeH(40),
+    alignSelf: 'center',
   },
   previewImage: {
     width: '100%',
