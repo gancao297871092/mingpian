@@ -31,7 +31,7 @@ const ContactSheet = forwardRef<BottomSheetModal, ContactSheetProps>(function Sh
   };
 
   return (
-    <AppBottomSheet ref={ref} backgroundColor="#FFFFFF" onClose={onClose} heightRatio={0.6} scrollable>
+    <AppBottomSheet ref={ref} backgroundColor="#FFFFFF" onClose={onClose}>
       <Text style={styles.title}>企业联系方式</Text>
       <View style={styles.list}>
         {contacts.map((item, index) => (
@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   list: {
-    marginTop: scaleSizeH(10),
+    marginTop: scaleSizeH(16),
   },
   item: {
     flexDirection: 'row',
