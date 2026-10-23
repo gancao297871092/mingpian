@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import {
   Linking,
   Platform,
@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import LinearGradient from 'react-native-linear-gradient';
+import Reanimated from 'react-native-reanimated';
 import Toast from 'react-native-toast-message';
 import Video from 'react-native-video';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,7 +20,9 @@ import { scaleSizeH, scaleSizeW, setSpText, SCREEN_WIDTH } from '@/utils/screenU
 import { ossVideoSnapshot } from '@/pages/square/bbsDetail/detailTransform';
 import CompanyPostList from '@/pages/my/company/CompanyPostList';
 import { BackArrowIcon } from '@/pages/my/myIcons';
-import { BadgeCheckIcon, NavIcon, PlayTriangleIcon } from './icons';
+import { NavIcon, PlayTriangleIcon } from './icons';
+
+const BADGE_CHECK_ICON = require('@/assets/company-website/badge-check-icon.png');
 
 export const PRIMARY = '#2962D4';
 
@@ -66,15 +69,18 @@ export function mediaThumb(item: any): string {
   return isVideoMedia(item) ? ossVideoSnapshot(url) : url;
 }
 
-/** 悬浮返回按钮（figma Button Group 1：44 白圆 + 阴影，对齐 CompanyPage） */
-export function BackCircle({ onPress }: { onPress: () => void }) {
+/** 悬浮返回按钮（figma Button Group 1：44 白圆 + 阴影，对齐 CompanyPage；animatedStyle 用于吸顶时平移进名称栏） */
+export function BackCircle({ onPress, animatedStyle }: { onPress: () => void; animatedStyle?: any }) {
   const insets = useSafeAreaInsets();
   return (
-    <View style={[styles.backWrap, { top: insets.top + scaleSizeH(7) }]} pointerEvents="box-none">
+    <Reanimated.View
+      style={[styles.backWrap, { top: insets.top + scaleSizeH(7) }, animatedStyle]}
+      pointerEvents="box-none"
+    >
       <TouchableOpacity activeOpacity={0.7} hitSlop={8} style={styles.backCircle} onPress={onPress}>
         <BackArrowIcon size={20} color="#1A1A1A" />
       </TouchableOpacity>
-    </View>
+    </Reanimated.View>
   );
 }
 
@@ -87,7 +93,7 @@ export function GoldBadge() {
       end={{ x: 1, y: 0.5 }}
       style={styles.goldBadge}
     >
-      <BadgeCheckIcon size={10} />
+      <ExpoImage source={BADGE_CHECK_ICON} style={styles.goldBadgeIcon} contentFit="contain" />
       <Text style={styles.goldBadgeText}>企核·实地核查</Text>
     </LinearGradient>
   );
@@ -127,56 +133,67 @@ interface WebsiteTabsProps {
   dark?: boolean;
 }
 
-/** 模块 tab 栏（横向滚动，gap 34；激活 15 Medium，未激活 15 Regular；下划线 24×3 圆角；底部分隔线） */
+/** 模块 tab 栏（横向滚动，gap 34；激活 15 Medium，未激活 15 Regular；下划线 24×3 圆角；底部分隔线；激活项自动滚入可视区域） */
 export function WebsiteTabs({ tabs, activeId, onChange, dark }: WebsiteTabsProps) {
   const [layouts, setLayouts] = useState<Record<string, { x: number; w: number }>>({});
+  const scrollRef = useRef<ScrollView>(null);
   const active = tabs.find((t) => t.id === activeId) || tabs[0];
   const activeLayout = active ? layouts[String(active.id)] : undefined;
+
+  // 激活 tab 不在可视区域时，横向滚动使其居中可见
+  useEffect(() => {
+    if (!active || !activeLayout) return;
+    const target = Math.max(activeLayout.x + activeLayout.w / 2 - SCREEN_WIDTH / 2, 0);
+    scrollRef.current?.scrollTo({ x: target, animated: true });
+  }, [active, activeLayout]);
+
   return (
     <View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View style={styles.tabsRow}>
-          {tabs.map((t) => {
-            const isActive = active && t.id === active.id;
-            return (
-              <TouchableOpacity
-                key={String(t.id)}
-                activeOpacity={0.7}
-                onPress={() => onChange(t)}
-                onLayout={(e) => {
-                  const { x, width } = e.nativeEvent.layout;
-                  setLayouts((prev) => {
-                    const cur = prev[String(t.id)];
-                    if (cur && cur.x === x && cur.w === width) return prev;
-                    return { ...prev, [String(t.id)]: { x, w: width } };
-                  });
-                }}
-              >
-                <Text
-                  style={[
-                    styles.tabText,
-                    dark ? styles.tabTextDark : styles.tabTextLight,
-                    isActive && styles.tabTextActive,
-                    isActive && (dark ? styles.tabTextDarkActive : styles.tabTextLightActive),
-                  ]}
+      <ScrollView ref={scrollRef} horizontal showsHorizontalScrollIndicator={false}>
+        <View>
+          <View style={styles.tabsRow}>
+            {tabs.map((t) => {
+              const isActive = active && t.id === active.id;
+              return (
+                <TouchableOpacity
+                  key={String(t.id)}
+                  activeOpacity={0.7}
+                  onPress={() => onChange(t)}
+                  onLayout={(e) => {
+                    const { x, width } = e.nativeEvent.layout;
+                    setLayouts((prev) => {
+                      const cur = prev[String(t.id)];
+                      if (cur && cur.x === x && cur.w === width) return prev;
+                      return { ...prev, [String(t.id)]: { x, w: width } };
+                    });
+                  }}
                 >
-                  {t.name}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+                  <Text
+                    style={[
+                      styles.tabText,
+                      dark ? styles.tabTextDark : styles.tabTextLight,
+                      isActive && styles.tabTextActive,
+                      isActive && (dark ? styles.tabTextDarkActive : styles.tabTextLightActive),
+                    ]}
+                  >
+                    {t.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          {activeLayout && (
+            <View
+              style={[
+                styles.tabsIndicator,
+                dark && styles.tabsIndicatorDark,
+                { left: activeLayout.x + (activeLayout.w - scaleSizeW(24)) / 2 },
+              ]}
+            />
+          )}
         </View>
       </ScrollView>
       <View style={[styles.tabsDivider, dark && styles.tabsDividerDark]} />
-      {activeLayout && (
-        <View
-          style={[
-            styles.tabsIndicator,
-            dark && styles.tabsIndicatorDark,
-            { left: scaleSizeW(16) + activeLayout.x + (activeLayout.w - scaleSizeW(24)) / 2 },
-          ]}
-        />
-      )}
     </View>
   );
 }
@@ -192,21 +209,27 @@ export function ModuleHtml({ html, dark }: { html: string; dark?: boolean }) {
   );
 }
 
-/** 最新动态 tab（复用企业主页瀑布流；外层滚动，自身按内容高度撑开） */
-export function DynamicsTab({ cpId, active }: { cpId: number | string; active: boolean }) {
-  const [height, setHeight] = useState(0);
-  const listRef = useRef<any>(null);
-  return (
-    <View style={{ height: Math.max(height, scaleSizeH(200)) }}>
-      <CompanyPostList
-        ref={listRef}
-        cpId={cpId}
-        active={active}
-        onHeight={(h) => setHeight((prev) => (prev === h ? prev : h))}
-      />
-    </View>
-  );
+/** 最新动态 tab（复用企业主页瀑布流；自身不滚动，内容高度经 onHeight 上报给外层 pager） */
+export interface DynamicsTabHandle {
+  onEndReached: () => void;
+  ensureLoaded: () => void;
 }
+
+export const DynamicsTab = forwardRef<
+  DynamicsTabHandle,
+  { cpId: number | string; active: boolean; onHeight: (h: number) => void }
+>(function DynamicsTabInner({ cpId, active, onHeight }, ref) {
+  const listRef = useRef<any>(null);
+  useImperativeHandle(
+    ref,
+    () => ({
+      onEndReached: () => listRef.current?.onEndReached?.(),
+      ensureLoaded: () => listRef.current?.ensureLoaded?.(),
+    }),
+    [],
+  );
+  return <CompanyPostList ref={listRef} cpId={cpId} active={active} onHeight={onHeight} />;
+});
 
 /** 地图导航（对齐小程序 daohang：优先经纬度，退化地址搜索） */
 export function openNavigation(data: any) {
@@ -306,6 +329,10 @@ const styles = StyleSheet.create({
     fontSize: setSpText(12),
     lineHeight: setSpText(19),
     color: '#4C3416',
+  },
+  goldBadgeIcon: {
+    width: scaleSizeW(10),
+    height: scaleSizeW(10),
   },
   navPill: {
     width: scaleSizeW(80),

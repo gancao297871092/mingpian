@@ -32,14 +32,23 @@ import { ChevronDownIcon, VerifiedBadgeIcon } from './icons';
 
 const CERT_BG = require('@/assets/company-website/cert-bg.png');
 
+/** 最新动态（升级版暂未做 pager，本地撑开高度；切到 TabView 时与基础版统一） */
+function DynamicsFeed({ cpId, active }: { cpId: number | string; active: boolean }) {
+  const [height, setHeight] = useState(0);
+  return (
+    <View style={{ height: Math.max(height, scaleSizeH(200)) }}>
+      <DynamicsTab cpId={cpId} active={active} onHeight={(h) => setHeight((prev) => (prev === h ? prev : h))} />
+    </View>
+  );
+}
+
 interface WebsiteProProps {
   cpId: number | string;
   fromShare?: number | string;
 }
 
 /** 菜单树拍平为 tab 列表（menuType 1 叶子直接展示；父菜单取其 menuType 1 子项；对齐小程序 feeView treeVOList，SelectTree 层级选择暂不实现） */
-function flattenTree(tree: any[]): WebsiteTab[] {
-  const tabs: WebsiteTab[] = [];
+function flattenTree(tree: any[]): WebsiteTab[] {  const tabs: WebsiteTab[] = [];
   (tree || []).forEach((node: any) => {
     if (node.menuType === 1) {
       tabs.push({ id: node.id, name: node.menuName, content: node.menuContent });
@@ -202,7 +211,7 @@ export default function WebsitePro({ cpId, fromShare }: WebsiteProProps) {
 
         {/* tab 内容 */}
         {currentTab?.id === -1 ? (
-          <DynamicsTab cpId={cpId} active={currentTab?.id === -1} />
+          <DynamicsFeed cpId={cpId} active={currentTab?.id === -1} />
         ) : (
           !!currentTab && (
             <View style={styles.infoContent}>

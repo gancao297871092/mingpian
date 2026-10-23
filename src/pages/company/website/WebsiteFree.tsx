@@ -1,7 +1,16 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { Modal, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { Modal, ScrollView, StatusBar, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { GestureViewer } from 'react-native-gesture-image-viewer';
+import { TabView } from 'react-native-tab-view';
+import Reanimated, {
+  Extrapolation,
+  interpolate,
+  runOnJS,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
 import Toast from 'react-native-toast-message';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -17,6 +26,7 @@ import {
   BackCircle,
   ContactPill,
   DynamicsTab,
+  type DynamicsTabHandle,
   GoldBadge,
   mediaUrl,
   ModuleHtml,
@@ -35,15 +45,26 @@ interface WebsiteFreeProps {
   fromShare?: number | string;
 }
 
+/** 吸顶名称栏高度（对齐企业主页 UserHome/CompanyPage） */
+const STICKY_NICK_H = 46;
+
 /** 企业官网2（figma 2134:6575，免费版浅色官网，对齐小程序 freeView） */
 export default function WebsiteFree({ cpId, fromShare }: WebsiteFreeProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
   const { data } = useCompanyMain(cpId);
   const userInfo = useUserStore((s) => s.userInfo);
   const contactRef = useRef<BottomSheetModal>(null);
+  const dynamicsRef = useRef<DynamicsTabHandle>(null);
   const [activeTab, setActiveTab] = useState<number | string>(-2);
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
   const [preview, setPreview] = useState<{ urls: string[]; index: number } | null>(null);
+  // 各 tab 内容高度（pager 固定高度，内容自上报；对齐个人主页 UserHome/CompanyPage）
+  const [contentH, setContentH] = useState(0);
+  const [tabBarH, setTabBarH] = useState(0);
+  const [tabHeights, setTabHeights] = useState<Record<string, number>>({});
 
   const tabs: WebsiteTab[] = useMemo(() => {
     if (!data) return [{ id: -2, name: '企业信息' }];
@@ -59,8 +80,8 @@ export default function WebsiteFree({ cpId, fromShare }: WebsiteFreeProps) {
   const showContact = String(fromShare || 0) === '1' && !isMyCompany;
   const contacts = data?.contactList || [];
   const introHtml = data?.des || (data?.desTxt ? `<p>${data.desTxt}</p>` : '');
-  const medias: any[] = data?.mediaLinkList || [];
-  const previewUrls = medias.filter((m) => !isVideoMedia(m)).map(mediaUrl);
+  const medias: any[] = useMemo(() => data?.mediaLinkList || [], [data]);
+  const previewUrls = useMemo(() => medias.filter((m) => !isVideoMedia(m)).map(mediaUrl), [medias]);
 
   const onShowContact = () => {
     if (!contacts.length) {
@@ -70,19 +91,149 @@ export default function WebsiteFree({ cpId, fromShare }: WebsiteFreeProps) {
     contactRef.current?.present();
   };
 
-  const onPreviewImage = (item: any) => {
-    const url = mediaUrl(item);
-    const index = previewUrls.indexOf(url);
-    setPreview({ urls: previewUrls, index: Math.max(index, 0) });
-  };
+  const onPreviewImage = useCallback(
+    (item: any) => {
+      const url = mediaUrl(item);
+      const index = previewUrls.indexOf(url);
+      setPreview({ urls: previewUrls, index: Math.max(index, 0) });
+    },
+    [previewUrls],
+  );
 
   const currentTab = tabs.find((t) => t.id === activeTab) || tabs[0];
+
+  // ---- 左右滑动 pager（react-native-tab-view，隐藏默认 TabBar，tab 栏用自定义 WebsiteTabs） ----
+  const routes = useMemo(() => tabs.map((t) => ({ key: String(t.id), title: t.name })), [tabs]);
+  const activeIndex = Math.max(tabs.findIndex((t) => t.id === activeTab), 0);
+  /** 内层内容不滚动，需保证 pager 足够高让外层可滚动（吸顶才能触发） */
+  const minPagerHeight = Math.max(contentH - tabBarH - scaleSizeH(40), scaleSizeH(200));
+  const pagerHeight = Math.max(tabHeights[String(currentTab?.id)] || 0, minPagerHeight);
+
+  const onTabHeight = useCallback((key: string, h: number) => {
+    setTabHeights((prev) => (prev[key] === h ? prev : { ...prev, [key]: h }));
+  }, []);
+
+  const lastEndRef = useRef(0);
+  const maybeLoadMore = useCallback((y: number, ch: number, lh: number) => {
+    if (activeTabRef.current !== -1) return;
+    if (y + lh < ch - 300) return;
+    const now = Date.now();
+    if (now - lastEndRef.current < 800) return;
+    lastEndRef.current = now;
+    dynamicsRef.current?.onEndReached();
+  }, []);
+
+  const renderScene = useCallback(
+    ({ route }: { route: { key: string } }) => {
+      const tab = tabs.find((t) => String(t.id) === route.key);
+      if (!tab) return null;
+      if (tab.id === -1) {
+        return (
+          <View style={{ width: windowWidth, height: pagerHeight }}>
+            <DynamicsTab
+              ref={dynamicsRef}
+              cpId={cpId}
+              active={activeTabRef.current === -1}
+              onHeight={(h) => onTabHeight('-1', h)}
+            />
+          </View>
+        );
+      }
+      return (
+        <View
+          style={{ width: windowWidth }}
+          onLayout={(e) => onTabHeight(route.key, e.nativeEvent.layout.height)}
+        >
+          {tab.id === -2 ? (
+            <View style={styles.infoContent}>
+              {!!stripHtml(introHtml) && (
+                <>
+                  <Text style={styles.infoTitle}>企业简介</Text>
+                  <ModuleHtml html={introHtml} />
+                </>
+              )}
+              {medias.length > 0 && (
+                <>
+                  <Text style={[styles.infoTitle, styles.albumTitle]}>企业相册</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.albumScroll}>
+                    <View style={styles.albumRow}>
+                      {medias.map((item, ix) => (
+                        <AlbumItem
+                          key={ix}
+                          item={item}
+                          width={scaleSizeW(290)}
+                          height={scaleSizeW(175)}
+                          radius={scaleSizeW(10)}
+                          onPreview={() => onPreviewImage(item)}
+                        />
+                      ))}
+                    </View>
+                  </ScrollView>
+                </>
+              )}
+              {!stripHtml(introHtml) && medias.length === 0 && (
+                <Text style={styles.emptyText}>暂无内容</Text>
+              )}
+            </View>
+          ) : (
+            <View style={styles.infoContent}>
+              <ModuleHtml html={tab.content?.content || ''} />
+            </View>
+          )}
+        </View>
+      );
+    },
+    [tabs, windowWidth, pagerHeight, cpId, introHtml, medias, onTabHeight, onPreviewImage],
+  );
+
+  // tab 吸顶（对齐企业主页）：吸顶栏高度 0→(状态栏+46) 跟随滚动展开，中间显示企业名称；全程 UI 线程不抖
+  const scrollY = useSharedValue(0);
+  const headerHSV = useSharedValue(0);
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (e) => {
+      scrollY.value = e.contentOffset.y;
+      runOnJS(maybeLoadMore)(e.contentOffset.y, e.contentSize.height, e.layoutMeasurement.height);
+    },
+  });
+  const nickStyle = useAnimatedStyle(() => ({
+    height: interpolate(
+      scrollY.value,
+      [Math.max(headerHSV.value - STICKY_NICK_H, 0), Math.max(headerHSV.value, 1)],
+      [0, insets.top + STICKY_NICK_H],
+      Extrapolation.CLAMP,
+    ),
+  }));
+  /** 吸顶过程中返回键上移 5px 进入名称栏（对齐企业主页） */
+  const navStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        translateY: interpolate(
+          scrollY.value,
+          [Math.max(headerHSV.value - STICKY_NICK_H, 0), Math.max(headerHSV.value, 1)],
+          [0, -5],
+          Extrapolation.CLAMP,
+        ),
+      },
+    ],
+  }));
 
   return (
     <SafeView backgroundColor="#FFFFFF">
       <StatusBar barStyle="dark-content" />
-      <ScrollView style={styles.flex1} showsVerticalScrollIndicator={false}>
-        <View style={[styles.content, { paddingTop: insets.top + scaleSizeH(81) }]}>
+      <Reanimated.ScrollView
+        style={styles.flex1}
+        showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={[1]}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+        onLayout={(e) => setContentH(e.nativeEvent.layout.height)}
+      >
+        <View
+          style={[styles.content, { paddingTop: insets.top + scaleSizeH(81) }]}
+          onLayout={(e) => {
+            headerHSV.value = e.nativeEvent.layout.height;
+          }}
+        >
           {/* 头像 + 企业名称/认证角标 */}
           <View style={styles.headerRow}>
             <View style={styles.logoWrap}>
@@ -118,54 +269,36 @@ export default function WebsiteFree({ cpId, fromShare }: WebsiteFreeProps) {
           </View>
         </View>
 
-        {/* 模块 tab */}
+        {/* 模块 tab（吸顶，对齐企业主页 stickyHeaderIndices；吸顶栏中间显示企业名称） */}
         <View style={styles.tabsWrap}>
-          <WebsiteTabs tabs={tabs} activeId={currentTab?.id} onChange={(t) => setActiveTab(t.id)} />
+          <Reanimated.View style={[styles.stickyNick, nickStyle]}>
+            <View style={styles.stickyNickInner}>
+              <Text style={styles.stickyName} numberOfLines={1}>
+                {data?.name || ''}
+              </Text>
+            </View>
+          </Reanimated.View>
+          <View onLayout={(e) => setTabBarH(e.nativeEvent.layout.height)}>
+            <WebsiteTabs tabs={tabs} activeId={currentTab?.id} onChange={(t) => setActiveTab(t.id)} />
+          </View>
         </View>
 
-        {/* tab 内容 */}
-        {currentTab?.id === -2 ? (
-          <View style={styles.infoContent}>
-            {!!stripHtml(introHtml) && (
-              <>
-                <Text style={styles.infoTitle}>企业简介</Text>
-                <ModuleHtml html={introHtml} />
-              </>
-            )}
-            {medias.length > 0 && (
-              <>
-                <Text style={[styles.infoTitle, styles.albumTitle]}>企业相册</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.albumScroll}>
-                  <View style={styles.albumRow}>
-                    {medias.map((item, ix) => (
-                      <AlbumItem
-                        key={ix}
-                        item={item}
-                        width={scaleSizeW(290)}
-                        height={scaleSizeW(175)}
-                        radius={scaleSizeW(10)}
-                        onPreview={() => onPreviewImage(item)}
-                      />
-                    ))}
-                  </View>
-                </ScrollView>
-              </>
-            )}
-            {!stripHtml(introHtml) && medias.length === 0 && (
-              <Text style={styles.emptyText}>暂无内容</Text>
-            )}
-          </View>
-        ) : currentTab?.id === -1 ? (
-          <DynamicsTab cpId={cpId} active={currentTab?.id === -1} />
-        ) : (
-          <View style={styles.infoContent}>
-            <ModuleHtml html={currentTab?.content?.content || ''} />
-          </View>
-        )}
+        {/* tab 内容：左右滑动切换（react-native-tab-view），高度按当前 tab 内容撑开 */}
+        <TabView
+          navigationState={{ index: activeIndex, routes }}
+          renderScene={renderScene}
+          renderTabBar={() => null}
+          onIndexChange={(i) => {
+            const t = tabs[i];
+            if (t) setActiveTab(t.id);
+          }}
+          initialLayout={{ width: windowWidth }}
+          style={{ height: pagerHeight }}
+        />
         <View style={styles.bottomPad} />
-      </ScrollView>
+      </Reanimated.ScrollView>
 
-      <BackCircle onPress={() => navigation.goBack()} />
+      <BackCircle onPress={() => navigation.goBack()} animatedStyle={navStyle} />
       <ContactSheet ref={contactRef} contacts={contacts} onClose={() => contactRef.current?.dismiss()} />
 
       <Modal transparent visible={!!preview} onRequestClose={() => setPreview(null)}>
@@ -192,6 +325,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: scaleSizeW(16),
+    paddingBottom: scaleSizeH(18),
   },
   headerRow: {
     flexDirection: 'row',
@@ -246,7 +380,28 @@ const styles = StyleSheet.create({
     marginTop: scaleSizeH(19),
   },
   tabsWrap: {
-    marginTop: scaleSizeH(18),
+    backgroundColor: '#FFFFFF',
+  },
+  stickyNick: {
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+  },
+  /** 名称贴容器底滑出，上方留白即状态栏占位（对齐企业主页） */
+  stickyNickInner: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: STICKY_NICK_H,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: scaleSizeW(85),
+  },
+  stickyName: {
+    fontSize: setSpText(17),
+    fontWeight: '500',
+    color: '#000000',
+    textAlign: 'center',
   },
   infoContent: {
     paddingHorizontal: scaleSizeW(16),

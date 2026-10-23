@@ -154,11 +154,16 @@ function MainTabs() {
   );
 }
 
+// 调试：定死首屏到企业官网（上线前移除）；id 换成要调的企业 cpId
+const DEV_INITIAL_ROUTE: keyof RootStackParamList = 'companyWebsite';
+const DEV_COMPANY_ID: string | number = 9;
+
 export default function RootNavigator() {
   const navTheme = useNavTheme();
   return (
     <NavigationContainer ref={navigationRef} theme={navTheme}>
       <Stack.Navigator
+        initialRouteName={DEV_INITIAL_ROUTE}
         screenOptions={{
           headerTitleAlign: 'center',
           headerBackButtonDisplayMode: 'minimal',
@@ -578,6 +583,7 @@ export default function RootNavigator() {
         <Stack.Screen
           name="companyWebsite"
           component={CompanyWebsite}
+          initialParams={{ id: DEV_COMPANY_ID }}
           options={{
             // 状态栏压在页面上（figma 企业官网2/升级版），自定义悬浮返回按钮
             headerShown: false,
