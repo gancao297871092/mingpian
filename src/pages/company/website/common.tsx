@@ -85,18 +85,21 @@ export function BackCircle({ onPress, animatedStyle }: { onPress: () => void; an
   );
 }
 
-/** 企核·实地核查 金色渐变角标（figma 2134:6587） */
+/** 企核·实地核查 金色渐变角标（figma 2134:6587）；渐变做绝对填充背景，布局走普通 View（LinearGradient 直接布局子元素会少算宽度） */
 export function GoldBadge() {
   return (
-    <LinearGradient
-      colors={['#FEF4E9', '#FFE4C1']}
-      start={{ x: 0, y: 0.5 }}
-      end={{ x: 1, y: 0.5 }}
-      style={styles.goldBadge}
-    >
+    <View style={styles.goldBadge}>
+      <LinearGradient
+        colors={['#FEF4E9', '#FFE4C1']}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
+        style={styles.goldBadgeBg}
+      />
       <ExpoImage source={BADGE_CHECK_ICON} style={styles.goldBadgeIcon} contentFit="contain" />
-      <Text style={styles.goldBadgeText}>企核·实地核查</Text>
-    </LinearGradient>
+      <Text style={styles.goldBadgeText} numberOfLines={1}>
+        企核·实地核查
+      </Text>
+    </View>
   );
 }
 
@@ -367,8 +370,17 @@ const styles = StyleSheet.create({
     gap: scaleSizeW(5),
     paddingHorizontal: scaleSizeW(7),
     paddingVertical: scaleSizeH(3),
-    borderRadius: scaleSizeW(5),
     alignSelf: 'flex-start',
+    overflow: 'hidden',
+    borderRadius: scaleSizeW(5),
+  },
+  goldBadgeBg: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: scaleSizeW(5),
   },
   goldBadgeText: {
     fontSize: setSpText(12),
@@ -418,7 +430,6 @@ const styles = StyleSheet.create({
   },
   contactPillText: {
     fontSize: setSpText(14),
-    lineHeight: setSpText(12),
     color: '#FFFFFF',
   },
   contactPillTextDark: {

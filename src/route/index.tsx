@@ -583,7 +583,7 @@ export default function RootNavigator() {
         <Stack.Screen
           name="companyWebsite"
           component={CompanyWebsite}
-          initialParams={{ id: DEV_COMPANY_ID }}
+          initialParams={{ id: DEV_COMPANY_ID, fromShare: 1 }}
           options={{
             // 状态栏压在页面上（figma 企业官网2/升级版），自定义悬浮返回按钮
             headerShown: false,

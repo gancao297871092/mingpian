@@ -47,7 +47,8 @@ import {
   isVideoMedia,
   type WebsiteTab,
 } from './common';
-import { VerifiedBadgeIcon } from './icons';
+
+const VERIFIED_BADGE = require('@/assets/company-website/verified-badge.png');
 
 interface WebsiteFreeProps {
   cpId: number | string;
@@ -137,7 +138,7 @@ function DynamicsScrollPage({
         cpId={cpId}
         active={active}
         selfScroll
-        contentPadTop={padTop}
+        contentPadTop={padTop + scaleSizeH(10)}
         contentMinHeight={minHeight}
         onScroll={handler}
       />
@@ -339,7 +340,8 @@ export default function WebsiteFree({ cpId, fromShare }: WebsiteFreeProps) {
             minHeight={pageMinHeight}
             registerRef={registerRef}
             cpId={cpId}
-            active={activeTabRef.current === -1}
+            // 提前加载第一页，切到「最新动态」即可直接看到数据
+            active
           />
         );
       }
@@ -436,9 +438,6 @@ export default function WebsiteFree({ cpId, fromShare }: WebsiteFreeProps) {
                 ) : (
                   <View style={[styles.logo, styles.logoEmpty]} />
                 )}
-                <View style={styles.logoBadge}>
-                  <VerifiedBadgeIcon size={13} />
-                </View>
               </View>
               <View style={styles.nameCol}>
                 <Text style={styles.name}>{data?.name || ''}</Text>
@@ -456,6 +455,13 @@ export default function WebsiteFree({ cpId, fromShare }: WebsiteFreeProps) {
               {showContact && <ContactPill onPress={onShowContact} />}
             </View>
           </View>
+          {/* 认证徽章：独立绝对定位在头像右下角（figma x50/y173，含 1px 白边描边），避免被圆角头像压住 */}
+          <ExpoImage
+            source={VERIFIED_BADGE}
+            style={[styles.logoBadgeImg, { top: insets.top + scaleSizeH(119) }]}
+            contentFit="contain"
+            pointerEvents="none"
+          />
           <View style={styles.tabsWrap} onLayout={(e) => setTabBarH(e.nativeEvent.layout.height)}>
             <WebsiteTabs
               tabs={tabs}
@@ -531,10 +537,12 @@ const styles = StyleSheet.create({
   logoEmpty: {
     backgroundColor: '#F5F5F5',
   },
-  logoBadge: {
+  logoBadgeImg: {
     position: 'absolute',
-    right: -scaleSizeW(1),
-    bottom: -scaleSizeW(1),
+    left: scaleSizeW(50),
+    width: scaleSizeW(15),
+    height: scaleSizeW(15),
+    zIndex: 7,
   },
   nameCol: {
     flex: 1,

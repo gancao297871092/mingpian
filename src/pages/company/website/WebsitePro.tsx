@@ -28,9 +28,10 @@ import {
   isVideoMedia,
   type WebsiteTab,
 } from './common';
-import { ChevronDownIcon, VerifiedBadgeIcon } from './icons';
+import { ChevronDownIcon } from './icons';
 
 const CERT_BG = require('@/assets/company-website/cert-bg.png');
+const VERIFIED_BADGE_DARK = require('@/assets/company-website/verified-badge-dark.png');
 
 /** 最新动态（升级版暂未做 pager，本地撑开高度；切到 TabView 时与基础版统一） */
 function DynamicsFeed({ cpId, active }: { cpId: number | string; active: boolean }) {
@@ -127,9 +128,6 @@ export default function WebsitePro({ cpId, fromShare }: WebsiteProProps) {
               ) : (
                 <View style={[styles.logo, styles.logoEmpty]} />
               )}
-              <View style={styles.logoBadge}>
-                <VerifiedBadgeIcon size={18} />
-              </View>
             </View>
             <View style={styles.nameCol}>
               <Text style={styles.name}>{data?.name || ''}</Text>
@@ -137,6 +135,13 @@ export default function WebsitePro({ cpId, fromShare }: WebsiteProProps) {
             </View>
           </View>
 
+          {/* 认证徽章：独立绝对定位在头像右下角（figma x60/y182），避免被圆角头像压住 */}
+          <ExpoImage
+            source={VERIFIED_BADGE_DARK}
+            style={[styles.logoBadgeImg, { top: insets.top + scaleSizeH(128) }]}
+            contentFit="contain"
+            pointerEvents="none"
+          />
           {/* 公司地址 */}
           <Text style={styles.sectionLabel}>公司地址</Text>
           <Text style={styles.address}>{data?.address || ''}</Text>
@@ -285,10 +290,12 @@ const styles = StyleSheet.create({
   logoEmpty: {
     backgroundColor: '#F5F5F5',
   },
-  logoBadge: {
+  logoBadgeImg: {
     position: 'absolute',
-    right: 0,
-    bottom: 0,
+    left: scaleSizeW(60),
+    width: scaleSizeW(18),
+    height: scaleSizeW(18),
+    zIndex: 7,
   },
   nameCol: {
     flex: 1,
