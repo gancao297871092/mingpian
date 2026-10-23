@@ -105,9 +105,10 @@ export default function WebsiteFree({ cpId, fromShare }: WebsiteFreeProps) {
   // ---- 左右滑动 pager（react-native-tab-view，隐藏默认 TabBar，tab 栏用自定义 WebsiteTabs） ----
   const routes = useMemo(() => tabs.map((t) => ({ key: String(t.id), title: t.name })), [tabs]);
   const activeIndex = Math.max(tabs.findIndex((t) => t.id === activeTab), 0);
-  /** 内层内容不滚动，需保证 pager 足够高让外层可滚动（吸顶才能触发） */
+  /** 内层内容不滚动：内容长时撑开 pager 让外层的滚动量足够触发吸顶；内容短时按内容高度，不留大段空白 */
   const minPagerHeight = Math.max(contentH - tabBarH - scaleSizeH(40), scaleSizeH(200));
-  const pagerHeight = Math.max(tabHeights[String(currentTab?.id)] || 0, minPagerHeight);
+  const measuredPagerH = tabHeights[String(currentTab?.id)];
+  const pagerHeight = measuredPagerH != null ? Math.max(measuredPagerH, 1) : minPagerHeight;
 
   const onTabHeight = useCallback((key: string, h: number) => {
     setTabHeights((prev) => (prev[key] === h ? prev : { ...prev, [key]: h }));
@@ -431,7 +432,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   bottomPad: {
-    height: scaleSizeH(40),
+    height: scaleSizeH(20),
   },
   previewImage: {
     width: '100%',
