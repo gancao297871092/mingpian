@@ -1,6 +1,7 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
+import Reanimated from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { API } from '@/api';
@@ -18,12 +19,23 @@ interface CompanyPostListProps {
   cpId: number | string;
   /** 是否为当前展示页（懒加载触发） */
   active: boolean;
-  /** 列表内容高度变化（外层 FlatList 统一滚动，需要撑开高度） */
-  onHeight: (h: number) => void;
+  /** 列表内容高度变化（外层 FlatList 统一滚动，需要撑开高度）；自滚动模式下可不传 */
+  onHeight?: (h: number) => void;
+  /** 自滚动模式（企业官网 inner-scroll）：列表自身可滚动、内部分页 onEndReached 生效 */
+  selfScroll?: boolean;
+  /** 自滚动模式：内容顶部留白（头部+tab 栏高度） */
+  contentPadTop?: number;
+  /** 自滚动模式：内容最小高度（吸顶位置 + 容器高，保证可滚到吸顶点） */
+  contentMinHeight?: number;
+  /** 自滚动模式：滚动回调（可传 reanimated worklet handler） */
+  onScroll?: any;
 }
 
 const PAGE_SIZE = 10;
 const GO_SQUARE_ID = '__go_square__';
+
+/** 支持 reanimated worklet onScroll（UI 线程）的 FlashList */
+const ReanimatedFlashList = Reanimated.createAnimatedComponent(FlashList as any);
 
 type FeedItem = WaterfallItem & { isPlazaCard?: boolean };
 
@@ -77,7 +89,7 @@ function withPlazaCard(list: WaterfallItem[]): FeedItem[] {
 /** 最新动态 tab（figma 企业主页）：企业员工动态 FlashList masonry 双列瀑布流 + 穿插「去广场发现更多」；
  *  外层统一滚动，自身 scrollEnabled=false，高度通过 onHeight 上报（对齐 UserHome 的 WaterfallTab） */
 const CompanyPostList = forwardRef<TabHandle, CompanyPostListProps>(function CompanyPostFeed(
-  { cpId, active, onHeight },
+  { cpId, active, onHeight, selfScroll, contentPadTop, contentMinHeight, onScroll },
   ref,
 ) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -114,6 +126,8 @@ const CompanyPostList = forwardRef<TabHandle, CompanyPostListProps>(function Com
     if (active && !state.loaded) fetchPage(1);
   }, [active, state.loaded, fetchPage]);
 
+  const listRef = useRef<any>(null);
+
   useImperativeHandle(
     ref,
     () => ({
@@ -127,9 +141,17 @@ const CompanyPostList = forwardRef<TabHandle, CompanyPostListProps>(function Com
       ensureLoaded: () => {
         if (!stateRef.current.loaded) fetchPage(1);
       },
+      /** 自滚动模式：外部调整列表滚动位置（切 tab 吸顶共享用） */
+      scrollTo: (y: number) => listRef.current?.scrollToOffset?.({ offset: y, animated: false }),
     }),
     [fetchPage],
   );
+
+  /** 自滚动模式下的内部分页 */
+  const onEndReachedInternal = useCallback(() => {
+    const s = stateRef.current;
+    if (!s.loading && s.loaded && s.page < s.pages) fetchPage(s.page + 1);
+  }, [fetchPage]);
 
   const squareCard = () => <GoSquareCard onPress={() => navigation.navigate('MainTabs' as never)} />;
 
@@ -174,16 +196,23 @@ const CompanyPostList = forwardRef<TabHandle, CompanyPostListProps>(function Com
   };
 
   return (
-    <FlashList
-      scrollEnabled={false}
-      onContentSizeChange={(_w, h) => onHeight(h)}
+    <ReanimatedFlashList
+      ref={listRef}
+      scrollEnabled={!!selfScroll}
+      onScroll={onScroll}
+      onEndReached={selfScroll ? onEndReachedInternal : undefined}
+      onEndReachedThreshold={0.3}
+      onContentSizeChange={(_w: number, h: number) => onHeight?.(h)}
       data={withPlazaCard(state.list)}
       keyExtractor={(item: FeedItem) => item.id}
       masonry
       numColumns={2}
       renderItem={renderItem}
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.listContent}
+      contentContainerStyle={[
+        styles.listContent,
+        selfScroll && { paddingTop: contentPadTop ?? 0, minHeight: contentMinHeight },
+      ]}
       ListEmptyComponent={state.loaded ? <View style={styles.emptyWrap}>{squareCard()}</View> : null}
       ListFooterComponent={<ListFooter fetching={state.loading} isLastPage={state.page >= state.pages} listLength={state.list.length} />}
     />

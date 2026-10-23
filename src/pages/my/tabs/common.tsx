@@ -23,6 +23,8 @@ export interface TabHandle {
   onEndReached: () => Promise<void> | void;
   /** 未加载过时拉取第一页（tab 切换时主动调用） */
   ensureLoaded: () => void;
+  /** 自滚动模式：调整列表滚动位置（企业官网切 tab 吸顶共享用），非自滚动模式可不实现 */
+  scrollTo?: (y: number) => void;
 }
 
 export interface TabState<T = any> {
