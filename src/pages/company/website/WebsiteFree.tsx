@@ -1,12 +1,22 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { Modal, ScrollView, StatusBar, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Animated,
+  Modal,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { GestureViewer } from 'react-native-gesture-image-viewer';
-import { TabView } from 'react-native-tab-view';
 import Reanimated, {
   Extrapolation,
   interpolate,
   runOnJS,
+  scrollTo,
+  useAnimatedRef,
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
@@ -102,89 +112,151 @@ export default function WebsiteFree({ cpId, fromShare }: WebsiteFreeProps) {
 
   const currentTab = tabs.find((t) => t.id === activeTab) || tabs[0];
 
-  // ---- 左右滑动 pager（react-native-tab-view，隐藏默认 TabBar，tab 栏用自定义 WebsiteTabs） ----
-  const routes = useMemo(() => tabs.map((t) => ({ key: String(t.id), title: t.name })), [tabs]);
-  const activeIndex = Math.max(tabs.findIndex((t) => t.id === activeTab), 0);
+  // ---- 左右滑动 pager（横向 Animated.FlatList，对齐企业主页 CompanyPage） ----
+  const scrollX = useRef(new Animated.Value(0)).current;
+  const swiperRef = useRef<any>(null);
   /** 内层内容不滚动：内容长时撑开 pager 让外层的滚动量足够触发吸顶；内容短时按内容高度，不留大段空白 */
   const minPagerHeight = Math.max(contentH - tabBarH - scaleSizeH(40), scaleSizeH(200));
   const measuredPagerH = tabHeights[String(currentTab?.id)];
-  const pagerHeight = measuredPagerH != null ? Math.max(measuredPagerH, 1) : minPagerHeight;
+  const naturalPagerH = measuredPagerH != null ? Math.max(measuredPagerH, 1) : minPagerHeight;
+  /** pager 高度只立即放大、延迟收缩：切 tab 时若立即收缩会触发原生 clamp 把内容顶上去（先恢复滚动位置再收缩） */
+  const [pagerHeight, setPagerHeight] = useState(naturalPagerH);
+  useEffect(() => {
+    setPagerHeight((prev) => Math.max(prev, naturalPagerH));
+    const t = setTimeout(() => setPagerHeight(naturalPagerH), 150);
+    return () => clearTimeout(t);
+  }, [naturalPagerH]);
+
+  // 布局度量同步镜像（切 tab 恢复滚动位置时用，避免等 state）
+  const outerRef = useAnimatedRef<Reanimated.ScrollView>();
+  const metricsRef = useRef({ headerH: 0, contentH: 0, tabBarH: 0, minPagerHeight: 0 });
+  metricsRef.current = { ...metricsRef.current, contentH, tabBarH, minPagerHeight };
+  const pagerHRef = useRef<Record<string, number>>({});
+  /** 各 tab 滚动位置记忆（对齐企业主页 scrollOffsetsRef） */
+  const scrollOffsetsRef = useRef<Record<string, number>>({});
+  /** 切换过渡期间暂停记录：pager 高度收缩触发 clamp 的 onScroll 不是用户滚动，不能写入记忆 */
+  const switchingRef = useRef(false);
 
   const onTabHeight = useCallback((key: string, h: number) => {
+    pagerHRef.current[key] = h;
     setTabHeights((prev) => (prev[key] === h ? prev : { ...prev, [key]: h }));
   }, []);
 
-  const lastEndRef = useRef(0);
-  const maybeLoadMore = useCallback((y: number, ch: number, lh: number) => {
-    if (activeTabRef.current !== -1) return;
-    if (y + lh < ch - 300) return;
-    const now = Date.now();
-    if (now - lastEndRef.current < 800) return;
-    lastEndRef.current = now;
-    dynamicsRef.current?.onEndReached();
-  }, []);
-
-  const renderScene = useCallback(
-    ({ route }: { route: { key: string } }) => {
-      const tab = tabs.find((t) => String(t.id) === route.key);
-      if (!tab) return null;
-      if (tab.id === -1) {
-        return (
-          <View style={{ width: windowWidth, height: pagerHeight }}>
-            <DynamicsTab
-              ref={dynamicsRef}
-              cpId={cpId}
-              active={activeTabRef.current === -1}
-              onHeight={(h) => onTabHeight('-1', h)}
-            />
-          </View>
-        );
-      }
-      return (
-        <View
-          style={{ width: windowWidth }}
-          onLayout={(e) => onTabHeight(route.key, e.nativeEvent.layout.height)}
-        >
-          {tab.id === -2 ? (
-            <View style={styles.infoContent}>
-              {!!stripHtml(introHtml) && (
-                <>
-                  <Text style={styles.infoTitle}>企业简介</Text>
-                  <ModuleHtml html={introHtml} />
-                </>
-              )}
-              {medias.length > 0 && (
-                <>
-                  <Text style={[styles.infoTitle, styles.albumTitle]}>企业相册</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.albumScroll}>
-                    <View style={styles.albumRow}>
-                      {medias.map((item, ix) => (
-                        <AlbumItem
-                          key={ix}
-                          item={item}
-                          width={scaleSizeW(290)}
-                          height={scaleSizeW(175)}
-                          radius={scaleSizeW(10)}
-                          onPreview={() => onPreviewImage(item)}
-                        />
-                      ))}
-                    </View>
-                  </ScrollView>
-                </>
-              )}
-              {!stripHtml(introHtml) && medias.length === 0 && (
-                <Text style={styles.emptyText}>暂无内容</Text>
-              )}
-            </View>
-          ) : (
-            <View style={styles.infoContent}>
-              <ModuleHtml html={tab.content?.content || ''} />
-            </View>
-          )}
-        </View>
-      );
+  /** 切换 tab：恢复该 tab 记忆的滚动位置（无动画）；位置在切换前快照，避免被 clamp 污染。
+   *  原生 clamp 回弹动画是异步的，会覆盖立即执行的 scrollTo——立即恢复一次 + 100ms 后再恢复一次 */
+  const switchTab = useCallback(
+    (id: number | string) => {
+      const saved = scrollOffsetsRef.current[String(id)] || 0;
+      switchingRef.current = true;
+      setActiveTab(id);
+      const restore = () => {
+        const m = metricsRef.current;
+        const measured = pagerHRef.current[String(id)];
+        const ph = measured != null ? Math.max(measured, 1) : m.minPagerHeight;
+        const maxOffset = Math.max(m.headerH + m.tabBarH + ph + scaleSizeH(20) - m.contentH, 0);
+        const stickyY = Math.max(m.headerH - insets.top - STICKY_NICK_H, 0);
+        // 短内容吸顶不可达时直接回页顶，避免停在半截位置
+        const target = maxOffset < stickyY ? 0 : Math.min(saved, maxOffset);
+        scrollTo(outerRef, 0, target, false);
+        (outerRef.current as any)?.scrollTo?.({ y: target, animated: false });
+      };
+      requestAnimationFrame(restore);
+      setTimeout(() => {
+        restore();
+        switchingRef.current = false;
+      }, 100);
     },
-    [tabs, windowWidth, pagerHeight, cpId, introHtml, medias, onTabHeight, onPreviewImage],
+    [outerRef, insets.top],
+  );
+
+  const lastEndRef = useRef(0);
+  const onOuterScrollJS = useCallback(
+    (y: number, ch: number, lh: number) => {
+      if (!switchingRef.current) {
+        scrollOffsetsRef.current[String(activeTabRef.current)] = y;
+      }
+      if (activeTabRef.current !== -1) return;
+      if (y + lh < ch - 300) return;
+      const now = Date.now();
+      if (now - lastEndRef.current < 800) return;
+      lastEndRef.current = now;
+      dynamicsRef.current?.onEndReached();
+    },
+    [],
+  );
+
+  /** 点 tab：pager 滚动到目标页 + 恢复目标 tab 记忆位置（momentumEnd 里按 activeTabRef 去重） */
+  const onTabPress = useCallback(
+    (tab: WebsiteTab, index: number) => {
+      swiperRef.current?.scrollToOffset({ offset: index * windowWidth, animated: true });
+      switchTab(tab.id);
+    },
+    [switchTab, windowWidth],
+  );
+
+  /** 横滑结束：落到整页后切换 tab（对齐企业主页 onSwiperMomentumEnd） */
+  const onSwipeEnd = useCallback(
+    (e: { nativeEvent: { contentOffset: { x: number } } }) => {
+      const i = Math.round(e.nativeEvent.contentOffset.x / windowWidth);
+      const t = tabs[i];
+      if (t && t.id !== activeTabRef.current) switchTab(t.id);
+    },
+    [tabs, windowWidth, switchTab],
+  );
+
+  const renderPage = useCallback(
+    ({ item: tab }: { item: WebsiteTab }) => (
+      <View style={{ width: windowWidth, height: pagerHeight }}>
+        {tab.id === -1 ? (
+          <DynamicsTab
+            ref={dynamicsRef}
+            cpId={cpId}
+            active={activeTabRef.current === -1}
+            onHeight={(h) => onTabHeight('-1', h)}
+          />
+        ) : (
+          <View onLayout={(e) => onTabHeight(String(tab.id), e.nativeEvent.layout.height)}>
+            {tab.id === -2 ? (
+              <View style={styles.infoContent}>
+                {!!stripHtml(introHtml) && (
+                  <>
+                    <Text style={styles.infoTitle}>企业简介</Text>
+                    <ModuleHtml html={introHtml} />
+                  </>
+                )}
+                {medias.length > 0 && (
+                  <>
+                    <Text style={[styles.infoTitle, styles.albumTitle]}>企业相册</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.albumScroll}>
+                      <View style={styles.albumRow}>
+                        {medias.map((item, ix) => (
+                          <AlbumItem
+                            key={ix}
+                            item={item}
+                            width={scaleSizeW(290)}
+                            height={scaleSizeW(175)}
+                            radius={scaleSizeW(10)}
+                            onPreview={() => onPreviewImage(item)}
+                          />
+                        ))}
+                      </View>
+                    </ScrollView>
+                  </>
+                )}
+                {!stripHtml(introHtml) && medias.length === 0 && (
+                  <Text style={styles.emptyText}>暂无内容</Text>
+                )}
+              </View>
+            ) : (
+              <View style={styles.infoContent}>
+                <ModuleHtml html={tab.content?.content || ''} />
+              </View>
+            )}
+          </View>
+        )}
+      </View>
+    ),
+    [windowWidth, pagerHeight, cpId, introHtml, medias, onTabHeight, onPreviewImage],
   );
 
   // tab 吸顶（对齐企业主页）：吸顶栏高度 0→(状态栏+46) 跟随滚动展开，中间显示企业名称；全程 UI 线程不抖
@@ -193,38 +265,42 @@ export default function WebsiteFree({ cpId, fromShare }: WebsiteFreeProps) {
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (e) => {
       scrollY.value = e.contentOffset.y;
-      runOnJS(maybeLoadMore)(e.contentOffset.y, e.contentSize.height, e.layoutMeasurement.height);
+      runOnJS(onOuterScrollJS)(e.contentOffset.y, e.contentSize.height, e.layoutMeasurement.height);
     },
   });
-  const nickStyle = useAnimatedStyle(() => ({
-    height: interpolate(
-      scrollY.value,
-      [Math.max(headerHSV.value - STICKY_NICK_H, 0), Math.max(headerHSV.value, 1)],
-      [0, insets.top + STICKY_NICK_H],
-      Extrapolation.CLAMP,
-    ),
-  }));
-  /** 吸顶过程中返回键上移 5px 进入名称栏（对齐企业主页） */
-  const navStyle = useAnimatedStyle(() => ({
-    transform: [
-      {
-        translateY: interpolate(
-          scrollY.value,
-          [Math.max(headerHSV.value - STICKY_NICK_H, 0), Math.max(headerHSV.value, 1)],
-          [0, -5],
-          Extrapolation.CLAMP,
-        ),
-      },
-    ],
-  }));
+  // 吸顶（自定义悬浮层方案，替代 RN stickyHeaderIndices——后者在 pager 高度变化 + clamp 时状态错乱）：
+  // 内联 tab 栏随内容滚走；切换点 = headerH - 状态栏 - 名称栏高，此时内联栏与悬浮层（含状态栏+名称栏）的 tab 位置
+  // 正好重合，1px 阈值完成无跳动切换（全程 UI 线程）
+  const overlayH = insets.top + STICKY_NICK_H + tabBarH;
+  const stickyOverlayStyle = useAnimatedStyle(() => {
+    const stickyY = Math.max(headerHSV.value - insets.top - STICKY_NICK_H, 1);
+    return {
+      transform: [
+        {
+          translateY: interpolate(scrollY.value, [stickyY - 1, stickyY], [-overlayH, 0], Extrapolation.CLAMP),
+        },
+      ],
+    };
+  });
+  /** 吸顶切换时返回键上移 5px 收进名称栏（与悬浮层同一切换点） */
+  const navStyle = useAnimatedStyle(() => {
+    const stickyY = Math.max(headerHSV.value - insets.top - STICKY_NICK_H, 1);
+    return {
+      transform: [
+        {
+          translateY: interpolate(scrollY.value, [stickyY - 1, stickyY], [0, -5], Extrapolation.CLAMP),
+        },
+      ],
+    };
+  });
 
   return (
     <SafeView backgroundColor="#FFFFFF">
       <StatusBar barStyle="dark-content" />
       <Reanimated.ScrollView
+        ref={outerRef}
         style={styles.flex1}
         showsVerticalScrollIndicator={false}
-        stickyHeaderIndices={[1]}
         onScroll={scrollHandler}
         scrollEventThrottle={16}
         onLayout={(e) => setContentH(e.nativeEvent.layout.height)}
@@ -233,6 +309,7 @@ export default function WebsiteFree({ cpId, fromShare }: WebsiteFreeProps) {
           style={[styles.content, { paddingTop: insets.top + scaleSizeH(81) }]}
           onLayout={(e) => {
             headerHSV.value = e.nativeEvent.layout.height;
+            metricsRef.current.headerH = e.nativeEvent.layout.height;
           }}
         >
           {/* 头像 + 企业名称/认证角标 */}
@@ -270,36 +347,58 @@ export default function WebsiteFree({ cpId, fromShare }: WebsiteFreeProps) {
           </View>
         </View>
 
-        {/* 模块 tab（吸顶，对齐企业主页 stickyHeaderIndices；吸顶栏中间显示企业名称） */}
+        {/* 模块 tab（内联随内容滚动；吸顶由底部悬浮层接管，见 stickyOverlay） */}
         <View style={styles.tabsWrap}>
-          <Reanimated.View style={[styles.stickyNick, nickStyle]}>
-            <View style={styles.stickyNickInner}>
-              <Text style={styles.stickyName} numberOfLines={1}>
-                {data?.name || ''}
-              </Text>
-            </View>
-          </Reanimated.View>
           <View onLayout={(e) => setTabBarH(e.nativeEvent.layout.height)}>
-            <WebsiteTabs tabs={tabs} activeId={currentTab?.id} onChange={(t) => setActiveTab(t.id)} />
+            <WebsiteTabs
+              tabs={tabs}
+              activeId={currentTab?.id}
+              onChange={onTabPress}
+              scrollX={scrollX}
+              pageWidth={windowWidth}
+            />
           </View>
         </View>
 
-        {/* tab 内容：左右滑动切换（react-native-tab-view），高度按当前 tab 内容撑开 */}
-        <TabView
-          navigationState={{ index: activeIndex, routes }}
-          renderScene={renderScene}
-          renderTabBar={() => null}
-          onIndexChange={(i) => {
-            const t = tabs[i];
-            if (t) setActiveTab(t.id);
-          }}
-          initialLayout={{ width: windowWidth }}
+        {/* tab 内容：左右滑动切换（横向 FlatList pager，对齐企业主页），高度按当前 tab 内容撑开 */}
+        <Animated.FlatList
+          ref={swiperRef}
           style={{ height: pagerHeight }}
+          horizontal
+          pagingEnabled
+          bounces={false}
+          overScrollMode="never"
+          showsHorizontalScrollIndicator={false}
+          data={tabs}
+          keyExtractor={(t: WebsiteTab) => String(t.id)}
+          getItemLayout={(_data, i) => ({ length: windowWidth, offset: windowWidth * i, index: i })}
+          onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], { useNativeDriver: true })}
+          onMomentumScrollEnd={onSwipeEnd}
+          scrollEventThrottle={16}
+          renderItem={renderPage}
         />
         <View style={styles.bottomPad} />
       </Reanimated.ScrollView>
 
       <BackCircle onPress={() => navigation.goBack()} animatedStyle={navStyle} />
+
+      {/* 吸顶悬浮栏：状态栏占位 + 企业名称 + tab 栏复制（与内联共享状态） */}
+      <Reanimated.View style={[styles.stickyOverlay, stickyOverlayStyle]} pointerEvents="box-none">
+        <View style={{ height: insets.top }} />
+        <View style={styles.stickyNickInner}>
+          <Text style={styles.stickyName} numberOfLines={1}>
+            {data?.name || ''}
+          </Text>
+        </View>
+        <WebsiteTabs
+          tabs={tabs}
+          activeId={currentTab?.id}
+          onChange={onTabPress}
+          scrollX={scrollX}
+          pageWidth={windowWidth}
+        />
+      </Reanimated.View>
+
       <ContactSheet ref={contactRef} contacts={contacts} onClose={() => contactRef.current?.dismiss()} />
 
       <Modal transparent visible={!!preview} onRequestClose={() => setPreview(null)}>
@@ -383,16 +482,16 @@ const styles = StyleSheet.create({
   tabsWrap: {
     backgroundColor: '#FFFFFF',
   },
-  stickyNick: {
-    backgroundColor: '#FFFFFF',
-    overflow: 'hidden',
-  },
-  /** 名称贴容器底滑出，上方留白即状态栏占位（对齐企业主页） */
-  stickyNickInner: {
+  stickyOverlay: {
     position: 'absolute',
-    bottom: 0,
+    top: 0,
     left: 0,
     right: 0,
+    backgroundColor: '#FFFFFF',
+    zIndex: 5,
+  },
+  /** 吸顶栏企业名称行（左右留白避开返回键） */
+  stickyNickInner: {
     height: STICKY_NICK_H,
     alignItems: 'center',
     justifyContent: 'center',
@@ -406,7 +505,7 @@ const styles = StyleSheet.create({
   },
   infoContent: {
     paddingHorizontal: scaleSizeW(16),
-    paddingTop: scaleSizeH(16),
+    paddingTop: scaleSizeH(24),
   },
   infoTitle: {
     fontSize: setSpText(14),

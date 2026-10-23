@@ -1,5 +1,6 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import {
+  Animated,
   Linking,
   Platform,
   ScrollView,
@@ -129,16 +130,24 @@ export function ContactPill({ dark, onPress }: { dark?: boolean; onPress: () => 
 interface WebsiteTabsProps {
   tabs: WebsiteTab[];
   activeId: number | string;
-  onChange: (tab: WebsiteTab) => void;
+  onChange: (tab: WebsiteTab, index: number) => void;
   dark?: boolean;
+  /** 横向 pager 的 scrollX（传入后指示器/文字颜色随滑动联动，对齐企业主页） */
+  scrollX?: Animated.Value;
+  pageWidth?: number;
 }
 
 /** 模块 tab 栏（横向滚动，gap 34；激活 15 Medium，未激活 15 Regular；下划线 24×3 圆角；底部分隔线；激活项自动滚入可视区域） */
-export function WebsiteTabs({ tabs, activeId, onChange, dark }: WebsiteTabsProps) {
+export function WebsiteTabs({ tabs, activeId, onChange, dark, scrollX, pageWidth }: WebsiteTabsProps) {
   const [layouts, setLayouts] = useState<Record<string, { x: number; w: number }>>({});
   const scrollRef = useRef<ScrollView>(null);
   const active = tabs.find((t) => t.id === activeId) || tabs[0];
   const activeLayout = active ? layouts[String(active.id)] : undefined;
+  const orderedLayouts = tabs.map((t) => layouts[String(t.id)]);
+  const layoutsReady = orderedLayouts.every(Boolean) && orderedLayouts.length > 0;
+  const position = scrollX && pageWidth ? Animated.divide(scrollX, pageWidth) : null;
+  // 插值至少 2 个元素：仅 1 个 tab 时退回静态指示器
+  const animatedIndicator = position && layoutsReady && tabs.length >= 2;
 
   // 激活 tab 不在可视区域时，横向滚动使其居中可见
   useEffect(() => {
@@ -152,13 +161,27 @@ export function WebsiteTabs({ tabs, activeId, onChange, dark }: WebsiteTabsProps
       <ScrollView ref={scrollRef} horizontal showsHorizontalScrollIndicator={false}>
         <View>
           <View style={styles.tabsRow}>
-            {tabs.map((t) => {
+            {tabs.map((t, i) => {
               const isActive = active && t.id === active.id;
+              const colorStyle =
+                position && layoutsReady
+                  ? {
+                      color: position.interpolate({
+                        inputRange: [i - 1, i, i + 1],
+                        outputRange: dark
+                          ? ['#999999', '#FFFFFF', '#999999']
+                          : ['#6C6C6C', '#000000', '#6C6C6C'],
+                        extrapolate: 'clamp',
+                      }),
+                    }
+                  : dark
+                    ? styles.tabTextDark
+                    : styles.tabTextLight;
               return (
                 <TouchableOpacity
                   key={String(t.id)}
                   activeOpacity={0.7}
-                  onPress={() => onChange(t)}
+                  onPress={() => onChange(t, i)}
                   onLayout={(e) => {
                     const { x, width } = e.nativeEvent.layout;
                     setLayouts((prev) => {
@@ -168,29 +191,51 @@ export function WebsiteTabs({ tabs, activeId, onChange, dark }: WebsiteTabsProps
                     });
                   }}
                 >
-                  <Text
+                  <Animated.Text
                     style={[
                       styles.tabText,
-                      dark ? styles.tabTextDark : styles.tabTextLight,
+                      colorStyle,
                       isActive && styles.tabTextActive,
-                      isActive && (dark ? styles.tabTextDarkActive : styles.tabTextLightActive),
+                      !position && isActive && (dark ? styles.tabTextDarkActive : styles.tabTextLightActive),
                     ]}
                   >
                     {t.name}
-                  </Text>
+                  </Animated.Text>
                 </TouchableOpacity>
               );
             })}
           </View>
-          {activeLayout && (
-            <View
-              style={[
-                styles.tabsIndicator,
-                dark && styles.tabsIndicatorDark,
-                { left: activeLayout.x + (activeLayout.w - scaleSizeW(24)) / 2 },
-              ]}
-            />
-          )}
+          {layoutsReady &&
+            (animatedIndicator ? (
+              <Animated.View
+                style={[
+                  styles.tabsIndicator,
+                  dark && styles.tabsIndicatorDark,
+                  styles.tabsIndicatorAnimated,
+                  {
+                    transform: [
+                      {
+                        translateX: position.interpolate({
+                          inputRange: tabs.map((_, i) => i),
+                          outputRange: orderedLayouts.map((l) => l.x + (l.w - scaleSizeW(24)) / 2),
+                          extrapolate: 'clamp',
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              />
+            ) : (
+              activeLayout && (
+                <View
+                  style={[
+                    styles.tabsIndicator,
+                    dark && styles.tabsIndicatorDark,
+                    { left: activeLayout.x + (activeLayout.w - scaleSizeW(24)) / 2 },
+                  ]}
+                />
+              )
+            ))}
         </View>
       </ScrollView>
       <View style={[styles.tabsDivider, dark && styles.tabsDividerDark]} />
@@ -419,6 +464,9 @@ const styles = StyleSheet.create({
     height: 3,
     borderRadius: 3,
     backgroundColor: PRIMARY,
+  },
+  tabsIndicatorAnimated: {
+    left: 0,
   },
   tabsIndicatorDark: {
     backgroundColor: '#FFFFFF',
