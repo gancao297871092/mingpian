@@ -28,6 +28,7 @@ import { setFollow } from '@/store/follow';
 import { useBbsInteractionStore } from '@/store/bbsInteraction';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { storageUtils } from '@/utils/storage';
+import { goUserHome } from '@/route/navigationRef';
 import type { RootStackParamList } from '@/route/map';
 import { LocationAuthIcon, SearchBadgeIcon, SearchEyeIcon, SearchLocationIcon } from './searchIcons';
 import RegionFilterPanel from './RegionFilterPanel';
@@ -545,7 +546,7 @@ export default function SearchPage() {
     <TouchableOpacity
       activeOpacity={0.8}
       style={styles.userRow}
-      onPress={() => navigation.navigate('userHome', { userId: Number(item.id) })}
+      onPress={() => goUserHome(Number(item.id))}
     >
       {item.avatar ? (
         <ExpoImage source={{ uri: item.avatar }} style={styles.userAvatar} contentFit="cover" transition={150} />

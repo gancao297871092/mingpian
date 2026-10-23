@@ -1,7 +1,8 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { LocalDraft } from '@/utils/draftStore';
 
 export type RootStackParamList = {
-  MainTabs: undefined;
+  MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
   login: undefined;
   otherLogin: undefined;
   agreement: { type: string; title?: string };
@@ -44,6 +45,8 @@ export type RootStackParamList = {
   editBio: undefined;
   reportBbs: { id: string };
   companyPage: { id: string | number; userId?: string | number };
+  /** 企业官网（figma 企业官网2 2134:6575 / 企业官网升级版 2136:6665；按 mainType 渲染免费/升级版） */
+  companyWebsite: { id: string | number; userId?: string | number; fromShare?: number | string };
   certification: { openIndex?: number };
   follows: { tab?: 'mutual' | 'follow' | 'fans'; userId?: number; nickname?: string; followShow?: number; fansShow?: number } | undefined;
   workbench: undefined;

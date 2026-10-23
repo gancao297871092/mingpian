@@ -402,7 +402,11 @@ export default function CompanyPage() {
                     </View>
                   </View>
                   <View style={styles.btnRow}>
-                    <TouchableOpacity activeOpacity={0.8} style={styles.siteBtn} onPress={todo}>
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      style={styles.siteBtn}
+                      onPress={() => navigation.navigate('companyWebsite', { id: cpId })}
+                    >
                       <Text style={styles.siteBtnText}>企业官网</Text>
                     </TouchableOpacity>
                     <TouchableOpacity activeOpacity={0.8} style={styles.chatBtn} onPress={todo}>

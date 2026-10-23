@@ -702,6 +702,10 @@ export namespace API {
     export function main(params: { cpId: number | string }) {
       return request.get<any>('/company/main', { params });
     }
+    /** 企业类型（mainType: 0 免费版官网 / 其他 升级版官网，对齐小程序 companyPage getMainType） */
+    export function mainType(params: { cpId: number | string }) {
+      return request.get<{ mainType: number }>('/company/mainType', { params });
+    }
     /** 企业基本信息卡片（免登录；不含图片分组，走 /company/gallery） */
     export function infoBasic(params: { cpId: number | string }) {
       return request.get<any>('/company/info/basic', { params });

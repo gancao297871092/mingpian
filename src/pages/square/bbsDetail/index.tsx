@@ -52,6 +52,7 @@ import {
   type DetailData,
 } from './detailTransform';
 import type { RootStackParamList } from '@/route/map';
+import { goUserHome } from '@/route/navigationRef';
 
 const BLUE = '#2962D4';
 const LIKE_RED = '#FE2B55';
@@ -1023,7 +1024,7 @@ export default function BbsDetail() {
             <TouchableOpacity
               activeOpacity={0.7}
               style={styles.headerAuthor}
-              onPress={() => navigation.navigate('userHome', { userId: detail.authorId })}
+              onPress={() => goUserHome(detail.authorId)}
             >
               <ExpoImage source={{ uri: detail.authorAvatar }} style={styles.headerAvatar} contentFit="cover" transition={150} />
               <View style={styles.headerAuthorText}>

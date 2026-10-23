@@ -42,6 +42,7 @@ import BrowseHistorySearch from '@/pages/my/BrowseHistorySearch';
 import CompanyManage from '@/pages/my/CompanyManage';
 import CompanyInfo from '@/pages/my/company/CompanyInfo';
 import CompanyPage from '@/pages/my/company/CompanyPage';
+import CompanyWebsite from '@/pages/company/website/CompanyWebsite';
 import CompanyModuleEdit from '@/pages/my/company/CompanyModuleEdit';
 import CompanyContactEdit from '@/pages/my/company/CompanyContactEdit';
 import CompanyMembers from '@/pages/my/company/CompanyMembers';
@@ -571,6 +572,14 @@ export default function RootNavigator() {
           component={CompanyPage}
           options={{
             // 封面图延伸至状态栏（figma 企业主页），自定义悬浮返回按钮
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="companyWebsite"
+          component={CompanyWebsite}
+          options={{
+            // 状态栏压在页面上（figma 企业官网2/升级版），自定义悬浮返回按钮
             headerShown: false,
           }}
         />
