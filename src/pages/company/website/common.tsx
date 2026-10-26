@@ -40,6 +40,7 @@ export function useCompanyMain(cpId: number | string) {
     return API.company
       .main({ cpId })
       .then((res) => {
+        // console.log('company main', res);
         if (res.code === '200' && res.data) setData(res.data);
       })
       .catch(() => { });
@@ -233,7 +234,7 @@ export function WebsiteTabs({ tabs, activeId, onChange, dark, scrollX, pageWidth
             ))}
         </View>
       </ScrollView>
-      <View style={[styles.tabsDivider, dark && styles.tabsDividerDark]} />
+      <View style={[styles.tabsDivider]} />
     </View>
   );
 }

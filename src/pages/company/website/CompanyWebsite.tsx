@@ -18,12 +18,12 @@ export default function CompanyWebsite() {
     API.company
       .mainType({ cpId: id })
       .then((res) => {
-        // if (res.code === '200' && res.data) setMainType(Number(res.data.mainType ?? 0));
-        if (res.code === '200' && res.data) setMainType(1);
+        if (res.code === '200' && res.data) setMainType(Number(res.data.mainType ?? 0));
       })
       .catch(() => setMainType(0));
   }, [id]);
 
+  
   if (mainType === null) {
     return (
       <SafeView backgroundColor="#FFFFFF">

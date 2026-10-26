@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Animated,
   Modal,
+  PanResponder,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -304,6 +305,22 @@ export default function WebsiteFree({ cpId, fromShare }: WebsiteFreeProps) {
     return () => scrollX.removeListener(id);
   }, [scrollX, windowWidth, tabs, resolveTargetY]);
 
+  /** 头部拖动手势：纵向拖动转发给当前 tab 页滚动（带动头部收起）；横向拖动吞掉，避免穿透到底层 pager 误切 tab */
+  const dragStartY = useRef(0);
+  const headerPan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dy) > 5 || Math.abs(g.dx) > 10,
+      onPanResponderGrant: () => {
+        dragStartY.current = pageYsRef.current[String(activeTabRef.current)] || 0;
+      },
+      onPanResponderMove: (_e, g) => {
+        if (Math.abs(g.dy) <= Math.abs(g.dx)) return;
+        const key = String(activeTabRef.current);
+        pageRefs.current[key]?.scrollTo?.({ y: Math.max(dragStartY.current - g.dy, 0), animated: false });
+      },
+    }),
+  ).current;
+
   /** 点 tab：pager 滚动到目标页 + 切换（momentumEnd 里按 activeTabRef 去重） */
   const onTabPress = useCallback(
     (tab: WebsiteTab, index: number) => {
@@ -425,9 +442,10 @@ export default function WebsiteFree({ cpId, fromShare }: WebsiteFreeProps) {
           <View
             style={[styles.content, { paddingTop: insets.top + scaleSizeH(81) }]}
             onLayout={(e) => setHeaderH(e.nativeEvent.layout.height)}
+            {...headerPan.panHandlers}
           >
-            {/* 头像 + 企业名称/认证角标 */}
-            <View style={styles.headerRow}>
+            {/* 头像 + 企业名称/认证角标（静态区 pointerEvents none：触摸由 content 的 PanResponder 统一接管） */}
+            <View style={styles.headerRow} pointerEvents="none">
               <View style={styles.logoWrap}>
                 {data?.avatar ? (
                   <ExpoImage
@@ -452,11 +470,15 @@ export default function WebsiteFree({ cpId, fromShare }: WebsiteFreeProps) {
             </View>
 
             {/* 公司地址 */}
-            <Text style={styles.sectionLabel}>公司地址</Text>
+            <Text style={styles.sectionLabel} pointerEvents="none">
+              公司地址
+            </Text>
             {data ? (
-              <Text style={styles.address}>{data.address || ''}</Text>
+              <Text style={styles.address} pointerEvents="none">
+                {data.address || ''}
+              </Text>
             ) : (
-              <View style={styles.skeletonAddress} />
+              <View style={styles.skeletonAddress} pointerEvents="none" />
             )}
 
             {/* 导航 / 查看联系方式 */}
