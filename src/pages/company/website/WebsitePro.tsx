@@ -290,12 +290,16 @@ const styles = StyleSheet.create({
   logoEmpty: {
     backgroundColor: '#F5F5F5',
   },
-  logoBadgeImg: {
+  logoBadge: {
     position: 'absolute',
-    left: scaleSizeW(60),
+    right: 0,
+    bottom: 0,
+    zIndex: 2,
+    elevation: 2,
+  },
+  logoBadgeImg: {
     width: scaleSizeW(18),
     height: scaleSizeW(18),
-    zIndex: 7,
   },
   nameCol: {
     flex: 1,

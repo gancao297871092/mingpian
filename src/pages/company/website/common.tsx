@@ -42,7 +42,7 @@ export function useCompanyMain(cpId: number | string) {
       .then((res) => {
         if (res.code === '200' && res.data) setData(res.data);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [cpId]);
   useEffect(() => {
     load();
@@ -166,20 +166,7 @@ export function WebsiteTabs({ tabs, activeId, onChange, dark, scrollX, pageWidth
           <View style={styles.tabsRow}>
             {tabs.map((t, i) => {
               const isActive = active && t.id === active.id;
-              const colorStyle =
-                position && layoutsReady
-                  ? {
-                      color: position.interpolate({
-                        inputRange: [i - 1, i, i + 1],
-                        outputRange: dark
-                          ? ['#999999', '#FFFFFF', '#999999']
-                          : ['#6C6C6C', '#000000', '#6C6C6C'],
-                        extrapolate: 'clamp',
-                      }),
-                    }
-                  : dark
-                    ? styles.tabTextDark
-                    : styles.tabTextLight;
+
               return (
                 <TouchableOpacity
                   key={String(t.id)}
@@ -197,9 +184,8 @@ export function WebsiteTabs({ tabs, activeId, onChange, dark, scrollX, pageWidth
                   <Animated.Text
                     style={[
                       styles.tabText,
-                      colorStyle,
                       isActive && styles.tabTextActive,
-                      !position && isActive && (dark ? styles.tabTextDarkActive : styles.tabTextLightActive),
+                      isActive ? styles.tabTextLightActive : styles.tabTextDark,
                     ]}
                   >
                     {t.name}
