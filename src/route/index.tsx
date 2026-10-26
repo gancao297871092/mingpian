@@ -163,7 +163,7 @@ export default function RootNavigator() {
   return (
     <NavigationContainer ref={navigationRef} theme={navTheme}>
       <Stack.Navigator
-        initialRouteName={DEV_INITIAL_ROUTE}
+        // initialRouteName={DEV_INITIAL_ROUTE}
         screenOptions={{
           headerTitleAlign: 'center',
           headerBackButtonDisplayMode: 'minimal',

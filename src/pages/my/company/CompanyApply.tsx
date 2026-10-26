@@ -71,6 +71,9 @@ export default function CompanyApply() {
       if (type === '3') {
         await API.company.positionEdit(data);
         Toast.show({ type: 'success', text1: '保存成功' });
+      } else if (type === '2') {
+        await API.company.positionChange(data);
+        Toast.show({ type: 'success', text1: '申请成功' });
       } else {
         await API.company.auth(data);
         Toast.show({ type: 'success', text1: '申请成功' });

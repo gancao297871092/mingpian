@@ -528,9 +528,13 @@ export namespace API {
     export function queryPre() {
       return request.get<any>('/user/company/queryPre');
     }
-    /** 申请加入企业 / 职位变更申请（submitPosition 多职位逗号分隔） */
+    /** 申请加入企业（type=1，submitPosition 多职位逗号分隔） */
     export function auth(data: { cpId: number | string; submitPosition: string; submitMsg?: string; userId?: number | string | null }) {
       return request.post<any>('/user/company/auth', data);
+    }
+    /** 职位变更申请（type=2） */
+    export function positionChange(data: { cpId: number | string; submitPosition: string; submitMsg?: string; userId?: number | string | null }) {
+      return request.post<any>('/user/company/position/change', data);
     }
     /** 编辑成员职位（type=3，管理员操作） */
     export function positionEdit(data: { cpId: number | string; submitPosition: string; submitMsg?: string; userId?: number | string | null }) {
