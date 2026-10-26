@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Animated,
   Modal,
+  PanResponder,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -225,6 +226,14 @@ export default function WebsitePro({ cpId, fromShare }: WebsiteProProps) {
 
   const currentTab = tabs.find((t) => t.id === activeTab) || tabs[0];
 
+  // 数据加载后首个 tab id 从占位 -2 变为真实 id：同步激活态，否则头部拖动/切 tab 定位会打到已卸载的占位页
+  useEffect(() => {
+    if (tabs.length && !tabs.some((t) => t.id === activeTabRef.current)) {
+      activeTabRef.current = tabs[0].id;
+      setActiveTab(tabs[0].id);
+    }
+  }, [tabs]);
+
   // ---- 头部跟随滚动（快手同款）：scrollY 为当前 tab 的滚动偏移，头部悬浮层 1:1 平移 ----
   const scrollX = useRef(new Animated.Value(0)).current;
   const swiperRef = useRef<any>(null);
@@ -326,6 +335,22 @@ export default function WebsitePro({ cpId, fromShare }: WebsiteProProps) {
     return () => scrollX.removeListener(id);
   }, [scrollX, windowWidth, tabs, resolveTargetY]);
 
+  /** 头部拖动手势：纵向拖动转发给当前 tab 页滚动（带动头部收起）；横向拖动吞掉，避免穿透到底层 pager 误切 tab */
+  const dragStartY = useRef(0);
+  const headerPan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dy) > 5 || Math.abs(g.dx) > 10,
+      onPanResponderGrant: () => {
+        dragStartY.current = pageYsRef.current[String(activeTabRef.current)] || 0;
+      },
+      onPanResponderMove: (_e, g) => {
+        if (Math.abs(g.dy) <= Math.abs(g.dx)) return;
+        const key = String(activeTabRef.current);
+        pageRefs.current[key]?.scrollTo?.({ y: Math.max(dragStartY.current - g.dy, 0), animated: false });
+      },
+    }),
+  ).current;
+
   /** 点 tab：pager 滚动到目标页 + 切换（momentumEnd 里按 activeTabRef 去重） */
   const onTabPress = useCallback(
     (tab: WebsiteTab, index: number) => {
@@ -420,14 +445,15 @@ export default function WebsitePro({ cpId, fromShare }: WebsiteProProps) {
           <View
             style={[styles.content, { paddingTop: insets.top + scaleSizeH(81) }]}
             onLayout={(e) => setHeaderH(e.nativeEvent.layout.height)}
+            {...headerPan.panHandlers}
           >
             {/* 右上角认证图标底纹（figma 2184:5723，256 图左对齐、167 宽裁切、10% 透明度），随头部一起收起 */}
             <View style={styles.certBg} pointerEvents="none">
               <ExpoImage source={CERT_BG} style={styles.certBgImg} contentFit="contain" />
             </View>
 
-            {/* 头像 + 企业名称/认证角标 */}
-            <View style={styles.headerRow}>
+            {/* 头像 + 企业名称/认证角标（静态区 pointerEvents none：触摸穿透到底层 pager，可直接拖动滚动） */}
+            <View style={styles.headerRow} pointerEvents="none">
               <View style={styles.logoWrap}>
                 {data?.avatar ? (
                   <ExpoImage
@@ -459,11 +485,15 @@ export default function WebsitePro({ cpId, fromShare }: WebsiteProProps) {
             </View>
 
             {/* 公司地址 */}
-            <Text style={styles.sectionLabel}>公司地址</Text>
+            <Text style={styles.sectionLabel} pointerEvents="none">
+              公司地址
+            </Text>
             {data ? (
-              <Text style={styles.address}>{data.address || ''}</Text>
+              <Text style={styles.address} pointerEvents="none">
+                {data.address || ''}
+              </Text>
             ) : (
-              <View style={styles.skeletonAddress} />
+              <View style={styles.skeletonAddress} pointerEvents="none" />
             )}
 
             {/* 导航 / 查看联系方式 */}
@@ -475,8 +505,10 @@ export default function WebsitePro({ cpId, fromShare }: WebsiteProProps) {
             {/* 关于企业 */}
             {!!intro && (
               <>
-                <View style={styles.aboutRow}>
-                  <Text style={[styles.sectionLabel, styles.aboutLabel]}>关于企业</Text>
+                <View style={styles.aboutRow} pointerEvents="box-none">
+                  <Text style={[styles.sectionLabel, styles.aboutLabel]} pointerEvents="none">
+                    关于企业
+                  </Text>
                   {showToggle && (
                     <TouchableOpacity
                       activeOpacity={0.7}
@@ -493,6 +525,7 @@ export default function WebsitePro({ cpId, fromShare }: WebsiteProProps) {
                 <Text
                   style={styles.aboutDesc}
                   numberOfLines={expanded ? undefined : 4}
+                  pointerEvents="none"
                   onTextLayout={(e) => {
                     if (!showToggle && e.nativeEvent.lines.length > 4) setShowToggle(true);
                   }}
@@ -505,7 +538,9 @@ export default function WebsitePro({ cpId, fromShare }: WebsiteProProps) {
             {/* 企业相册 */}
             {medias.length > 0 && (
               <>
-                <Text style={[styles.sectionLabel, styles.albumLabel]}>企业相册</Text>
+                <Text style={[styles.sectionLabel, styles.albumLabel]} pointerEvents="none">
+                  企业相册
+                </Text>
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -663,7 +698,7 @@ const styles = StyleSheet.create({
   expandBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scaleSizeW(2),
+    gap: scaleSizeW(5),
     marginTop: scaleSizeH(30),
   },
   expandText: {
