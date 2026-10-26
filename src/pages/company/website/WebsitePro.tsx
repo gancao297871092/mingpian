@@ -78,7 +78,11 @@ export default function WebsitePro({ cpId, fromShare }: WebsiteProProps) {
 
   const tabs: WebsiteTab[] = useMemo(() => {
     if (!data) return [];
-    return [...flattenTree(data.treeVOList), { id: -1, name: '最新动态' }];
+    return [
+      ...flattenTree(data.treeVOList),
+      ...(data.moduleList || []).map((o: any) => ({ id: o.id, name: o.mdName, content: o.content })),
+      { id: -1, name: '最新动态' },
+    ];
   }, [data]);
 
   const auths: string[] = (data?.authTypeList || []).map((o: any) => o.authTypeCode);
