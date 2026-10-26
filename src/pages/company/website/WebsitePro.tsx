@@ -55,6 +55,9 @@ import { ChevronDownIcon } from './icons';
 const CERT_BG = require('@/assets/company-website/cert-bg.png');
 const VERIFIED_BADGE_DARK = require('@/assets/company-website/verified-badge-dark.png');
 
+/** 升级版页面主题底色（全页统一：页面/头部/tab 栏/吸顶栏背景，改这里即可整体换肤） */
+const PAGE_BG = '#2F2F2F';
+
 interface WebsiteProProps {
   cpId: number | string;
   fromShare?: number | string;
@@ -419,7 +422,7 @@ export default function WebsitePro({ cpId, fromShare }: WebsiteProProps) {
   );
 
   return (
-    <SafeView backgroundColor="#2F2F2F">
+    <SafeView backgroundColor={PAGE_BG}>
       <StatusBar barStyle="light-content" />
       <View style={styles.flex1} onLayout={(e) => setContentH(e.nativeEvent.layout.height)}>
         {/* tab 内容：左右滑动切换（横向 FlatList pager，对齐企业主页），各页内层自滚动 */}
@@ -618,7 +621,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: scaleSizeW(16),
     paddingBottom: scaleSizeH(18),
-    backgroundColor: '#2F2F2F',
+    backgroundColor: PAGE_BG,
   },
   certBg: {
     position: 'absolute',
@@ -736,14 +739,14 @@ const styles = StyleSheet.create({
     zIndex: 5,
   },
   tabsWrap: {
-    backgroundColor: '#2F2F2F',
+    backgroundColor: PAGE_BG,
   },
   nickOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#2F2F2F',
+    backgroundColor: PAGE_BG,
     zIndex: 6,
   },
   /** 吸顶栏企业名称行（左右留白避开返回键） */
