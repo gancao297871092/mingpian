@@ -128,6 +128,13 @@ export default function WebsitePro({ cpId, fromShare }: WebsiteProProps) {
               ) : (
                 <View style={[styles.logo, styles.logoEmpty]} />
               )}
+              {/* 认证徽章：贴在头像 62x62 外框右下角（figma group 内 rel 44,44），浮在头像上方 */}
+              <ExpoImage
+                source={VERIFIED_BADGE_DARK}
+                style={styles.logoBadgeImg}
+                contentFit="contain"
+                pointerEvents="none"
+              />
             </View>
             <View style={styles.nameCol}>
               <Text style={styles.name}>{data?.name || ''}</Text>
@@ -135,13 +142,6 @@ export default function WebsitePro({ cpId, fromShare }: WebsiteProProps) {
             </View>
           </View>
 
-          {/* 认证徽章：独立绝对定位在头像右下角（figma x60/y182），避免被圆角头像压住 */}
-          <ExpoImage
-            source={VERIFIED_BADGE_DARK}
-            style={[styles.logoBadgeImg, { top: insets.top + scaleSizeH(128) }]}
-            contentFit="contain"
-            pointerEvents="none"
-          />
           {/* 公司地址 */}
           <Text style={styles.sectionLabel}>公司地址</Text>
           <Text style={styles.address}>{data?.address || ''}</Text>
@@ -290,16 +290,14 @@ const styles = StyleSheet.create({
   logoEmpty: {
     backgroundColor: '#F5F5F5',
   },
-  logoBadge: {
+  logoBadgeImg: {
     position: 'absolute',
     right: 0,
     bottom: 0,
-    zIndex: 2,
-    elevation: 2,
-  },
-  logoBadgeImg: {
     width: scaleSizeW(18),
     height: scaleSizeW(18),
+    zIndex: 2,
+    elevation: 2,
   },
   nameCol: {
     flex: 1,

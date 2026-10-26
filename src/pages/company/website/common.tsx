@@ -185,7 +185,13 @@ export function WebsiteTabs({ tabs, activeId, onChange, dark, scrollX, pageWidth
                     style={[
                       styles.tabText,
                       isActive && styles.tabTextActive,
-                      isActive ? styles.tabTextLightActive : styles.tabTextDark,
+                      dark
+                        ? isActive
+                          ? styles.tabTextDarkActive
+                          : styles.tabTextDark
+                        : isActive
+                          ? styles.tabTextLightActive
+                          : styles.tabTextLight,
                     ]}
                   >
                     {t.name}
