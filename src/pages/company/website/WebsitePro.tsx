@@ -184,7 +184,8 @@ export default function WebsitePro({ cpId, fromShare }: WebsiteProProps) {
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
   const [expanded, setExpanded] = useState(false);
-  const [showToggle, setShowToggle] = useState(false);
+  /** 关于企业正文未截断时的行数（0 = 未测量）；>4 才显示展开/收起 */
+  const [aboutLines, setAboutLines] = useState(0);
   const [preview, setPreview] = useState<{ urls: string[]; index: number } | null>(null);
   const [contentH, setContentH] = useState(0);
   const [headerH, setHeaderH] = useState(0);
@@ -509,7 +510,7 @@ export default function WebsitePro({ cpId, fromShare }: WebsiteProProps) {
                   <Text style={[styles.sectionLabel, styles.aboutLabel]} pointerEvents="none">
                     关于企业
                   </Text>
-                  {showToggle && (
+                  {aboutLines > 4 && (
                     <TouchableOpacity
                       activeOpacity={0.7}
                       style={styles.expandBtn}
@@ -522,12 +523,13 @@ export default function WebsitePro({ cpId, fromShare }: WebsiteProProps) {
                     </TouchableOpacity>
                   )}
                 </View>
+                {/* 首帧不截断测行数（截断后 lines 最多只报 4 行，测不出真实行数），测完再按 4 行截断 */}
                 <Text
                   style={styles.aboutDesc}
-                  numberOfLines={expanded ? undefined : 4}
+                  numberOfLines={aboutLines === 0 || expanded ? undefined : 4}
                   pointerEvents="none"
                   onTextLayout={(e) => {
-                    if (!showToggle && e.nativeEvent.lines.length > 4) setShowToggle(true);
+                    if (aboutLines === 0) setAboutLines(e.nativeEvent.lines.length);
                   }}
                 >
                   {intro}
