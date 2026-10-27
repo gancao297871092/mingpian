@@ -718,8 +718,8 @@ export namespace API {
     export function gallery(params: { cpId: number | string }) {
       return request.get<{ groups: any[] }>('/company/gallery', { params });
     }
-    /** 企业员工动态列表（企业主页-最新动态瀑布流） */
-    export function bbsMain(data: { cpId: number | string; pageNum?: number; pageSize?: number }) {
+    /** 企业员工动态列表（企业主页-最新动态瀑布流；search 按标题/正文/标签搜索） */
+    export function bbsMain(data: { cpId: number | string; pageNum?: number; pageSize?: number; search?: string }) {
       return request.post<any>('/company/bbs/main', data);
     }
   }

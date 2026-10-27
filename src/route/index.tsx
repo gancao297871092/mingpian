@@ -15,6 +15,7 @@ import LinkPage from '@/pages/link';
 import CreateCooperationSignal from '@/pages/link/CreateCooperationSignal';
 import CreateCooperationIntent from '@/pages/link/CreateCooperationIntent';
 import SelectBbs from '@/pages/link/SelectBbs';
+import SelectBbsSearch from '@/pages/link/SelectBbsSearch';
 import CooperationSignalPreview from '@/pages/link/CooperationSignalPreview';
 import MySignals, { MySignalsHeaderRight } from '@/pages/link/MySignals';
 import SignalProgress from '@/pages/link/SignalProgress';
@@ -795,6 +796,11 @@ export default function RootNavigator() {
             headerTitleStyle: { color: '#000000' },
             headerShadowVisible: false,
           }}
+        />
+        <Stack.Screen
+          name="selectBbsSearch"
+          component={SelectBbsSearch}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="cooperationSignalPreview"

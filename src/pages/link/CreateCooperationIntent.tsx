@@ -19,6 +19,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/route/map';
 import { getSelectBbsResult, type SelectedBbs } from '@/utils/selectBbsBridge';
 import { useUserStore } from '@/store/user';
+import { useSelectBbsStore } from '@/store/selectBbs';
 
 const PRIMARY = '#2962D4';
 const TEXT_SUB = '#6C6C6C';
@@ -153,7 +154,7 @@ function PickerSheet({
 export default function CreateCooperationIntent() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
-  const myId = useUserStore(s => s.userInfo?.wqUser?.id);
+  const myCpId = useUserStore(s => s.userInfo?.cpId ?? s.userInfo?.wqUser?.cpId);
   const [desc, setDesc] = useState('');
   const [picker, setPicker] = useState<PickerKind | null>(null);
   const [cardId, setCardId] = useState('c3');
@@ -272,12 +273,10 @@ export default function CreateCooperationIntent() {
           <TouchableOpacity
             activeOpacity={0.85}
             style={styles.bbsCard}
-            onPress={() =>
-              navigation.navigate('selectBbs', {
-                targetUserId: myId,
-                selectedIds: feeds.map(f => f.id),
-              })
-            }
+            onPress={() => {
+              useSelectBbsStore.getState().init(feeds);
+              navigation.navigate('selectBbs', { cpId: myCpId });
+            }}
           >
             <View style={styles.bbsCardInfo}>
               <Text style={styles.rowCardText}>选择动态</Text>
@@ -290,12 +289,10 @@ export default function CreateCooperationIntent() {
             <TouchableOpacity
               activeOpacity={0.85}
               style={styles.bbsCardHead}
-              onPress={() =>
-                navigation.navigate('selectBbs', {
-                  targetUserId: myId,
-                  selectedIds: feeds.map(f => f.id),
-                })
-              }
+              onPress={() => {
+                useSelectBbsStore.getState().init(feeds);
+                navigation.navigate('selectBbs', { cpId: myCpId });
+              }}
             >
               <View style={styles.bbsCardInfo}>
                 <Text style={styles.rowCardText}>选择动态</Text>
