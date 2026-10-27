@@ -79,6 +79,20 @@ export type RootStackParamList = {
   companyNormalInfo: { id: string | number; name?: string };
   /** 我要纠错：collectId 为企业采集记录id */
   companyErrorCorrection: { collectId?: number } | undefined;
+  /** 创建合作信号（figma 51.创建合作信号 2793:6959） */
+  createCooperationSignal: undefined;
+  /** 创建合作意向书（figma 40.创建合作意向书 251:1945 / 44.已填写 262:2127） */
+  createCooperationIntent: undefined;
+  /** 合作信号预览（figma 53.合作信号预览2 2793:7116） */
+  cooperationSignalPreview: undefined;
+  /** 我的信号（figma 50.我的信号 2805:8180） */
+  mySignals: undefined;
+  /** 信号进展·触达中（figma 2805:7992） */
+  signalProgress: { id: string };
+  /** 合作中心/我的商机（figma 56.我的商机 2793:6369 等 5 态） */
+  myOpportunities: undefined;
+  /** 商机详情（figma 62.商机详情 402:2051） */
+  opportunityDetail: undefined;
 };
 
 export type MainTabParamList = {

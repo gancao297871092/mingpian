@@ -12,6 +12,13 @@ import type { RootStackParamList, MainTabParamList } from './map';
 
 import Home from '@/pages/square/home';
 import LinkPage from '@/pages/link';
+import CreateCooperationSignal from '@/pages/link/CreateCooperationSignal';
+import CreateCooperationIntent from '@/pages/link/CreateCooperationIntent';
+import CooperationSignalPreview from '@/pages/link/CooperationSignalPreview';
+import MySignals, { MySignalsHeaderRight } from '@/pages/link/MySignals';
+import SignalProgress from '@/pages/link/SignalProgress';
+import MyOpportunities from '@/pages/link/MyOpportunities';
+import OpportunityDetail from '@/pages/link/OpportunityDetail';
 import MessagePage from '@/pages/message';
 import My from '@/pages/my';
 import EditProfile from '@/pages/my/EditProfile';
@@ -155,7 +162,7 @@ function MainTabs() {
 }
 
 // 调试：定死首屏到企业官网（上线前移除）；id 换成要调的企业 cpId
-const DEV_INITIAL_ROUTE: keyof RootStackParamList = 'companyWebsite';
+// initialRouteName 用 'companyWebsite'
 const DEV_COMPANY_ID: string | number = 9;
 
 /** 深链配置：mingpian://bbsDetail?id=xx（H5 落地页「App内打开」/分享图二维码），查询参数自动解析为路由参数 */
@@ -749,6 +756,72 @@ export default function RootNavigator() {
             headerTitleStyle: { color: '#000000' },
             headerShadowVisible: false,
           }}
+        />
+        <Stack.Screen
+          name="createCooperationSignal"
+          component={CreateCooperationSignal}
+          options={{
+            title: '创建合作信号',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="createCooperationIntent"
+          component={CreateCooperationIntent}
+          options={{
+            title: '创建合作意向书',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="cooperationSignalPreview"
+          component={CooperationSignalPreview}
+          options={{
+            title: '合作信号预览',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="mySignals"
+          component={MySignals}
+          options={{
+            title: '我的信号',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+            headerRight: () => <MySignalsHeaderRight />,
+          }}
+        />
+        <Stack.Screen
+          name="signalProgress"
+          component={SignalProgress}
+          options={{
+            title: '信号进展',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="myOpportunities"
+          component={MyOpportunities}
+          options={{
+            title: '合作中心',
+            headerStyle: { backgroundColor: '#FFFFFF' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="opportunityDetail"
+          component={OpportunityDetail}
+          options={{ headerShown: false }}
         />
       </Stack.Navigator>
     </NavigationContainer>
