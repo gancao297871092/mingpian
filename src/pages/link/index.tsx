@@ -67,8 +67,12 @@ export default function LinkPage() {
             locations={[0, 0.46, 1]}
             style={styles.heroCard}
           >
-            <Text style={styles.heroTitle}>告诉平台，您想找到谁</Text>
-            <Text style={styles.heroSub}>基于企业动态与企业画像，识别值得连接的合作线索</Text>
+            <View style={{
+              paddingTop: scaleSizeH(55),
+            }}>
+              <Text style={styles.heroTitle}>告诉平台，您想找到谁</Text>
+              <Text style={styles.heroSub}>基于企业动态与企业画像，识别值得连接的合作线索</Text>
+            </View>
             <TouchableOpacity
               activeOpacity={0.85}
               style={styles.heroCta}
@@ -79,6 +83,7 @@ export default function LinkPage() {
                 <ArrowCtaIcon />
               </View>
             </TouchableOpacity>
+
           </LinearGradient>
           <View style={styles.heroBadge}>
             <Text style={styles.heroBadgeText}>发合作信号</Text>
@@ -130,7 +135,7 @@ export default function LinkPage() {
           <TouchableOpacity
             activeOpacity={0.7}
             style={styles.sectionMore}
-            onPress={() => console.log('go: industry-happening')}
+            onPress={() => navigation.navigate('industryHappening')}
           >
             <Text style={styles.sectionMoreText}>查看更多</Text>
             <ChevronRightIcon size={12} />
@@ -175,7 +180,7 @@ export default function LinkPage() {
             <TouchableOpacity
               activeOpacity={0.85}
               style={styles.discoverItem}
-              onPress={() => console.log('go: ai-discoveries')}
+              onPress={() => navigation.navigate('aiDiscoveries')}
             >
               <View style={styles.entryTitleRow}>
                 <CompassIcon />
@@ -226,12 +231,11 @@ const styles = StyleSheet.create({
   },
   heroWrap: {
     marginHorizontal: scaleSizeW(16),
+    position: 'relative',
   },
   heroCard: {
     borderRadius: scaleSizeW(20),
     alignItems: 'center',
-    paddingTop: scaleSizeH(55),
-    paddingBottom: scaleSizeH(27),
   },
   heroMascot: {
     position: 'absolute',
@@ -272,6 +276,7 @@ const styles = StyleSheet.create({
   },
   heroCta: {
     marginTop: scaleSizeH(20),
+    marginBottom: scaleSizeH(27),
     width: scaleSizeW(262),
     height: scaleSizeH(40),
     borderRadius: 90,

@@ -12,7 +12,7 @@ const ORANGE = '#F2722C';
 const RED = '#EF4444';
 const TEXT_SUB = '#6C6C6C';
 
-type SignalStatus = 'review' | 'reaching' | 'failed';
+type SignalStatus = 'review' | 'reaching' | 'failed' | 'ended';
 
 interface Signal {
   id: string;
@@ -39,6 +39,12 @@ const MOCK_SIGNALS: Signal[] = [
     status: 'failed',
     failReason: '目标范围过窄，送达 7 天未找到匹配的高质企业。',
   },
+  {
+    id: '4',
+    title: '寻找西南区域吨袋供应合作',
+    status: 'ended',
+    stats: { reached: 126, viewed: 48, replied: 3 },
+  },
 ];
 
 type FilterKey = 'all' | SignalStatus;
@@ -62,6 +68,13 @@ function StatusPill({ signal }: { signal: Signal }) {
     return (
       <View style={[styles.statusPill, styles.statusPillReaching]}>
         <Text style={[styles.statusPillText, styles.statusPillTextReaching]}>触达中 · {signal.days} 天</Text>
+      </View>
+    );
+  }
+  if (signal.status === 'ended') {
+    return (
+      <View style={[styles.statusPill, styles.statusPillEnded]}>
+        <Text style={[styles.statusPillText, styles.statusPillTextEnded]}>已结束</Text>
       </View>
     );
   }
@@ -131,6 +144,32 @@ function SignalCard({ signal }: { signal: Signal }) {
         </>
       )}
 
+      {signal.status === 'ended' && signal.stats && (
+        <>
+          <View style={styles.statsRow}>
+            <View style={styles.statsItem}>
+              <Text style={styles.statsLabel}>已触达</Text>
+              <Text style={styles.statsValue}>{signal.stats.reached}</Text>
+            </View>
+            <View style={styles.statsItem}>
+              <Text style={styles.statsLabel}>已查看</Text>
+              <Text style={styles.statsValue}>{signal.stats.viewed}</Text>
+            </View>
+            <View style={styles.statsItem}>
+              <Text style={styles.statsLabel}>已连接</Text>
+              <Text style={styles.statsValue}>{signal.stats.replied}</Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={styles.actionBtn}
+            onPress={() => navigation.navigate('signalResult', { id: signal.id })}
+          >
+            <Text style={styles.actionBtnText}>查看结果</Text>
+          </TouchableOpacity>
+        </>
+      )}
+
       {signal.status === 'failed' && (
         <>
           <Text style={styles.failReason}>
@@ -174,6 +213,7 @@ export default function MySignals() {
       review: 0,
       reaching: 0,
       failed: 0,
+      ended: 0,
     };
     MOCK_SIGNALS.forEach(s => {
       result[s.status] += 1;
@@ -289,6 +329,9 @@ const styles = StyleSheet.create({
   statusPillFailed: {
     backgroundColor: '#FFEDED',
   },
+  statusPillEnded: {
+    backgroundColor: '#F6F8FC',
+  },
   statusPillText: {
     fontSize: setSpText(10),
     fontWeight: '500',
@@ -301,6 +344,9 @@ const styles = StyleSheet.create({
   },
   statusPillTextFailed: {
     color: RED,
+  },
+  statusPillTextEnded: {
+    color: TEXT_SUB,
   },
   divider: {
     height: 1,

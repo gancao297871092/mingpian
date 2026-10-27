@@ -3,9 +3,11 @@ import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 
 import { Image as ExpoImage } from 'expo-image';
 import LinearGradient from 'react-native-linear-gradient';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SafeView from '@/components/SafeView';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
+import type { RootStackParamList } from '@/route/map';
 import { AnalysisIcon, ChevronLeftIcon, ChevronRightIcon, ShareNodesIcon, VerifiedBadgeIcon } from './icons';
 
 const TEXT_SUB = '#6C6C6C';
@@ -25,7 +27,7 @@ const MOCK_DETAIL = {
 /** 62.商机详情（figma 402:2051）：深色渐变头 + 自定义玻璃返回/分享按钮 */
 export default function OpportunityDetail() {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   useFocusEffect(
     useCallback(() => {
@@ -76,7 +78,7 @@ export default function OpportunityDetail() {
           <TouchableOpacity
             activeOpacity={0.85}
             style={styles.serviceBtn}
-            onPress={() => console.log('go: 了解服务')}
+            onPress={() => navigation.navigate('platformAssist')}
           >
             <Text style={styles.serviceBtnText}>了解服务</Text>
           </TouchableOpacity>

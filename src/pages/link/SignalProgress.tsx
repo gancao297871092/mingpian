@@ -1,6 +1,7 @@
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useRoute, type RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SafeView from '@/components/SafeView';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
@@ -31,6 +32,7 @@ const MOCK_PROGRESS = {
 export default function SignalProgress() {
   const insets = useSafeAreaInsets();
   const route = useRoute<RouteProp<RootStackParamList, 'signalProgress'>>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const signalId = route.params?.id;
 
   return (
@@ -67,7 +69,7 @@ export default function SignalProgress() {
           <TouchableOpacity
             activeOpacity={0.85}
             style={styles.intentBtn}
-            onPress={() => console.log('go: 合作意向书', signalId)}
+            onPress={() => navigation.navigate('cooperationIntentView')}
           >
             <Text style={styles.intentBtnText}>查看合作意向书</Text>
           </TouchableOpacity>

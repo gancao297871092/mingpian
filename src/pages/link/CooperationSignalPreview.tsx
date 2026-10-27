@@ -53,6 +53,7 @@ function SectionDot({ color }: { color: string }) {
 
 /** 触达设置 tab（figma 53.合作信号预览2 2793:7116 当前稿） */
 function ReachContent() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   return (
     <>
       <View style={styles.card}>
@@ -71,7 +72,7 @@ function ReachContent() {
         <TouchableOpacity
           activeOpacity={0.85}
           style={styles.editSummaryBtn}
-          onPress={() => console.log('go: 修改触达摘要')}
+          onPress={() => navigation.navigate('editTouchSummary')}
         >
           <Text style={styles.editSummaryText}>修改摘要</Text>
         </TouchableOpacity>

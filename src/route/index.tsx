@@ -17,8 +17,16 @@ import CreateCooperationIntent from '@/pages/link/CreateCooperationIntent';
 import CooperationSignalPreview from '@/pages/link/CooperationSignalPreview';
 import MySignals, { MySignalsHeaderRight } from '@/pages/link/MySignals';
 import SignalProgress from '@/pages/link/SignalProgress';
+import SignalResult from '@/pages/link/SignalResult';
 import MyOpportunities from '@/pages/link/MyOpportunities';
 import OpportunityDetail from '@/pages/link/OpportunityDetail';
+import AiDiscoveries from '@/pages/link/AiDiscoveries';
+import IndustryHappening from '@/pages/link/IndustryHappening';
+import PlatformAssist from '@/pages/link/PlatformAssist';
+import DirectionDetail from '@/pages/link/DirectionDetail';
+import CooperationIntentView from '@/pages/link/CooperationIntentView';
+import EditTouchSummary from '@/pages/link/EditTouchSummary';
+import FillGuide from '@/pages/link/FillGuide';
 import MessagePage from '@/pages/message';
 import My from '@/pages/my';
 import EditProfile from '@/pages/my/EditProfile';
@@ -809,6 +817,16 @@ export default function RootNavigator() {
           }}
         />
         <Stack.Screen
+          name="signalResult"
+          component={SignalResult}
+          options={{
+            title: '结果记录',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
           name="myOpportunities"
           component={MyOpportunities}
           options={{
@@ -821,6 +839,46 @@ export default function RootNavigator() {
         <Stack.Screen
           name="opportunityDetail"
           component={OpportunityDetail}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="aiDiscoveries"
+          component={AiDiscoveries}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="industryHappening"
+          component={IndustryHappening}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="platformAssist"
+          component={PlatformAssist}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="directionDetail"
+          component={DirectionDetail}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="cooperationIntentView"
+          component={CooperationIntentView}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="editTouchSummary"
+          component={EditTouchSummary}
+          options={{
+            title: '修改触达摘要',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="fillGuide"
+          component={FillGuide}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

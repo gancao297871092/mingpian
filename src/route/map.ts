@@ -89,10 +89,26 @@ export type RootStackParamList = {
   mySignals: undefined;
   /** 信号进展·触达中（figma 2805:7992） */
   signalProgress: { id: string };
+  /** 查看结果记录·已结束（figma 2805:8070） */
+  signalResult: { id: string };
   /** 合作中心/我的商机（figma 56.我的商机 2793:6369 等 5 态） */
   myOpportunities: undefined;
   /** 商机详情（figma 62.商机详情 402:2051） */
   opportunityDetail: undefined;
+  /** AI发现-方向推荐（figma 5.AI发现 53:911） */
+  aiDiscoveries: undefined;
+  /** 产业正在发生（figma 61.产业正在发生 387:2375） */
+  industryHappening: undefined;
+  /** 申请平台协助（figma 63.申请平台协助 402:2577） */
+  platformAssist: undefined;
+  /** 潜在合作方向-方向详情（figma 49.潜在合作方向 295:2760） */
+  directionDetail: undefined;
+  /** 合作意向书-查看（figma 37.合作意向书 222:1542） */
+  cooperationIntentView: undefined;
+  /** 修改触达摘要（figma 54.修改触达摘要 327:2236） */
+  editTouchSummary: undefined;
+  /** 填写说明（figma 55.填写说明 329:2395） */
+  fillGuide: undefined;
 };
 
 export type MainTabParamList = {

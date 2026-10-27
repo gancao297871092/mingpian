@@ -61,7 +61,7 @@ export default function CreateCooperationSignal() {
             <TouchableOpacity
               activeOpacity={0.7}
               style={styles.inputFooterLink}
-              onPress={() => console.log('go: 填写说明')}
+              onPress={() => navigation.navigate('fillGuide')}
             >
               <Text style={styles.inputFooterText}>查看填写说明</Text>
               <ChevronRightIcon size={12} color="#FFFFFF" />
@@ -140,10 +140,11 @@ const styles = StyleSheet.create({
     marginTop: scaleSizeH(13),
     borderRadius: scaleSizeW(10),
     overflow: 'hidden',
+    backgroundColor: PRIMARY
   },
   input: {
     backgroundColor: '#FFFFFF',
-    minHeight: scaleSizeH(87),
+    minHeight: scaleSizeH(107),
     paddingHorizontal: scaleSizeW(14),
     paddingTop: scaleSizeH(17),
     paddingBottom: scaleSizeH(10),
@@ -151,9 +152,11 @@ const styles = StyleSheet.create({
     lineHeight: setSpText(20),
     color: '#000000',
     textAlignVertical: 'top',
+    borderBottomLeftRadius: scaleSizeH(10), 
+    borderBottomRightRadius: scaleSizeH(10), 
   },
   inputFooter: {
-    height: scaleSizeH(57),
+    height: scaleSizeH(47),
     backgroundColor: PRIMARY,
     flexDirection: 'row',
     alignItems: 'center',
