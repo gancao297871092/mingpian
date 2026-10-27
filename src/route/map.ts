@@ -83,6 +83,8 @@ export type RootStackParamList = {
   createCooperationSignal: undefined;
   /** 创建合作意向书（figma 40.创建合作意向书 251:1945 / 44.已填写 262:2127） */
   createCooperationIntent: undefined;
+  /** 选择动态（figma 1291:4985）：从他人主页动态中最多选 3 条关联 */
+  selectBbs: { targetUserId?: number; selectedIds?: string[] } | undefined;
   /** 合作信号预览（figma 53.合作信号预览2 2793:7116） */
   cooperationSignalPreview: undefined;
   /** 我的信号（figma 50.我的信号 2805:8180） */

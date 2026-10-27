@@ -14,6 +14,7 @@ import Home from '@/pages/square/home';
 import LinkPage from '@/pages/link';
 import CreateCooperationSignal from '@/pages/link/CreateCooperationSignal';
 import CreateCooperationIntent from '@/pages/link/CreateCooperationIntent';
+import SelectBbs from '@/pages/link/SelectBbs';
 import CooperationSignalPreview from '@/pages/link/CooperationSignalPreview';
 import MySignals, { MySignalsHeaderRight } from '@/pages/link/MySignals';
 import SignalProgress from '@/pages/link/SignalProgress';
@@ -780,6 +781,16 @@ export default function RootNavigator() {
           component={CreateCooperationIntent}
           options={{
             title: '创建合作意向书',
+            headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="selectBbs"
+          component={SelectBbs}
+          options={{
+            title: '选择动态',
             headerStyle: { backgroundColor: '#F6F7FB' },
             headerTitleStyle: { color: '#000000' },
             headerShadowVisible: false,
