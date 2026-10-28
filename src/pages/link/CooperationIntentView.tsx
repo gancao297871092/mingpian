@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import SafeView from '@/components/SafeView';
 import { SCREEN_WIDTH, scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
-import { ChevronLeftIcon, ChevronRightIcon, ShareIntentIcon, VerifiedBadgeIcon, ArrowCtaIcon } from './icons';
+import { ChevronLeftIcon, ChevronRightIcon, ShareIntentIcon, VerifiedBadgeIcon } from './icons';
 
 const PRIMARY = '#2962D4';
 const TEXT_SUB = '#6C6C6C';
@@ -118,7 +118,7 @@ export default function CooperationIntentView() {
         <View style={styles.mascotRow}>
           <ExpoImage
             source={require('@/assets/link/intent-mascot.png')}
-            style={styles.mascot}
+            style={[styles.mascot, { position: 'relative', zIndex: 1 }]}
             contentFit="cover"
           />
           <View style={styles.bubble}>
@@ -294,12 +294,14 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     height: scaleSizeW(46),
     marginLeft: scaleSizeW(12),
-    zIndex: 2,
+    zIndex: -1,
+    transform: [{ translateY: scaleSizeH(17) }],
   },
   mascot: {
     width: scaleSizeW(63),
     height: scaleSizeW(63),
     marginTop: scaleSizeH(-17),
+    transform: [{ scaleX: -1 }],
   },
   bubble: {
     marginLeft: scaleSizeW(-15),
@@ -310,6 +312,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 90,
     paddingHorizontal: scaleSizeW(18),
     paddingVertical: scaleSizeH(3),
+    transform: [{ translateY: scaleSizeH(-16) }],
   },
   bubbleText: {
     fontSize: setSpText(12),
