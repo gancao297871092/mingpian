@@ -91,7 +91,7 @@ export default function SignalProgress() {
         <TouchableOpacity
           activeOpacity={0.85}
           style={styles.editBtn}
-          onPress={() => console.log('go: 修改信号', signalId)}
+          onPress={() => navigation.navigate('createCooperationSignal', { id: signalId })}
         >
           <Text style={styles.editBtnText}>修改信号</Text>
         </TouchableOpacity>

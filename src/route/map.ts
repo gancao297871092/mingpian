@@ -79,8 +79,8 @@ export type RootStackParamList = {
   companyNormalInfo: { id: string | number; name?: string };
   /** 我要纠错：collectId 为企业采集记录id */
   companyErrorCorrection: { collectId?: number } | undefined;
-  /** 创建合作信号（figma 51.创建合作信号 2793:6959） */
-  createCooperationSignal: undefined;
+  /** 创建合作信号（figma 51.创建合作信号 2793:6959；传 id 为编辑模式，标题变为编辑合作信号并回显） */
+  createCooperationSignal: { id?: string } | undefined;
   /** 创建合作意向书（figma 40.创建合作意向书 251:1945 / 44.已填写 262:2127） */
   createCooperationIntent: undefined;
   /** 选择动态（figma 1291:4985）：企业主页动态最多选 3 条关联，cpId 缺省取当前用户企业 */

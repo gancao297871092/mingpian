@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
@@ -54,6 +54,13 @@ export default function CooperationIntentView() {
   const navigation = useNavigation();
   const [expanded, setExpanded] = useState(false);
   const visibleSections = expanded ? MOCK.sections : MOCK.sections.slice(0, 2);
+  const scrollY = useRef(new Animated.Value(0)).current;
+  /** 头部底色：滚动 0~60px 内渐变为纯白 */
+  const navbarBgOpacity = scrollY.interpolate({
+    inputRange: [0, 60],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
 
   return (
     <SafeView backgroundColor="#E8EFFF">
@@ -62,8 +69,9 @@ export default function CooperationIntentView() {
         style={styles.headerBg}
         contentFit="cover"
       />
-      {/* 自定义头部 */}
+      {/* 自定义头部（滚动时底色渐变为纯白） */}
       <View style={[styles.navbar, { paddingTop: insets.top + scaleSizeH(10) }]}>
+        <Animated.View style={[StyleSheet.absoluteFill, styles.navbarBg, { opacity: navbarBgOpacity }]} />
         <TouchableOpacity activeOpacity={0.85} style={styles.glassBtn} onPress={() => navigation.goBack()}>
           <ChevronLeftIcon size={18} />
         </TouchableOpacity>
@@ -77,8 +85,12 @@ export default function CooperationIntentView() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView
+      <Animated.ScrollView
         showsVerticalScrollIndicator={false}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+          useNativeDriver: true,
+        })}
+        scrollEventThrottle={16}
         contentContainerStyle={[
           styles.content,
           { paddingTop: insets.top + scaleSizeH(58), paddingBottom: scaleSizeH(90) + insets.bottom },
@@ -226,7 +238,7 @@ export default function CooperationIntentView() {
             <ChevronRightIcon size={12} />
           </View>
         </TouchableOpacity>
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* 底部操作条 */}
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + scaleSizeH(10) }]}>
@@ -269,6 +281,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: scaleSizeW(16),
     paddingBottom: scaleSizeH(10),
+  },
+  navbarBg: {
+    backgroundColor: '#FFFFFF',
   },
   glassBtn: {
     width: scaleSizeW(44),
@@ -554,7 +569,7 @@ const styles = StyleSheet.create({
     gap: scaleSizeW(10),
     paddingHorizontal: scaleSizeW(16),
     paddingTop: scaleSizeH(14),
-    backgroundColor: 'rgba(255,255,255,0.8)',
+    backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#FFFFFF',
   },

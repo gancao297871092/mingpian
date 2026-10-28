@@ -770,12 +770,12 @@ export default function RootNavigator() {
         <Stack.Screen
           name="createCooperationSignal"
           component={CreateCooperationSignal}
-          options={{
-            title: '创建合作信号',
+          options={({ route }) => ({
+            title: route.params?.id ? '编辑合作信号' : '创建合作信号',
             headerStyle: { backgroundColor: '#F6F7FB' },
             headerTitleStyle: { color: '#000000' },
             headerShadowVisible: false,
-          }}
+          })}
         />
         <Stack.Screen
           name="createCooperationIntent"

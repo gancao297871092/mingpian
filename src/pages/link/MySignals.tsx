@@ -105,7 +105,7 @@ function SignalCard({ signal }: { signal: Signal }) {
           <TouchableOpacity
             activeOpacity={0.85}
             style={styles.actionBtn}
-            onPress={() => console.log('go: 修改信号', signal.id)}
+            onPress={() => navigation.navigate('createCooperationSignal', { id: signal.id })}
           >
             <Text style={styles.actionBtnText}>修改信号</Text>
           </TouchableOpacity>
@@ -132,7 +132,7 @@ function SignalCard({ signal }: { signal: Signal }) {
             <TouchableOpacity
               activeOpacity={0.85}
               style={[styles.actionBtn, styles.actionBtnHalf]}
-              onPress={() => console.log('go: 修改信号', signal.id)}
+              onPress={() => navigation.navigate('createCooperationSignal', { id: signal.id })}
             >
               <Text style={styles.actionBtnText}>修改信号</Text>
             </TouchableOpacity>
@@ -182,7 +182,7 @@ function SignalCard({ signal }: { signal: Signal }) {
           <TouchableOpacity
             activeOpacity={0.85}
             style={styles.actionBtn}
-            onPress={() => console.log('go: 修改信号', signal.id)}
+            onPress={() => navigation.navigate('createCooperationSignal', { id: signal.id })}
           >
             <Text style={styles.actionBtnText}>修改信号</Text>
           </TouchableOpacity>

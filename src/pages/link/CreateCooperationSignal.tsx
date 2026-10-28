@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SafeView from '@/components/SafeView';
@@ -21,11 +21,23 @@ const TEXT_SUB = '#6C6C6C';
 /** 静态 mock（接口待联调）：信号发出主体企业名 */
 const MOCK_COMPANY_NAME = '深圳联诚采信科技有限公司';
 
-/** 51.创建合作信号（figma 2793:6959，分组10最新稿） */
+/** 静态 mock（接口待联调）：编辑模式下按 id 回显的信号详情 */
+const MOCK_SIGNAL_DETAIL: Record<string, { demand: string; intentCreated: boolean }> = {
+  '1': { demand: '寻找西南区域吨袋供应合作', intentCreated: false },
+  '2': { demand: '寻找华东编织袋生产企业，支持打样验证与批量交付', intentCreated: true },
+  '3': { demand: '连接华南食品包装生产企业', intentCreated: true },
+  '4': { demand: '寻找西南区域吨袋供应合作', intentCreated: true },
+};
+
+/** 51.创建合作信号（figma 2793:6959，分组10最新稿；route.params.id 存在时为编辑模式，标题由路由配置切换） */
 export default function CreateCooperationSignal() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const [demand, setDemand] = useState('');
+  const { params } = useRoute<RouteProp<RootStackParamList, 'createCooperationSignal'>>();
+  const editId = params?.id;
+  const detail = editId ? MOCK_SIGNAL_DETAIL[editId] : undefined;
+  const [demand, setDemand] = useState(detail?.demand ?? '');
+  const intentCreated = detail?.intentCreated ?? false;
 
   return (
     <SafeView backgroundColor="#F6F7FB">
@@ -79,9 +91,11 @@ export default function CreateCooperationSignal() {
           style={styles.intentCard}
           onPress={() => navigation.navigate('createCooperationIntent')}
         >
-          <Text style={styles.intentState}>未创建</Text>
+          <Text style={[styles.intentState, intentCreated && styles.intentStateDone]}>
+            {intentCreated ? '已创建' : '未创建'}
+          </Text>
           <View style={styles.intentLink}>
-            <Text style={styles.intentLinkText}>立即创建</Text>
+            <Text style={styles.intentLinkText}>{intentCreated ? '查看/编辑' : '立即创建'}</Text>
             <ChevronRightIcon size={12} color={PRIMARY} />
           </View>
         </TouchableOpacity>
@@ -185,6 +199,9 @@ const styles = StyleSheet.create({
   intentState: {
     fontSize: setSpText(14),
     color: TEXT_SUB,
+  },
+  intentStateDone: {
+    color: '#000000',
   },
   intentLink: {
     flexDirection: 'row',
