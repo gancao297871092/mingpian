@@ -1,5 +1,13 @@
 import React, { useCallback } from 'react';
-import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import LinearGradient from 'react-native-linear-gradient';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -28,6 +36,7 @@ const MOCK_DETAIL = {
 export default function OpportunityDetail() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { width } = useWindowDimensions();
 
   useFocusEffect(
     useCallback(() => {
@@ -84,23 +93,26 @@ export default function OpportunityDetail() {
           </TouchableOpacity>
         </LinearGradient>
 
-        {/* 商机分析 */}
+        {/* 商机分析（对齐方向详情「方向分析」：白色横幅 + 蓝色角标 + 吉祥物） */}
         <View style={styles.analysisWrap}>
-          <View style={styles.analysisCard}>
-            <LinearGradient colors={['#2962D4', '#709FFF']} style={styles.analysisFold} pointerEvents="none" />
-            <View style={styles.analysisHeader}>
-              <Text style={styles.analysisTitle}>商机分析</Text>
-              <AnalysisIcon />
-              <Text style={styles.analysisHint}>AI智能解读，仅供参考</Text>
-            </View>
-            <Text style={styles.analysisLead}>{MOCK_DETAIL.analysisLead}</Text>
-            <Text style={styles.analysisBody}>{MOCK_DETAIL.analysis}</Text>
+          <ExpoImage
+            style={{ width: width - scaleSizeH(32), height: (width - scaleSizeH(32)) * 0.181 }}
+            source={require('@/assets/link/link.png')}
+          />
+          <View style={styles.analysisHeader}>
+            <AnalysisIcon />
+            <Text style={styles.analysisTitle}>商机分析</Text>
+            <Text style={styles.analysisHint}>AI智能解读，仅供参考</Text>
           </View>
           <ExpoImage
-            source={require('@/assets/link/analysis-mascot.png')}
+            source={require('@/assets/link/hero-mascot.png')}
             style={styles.analysisMascot}
             contentFit="cover"
           />
+          <View style={styles.analysisCard}>
+            <Text style={styles.analysisLead}>{MOCK_DETAIL.analysisLead}</Text>
+            <Text style={styles.analysisBody}>{MOCK_DETAIL.analysis}</Text>
+          </View>
         </View>
 
         {/* 发布企业 */}
@@ -252,26 +264,23 @@ const styles = StyleSheet.create({
   },
   analysisWrap: {
     zIndex: 2,
-    marginTop: scaleSizeH(19),
-    marginHorizontal: scaleSizeW(16),
+    position: 'relative',
+    marginTop: scaleSizeH(16),
+    paddingHorizontal: scaleSizeH(16),
   },
   analysisCard: {
     overflow: 'hidden',
     backgroundColor: 'rgba(255,255,255,0.8)',
     borderRadius: scaleSizeW(10),
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
     paddingHorizontal: scaleSizeW(14),
-    paddingTop: scaleSizeH(17),
-    paddingBottom: scaleSizeH(30),
-  },
-  analysisFold: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    width: scaleSizeW(109),
-    height: scaleSizeH(46),
-    borderTopLeftRadius: scaleSizeW(16),
+    paddingBottom: scaleSizeH(20),
   },
   analysisHeader: {
+    position: 'absolute',
+    top: scaleSizeH(17),
+    left: scaleSizeH(30),
     flexDirection: 'row',
     alignItems: 'center',
     gap: scaleSizeW(5),
@@ -287,7 +296,6 @@ const styles = StyleSheet.create({
     color: TEXT_SUB,
   },
   analysisLead: {
-    marginTop: scaleSizeH(19),
     fontSize: setSpText(14),
     color: '#000000',
   },
@@ -299,10 +307,10 @@ const styles = StyleSheet.create({
   },
   analysisMascot: {
     position: 'absolute',
-    top: scaleSizeH(-19),
-    right: scaleSizeW(3),
-    width: scaleSizeW(92),
-    height: scaleSizeW(92),
+    top: scaleSizeH(-20),
+    right: scaleSizeW(8),
+    width: scaleSizeW(76),
+    height: scaleSizeW(76),
   },
   companyCard: {
     marginHorizontal: scaleSizeW(16),
