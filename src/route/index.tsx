@@ -846,12 +846,12 @@ export default function RootNavigator() {
         <Stack.Screen
           name="myOpportunities"
           component={MyOpportunities}
-          options={{
-            title: '合作中心',
+          options={({ route }) => ({
+            title: (route.params?.tab ?? 'pool') === 'pool' ? '企业合作池' : '合作中心',
             headerStyle: { backgroundColor: '#FFFFFF' },
             headerTitleStyle: { color: '#000000' },
             headerShadowVisible: false,
-          }}
+          })}
         />
         <Stack.Screen
           name="opportunityDetail"

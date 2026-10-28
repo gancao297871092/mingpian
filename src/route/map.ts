@@ -95,8 +95,8 @@ export type RootStackParamList = {
   signalProgress: { id: string };
   /** 查看结果记录·已结束（figma 2805:8070） */
   signalResult: { id: string };
-  /** 合作中心/我的商机（figma 56.我的商机 2793:6369 等 5 态） */
-  myOpportunities: undefined;
+  /** 合作中心/我的商机（figma 56.我的商机 2793:6369 等 5 态；tab 指定显示企业合作池 pool 或我的合作 mine，缺省 pool） */
+  myOpportunities: { tab?: 'pool' | 'mine' } | undefined;
   /** 商机详情（figma 62.商机详情 402:2051） */
   opportunityDetail: undefined;
   /** AI发现-方向推荐（figma 5.AI发现 53:911） */

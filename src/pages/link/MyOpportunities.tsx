@@ -1,9 +1,11 @@
-import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import SafeView from '@/components/SafeView';
+import EmptyState from '@/components/EmptyState';
+import ListFooter from '@/components/ListFooter';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
 import { InfoIcon, VerifiedBadgeIcon } from './icons';
@@ -11,6 +13,7 @@ import { InfoIcon, VerifiedBadgeIcon } from './icons';
 const PRIMARY = '#2962D4';
 const ORANGE = '#F2722C';
 const TEXT_SUB = '#6C6C6C';
+const PAGE_SIZE = 10;
 
 type TopTab = 'pool' | 'mine';
 type PoolSub = 'pending' | 'docked';
@@ -182,11 +185,15 @@ function OpportunityCard({ item }: { item: OpportunityItem }) {
         <TouchableOpacity
           activeOpacity={0.85}
           style={[styles.cardBtn, item.actionTone === 'solid' ? styles.cardBtnSolid : styles.cardBtnLight]}
-          onPress={() =>
-            item.actionText === '查看详情'
-              ? navigation.navigate('opportunityDetail')
-              : console.log('go:', item.actionText, item.id)
-          }
+          onPress={() => {
+            if (item.actionText === '查看详情') {
+              navigation.navigate('opportunityDetail');
+            } else if (item.actionText === '查看申请') {
+              navigation.navigate('cooperationIntentView');
+            } else {
+              console.log('go:', item.actionText, item.id);
+            }
+          }}
         >
           <Text style={item.actionTone === 'solid' ? styles.cardBtnSolidText : styles.cardBtnLightText}>
             {item.actionText}
@@ -199,9 +206,18 @@ function OpportunityCard({ item }: { item: OpportunityItem }) {
 
 /** 56.我的商机/合作中心（figma 2793:6369 等待/待接手，2793:6427 已对接，2793:6526 等待对方，2793:6748 待联系，2793:6686 沟通中） */
 export default function MyOpportunities() {
-  const [topTab, setTopTab] = useState<TopTab>('pool');
+  const { params } = useRoute<RouteProp<RootStackParamList, 'myOpportunities'>>();
+  /** 由外部参数决定显示企业合作池还是我的合作（缺省企业合作池） */
+  const topTab: TopTab = params?.tab ?? 'pool';
   const [poolSub, setPoolSub] = useState<PoolSub>('pending');
   const [mineSub, setMineSub] = useState<MineSub>('waiting');
+  const [list, setList] = useState<OpportunityItem[]>([]);
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const loadingRef = useRef(false);
 
   const subs = topTab === 'pool' ? POOL_SUBS : MINE_SUBS;
   const activeSub = topTab === 'pool' ? poolSub : mineSub;
@@ -216,58 +232,93 @@ export default function MyOpportunities() {
           },
     [topTab],
   );
-  const list: OpportunityItem[] =
-    topTab === 'pool' ? MOCK_POOL[poolSub] : MOCK_MINE[mineSub];
   const notice = topTab === 'pool' ? NOTICES.pool : MINE_SUB_NOTICES[mineSub];
+
+  /** 静态 mock 分页（接口待联调：替换为真实请求，入参 topTab/activeSub/pageNum） */
+  const fetchList = useCallback(
+    async (tab: TopTab, sub: string, pageNum: number, append: boolean, isRefresh = false) => {
+      if (loadingRef.current) return;
+      loadingRef.current = true;
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
+      try {
+        const source = tab === 'pool' ? MOCK_POOL[sub as PoolSub] : MOCK_MINE[sub as MineSub];
+        const arr = source.slice((pageNum - 1) * PAGE_SIZE, pageNum * PAGE_SIZE);
+        const totalPages = Math.max(Math.ceil(source.length / PAGE_SIZE), 1);
+        setList(prev => (append ? [...prev, ...arr] : arr));
+        setPage(pageNum);
+        setPages(totalPages);
+      } finally {
+        loadingRef.current = false;
+        setLoading(false);
+        setRefreshing(false);
+        setLoaded(true);
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    fetchList(topTab, activeSub, 1, false);
+  }, [topTab, activeSub, fetchList]);
+
+  const onRefresh = useCallback(
+    () => fetchList(topTab, activeSub, 1, false, true),
+    [topTab, activeSub, fetchList],
+  );
+
+  const onEndReached = useCallback(() => {
+    if (!loadingRef.current && page < pages) {
+      fetchList(topTab, activeSub, page + 1, true);
+    }
+  }, [topTab, activeSub, fetchList, page, pages]);
 
   return (
     <SafeView backgroundColor="#F6F7FB">
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        {/* 白色头部区：主 tab + 子 tab */}
-        <View style={styles.headerBand}>
-          <View style={styles.topTabs}>
-            <TouchableOpacity activeOpacity={0.7} onPress={() => setTopTab('pool')}>
-              <Text style={[styles.topTabText, topTab === 'pool' ? styles.topTabActive : styles.topTabInactive]}>
-                企业合作池
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity activeOpacity={0.7} onPress={() => setTopTab('mine')}>
-              <Text style={[styles.topTabText, topTab === 'mine' ? styles.topTabActive : styles.topTabInactive]}>
-                我的合作
-              </Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.topDivider} />
-          <View style={styles.subTabs}>
-            {subs.map(item => {
-              const active = activeSub === item.key;
-              return (
-                <TouchableOpacity
-                  key={item.key}
-                  activeOpacity={0.7}
-                  onPress={() =>
-                    topTab === 'pool' ? setPoolSub(item.key as PoolSub) : setMineSub(item.key as MineSub)
-                  }
-                >
-                  <Text style={[styles.subTabText, active ? styles.subTabActive : styles.subTabInactive]}>
-                    {item.label} {counts[item.key as keyof typeof counts]}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+      {/* 白色头部区：子 tab（固定不跟随滚动；主 tab 由外部参数决定，页面内不展示切换） */}
+      <View style={styles.headerBand}>
+        <View style={styles.subTabs}>
+          {subs.map(item => {
+            const active = activeSub === item.key;
+            return (
+              <TouchableOpacity
+                key={item.key}
+                activeOpacity={0.7}
+                onPress={() =>
+                  topTab === 'pool' ? setPoolSub(item.key as PoolSub) : setMineSub(item.key as MineSub)
+                }
+              >
+                <Text style={[styles.subTabText, active ? styles.subTabActive : styles.subTabInactive]}>
+                  {item.label} {counts[item.key as keyof typeof counts]}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
+      </View>
 
-        {/* 说明条 */}
-        <View style={styles.notice}>
-          <InfoIcon />
-          <Text style={styles.noticeText}>{notice}</Text>
-        </View>
-
-        {list.map(item => (
-          <OpportunityCard key={item.id} item={item} />
-        ))}
-      </ScrollView>
+      <FlatList
+        data={list}
+        keyExtractor={item => item.id}
+        renderItem={({ item }) => <OpportunityCard item={item} />}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.content, list.length === 0 && styles.contentEmpty]}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={PRIMARY} colors={[PRIMARY]} />
+        }
+        onEndReached={onEndReached}
+        onEndReachedThreshold={0.3}
+        ListHeaderComponent={
+          <View style={styles.notice}>
+            <InfoIcon />
+            <Text style={styles.noticeText}>{notice}</Text>
+          </View>
+        }
+        ListEmptyComponent={
+          loaded ? <EmptyState variant="content" title="暂无合作机会" style={styles.emptyBox} /> : null
+        }
+        ListFooterComponent={<ListFooter fetching={loading} isLastPage={page >= pages} listLength={list.length} />}
+      />
     </SafeView>
   );
 }
@@ -276,33 +327,19 @@ const styles = StyleSheet.create({
   content: {
     paddingBottom: scaleSizeH(20),
   },
+  contentEmpty: {
+    flexGrow: 1,
+  },
+  emptyBox: {
+    paddingTop: scaleSizeH(60),
+  },
   headerBand: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: scaleSizeW(16),
-    paddingTop: scaleSizeH(18),
+    paddingTop: scaleSizeH(6),
     marginBottom: scaleSizeH(9),
-  },
-  topTabs: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scaleSizeW(34),
-  },
-  topTabText: {
-    fontSize: setSpText(15),
-    letterSpacing: -0.4,
-  },
-  topTabActive: {
-    fontWeight: '500',
-    color: '#000000',
-  },
-  topTabInactive: {
-    color: TEXT_SUB,
-  },
-  topDivider: {
-    height: 1,
-    backgroundColor: '#EBEBEB',
-    marginTop: scaleSizeH(12),
-    marginHorizontal: -scaleSizeW(16),
+    borderBottomWidth: 1,
+    borderBottomColor: '#EBEBEB',
   },
   subTabs: {
     flexDirection: 'row',

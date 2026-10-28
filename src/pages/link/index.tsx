@@ -113,7 +113,7 @@ export default function LinkPage() {
           <TouchableOpacity
             activeOpacity={0.85}
             style={styles.entryCard}
-            onPress={() => navigation.navigate('myOpportunities')}
+            onPress={() => navigation.navigate('myOpportunities', { tab: 'mine' })}
           >
             <View style={styles.entryTitleRow}>
               <OppIcon />

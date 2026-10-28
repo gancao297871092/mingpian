@@ -24,6 +24,7 @@ import {
   CompanyJobIcon,
   CompanyManagerIcon,
   CompanyMemberIcon,
+  CompanyPoolIcon,
 } from './myIcons';
 
 const DANGER = '#EF4444';
@@ -83,6 +84,7 @@ export default function CompanyManage() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const memberAuditCount = useCompanyStore(s => s.memberAuditCount);
   const bbsAuditCount = useCompanyStore(s => s.bbsAuditCount);
+  const poolCount = useCompanyStore(s => s.poolCount);
   const userInfo = useUserStore(s => s.userInfo);
   // 真实角色（对齐小程序 moreSets）：isManager=管理端；cpId 且非管理员=普通成员；无 cpId=未加入企业
   const role: 'admin' | 'member' | 'none' = !userInfo?.cpId ? 'none' : userInfo?.isManager === 1 ? 'admin' : 'member';
@@ -102,6 +104,7 @@ export default function CompanyManage() {
           if (r.code === '200' && r.data) {
             useCompanyStore.getState().setMemberAuditCount(r.data.companyUserAuthCount ?? 0);
             useCompanyStore.getState().setBbsAuditCount(r.data.bbsCount ?? 0);
+            useCompanyStore.getState().setPoolCount(r.data.companyWorkCount ?? 0);
           }
         })
         .catch(() => {});
@@ -173,6 +176,17 @@ export default function CompanyManage() {
                 onPress: () => navigation.navigate('companyMemberAudit'),
               },
               { label: '动态审核', icon: <CompanyBbsAuditIcon />, badge: bbsAuditCount, onPress: () => navigation.navigate('companyBbsAudit') },
+            ],
+          },
+          {
+            title: '合作',
+            rows: [
+              {
+                label: '企业合作池',
+                icon: <CompanyPoolIcon />,
+                badge: poolCount,
+                onPress: () => navigation.navigate('myOpportunities', { tab: 'pool' }),
+              },
             ],
           },
           {
