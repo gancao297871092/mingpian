@@ -1,8 +1,10 @@
-import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import SafeView from '@/components/SafeView';
+import EmptyState from '@/components/EmptyState';
+import ListFooter from '@/components/ListFooter';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
 import { PlusSignalIcon, SignalIcon } from './icons';
@@ -11,6 +13,7 @@ const PRIMARY = '#2962D4';
 const ORANGE = '#F2722C';
 const RED = '#EF4444';
 const TEXT_SUB = '#6C6C6C';
+const PAGE_SIZE = 10;
 
 type SignalStatus = 'review' | 'reaching' | 'failed' | 'ended';
 
@@ -206,6 +209,13 @@ export function MySignalsHeaderRight() {
 /** 50.我的信号（figma 2805:8180，分组10最新稿） */
 export default function MySignals() {
   const [filter, setFilter] = useState<FilterKey>('all');
+  const [list, setList] = useState<Signal[]>([]);
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const loadingRef = useRef(false);
 
   const counts = useMemo(() => {
     const result: Record<FilterKey, number> = {
@@ -221,41 +231,81 @@ export default function MySignals() {
     return result;
   }, []);
 
-  const list = filter === 'all' ? MOCK_SIGNALS : MOCK_SIGNALS.filter(s => s.status === filter);
+  /** 静态 mock 分页（接口待联调：替换为真实请求，入参 filter/pageNum） */
+  const fetchList = useCallback(
+    async (filterKey: FilterKey, pageNum: number, append: boolean, isRefresh = false) => {
+      if (loadingRef.current) return;
+      loadingRef.current = true;
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
+      try {
+        const source = filterKey === 'all' ? MOCK_SIGNALS : MOCK_SIGNALS.filter(s => s.status === filterKey);
+        const arr = source.slice((pageNum - 1) * PAGE_SIZE, pageNum * PAGE_SIZE);
+        const totalPages = Math.max(Math.ceil(source.length / PAGE_SIZE), 1);
+        setList(prev => (append ? [...prev, ...arr] : arr));
+        setPage(pageNum);
+        setPages(totalPages);
+      } finally {
+        loadingRef.current = false;
+        setLoading(false);
+        setRefreshing(false);
+        setLoaded(true);
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    fetchList(filter, 1, false);
+  }, [filter, fetchList]);
+
+  const onRefresh = useCallback(() => fetchList(filter, 1, false, true), [filter, fetchList]);
+
+  const onEndReached = useCallback(() => {
+    if (!loadingRef.current && page < pages) {
+      fetchList(filter, page + 1, true);
+    }
+  }, [filter, fetchList, page, pages]);
 
   return (
     <SafeView backgroundColor="#F6F7FB">
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        {/* 状态筛选 */}
-        <View style={styles.filterRow}>
-          {FILTERS.map(item => {
-            const active = filter === item.key;
-            return (
-              <TouchableOpacity
-                key={item.key}
-                activeOpacity={0.85}
-                style={[styles.filterPill, active && styles.filterPillActive]}
-                onPress={() => setFilter(item.key)}
-              >
-                <Text style={[styles.filterPillText, active && styles.filterPillTextActive]}>
-                  {item.key === 'all' ? (
-                    item.label
-                  ) : (
-                    <>
-                      {item.label}{' '}
-                      <Text style={active && styles.filterPillTextActive}>{counts[item.key]}</Text>
-                    </>
-                  )}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {list.map(signal => (
-          <SignalCard key={signal.id} signal={signal} />
-        ))}
-      </ScrollView>
+      {/* 状态筛选（固定不跟随滚动） */}
+      <View style={styles.filterRow}>
+        {FILTERS.map(item => {
+          const active = filter === item.key;
+          return (
+            <TouchableOpacity
+              key={item.key}
+              activeOpacity={0.85}
+              style={[styles.filterPill, active && styles.filterPillActive]}
+              onPress={() => setFilter(item.key)}
+            >
+              <Text style={[styles.filterPillText, active && styles.filterPillTextActive]}>
+                {item.key === 'all' ? (
+                  item.label
+                ) : (
+                  <>
+                    {item.label}{' '}
+                    <Text style={active && styles.filterPillTextActive}>{counts[item.key]}</Text>
+                  </>
+                )}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      <FlatList
+        data={list}
+        keyExtractor={item => item.id}
+        renderItem={({ item }) => <SignalCard signal={item} />}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.content, list.length === 0 && styles.contentEmpty]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={PRIMARY} colors={[PRIMARY]} />}
+        onEndReached={onEndReached}
+        onEndReachedThreshold={0.3}
+        ListEmptyComponent={loaded ? <EmptyState variant="content" title="暂无信号" style={styles.emptyBox} /> : null}
+        ListFooterComponent={<ListFooter fetching={loading} isLastPage={page >= pages} listLength={list.length} />}
+      />
     </SafeView>
   );
 }
@@ -271,13 +321,21 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: scaleSizeW(16),
-    paddingTop: scaleSizeH(30),
     paddingBottom: scaleSizeH(20),
+  },
+  contentEmpty: {
+    flexGrow: 1,
+  },
+  emptyBox: {
+    paddingTop: scaleSizeH(80),
   },
   filterRow: {
     flexDirection: 'row',
     gap: scaleSizeW(10),
-    marginBottom: scaleSizeH(20),
+    paddingHorizontal: scaleSizeW(16),
+    paddingTop: scaleSizeH(20),
+    paddingBottom: scaleSizeH(20),
+    backgroundColor: '#F6F7FB',
   },
   filterPill: {
     borderRadius: 90,
