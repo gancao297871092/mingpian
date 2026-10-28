@@ -65,33 +65,36 @@ export default function OpportunityDetail() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        {/* 标题卡 */}
-        <View style={styles.titleCard}>
-          <Text style={styles.titleText}>{MOCK_DETAIL.title}</Text>
-          <View style={styles.aiPill}>
-            <Text style={styles.aiPillText}>{MOCK_DETAIL.tag}</Text>
+        {/* 标题卡 + 平台服务横幅（对齐方向详情：同一张卡裁切圆角，渐变不承载圆角/内边距） */}
+        <View style={styles.topCard}>
+          <View style={styles.titleCard}>
+            <Text style={styles.titleText}>{MOCK_DETAIL.title}</Text>
+            <View style={styles.aiPill}>
+              <Text style={styles.aiPillText}>{MOCK_DETAIL.tag}</Text>
+            </View>
           </View>
-        </View>
 
-        {/* 平台服务横幅（顶部被标题卡压住 20） */}
-        <LinearGradient
-          colors={['#FEF4E9', '#FFE4C1']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.serviceBanner}
-        >
-          <View style={styles.serviceTextCol}>
-            <Text style={styles.serviceTitle}>需要平台协助推进合作？</Text>
-            <Text style={styles.serviceSub}>发布、撮合、对接服务，帮助更高效达成合作</Text>
-          </View>
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={styles.serviceBtn}
-            onPress={() => navigation.navigate('platformAssist')}
+          <LinearGradient
+            colors={['#FEF4E9', '#FFE4C1']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.serviceBanner}
           >
-            <Text style={styles.serviceBtnText}>了解服务</Text>
-          </TouchableOpacity>
-        </LinearGradient>
+            <View style={styles.serviceInner}>
+              <View style={styles.serviceTextCol}>
+                <Text style={styles.serviceTitle}>需要平台协助推进合作？</Text>
+                <Text style={styles.serviceSub}>发布、撮合、对接服务，帮助更高效达成合作</Text>
+              </View>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={styles.serviceBtn}
+                onPress={() => navigation.navigate('platformAssist')}
+              >
+                <Text style={styles.serviceBtnText}>了解服务</Text>
+              </TouchableOpacity>
+            </View>
+          </LinearGradient>
+        </View>
 
         {/* 商机分析（对齐方向详情「方向分析」：白色横幅 + 蓝色角标 + 吉祥物） */}
         <View style={styles.analysisWrap}>
@@ -197,13 +200,15 @@ const styles = StyleSheet.create({
     paddingTop: scaleSizeH(20),
     paddingBottom: scaleSizeH(30),
   },
-  titleCard: {
-    zIndex: 2,
+  topCard: {
     marginHorizontal: scaleSizeW(16),
+    borderRadius: scaleSizeH(10),
+    overflow: 'hidden',
+  },
+  titleCard: {
     backgroundColor: 'rgba(255,255,255,0.9)',
     borderWidth: 1,
     borderColor: '#FFFFFF',
-    borderRadius: scaleSizeW(10),
     paddingHorizontal: scaleSizeW(14),
     paddingTop: scaleSizeH(20),
     paddingBottom: scaleSizeH(10),
@@ -227,15 +232,14 @@ const styles = StyleSheet.create({
     color: '#7B5BD6',
   },
   serviceBanner: {
-    zIndex: 1,
+  },
+  serviceInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: scaleSizeW(16),
-    marginTop: scaleSizeH(-20),
-    borderRadius: scaleSizeW(10),
-    paddingTop: scaleSizeH(32),
-    paddingBottom: scaleSizeH(20),
+    marginTop: scaleSizeH(10),
     paddingHorizontal: scaleSizeW(14),
+    paddingTop: scaleSizeH(16),
+    paddingBottom: scaleSizeH(14),
   },
   serviceTextCol: {
     flex: 1,
@@ -307,10 +311,10 @@ const styles = StyleSheet.create({
   },
   analysisMascot: {
     position: 'absolute',
-    top: scaleSizeH(-20),
-    right: scaleSizeW(8),
-    width: scaleSizeW(76),
-    height: scaleSizeW(76),
+    top: scaleSizeH(-19),
+    right: scaleSizeW(16),
+    width: scaleSizeW(92),
+    height: scaleSizeW(92),
   },
   companyCard: {
     marginHorizontal: scaleSizeW(16),
