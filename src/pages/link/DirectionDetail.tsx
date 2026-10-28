@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import LinearGradient from 'react-native-linear-gradient';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -37,6 +37,8 @@ export default function DirectionDetail() {
     }, []),
   );
 
+  const { width } = useWindowDimensions()
+
   return (
     <SafeView backgroundColor="#E8EFFF">
       <LinearGradient colors={['#2962D4', '#E8EFFF']} style={styles.headerBg} pointerEvents="none" />
@@ -54,48 +56,64 @@ export default function DirectionDetail() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingTop: scaleSizeH(20) }]}
       >
-        {/* 方向标题卡 */}
-        <View style={styles.titleCard}>
-          <Text style={styles.titleText}>{MOCK.title}</Text>
-          <View style={styles.aiPill}>
-            <Text style={styles.aiPillText}>{MOCK.tag}</Text>
-          </View>
-        </View>
-
-        {/* 明确方向卡 */}
-        <LinearGradient
-          colors={['#FEF4E9', '#FFE4C1']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.confirmCard}
-        >
-          <Text style={styles.confirmTip}>{MOCK.confirmTip}</Text>
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={styles.confirmBtn}
-            onPress={() => console.log('go: 明确该方向')}
-          >
-            <Text style={styles.confirmBtnText}>明确该方向</Text>
-          </TouchableOpacity>
-        </LinearGradient>
-
-        {/* 方向分析 */}
-        <View style={styles.analysisWrap}>
-          <View style={styles.analysisCard}>
-            <LinearGradient colors={['#2962D4', '#709FFF']} style={styles.analysisFold} pointerEvents="none" />
-            <View style={styles.analysisHeader}>
-              <Text style={styles.analysisTitle}>方向分析</Text>
-              <AnalysisIcon />
-              <Text style={styles.analysisHint}>AI智能解读，仅供参考</Text>
+        <View style={{ borderRadius: scaleSizeH(10), overflow: 'hidden', marginHorizontal: scaleSizeW(16) }}>
+          {/* 方向标题卡 */}
+          <View style={styles.titleCard}>
+            <Text style={styles.titleText}>{MOCK.title}</Text>
+            <View style={styles.aiPill}>
+              <Text style={styles.aiPillText}>{MOCK.tag}</Text>
             </View>
-            <Text style={styles.analysisLead}>{MOCK.analysisLead}</Text>
-            <Text style={styles.analysisBody}>{MOCK.analysis}</Text>
+          </View>
+          {/* 明确方向卡 */}
+          <LinearGradient
+            colors={['#FEF4E9', '#FFE4C1']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.confirmCard}
+          >
+            <View style={{
+              marginTop: scaleSizeH(10),
+              paddingHorizontal: scaleSizeW(14),
+              paddingTop: scaleSizeH(16),
+              paddingBottom: scaleSizeH(14),
+            }}>
+              <Text style={styles.confirmTip}>{MOCK.confirmTip}</Text>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={styles.confirmBtn}
+                onPress={() => console.log('go: 明确该方向')}
+              >
+                <Text style={styles.confirmBtnText}>明确该方向</Text>
+              </TouchableOpacity>
+            </View>
+          </LinearGradient>
+        </View>
+        
+        <View style={{
+          paddingHorizontal: scaleSizeH(16), marginTop: scaleSizeH(16),
+          borderBottomLeftRadius: scaleSizeH(10), borderBottomRightRadius: scaleSizeH(10),
+          position: 'relative',
+        }}>
+          <ExpoImage style={{
+            width: width - scaleSizeH(32),
+            height: (width - scaleSizeH(32)) * 0.181,
+          }}
+            source={require('@/assets/link/link.png')}
+          />
+          <View style={[styles.analysisHeader, { position: "absolute", top: scaleSizeH(17), left: scaleSizeH(30) }]}>
+            <AnalysisIcon />
+            <Text style={styles.analysisTitle}>方向分析</Text>
+            <Text style={styles.analysisHint}>AI智能解读，仅供参考</Text>
           </View>
           <ExpoImage
             source={require('@/assets/link/hero-mascot.png')}
             style={styles.analysisMascot}
             contentFit="cover"
           />
+          <View style={[styles.analysisCard, { borderTopLeftRadius: scaleSizeH(0), borderTopRightRadius: scaleSizeH(0) }]}>
+            <Text style={styles.analysisLead}>{MOCK.analysisLead}</Text>
+            <Text style={styles.analysisBody}>{MOCK.analysis}</Text>
+          </View>
         </View>
 
         {/* 判断依据 */}
@@ -191,11 +209,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: scaleSizeW(10),
-    marginHorizontal: scaleSizeW(16),
     backgroundColor: 'rgba(255,255,255,0.9)',
     borderWidth: 1,
     borderColor: '#FFFFFF',
-    borderRadius: scaleSizeW(10),
     paddingHorizontal: scaleSizeW(13),
     paddingVertical: scaleSizeH(20),
   },
@@ -217,12 +233,6 @@ const styles = StyleSheet.create({
     color: '#7B5BD6',
   },
   confirmCard: {
-    marginHorizontal: scaleSizeW(16),
-    marginTop: scaleSizeH(10),
-    borderRadius: scaleSizeW(10),
-    paddingHorizontal: scaleSizeW(14),
-    paddingTop: scaleSizeH(16),
-    paddingBottom: scaleSizeH(14),
   },
   confirmTip: {
     fontSize: setSpText(14),
@@ -252,16 +262,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.8)',
     borderRadius: scaleSizeW(10),
     paddingHorizontal: scaleSizeW(14),
-    paddingTop: scaleSizeH(17),
-    paddingBottom: scaleSizeH(30),
+    paddingBottom: scaleSizeH(20),
   },
   analysisFold: {
     position: 'absolute',
-    top: 0,
-    right: 0,
+    top: scaleSizeH(2),
+    right: scaleSizeH(16),
     width: scaleSizeW(109),
     height: scaleSizeH(46),
-    borderTopLeftRadius: scaleSizeW(16),
+    borderTopRightRadius: scaleSizeW(16),
+    zIndex: -1,
   },
   analysisHeader: {
     flexDirection: 'row',
@@ -279,7 +289,6 @@ const styles = StyleSheet.create({
     color: TEXT_SUB,
   },
   analysisLead: {
-    marginTop: scaleSizeH(19),
     fontSize: setSpText(14),
     color: '#000000',
   },
