@@ -155,10 +155,10 @@ const styles = StyleSheet.create({
     paddingBottom: scaleSizeH(30),
   },
   titleBlock: {
-    paddingHorizontal: scaleSizeW(13),
     marginBottom: scaleSizeH(12),
   },
   pageTitle: {
+    marginLeft: scaleSizeW(29),
     fontSize: setSpText(22),
     fontWeight: '600',
     lineHeight: setSpText(24),
@@ -167,6 +167,7 @@ const styles = StyleSheet.create({
   },
   pageSub: {
     marginTop: scaleSizeH(10),
+    marginLeft: scaleSizeW(29),
     width: scaleSizeW(235),
     fontSize: setSpText(12),
     lineHeight: setSpText(20),
@@ -174,14 +175,15 @@ const styles = StyleSheet.create({
   },
   mascot: {
     position: 'absolute',
-    right: scaleSizeW(0),
+    right: scaleSizeW(15),
     top: scaleSizeH(-7),
     width: scaleSizeW(108),
     height: scaleSizeW(108),
+    transform: [{ scaleX: -1 }],
   },
   hiBubble: {
     position: 'absolute',
-    right: scaleSizeW(100),
+    right: scaleSizeW(113),
     top: scaleSizeH(3),
     alignItems: 'center',
     justifyContent: 'center',
@@ -201,7 +203,7 @@ const styles = StyleSheet.create({
     marginHorizontal: scaleSizeW(16),
     marginBottom: scaleSizeH(10),
     paddingHorizontal: scaleSizeW(14),
-    paddingTop: scaleSizeH(22),
+    paddingTop: scaleSizeH(18),
   },
   cardTitleRow: {
     flexDirection: 'row',
@@ -225,7 +227,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     alignItems: 'center',
     gap: scaleSizeW(6),
-    marginTop: scaleSizeH(15),
+    marginTop: scaleSizeH(11),
   },
   tagPill: {
     borderRadius: scaleSizeW(10),
@@ -253,7 +255,7 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: '#EEEEEE',
-    marginTop: scaleSizeH(13),
+    marginTop: scaleSizeH(20),
   },
   detailRow: {
     flexDirection: 'row',

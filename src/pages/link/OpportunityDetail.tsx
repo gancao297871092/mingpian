@@ -97,7 +97,7 @@ export default function OpportunityDetail() {
             <Text style={styles.analysisBody}>{MOCK_DETAIL.analysis}</Text>
           </View>
           <ExpoImage
-            source={require('@/assets/link/hero-mascot.png')}
+            source={require('@/assets/link/analysis-mascot.png')}
             style={styles.analysisMascot}
             contentFit="cover"
           />
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
     borderRadius: scaleSizeW(10),
     paddingHorizontal: scaleSizeW(14),
     paddingTop: scaleSizeH(20),
-    paddingBottom: scaleSizeH(14),
+    paddingBottom: scaleSizeH(10),
   },
   titleText: {
     fontSize: setSpText(15),
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
     marginTop: scaleSizeH(-20),
     borderRadius: scaleSizeW(10),
     paddingTop: scaleSizeH(32),
-    paddingBottom: scaleSizeH(14),
+    paddingBottom: scaleSizeH(20),
     paddingHorizontal: scaleSizeW(14),
   },
   serviceTextCol: {
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
     borderRadius: scaleSizeW(10),
     paddingHorizontal: scaleSizeW(14),
     paddingTop: scaleSizeH(14),
-    paddingBottom: scaleSizeH(15),
+    paddingBottom: scaleSizeH(20),
   },
   cardLabel: {
     fontSize: setSpText(14),
@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: scaleSizeW(5),
-    marginTop: scaleSizeH(16),
+    marginTop: scaleSizeH(18),
   },
   companyAvatar: {
     width: scaleSizeW(36),
@@ -365,13 +365,13 @@ const styles = StyleSheet.create({
     borderRadius: scaleSizeW(10),
     paddingHorizontal: scaleSizeW(14),
     paddingTop: scaleSizeH(15),
-    paddingBottom: scaleSizeH(15),
+    paddingBottom: scaleSizeH(19),
   },
   evidenceWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: scaleSizeW(10),
-    marginTop: scaleSizeH(15),
+    marginTop: scaleSizeH(12),
   },
   evidencePill: {
     flexDirection: 'row',
