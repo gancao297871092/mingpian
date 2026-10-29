@@ -38,10 +38,9 @@ export default function SignalResult() {
   const load = useCallback(async () => {
     if (!signalId) return;
     try {
-      const res = await API.signal.progress({ signalId, pageNum: 1, pageSize: 20 });
+      const res = await API.signal.detail({ signalId });
       const signal = res.data.signal ?? ({} as typeof res.data.signal);
       const intent = parseAbilityContent(signal.abilityContent);
-      const funnel = res.data.funnel ?? { deliverCount: 0, viewCount: 0, responseCount: 0 };
       setData({
         title: signal.targetDesc || '未命名信号',
         summary: [
@@ -58,10 +57,11 @@ export default function SignalResult() {
             value: [intent?.contactName, intent?.contactTitle].filter(Boolean).join(' · ') || '—',
           },
         ],
+        // 三漏斗计数为信号实体字段（与列表页同口径），无需 progress 接口
         stats: [
-          { label: '已触达', value: funnel.deliverCount ?? 0 },
-          { label: '已查看', value: funnel.viewCount ?? 0 },
-          { label: '已连接', value: funnel.responseCount ?? 0 },
+          { label: '已触达', value: signal.deliverCount ?? 0 },
+          { label: '已查看', value: signal.viewCount ?? 0 },
+          { label: '已连接', value: signal.responseCount ?? 0 },
         ],
       });
     } catch {

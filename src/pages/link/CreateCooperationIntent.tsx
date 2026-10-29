@@ -189,12 +189,16 @@ export default function CreateCooperationIntent() {
         ]);
         if (!alive) return;
         if (cardRes.status === 'fulfilled') {
-          const list: CardItem[] = (cardRes.value.data.cardsList ?? []).map((c: any, i: number) => ({
-            id: Number(c.id),
-            prefix: `名片${i + 1} · `,
-            person: c.nameZh || c.alias || '未命名',
-            title: c.position || c.alias || '',
-          }));
+          // /card/list 读缓存表：id=缓存行雪花ID，cardId 才是真实名片ID（wq_user_cards.id），
+          // 跳名片详情/存 contactCardId 必须用 cardId；isCp=1 企业名片行为虚拟ID，不出现在个人名片选择里
+          const list: CardItem[] = (cardRes.value.data.cardsList ?? [])
+            .filter((c: any) => !c.isCp)
+            .map((c: any, i: number) => ({
+              id: Number(c.cardId ?? c.id),
+              prefix: `名片${i + 1} · `,
+              person: c.nameZh || c.alias || '未命名',
+              title: c.position || c.alias || '',
+            }));
           setCards(list);
           if (list.length) setCardId(prev => prev ?? list[0].id);
         }
