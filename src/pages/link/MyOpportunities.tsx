@@ -214,17 +214,10 @@ export default function MyOpportunities() {
   const activeSub = topTab === 'pool' ? poolSub : mineSub;
   const notice = errorText || (topTab === 'pool' ? NOTICES.pool : MINE_SUB_NOTICES[mineSub]);
 
-  /** 两个子 tab 的计数 */
+  /** 我的合作：跨接口拼子 tab 计数；合作池的 counts 由列表响应直接下发，无需重复请求（见 fetchList） */
   const fetchCounts = useCallback(async (tab: TopTab) => {
     try {
-      if (tab === 'pool') {
-        const res = await API.lead.pool({ tab: 'pending', pageNum: 1, pageSize: 1 });
-        setCounts({
-          pending: res.data.counts?.pending ?? 0,
-          docked: res.data.counts?.docked ?? 0,
-        });
-        return;
-      }
+      if (tab === 'pool') return;
       // 计数由后端 counts 下发；connected 未按 contactStage 细分，仍需拉一次已连接列表拆分（待后端细分后可去掉）
       const [allRes, connectedRes] = await Promise.all([
         API.lead.list({ tab: 'all', pageNum: 1, pageSize: 1 }),
