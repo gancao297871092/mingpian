@@ -89,7 +89,9 @@ function StatusPill({ signal }: { signal: Signal }) {
   if (signal.status === 'reaching') {
     return (
       <View style={[styles.statusPill, styles.statusPillReaching]}>
-        <Text style={[styles.statusPillText, styles.statusPillTextReaching]}>触达中 · {signal.days} 天</Text>
+        <Text style={[styles.statusPillText, styles.statusPillTextReaching]}>
+          触达中{signal.days != null ? ` · ${signal.days} 天` : ''}
+        </Text>
       </View>
     );
   }

@@ -66,6 +66,24 @@ const EMPTY: IntentViewData = {
   canResponse: false,
 };
 
+/**
+ * 企业能力兜底：快照为空（历史数据——信号在意向书快照带 abilities 之前创建，
+ * 或意向书 cardSnapshot 无 content 且五段未抽取）时按 cardId 实时取卡重建；
+ * 快照有内容时直接用，不额外请求。
+ */
+async function resolveAbilities(
+  cardId: number | undefined,
+  snapshot: SignalIntentAbility[],
+): Promise<SignalIntentAbility[]> {
+  if (snapshot.length > 0 || cardId == null) return snapshot;
+  try {
+    const res = await API.capability.cardDetail({ id: cardId });
+    return buildAbilities(res.data);
+  } catch {
+    return snapshot;
+  }
+}
+
 /** 37.合作意向书（figma 222:1542）：浅蓝底玻璃头 + 意向书正文 + 底部操作条 */
 export default function CooperationIntentView() {
   const insets = useSafeAreaInsets();
@@ -111,7 +129,7 @@ export default function CooperationIntentView() {
           companySub: detail.senderCompany?.types || '企业认证 · 信息已核验',
           companyId: detail.senderCompany?.id,
           companyLogo: detail.senderCompany?.avatar || undefined,
-          abilities: buildAbilities(card),
+          abilities: await resolveAbilities(intent.cardId, buildAbilities(card)),
           feeds,
           contact,
           contactCardId: intent.contactCardId,
@@ -134,7 +152,7 @@ export default function CooperationIntentView() {
           companySub: res.data.company?.types || '企业认证 · 信息已核验',
           companyId: res.data.company?.id,
           companyLogo: res.data.company?.avatar || undefined,
-          abilities: draft.abilities ?? [],
+          abilities: await resolveAbilities(draft.cardId, draft.abilities ?? []),
           feeds: (draft.feedTitles ?? []).map((title, i) => ({
             id: String(draft.relBbs?.[i] ?? i),
             title,
