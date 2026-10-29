@@ -212,6 +212,12 @@ export default function CompanyManage() {
                       position: userInfo?.position ?? '',
                     }),
                 },
+                {
+                  label: '企业合作池',
+                  icon: <CompanyPoolIcon />,
+                  badge: poolCount,
+                  onPress: () => navigation.navigate('myOpportunities', { tab: 'pool' }),
+                },
               ],
             },
           ]

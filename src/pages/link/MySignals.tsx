@@ -242,7 +242,7 @@ export default function MySignals() {
       else setLoading(true);
       try {
         const res = await API.signal.list({ statusTab: filterKey, pageNum, pageSize: PAGE_SIZE });
-        console.log(res.data.list, 'list')
+        console.log(res.data, 'list')
         const items = (res.data.list ?? []).map(toSignal);
         setList(prev => (append ? [...prev, ...items] : items));
         setPage(res.data.pageNum || pageNum);
