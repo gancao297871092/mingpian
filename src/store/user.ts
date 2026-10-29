@@ -33,6 +33,8 @@ export interface WqUser {
   birthday?: number;
   cpId?: number;
   cpName?: string;
+  /** 所属企业 Logo（待后端在用户聚合信息中补充） */
+  cpAvatar?: string;
   /** 隐私开关（1公开 0关闭）：我的动态 */
   bbsShow?: number;
   /** 我的点赞 */
@@ -78,6 +80,8 @@ export interface UserInfo {
   totalFavoriteCount?: number;
   cpId?: number;
   cpName?: string;
+  /** 所属企业 Logo（待后端在用户聚合信息中补充） */
+  cpAvatar?: string;
   /** 是否企业管理员（1是 0否） */
   isManager?: number;
   /** 是否企业超级管理员（1是 0否） */

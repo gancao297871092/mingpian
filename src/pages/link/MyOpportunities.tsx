@@ -1,19 +1,24 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import SafeView from '@/components/SafeView';
 import EmptyState from '@/components/EmptyState';
 import ListFooter from '@/components/ListFooter';
+import { API } from '@/api';
+import type { LinkLead, LinkLeadItem, LinkLeadPoolItem } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
+import { formatRelativeTime, toTimestamp } from './linkFormat';
 import { InfoIcon, VerifiedBadgeIcon } from './icons';
 
 const PRIMARY = '#2962D4';
 const ORANGE = '#F2722C';
 const TEXT_SUB = '#6C6C6C';
 const PAGE_SIZE = 10;
+/** 「已连接」细分（待联系/沟通中）需要按 contactStage 客户端过滤，一次取足 */
+const CONNECTED_PAGE_SIZE = 100;
 
 type TopTab = 'pool' | 'mine';
 type PoolSub = 'pending' | 'docked';
@@ -22,6 +27,7 @@ type MineSub = 'waiting' | 'toContact' | 'chatting';
 interface OpportunityItem {
   id: string;
   company: string;
+  logo?: string;
   sub: string;
   statusTag: string;
   statusTone: 'blue' | 'orange';
@@ -30,105 +36,73 @@ interface OpportunityItem {
   desc?: string;
   actionText?: string;
   actionTone?: 'light' | 'solid';
+  /** 来源单据：意向书 ID（source=1） */
+  intentId?: number;
+  /** 线索 ID（接手/沟通等后续动作） */
+  leadId?: number;
+  contactStage?: string;
 }
 
-/** 静态 mock（接口待联调） */
-const MOCK_POOL: Record<PoolSub, OpportunityItem[]> = {
-  pending: [
-    {
-      id: 'p1',
-      company: '杭州远航包装有限公司',
-      sub: '包装制品',
-      statusTag: '待接手',
-      statusTone: 'blue',
-      sourceTag: '对方申请',
-      timeTag: '10 分钟前',
-      desc: '对方正在寻找 [华东地区编织袋生产企业] 开展合作，您可能符合其合作方向。',
-      actionText: '查看详情',
-      actionTone: 'light',
-    },
-    {
-      id: 'p2',
-      company: '苏州智造自动化有限公司',
-      sub: '智能装备',
-      statusTag: '待接手',
-      statusTone: 'blue',
-      sourceTag: '对方申请',
-      timeTag: '30 分钟前',
-      desc: '对方正在寻找 [自动化产线集成商] 开展合作，您可能符合其合作方向。',
-      actionText: '查看详情',
-      actionTone: 'light',
-    },
-  ],
-  docked: [
-    {
-      id: 'p3',
-      company: '杭州远航包装有限公司',
-      sub: '包装制品',
-      statusTag: '张三负责',
-      statusTone: 'blue',
-      sourceTag: '我方触达',
-      timeTag: '10 分钟前',
-      desc: '来源信号：寻找视频包装材料供应商',
-    },
-  ],
-};
+/** 线索来源 → 卡片标签（合作池里是对方发来的，合作中心里是我方发出的） */
+function sourceLabel(source: number | undefined, topTab: TopTab): string {
+  if (source === 1) return topTab === 'pool' ? '对方申请' : '我方触达';
+  if (source === 2) return '信号匹配';
+  if (source === 5) return '平台匹配';
+  if (source === 3) return '广场';
+  if (source === 4) return '官网';
+  return topTab === 'pool' ? '对方申请' : '我方触达';
+}
 
-/** 静态 mock（接口待联调） */
-const MOCK_MINE: Record<MineSub, OpportunityItem[]> = {
-  waiting: [
-    {
-      id: 'm1',
-      company: '苏州智造自动化有限公司',
-      sub: '智能装备',
-      statusTag: '等待对方',
-      statusTone: 'blue',
-      sourceTag: '我方触达',
-      timeTag: '昨天',
-      desc: '你已向对方发送合作申请，等待对方查看并回应。',
-      actionText: '查看申请',
-      actionTone: 'solid',
-    },
-  ],
-  toContact: [
-    {
-      id: 'm2',
-      company: '苏州智造自动化有限公司',
-      sub: '30分钟前建立连接',
-      statusTag: '待联系',
-      statusTone: 'orange',
-      sourceTag: '我方触达',
-      timeTag: '尚未发送站内消息',
-      desc: '来源信号：寻找食品包装材料供应商',
-      actionText: '开始沟通',
-      actionTone: 'solid',
-    },
-  ],
-  chatting: [
-    {
-      id: 'm3',
-      company: '苏州智造自动化有限公司',
-      sub: '昨天建立连接',
-      statusTag: '沟通中',
-      statusTone: 'blue',
-      sourceTag: '对方申请',
-      timeTag: '8分钟前',
-      actionText: '继续沟通',
-      actionTone: 'solid',
-    },
-    {
-      id: 'm4',
-      company: '杭州远航包装有限公司',
-      sub: '昨天建立连接',
-      statusTag: '沟通中',
-      statusTone: 'blue',
-      sourceTag: '我方触达',
-      timeTag: '2 小时前',
-      actionText: '继续沟通',
-      actionTone: 'solid',
-    },
-  ],
-};
+/** 合作池卡片：本企业收到的合作机会（对方企业视角） */
+function toPoolItem(item: LinkLeadPoolItem, sub: PoolSub): OpportunityItem {
+  const lead: LinkLead = item.lead ?? ({} as LinkLead);
+  return {
+    id: String(lead.id),
+    leadId: lead.id,
+    company: item.targetCompanyName || lead.title || '合作企业',
+    logo: item.targetCompanyLogo || undefined,
+    sub: item.targetCompanyTypes || '',
+    statusTag: sub === 'docked' ? (item.ownerUserName ? `${item.ownerUserName}负责` : '已对接') : '待接手',
+    statusTone: 'blue',
+    sourceTag: sourceLabel(lead.source, 'pool'),
+    timeTag: formatRelativeTime(lead.updateTime || lead.createTime),
+    desc:
+      sub === 'pending'
+        ? `对方希望就「${lead.title || '合作方向'}」开展合作，您可能符合其合作方向。`
+        : `来源：${sourceLabel(lead.source, 'pool')} · ${lead.title || '合作机会'}`,
+    actionText: '查看详情',
+    actionTone: 'light',
+    intentId: lead.source === 1 ? lead.sourceId : undefined,
+  };
+}
+
+/** 合作中心卡片：我发出的合作申请 / 跟进中的连接 */
+function toMineItem(item: LinkLeadItem, sub: MineSub): OpportunityItem {
+  const lead: LinkLead = item.lead ?? ({} as LinkLead);
+  const stage = item.contactStage;
+  const isConnected = lead.status === 3;
+  return {
+    id: String(lead.id),
+    leadId: lead.id,
+    company: item.targetCompanyName || lead.title || '合作企业',
+    logo: item.targetCompanyLogo || undefined,
+    sub: isConnected ? `${stage ?? '待联系'}` : item.targetCompanyTypes || '',
+    statusTag: sub === 'waiting' ? '等待对方' : sub === 'toContact' ? '待联系' : '沟通中',
+    statusTone: sub === 'toContact' ? 'orange' : 'blue',
+    sourceTag: sourceLabel(lead.source, 'mine'),
+    timeTag: formatRelativeTime(lead.updateTime || lead.createTime),
+    desc:
+      sub === 'waiting'
+        ? '你已向对方发送合作申请，等待对方查看并回应。'
+        : sub === 'toContact'
+          ? `来源：${lead.title || '合作意向书'}`
+          : undefined,
+    actionText: sub === 'waiting' ? '查看申请' : sub === 'toContact' ? '开始沟通' : '继续沟通',
+    actionTone: 'solid',
+    intentId: lead.source === 1 ? lead.sourceId : undefined,
+    contactStage: stage,
+  };
+}
 
 const POOL_SUBS: { key: PoolSub; label: string }[] = [
   { key: 'pending', label: '待接手' },
@@ -140,6 +114,13 @@ const MINE_SUBS: { key: MineSub; label: string }[] = [
   { key: 'toContact', label: '待联系' },
   { key: 'chatting', label: '沟通中' },
 ];
+
+/** 合并多来源后的排序：更新时间倒序 */
+function byUpdateDesc(a: LinkLeadItem, b: LinkLeadItem): number {
+  const at = toTimestamp(a.lead?.updateTime || a.lead?.createTime) ?? 0;
+  const bt = toTimestamp(b.lead?.updateTime || b.lead?.createTime) ?? 0;
+  return bt - at;
+}
 
 const NOTICES: Record<TopTab, string> = {
   pool: '这里展示企业当前的全部合作机会，包含对方发来的申请和我方信号产生的匹配结果',
@@ -157,7 +138,11 @@ function OpportunityCard({ item }: { item: OpportunityItem }) {
   return (
     <View style={styles.card}>
       <View style={styles.companyRow}>
-        <ExpoImage source={require('@/assets/link/mock-avatar.png')} style={styles.companyAvatar} contentFit="cover" />
+        <ExpoImage
+          source={item.logo ? { uri: item.logo } : require('@/assets/link/mock-avatar.png')}
+          style={styles.companyAvatar}
+          contentFit="cover"
+        />
         <View style={styles.companyInfo}>
           <View style={styles.companyNameRow}>
             <Text style={styles.companyName} numberOfLines={1}>{item.company}</Text>
@@ -176,9 +161,11 @@ function OpportunityCard({ item }: { item: OpportunityItem }) {
         <View style={[styles.tag, styles.tagBlue]}>
           <Text style={[styles.tagText, styles.tagTextBlue]}>{item.sourceTag}</Text>
         </View>
-        <View style={[styles.tag, styles.tagGray]}>
-          <Text style={[styles.tagText, styles.tagTextGray]}>{item.timeTag}</Text>
-        </View>
+        {!!item.timeTag && (
+          <View style={[styles.tag, styles.tagGray]}>
+            <Text style={[styles.tagText, styles.tagTextGray]}>{item.timeTag}</Text>
+          </View>
+        )}
       </View>
       {!!item.desc && <Text style={styles.cardDesc}>{item.desc}</Text>}
       {!!item.actionText && (
@@ -186,12 +173,14 @@ function OpportunityCard({ item }: { item: OpportunityItem }) {
           activeOpacity={0.85}
           style={[styles.cardBtn, item.actionTone === 'solid' ? styles.cardBtnSolid : styles.cardBtnLight]}
           onPress={() => {
-            if (item.actionText === '查看详情') {
-              navigation.navigate('opportunityDetail');
-            } else if (item.actionText === '查看申请') {
-              navigation.navigate('cooperationIntentView');
+            if (item.actionText === '查看详情' || item.actionText === '查看申请') {
+              if (item.intentId) {
+                navigation.navigate('cooperationIntentView', { intentId: item.intentId });
+              } else {
+                console.log('go: 线索详情', item.leadId);
+              }
             } else {
-              console.log('go:', item.actionText, item.id);
+              navigation.navigate('MainTabs', { screen: 'message' });
             }
           }}
         >
@@ -217,24 +206,76 @@ export default function MyOpportunities() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [errorText, setErrorText] = useState('');
   const loadingRef = useRef(false);
 
   const subs = topTab === 'pool' ? POOL_SUBS : MINE_SUBS;
   const activeSub = topTab === 'pool' ? poolSub : mineSub;
-  const counts = useMemo(
-    () =>
-      topTab === 'pool'
-        ? { pending: MOCK_POOL.pending.length, docked: MOCK_POOL.docked.length }
-        : {
-            waiting: MOCK_MINE.waiting.length,
-            toContact: MOCK_MINE.toContact.length,
-            chatting: MOCK_MINE.chatting.length,
-          },
-    [topTab],
-  );
-  const notice = topTab === 'pool' ? NOTICES.pool : MINE_SUB_NOTICES[mineSub];
+  const notice = errorText || (topTab === 'pool' ? NOTICES.pool : MINE_SUB_NOTICES[mineSub]);
 
-  /** 静态 mock 分页（接口待联调：替换为真实请求，入参 topTab/activeSub/pageNum） */
+  /** 两个子 tab 的计数 */
+  const fetchCounts = useCallback(async (tab: TopTab) => {
+    try {
+      if (tab === 'pool') {
+        const res = await API.lead.pool({ tab: 'pending', pageNum: 1, pageSize: 1 });
+        setCounts({
+          pending: res.data.counts?.pending ?? 0,
+          docked: res.data.counts?.docked ?? 0,
+        });
+        return;
+      }
+      // 计数由后端 counts 下发；connected 未按 contactStage 细分，仍需拉一次已连接列表拆分（待后端细分后可去掉）
+      const [allRes, connectedRes] = await Promise.all([
+        API.lead.list({ tab: 'all', pageNum: 1, pageSize: 1 }),
+        API.lead.list({ tab: 'connected', pageNum: 1, pageSize: CONNECTED_PAGE_SIZE }),
+      ]);
+      const c = allRes.data.counts ?? {};
+      const connected = connectedRes.data.list ?? [];
+      setCounts({
+        waiting: c.response ?? 0,
+        // 待联系 = 待跟进线索（信号有效回应 / 接手池线索）+ 已连接但还没发消息
+        toContact:
+          (c.pending ?? 0) + connected.filter(i => (i.contactStage ?? '待联系') === '待联系').length,
+        // 沟通中 = 跟进中线索 + 已连接且已在私信沟通
+        chatting:
+          (c.following ?? 0) + connected.filter(i => i.contactStage === '沟通中').length,
+      });
+    } catch {
+      // 拦截器已提示错误
+    }
+  }, []);
+
+  /** 待联系 / 沟通中：跨 status 拉全量后客户端分页（status=1 待跟进、2 跟进中、3 已连接） */
+  const fetchMineAll = useCallback(
+    async (sub: Exclude<MineSub, 'waiting'>): Promise<LinkLeadItem[]> => {
+      const connectedReq = API.lead.list({
+        tab: 'connected',
+        pageNum: 1,
+        pageSize: CONNECTED_PAGE_SIZE,
+      });
+      if (sub === 'toContact') {
+        const [todoRes, connectedRes] = await Promise.all([
+          API.lead.list({ tab: 'pending', pageNum: 1, pageSize: CONNECTED_PAGE_SIZE }),
+          connectedReq,
+        ]);
+        const todo = todoRes.data.list ?? [];
+        const connected = (connectedRes.data.list ?? []).filter(
+          i => (i.contactStage ?? '待联系') === '待联系',
+        );
+        return [...todo, ...connected].sort(byUpdateDesc);
+      }
+      const [followingRes, connectedRes] = await Promise.all([
+        API.lead.list({ tab: 'following', pageNum: 1, pageSize: CONNECTED_PAGE_SIZE }),
+        connectedReq,
+      ]);
+      const following = followingRes.data.list ?? [];
+      const connected = (connectedRes.data.list ?? []).filter(i => i.contactStage === '沟通中');
+      return [...following, ...connected].sort(byUpdateDesc);
+    },
+    [],
+  );
+
   const fetchList = useCallback(
     async (tab: TopTab, sub: string, pageNum: number, append: boolean, isRefresh = false) => {
       if (loadingRef.current) return;
@@ -242,12 +283,51 @@ export default function MyOpportunities() {
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
       try {
-        const source = tab === 'pool' ? MOCK_POOL[sub as PoolSub] : MOCK_MINE[sub as MineSub];
-        const arr = source.slice((pageNum - 1) * PAGE_SIZE, pageNum * PAGE_SIZE);
-        const totalPages = Math.max(Math.ceil(source.length / PAGE_SIZE), 1);
-        setList(prev => (append ? [...prev, ...arr] : arr));
-        setPage(pageNum);
+        let items: OpportunityItem[] = [];
+        let totalPages = 1;
+        let currentPage = pageNum;
+        if (tab === 'pool') {
+          const res = await API.lead.pool({
+            tab: sub as PoolSub,
+            pageNum,
+            pageSize: PAGE_SIZE,
+          });
+          items = (res.data.list ?? []).map(item => toPoolItem(item, sub as PoolSub));
+          totalPages = Math.max(res.data.pages || 1, 1);
+          currentPage = res.data.pageNum || pageNum;
+          setCounts({
+            pending: res.data.counts?.pending ?? 0,
+            docked: res.data.counts?.docked ?? 0,
+          });
+          setErrorText('');
+        } else if (sub === 'waiting') {
+          const res = await API.lead.list({ tab: 'response', pageNum, pageSize: PAGE_SIZE });
+          items = (res.data.list ?? []).map(item => toMineItem(item, 'waiting'));
+          totalPages = Math.max(res.data.pages || 1, 1);
+          currentPage = res.data.pageNum || pageNum;
+          setErrorText('');
+        } else {
+          // 待联系 / 沟通中：合并「待跟进 / 跟进中 / 已连接」后按卡片态过滤
+          const all = (await fetchMineAll(sub as Exclude<MineSub, 'waiting'>)).map(item =>
+            toMineItem(item, sub as MineSub),
+          );
+          totalPages = Math.max(Math.ceil(all.length / PAGE_SIZE), 1);
+          currentPage = pageNum;
+          items = all.slice((pageNum - 1) * PAGE_SIZE, pageNum * PAGE_SIZE);
+          setErrorText('');
+        }
+        setList(prev => (append ? [...prev, ...items] : items));
+        setPage(currentPage);
         setPages(totalPages);
+      } catch (e) {
+        const reason = e as { msg?: string; message?: string };
+        const text = reason?.msg || reason?.message;
+        if (tab === 'pool' && text) setErrorText(text);
+        if (!append) {
+          setList([]);
+          setPage(1);
+          setPages(1);
+        }
       } finally {
         loadingRef.current = false;
         setLoading(false);
@@ -255,17 +335,22 @@ export default function MyOpportunities() {
         setLoaded(true);
       }
     },
-    [],
+    [fetchMineAll],
   );
 
-  useEffect(() => {
-    fetchList(topTab, activeSub, 1, false);
-  }, [topTab, activeSub, fetchList]);
-
-  const onRefresh = useCallback(
-    () => fetchList(topTab, activeSub, 1, false, true),
-    [topTab, activeSub, fetchList],
+  useFocusEffect(
+    useCallback(() => {
+      setLoaded(false);
+      setErrorText('');
+      fetchList(topTab, activeSub, 1, false);
+      fetchCounts(topTab);
+    }, [topTab, activeSub, fetchList, fetchCounts]),
   );
+
+  const onRefresh = useCallback(() => {
+    fetchList(topTab, activeSub, 1, false, true);
+    fetchCounts(topTab);
+  }, [topTab, activeSub, fetchList, fetchCounts]);
 
   const onEndReached = useCallback(() => {
     if (!loadingRef.current && page < pages) {
@@ -289,7 +374,7 @@ export default function MyOpportunities() {
                 }
               >
                 <Text style={[styles.subTabText, active ? styles.subTabActive : styles.subTabInactive]}>
-                  {item.label} {counts[item.key as keyof typeof counts]}
+                  {item.label} {counts[item.key] ?? 0}
                 </Text>
               </TouchableOpacity>
             );

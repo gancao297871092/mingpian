@@ -20,7 +20,7 @@ const PRIMARY = '#2962D4';
 const ORANGE = '#F2722C';
 const TEXT_SUB = '#6C6C6C';
 
-/** 静态 mock（接口待联调） */
+/** 页面静态文案（无需接口） */
 const MOCK_QUESTIONS = [
   { key: 'q1', title: '你想找谁？', desc: '采购商、供应商、渠道商、服务商，或其他合作伙伴', Icon: GuideQ1Icon },
   { key: 'q2', title: '希望对方是什么企业？', desc: '例如：编织袋生产企业、汽车零部件厂、食品加工企业', Icon: GuideQ2Icon },

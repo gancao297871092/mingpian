@@ -1,25 +1,23 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import SafeView from '@/components/SafeView';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
+import type { RootStackParamList } from '@/route/map';
+import { setPendingTouchSummary } from './signalDraft';
 import { InfoIcon } from './icons';
 
 const PRIMARY = '#2962D4';
 const TEXT_SUB = '#6C6C6C';
 
-/** 静态 mock（接口待联调） */
-const MOCK_INITIAL = {
-  target: '华东地区的编织袋生产企业',
-  purpose: '拓展下游客户',
-  capability: '2 篇真实动态 + 能力阐述',
-  identity: '王磊 · 智能制造解决方案顾问',
-};
-
 /** 54.修改触达摘要（figma 327:2236）：系统头 + 表单 + 保存 */
 export default function EditTouchSummary() {
-  const [form, setForm] = useState(MOCK_INITIAL);
+  const navigation = useNavigation();
+  const route = useRoute<RouteProp<RootStackParamList, 'editTouchSummary'>>();
+  const initial = route.params?.summary ?? { target: '', purpose: '', capability: '', identity: '' };
+  const [form, setForm] = useState(initial);
 
-  const fields: { key: keyof typeof MOCK_INITIAL; label: string }[] = [
+  const fields: { key: keyof typeof initial; label: string }[] = [
     { key: 'target', label: '目标客户' },
     { key: 'purpose', label: '合作目的' },
     { key: 'capability', label: '能力内容' },
@@ -46,7 +44,10 @@ export default function EditTouchSummary() {
         <TouchableOpacity
           activeOpacity={0.85}
           style={styles.saveBtn}
-          onPress={() => console.log('go: 保存触达摘要', form)}
+          onPress={() => {
+            setPendingTouchSummary(form);
+            navigation.goBack();
+          }}
         >
           <Text style={styles.saveBtnText}>保存</Text>
         </TouchableOpacity>

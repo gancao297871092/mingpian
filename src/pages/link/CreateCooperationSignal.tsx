@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -7,27 +7,19 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SafeView from '@/components/SafeView';
+import { API } from '@/api';
+import { useUserStore } from '@/store/user';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
+import { parseAbilityContent, takePendingIntentDraft, type SignalIntentDraft } from './signalDraft';
 import { ChevronRightIcon, InfoIcon } from './icons';
 
 const PRIMARY = '#2962D4';
 const TEXT_SUB = '#6C6C6C';
-
-/** 静态 mock（接口待联调）：信号发出主体企业名 */
-const MOCK_COMPANY_NAME = '深圳联诚采信科技有限公司';
-
-/** 静态 mock（接口待联调）：编辑模式下按 id 回显的信号详情 */
-const MOCK_SIGNAL_DETAIL: Record<string, { demand: string; intentCreated: boolean }> = {
-  '1': { demand: '寻找西南区域吨袋供应合作', intentCreated: false },
-  '2': { demand: '寻找华东编织袋生产企业，支持打样验证与批量交付', intentCreated: true },
-  '3': { demand: '连接华南食品包装生产企业', intentCreated: true },
-  '4': { demand: '寻找西南区域吨袋供应合作', intentCreated: true },
-};
 
 /** 51.创建合作信号（figma 2793:6959，分组10最新稿；route.params.id 存在时为编辑模式，标题由路由配置切换） */
 export default function CreateCooperationSignal() {
@@ -35,9 +27,42 @@ export default function CreateCooperationSignal() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { params } = useRoute<RouteProp<RootStackParamList, 'createCooperationSignal'>>();
   const editId = params?.id;
-  const detail = editId ? MOCK_SIGNAL_DETAIL[editId] : undefined;
-  const [demand, setDemand] = useState(detail?.demand ?? '');
-  const intentCreated = detail?.intentCreated ?? false;
+  const companyName = useUserStore(s => s.userInfo?.cpName ?? s.userInfo?.wqUser?.cpName ?? '');
+  const [demand, setDemand] = useState('');
+  const [intent, setIntent] = useState<SignalIntentDraft | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  /** 编辑模式回显；同时接收「创建合作意向书」返回的草稿 */
+  useFocusEffect(
+    useCallback(() => {
+      const draft = takePendingIntentDraft();
+      if (draft) setIntent(draft);
+      if (!editId) {
+        setLoaded(true);
+        return;
+      }
+      let alive = true;
+      (async () => {
+        try {
+          const res = await API.signal.detail({ signalId: editId });
+          const signal = res.data.signal;
+          if (!alive || !signal) return;
+          setDemand(prev => prev || signal.targetDesc || '');
+          if (!draft) setIntent(parseAbilityContent(signal.abilityContent));
+        } catch {
+          // 拦截器已提示错误
+        } finally {
+          if (alive) setLoaded(true);
+        }
+      })();
+      return () => {
+        alive = false;
+      };
+    }, [editId]),
+  );
+
+  const intentCreated = !!intent?.note?.trim();
+  const canPreview = !!demand.trim();
 
   return (
     <SafeView backgroundColor="#F6F7FB">
@@ -50,7 +75,7 @@ export default function CreateCooperationSignal() {
         <View style={styles.notice}>
           <InfoIcon />
           <Text style={styles.noticeText}>
-            本次信号将以[{MOCK_COMPANY_NAME}]名义发出，由你负责后续跟进；同事可在企业管理「企业合作池」查看被触达的企业。
+            本次信号将以[{companyName || '本企业'}]名义发出，由你负责后续跟进；同事可在企业管理「企业合作池」查看被触达的企业。
           </Text>
         </View>
 
@@ -63,6 +88,7 @@ export default function CreateCooperationSignal() {
           <TextInput
             style={styles.input}
             multiline
+            maxLength={512}
             placeholder="例如：帮我连接华东的编织袋生产企业..."
             placeholderTextColor="#999999"
             value={demand}
@@ -89,7 +115,7 @@ export default function CreateCooperationSignal() {
         <TouchableOpacity
           activeOpacity={0.85}
           style={styles.intentCard}
-          onPress={() => navigation.navigate('createCooperationIntent')}
+          onPress={() => navigation.navigate('createCooperationIntent', { draft: true, intent: intent ?? undefined })}
         >
           <Text style={[styles.intentState, intentCreated && styles.intentStateDone]}>
             {intentCreated ? '已创建' : '未创建'}
@@ -105,9 +131,15 @@ export default function CreateCooperationSignal() {
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, scaleSizeH(20)) }]}>
         <TouchableOpacity
           activeOpacity={0.85}
-          disabled={!demand.trim()}
-          style={[styles.submitBtn, !demand.trim() && styles.submitBtnDisabled]}
-          onPress={() => navigation.navigate('cooperationSignalPreview')}
+          disabled={!canPreview || !loaded}
+          style={[styles.submitBtn, (!canPreview || !loaded) && styles.submitBtnDisabled]}
+          onPress={() =>
+            navigation.navigate('cooperationSignalPreview', {
+              id: editId,
+              targetDesc: demand.trim(),
+              intent: intent ?? undefined,
+            })
+          }
         >
           <Text style={styles.submitBtnText}>预览合作信号</Text>
         </TouchableOpacity>

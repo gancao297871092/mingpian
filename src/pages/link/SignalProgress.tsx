@@ -1,30 +1,36 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SafeView from '@/components/SafeView';
+import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
+import { elapsedDays } from './linkFormat';
+import { parseAbilityContent } from './signalDraft';
 import { NoteDotIcon, SignalIcon } from './icons';
 
 const PRIMARY = '#2962D4';
 const TEXT_SUB = '#6C6C6C';
 
-/** 静态 mock（接口待联调） */
-const MOCK_PROGRESS = {
-  title: '寻找西南区域吨袋供应合作',
-  days: 3,
-  summary: [
-    { label: '目标客户', value: '华东地区的编织袋生产企业' },
-    { label: '合作目的', value: '拓展下游客户' },
-    { label: '能力内容', value: '2 篇真实动态 + 能力阐述' },
-    { label: '触达身份', value: '王磊 · 智能制造解决方案顾问' },
-  ],
+interface ProgressView {
+  title: string;
+  /** 后端状态 1/2/3/4/5 */
+  status: number;
+  days?: number;
+  summary: { label: string; value: string }[];
+  stats: { label: string; value: number }[];
+}
+
+const EMPTY: ProgressView = {
+  title: '',
+  status: 0,
+  summary: [],
   stats: [
-    { label: '已触达', value: 126 },
-    { label: '已查看', value: 48 },
-    { label: '已连接', value: 3 },
+    { label: '已触达', value: 0 },
+    { label: '已查看', value: 0 },
+    { label: '已连接', value: 0 },
   ],
 };
 
@@ -34,6 +40,52 @@ export default function SignalProgress() {
   const route = useRoute<RouteProp<RootStackParamList, 'signalProgress'>>();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const signalId = route.params?.id;
+  const [data, setData] = useState<ProgressView>(EMPTY);
+
+  const load = useCallback(async () => {
+    if (!signalId) return;
+    try {
+      const res = await API.signal.progress({ signalId, pageNum: 1, pageSize: 20 });
+      const signal = res.data.signal ?? ({} as typeof res.data.signal);
+      const intent = parseAbilityContent(signal.abilityContent);
+      const funnel = res.data.funnel ?? { deliverCount: 0, viewCount: 0, responseCount: 0 };
+      setData({
+        title: signal.targetDesc || '未命名信号',
+        status: signal.status ?? 0,
+        days: elapsedDays(signal.startTime),
+        summary: [
+          { label: '目标客户', value: signal.targetDesc || '—' },
+          { label: '合作目的', value: signal.purpose || intent?.note || '—' },
+          {
+            label: '能力内容',
+            value: intent
+              ? `${intent.feedTitles?.length ?? 0} 篇真实动态 + 能力阐述`
+              : '未创建合作意向书',
+          },
+          {
+            label: '触达身份',
+            value: [intent?.contactName, intent?.contactTitle].filter(Boolean).join(' · ') || '—',
+          },
+        ],
+        stats: [
+          { label: '已触达', value: funnel.deliverCount ?? 0 },
+          { label: '已查看', value: funnel.viewCount ?? 0 },
+          { label: '已连接', value: funnel.responseCount ?? 0 },
+        ],
+      });
+    } catch {
+      // 拦截器已提示错误
+    }
+  }, [signalId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
+
+  /** 投放中 / 已结束不可修改（后端拒绝），仅审核中 / 已暂停可编辑 */
+  const editable = data.status === 1 || data.status === 3;
 
   return (
     <SafeView backgroundColor="#F6F7FB">
@@ -42,11 +94,11 @@ export default function SignalProgress() {
         <View style={styles.card}>
           <View style={styles.signalRow}>
             <SignalIcon />
-            <Text style={styles.signalTitle} numberOfLines={1}>{MOCK_PROGRESS.title}</Text>
+            <Text style={styles.signalTitle} numberOfLines={1}>{data.title}</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.statusPill}>
-            <Text style={styles.statusPillText}>触达中·{MOCK_PROGRESS.days}天</Text>
+            <Text style={styles.statusPillText}>触达中·{data.days ?? 0}天</Text>
           </View>
         </View>
 
@@ -59,7 +111,7 @@ export default function SignalProgress() {
             <Text style={styles.summaryTitle}>触达摘要</Text>
           </View>
           <View style={styles.summaryRows}>
-            {MOCK_PROGRESS.summary.map(row => (
+            {data.summary.map(row => (
               <View key={row.label} style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>{row.label}</Text>
                 <Text style={styles.summaryValue}>{row.value}</Text>
@@ -69,7 +121,7 @@ export default function SignalProgress() {
           <TouchableOpacity
             activeOpacity={0.85}
             style={styles.intentBtn}
-            onPress={() => navigation.navigate('cooperationIntentView')}
+            onPress={() => navigation.navigate('cooperationIntentView', { signalId })}
           >
             <Text style={styles.intentBtnText}>查看合作意向书</Text>
           </TouchableOpacity>
@@ -77,7 +129,7 @@ export default function SignalProgress() {
 
         {/* 触达统计 */}
         <View style={[styles.card, styles.statsCard]}>
-          {MOCK_PROGRESS.stats.map(item => (
+          {data.stats.map(item => (
             <View key={item.label} style={styles.statsItem}>
               <Text style={styles.statsLabel}>{item.label}</Text>
               <Text style={styles.statsValue}>{item.value}</Text>
@@ -86,16 +138,18 @@ export default function SignalProgress() {
         </View>
       </ScrollView>
 
-      {/* 底部操作条 */}
-      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, scaleSizeH(14)) }]}>
-        <TouchableOpacity
-          activeOpacity={0.85}
-          style={styles.editBtn}
-          onPress={() => navigation.navigate('createCooperationSignal', { id: signalId })}
-        >
-          <Text style={styles.editBtnText}>修改信号</Text>
-        </TouchableOpacity>
-      </View>
+      {/* 底部操作条：仅可编辑状态展示 */}
+      {editable && (
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, scaleSizeH(14)) }]}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={styles.editBtn}
+            onPress={() => navigation.navigate('createCooperationSignal', { id: signalId })}
+          >
+            <Text style={styles.editBtnText}>修改信号</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </SafeView>
   );
 }

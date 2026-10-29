@@ -1,50 +1,78 @@
-import React from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SafeView from '@/components/SafeView';
+import { API } from '@/api';
+import type { LinkOpportunityItem } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
+import { formatBasis } from './linkFormat';
 import { ChevronLeftIcon, ChevronRightIcon, DiamondIcon, HiBubbleIcon, SearchIcon } from './icons';
 
 const PURPLE = '#7B5BD6';
 const TEXT_SUB = '#6C6C6C';
+const PAGE_SIZE = 10;
 
 interface HappeningItem {
   id: string;
+  opportunityId: number;
   title: string;
   desc: string;
   evidence: string;
+  stage: string;
 }
 
-/** 静态 mock（接口待联调） */
-const MOCK_LIST: HappeningItem[] = [
-  {
-    id: '1',
-    title: '产线升级，寻找锻造设备与集成服务商',
-    desc: '通海优耐特推进锻造工位与整线自动化升级，希望对接可落地的设备与集成服务商。',
-    evidence: '依据：企业动态 · 新产线已投用 等2条依据',
-  },
-  {
-    id: '2',
-    title: '可提供吨袋包装产能，承接代工与长期合作',
-    desc: '华兴包装具备稳定产能与交付能力，可承接代工与长期供货合作。',
-    evidence: '依据：企业信息 · 吨袋包装制造 等2条依据',
-  },
-  {
-    id: '3',
-    title: '寻找 MES / 数采系统服务商',
-    desc: '企业计划梳理产线数据与数字化管理流程，希望引入可落地的 MES / 数采方案。',
-    evidence: '依据：企业信息 · 数字化改造 等2条依据',
-  },
-];
+/** 接口 → 卡片模型（描述为空时用商机类型兜底，避免卡片留白） */
+function toHappeningItem(item: LinkOpportunityItem): HappeningItem {
+  const opp = item.opportunity ?? ({} as LinkOpportunityItem['opportunity']);
+  return {
+    id: String(opp.id),
+    opportunityId: opp.id,
+    title: opp.title || '未命名商机',
+    desc: opp.aiAnalysis || [opp.region, opp.scale].filter(Boolean).join(' · ') || 'AI 正在解读该商机',
+    evidence: formatBasis((item.basisList ?? []).map(b => b.label)),
+    stage: item.stage || 'AI研判',
+  };
+}
 
 /** 61.产业正在发生（figma 387:2375）：浅蓝底 + 吉祥物头 + 机会卡片流 */
 export default function IndustryHappening() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const [list, setList] = useState<HappeningItem[]>([]);
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [refreshing, setRefreshing] = useState(false);
+  const loadingRef = useRef(false);
+
+  const fetchList = useCallback(async (pageNum: number, append: boolean, isRefresh = false) => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+    if (isRefresh) setRefreshing(true);
+    try {
+      const res = await API.aiDiscovery.happening({ pageNum, pageSize: PAGE_SIZE });
+      const items = (res.data.list ?? []).map(toHappeningItem);
+      setList(prev => (append ? [...prev, ...items] : items));
+      setPage(res.data.pageNum || pageNum);
+      setPages(Math.max(res.data.pages || 1, 1));
+    } catch {
+      // 拦截器已提示错误
+    } finally {
+      loadingRef.current = false;
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchList(1, false);
+  }, [fetchList]);
+
+  const loadMore = useCallback(() => {
+    if (page < pages) fetchList(page + 1, true);
+  }, [fetchList, page, pages]);
 
   return (
     <SafeView backgroundColor="#E8EFFF">
@@ -70,6 +98,20 @@ export default function IndustryHappening() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingTop: insets.top + scaleSizeH(64) }]}
+        scrollEventThrottle={16}
+        onScroll={({ nativeEvent }) => {
+          const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+          if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 200) {
+            loadMore();
+          }
+        }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => fetchList(1, false, true)}
+            tintColor={PURPLE}
+          />
+        }
       >
         {/* 标题区 */}
         <View style={styles.titleBlock}>
@@ -86,7 +128,7 @@ export default function IndustryHappening() {
           </View>
         </View>
 
-        {MOCK_LIST.map(item => (
+        {list.map(item => (
           <View key={item.id} style={styles.card}>
             <View style={styles.cardTitleRow}>
               <DiamondIcon size={11.5} />
@@ -95,7 +137,7 @@ export default function IndustryHappening() {
             <Text style={styles.cardDesc}>{item.desc}</Text>
             <View style={styles.tagRow}>
               <View style={styles.tagPill}>
-                <Text style={styles.tagText}>AI研判</Text>
+                <Text style={styles.tagText}>{item.stage}</Text>
               </View>
               <View style={styles.evidencePill}>
                 <Text style={styles.evidenceText} numberOfLines={1}>{item.evidence}</Text>
@@ -105,7 +147,7 @@ export default function IndustryHappening() {
             <TouchableOpacity
               activeOpacity={0.7}
               style={styles.detailRow}
-              onPress={() => navigation.navigate('opportunityDetail')}
+              onPress={() => navigation.navigate('opportunityDetail', { opportunityId: item.opportunityId })}
             >
               <Text style={styles.detailText}>查看详情</Text>
               <ChevronRightIcon size={10} />

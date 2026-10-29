@@ -1,6 +1,7 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ScrollView,
+  Share,
   StatusBar,
   StyleSheet,
   Text,
@@ -10,40 +11,86 @@ import {
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import LinearGradient from 'react-native-linear-gradient';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SafeView from '@/components/SafeView';
+import { API } from '@/api';
+import type { LinkBasisItem, LinkOpportunityDetail } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
+import { splitAnalysis } from './linkFormat';
+import { openBasis } from './linkNavigation';
 import { AnalysisIcon, ChevronLeftIcon, ChevronRightIcon, ShareNodesIcon, VerifiedBadgeIcon } from './icons';
 
 const TEXT_SUB = '#6C6C6C';
 
-/** 静态 mock（接口待联调） */
-const MOCK_DETAIL = {
-  title: '哎塔产线升级，寻找缝纫设备与集成服务商',
-  tag: 'AI研判',
-  analysisLead: '这是一条产线升级类采购机会：',
-  analysis:
-    '企业正在推进缝纫工位与整线自动化改造。核心诉求是缝纫设备或集成设备供应商，能够承接相关服务商。当前产线存在部分环节效率瓶颈，亟需改造升级。',
-  company: '通海优耐特智能科技',
-  companySub: '企业认证 · 信息已核验',
-  evidences: ['企业信息 · 吨袋包装制造', '能力卡 · 华东区域交付', '企业动态 · 新增包装产能'],
+interface OpportunityView {
+  title: string;
+  stage: string;
+  analysis: string;
+  evidences: LinkBasisItem[];
+  companyName: string;
+  companyLogo?: string;
+  companyId?: number;
+  authorUserId?: number;
+}
+
+const EMPTY: OpportunityView = {
+  title: '',
+  stage: '',
+  analysis: '',
+  evidences: [],
+  companyName: '',
 };
 
 /** 62.商机详情（figma 402:2051）：深色渐变头 + 自定义玻璃返回/分享按钮 */
 export default function OpportunityDetail() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const route = useRoute<RouteProp<RootStackParamList, 'opportunityDetail'>>();
+  const opportunityId = route.params?.opportunityId;
   const { width } = useWindowDimensions();
+  const [data, setData] = useState<OpportunityView>(EMPTY);
+
+  const load = useCallback(async () => {
+    if (!opportunityId) return;
+    try {
+      const res = await API.aiDiscovery.detail({ opportunityId });
+      const detail: LinkOpportunityDetail = res.data;
+      const opp = detail.opportunity ?? ({} as LinkOpportunityDetail['opportunity']);
+      setData({
+        title: opp.title ?? '',
+        stage: detail.stage ?? '',
+        analysis: opp.aiAnalysis ?? '',
+        evidences: detail.basisList ?? [],
+        companyName: detail.company?.name ?? '',
+        companyLogo: detail.company?.avatar || undefined,
+        companyId: detail.company?.id ?? opp.cpId ?? undefined,
+        authorUserId: detail.author?.userId ?? opp.userId ?? undefined,
+      });
+    } catch {
+      // 拦截器已提示错误，保留当前内容
+    }
+  }, [opportunityId]);
+
+  const onShare = useCallback(async () => {
+    try {
+      await Share.share({ message: data.title });
+    } catch {
+      // 用户取消或系统不支持，静默
+    }
+  }, [data.title]);
 
   useFocusEffect(
     useCallback(() => {
       StatusBar.setBarStyle('light-content');
+      load();
       return () => StatusBar.setBarStyle('dark-content');
-    }, []),
+    }, [load]),
   );
+
+  const analysis = splitAnalysis(data.analysis);
 
   return (
     <SafeView backgroundColor="#E8EFFF">
@@ -55,11 +102,7 @@ export default function OpportunityDetail() {
           <ChevronLeftIcon size={18} />
         </TouchableOpacity>
         <Text style={styles.navTitle}>机会详情</Text>
-        <TouchableOpacity
-          activeOpacity={0.85}
-          style={styles.glassBtn}
-          onPress={() => console.log('go: share opportunity')}
-        >
+        <TouchableOpacity activeOpacity={0.85} style={styles.glassBtn} onPress={onShare}>
           <ShareNodesIcon />
         </TouchableOpacity>
       </View>
@@ -68,9 +111,9 @@ export default function OpportunityDetail() {
         {/* 标题卡 + 平台服务横幅（对齐方向详情：同一张卡裁切圆角，渐变不承载圆角/内边距） */}
         <View style={styles.topCard}>
           <View style={styles.titleCard}>
-            <Text style={styles.titleText}>{MOCK_DETAIL.title}</Text>
+            <Text style={styles.titleText}>{data.title}</Text>
             <View style={styles.aiPill}>
-              <Text style={styles.aiPillText}>{MOCK_DETAIL.tag}</Text>
+              <Text style={styles.aiPillText}>{data.stage}</Text>
             </View>
           </View>
 
@@ -88,7 +131,7 @@ export default function OpportunityDetail() {
               <TouchableOpacity
                 activeOpacity={0.85}
                 style={styles.serviceBtn}
-                onPress={() => navigation.navigate('platformAssist')}
+                onPress={() => navigation.navigate('platformAssist', { opportunityId })}
               >
                 <Text style={styles.serviceBtnText}>了解服务</Text>
               </TouchableOpacity>
@@ -113,26 +156,34 @@ export default function OpportunityDetail() {
             contentFit="cover"
           />
           <View style={styles.analysisCard}>
-            <Text style={styles.analysisLead}>{MOCK_DETAIL.analysisLead}</Text>
-            <Text style={styles.analysisBody}>{MOCK_DETAIL.analysis}</Text>
+            {!!analysis.lead && <Text style={styles.analysisLead}>{analysis.lead}</Text>}
+            {!!analysis.body && <Text style={styles.analysisBody}>{analysis.body}</Text>}
           </View>
         </View>
 
         {/* 发布企业 */}
-        <TouchableOpacity activeOpacity={0.85} style={styles.companyCard} onPress={() => console.log('go: 企业主页')}>
+        <TouchableOpacity
+          activeOpacity={0.85}
+          style={styles.companyCard}
+          onPress={() => {
+            if (data.companyId) {
+              navigation.navigate('companyPage', { id: data.companyId, userId: data.authorUserId });
+            }
+          }}
+        >
           <Text style={styles.cardLabel}>发布企业</Text>
           <View style={styles.companyRow}>
             <ExpoImage
-              source={require('@/assets/link/mock-avatar.png')}
+              source={data.companyLogo ? { uri: data.companyLogo } : require('@/assets/link/mock-avatar.png')}
               style={styles.companyAvatar}
               contentFit="cover"
             />
             <View style={styles.companyInfo}>
               <View style={styles.companyNameRow}>
-                <Text style={styles.companyName}>{MOCK_DETAIL.company}</Text>
+                <Text style={styles.companyName}>{data.companyName}</Text>
                 <VerifiedBadgeIcon size={14} />
               </View>
-              <Text style={styles.companySub}>{MOCK_DETAIL.companySub}</Text>
+              <Text style={styles.companySub}>企业认证 · 信息已核验</Text>
             </View>
           </View>
           <View style={styles.companyChevron}>
@@ -144,15 +195,15 @@ export default function OpportunityDetail() {
         <View style={styles.evidenceCard}>
           <Text style={styles.cardLabel}>判断依据</Text>
           <View style={styles.evidenceWrap}>
-            {MOCK_DETAIL.evidences.map((text, i) => (
+            {data.evidences.map((item, i) => (
               <TouchableOpacity
-                key={text}
+                key={`${item.type}-${item.refId ?? i}`}
                 activeOpacity={0.7}
                 style={styles.evidencePill}
-                onPress={() => console.log('go: 判断依据', i)}
+                onPress={() => openBasis(navigation, item)}
               >
-                <Text style={styles.evidenceText}>{text}</Text>
-                {i === MOCK_DETAIL.evidences.length - 1 && <ChevronRightIcon size={10} />}
+                <Text style={styles.evidenceText}>{item.label}</Text>
+                {i === data.evidences.length - 1 && <ChevronRightIcon size={10} />}
               </TouchableOpacity>
             ))}
           </View>

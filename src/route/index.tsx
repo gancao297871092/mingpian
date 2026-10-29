@@ -780,12 +780,12 @@ export default function RootNavigator() {
         <Stack.Screen
           name="createCooperationIntent"
           component={CreateCooperationIntent}
-          options={{
-            title: '创建合作意向书',
+          options={({ route }) => ({
+            title: route.params?.intent ? '编辑合作意向书' : '创建合作意向书',
             headerStyle: { backgroundColor: '#F6F7FB' },
             headerTitleStyle: { color: '#000000' },
             headerShadowVisible: false,
-          }}
+          })}
         />
         <Stack.Screen
           name="selectBbs"

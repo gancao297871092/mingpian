@@ -1,12 +1,17 @@
-import React, { useRef, useState } from 'react';
-import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useRef, useState } from 'react';
+import { Animated, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import LinearGradient from 'react-native-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import SafeView from '@/components/SafeView';
+import { API } from '@/api';
+import { useUserStore } from '@/store/user';
 import { SCREEN_WIDTH, scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
+import type { RootStackParamList } from '@/route/map';
+import { buildAbilities, parseAbilityContent, type SignalIntentAbility } from './signalDraft';
 import { ChevronLeftIcon, ChevronRightIcon, ShareIntentIcon, VerifiedBadgeIcon } from './icons';
 
 const PRIMARY = '#2962D4';
@@ -29,32 +34,156 @@ function ChevronVerticalIcon({ up }: { up?: boolean }) {
   );
 }
 
-/** 静态 mock（接口待联调） */
-const MOCK = {
-  quote: '针对贵司煤矿智能化升级场景，希望就综采设备改造、系统集成及调试交付开展进一步合作。',
-  company: '鄂尔多斯市巨鼎煤机制造有限公司',
-  companySub: '煤矿装备制造 · 鄂尔多斯',
-  sections: [
-    { title: '1.能提供什么', body: '提供食品级与工业级 PVC 颗粒原料，支持小批量试样、稳定供货与华东区域配送。' },
-    { title: '2.适用企业或场景', body: '编织袋生产企业、食品包装、工业包装' },
-    { title: '3.产品/服务范围或交付能力', body: '原料供应、寄样测试、区域配送、账期协同' },
-    { title: '4.案例或实力证明', body: '综采工作面智能化改造案例、液压支架电液控系统优化方案等项目经验与实施成果。' },
-    { title: '5.其他补充', body: '可根据煤矿现场工况提供分阶段实施方案与驻场技术支持。' },
-  ],
-  feeds: [
-    { id: '1', title: '综采工作面智能化改造案例分享', sub: '详细介绍某大型煤矿综采工作面智能化升级项目的实施过程与效果' },
-    { id: '2', title: '液压支架电液控系统优化方案', sub: '分享液压支架电液控改造的技术要点与实施经验' },
-  ],
-  contact: { name: '王磊', role: '原料销售经理' },
+interface IntentFeed {
+  id: string;
+  title: string;
+  sub: string;
+  /** 封面图（无图回退占位） */
+  cover?: string;
+}
+
+interface IntentViewData {
+  quote: string;
+  companyName: string;
+  companySub: string;
+  companyId?: number;
+  companyLogo?: string;
+  abilities: SignalIntentAbility[];
+  feeds: IntentFeed[];
+  contact: { name: string; title: string };
+  contactCardId?: number;
+  canResponse: boolean;
+  intentId?: number;
+}
+
+const EMPTY: IntentViewData = {
+  quote: '',
+  companyName: '',
+  companySub: '',
+  abilities: [],
+  feeds: [],
+  contact: { name: '', title: '' },
+  canResponse: false,
 };
 
 /** 37.合作意向书（figma 222:1542）：浅蓝底玻璃头 + 意向书正文 + 底部操作条 */
 export default function CooperationIntentView() {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const route = useRoute<RouteProp<RootStackParamList, 'cooperationIntentView'>>();
+  const intentId = route.params?.intentId;
+  const signalId = route.params?.signalId;
+  const myCompanyName = useUserStore(s => s.userInfo?.cpName ?? s.userInfo?.wqUser?.cpName ?? '');
+  const [data, setData] = useState<IntentViewData>(EMPTY);
   const [expanded, setExpanded] = useState(false);
-  const visibleSections = expanded ? MOCK.sections : MOCK.sections.slice(0, 2);
+  const [submitting, setSubmitting] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
+
+  const load = useCallback(async () => {
+    if (intentId) {
+      try {
+        const res = await API.intent.detail({ intentId });
+        const detail = res.data;
+        const intent = detail.intent;
+        const card = detail.cardSnapshot ?? {};
+        let contact = { name: '', title: '' };
+        if (intent.contactCardId) {
+          try {
+            const cardRes = await API.card.detail({ cardId: intent.contactCardId });
+            contact = {
+              name: cardRes.data.nameZh || cardRes.data.alias || '',
+              title: cardRes.data.positionList?.[0]?.position || '',
+            };
+          } catch {
+            // 名片信息失败不影响正文
+          }
+        }
+        // 关联动态由后端 relBbsList 下发（含标题/封面），不再逐条调 /my/bbs/detail
+        const feeds: IntentFeed[] = (detail.relBbsList ?? []).map(item => ({
+          id: String(item.id),
+          title: item.title || '关联动态',
+          sub: '',
+          cover: item.cover || undefined,
+        }));
+        setData({
+          quote: intent.note || '',
+          companyName: detail.senderCompany?.name || '',
+          companySub: detail.senderCompany?.types || '企业认证 · 信息已核验',
+          companyId: detail.senderCompany?.id,
+          companyLogo: detail.senderCompany?.avatar || undefined,
+          abilities: buildAbilities(card),
+          feeds,
+          contact,
+          contactCardId: intent.contactCardId,
+          canResponse: !!detail.canResponse,
+          intentId: intent.id,
+        });
+      } catch {
+        // 拦截器已提示错误
+      }
+      return;
+    }
+    if (signalId) {
+      try {
+        const res = await API.signal.detail({ signalId });
+        const draft = parseAbilityContent(res.data.signal?.abilityContent);
+        if (!draft) return;
+        setData({
+          quote: draft.note,
+          companyName: res.data.company?.name || myCompanyName,
+          companySub: res.data.company?.types || '企业认证 · 信息已核验',
+          companyId: res.data.company?.id,
+          companyLogo: res.data.company?.avatar || undefined,
+          abilities: draft.abilities ?? [],
+          feeds: (draft.feedTitles ?? []).map((title, i) => ({
+            id: String(draft.relBbs?.[i] ?? i),
+            title,
+            sub: '',
+            cover: draft.feedImages?.[i] || undefined,
+          })),
+          contact: { name: draft.contactName || '', title: draft.contactTitle || '' },
+          contactCardId: draft.contactCardId,
+          canResponse: false,
+        });
+      } catch {
+        // 拦截器已提示错误
+      }
+    }
+  }, [intentId, myCompanyName, signalId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
+
+  const onRespond = useCallback(
+    async (responseType: 1 | 2) => {
+      if (!data.intentId || submitting) return;
+      setSubmitting(true);
+      try {
+        await API.intent.response({ intentId: data.intentId, responseType });
+        await load();
+      } catch {
+        // 拦截器已提示错误
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [data.intentId, load, submitting],
+  );
+
+  const onShare = useCallback(async () => {
+    const text = [data.companyName, data.quote].filter(Boolean).join('\n');
+    if (!text) return;
+    try {
+      await Share.share({ message: text });
+    } catch {
+      // 用户取消或系统不支持，静默
+    }
+  }, [data.companyName, data.quote]);
+
+  const visibleSections = expanded ? data.abilities : data.abilities.slice(0, 2);
   /** 头部底色：滚动 0~60px 内渐变为纯白 */
   const navbarBgOpacity = scrollY.interpolate({
     inputRange: [0, 60],
@@ -79,7 +208,7 @@ export default function CooperationIntentView() {
         <TouchableOpacity
           activeOpacity={0.85}
           style={styles.glassBtn}
-          onPress={() => console.log('go: 分享意向书')}
+          onPress={onShare}
         >
           <ShareIntentIcon />
         </TouchableOpacity>
@@ -130,7 +259,7 @@ export default function CooperationIntentView() {
         <View style={styles.mascotRow}>
           <ExpoImage
             source={require('@/assets/link/intent-mascot.png')}
-            style={[styles.mascot, { position: 'relative', zIndex: 1 }]}
+            style={[styles.mascot, styles.mascotLayer]}
             contentFit="cover"
           />
           <View style={styles.bubble}>
@@ -144,7 +273,7 @@ export default function CooperationIntentView() {
             paddingHorizontal: scaleSizeW(14),
             paddingVertical: scaleSizeH(16),
           }}>
-            <Text style={styles.quoteText}>{MOCK.quote}</Text>
+            <Text style={styles.quoteText}>{data.quote}</Text>
           </View>
         </LinearGradient>
 
@@ -152,19 +281,21 @@ export default function CooperationIntentView() {
         <TouchableOpacity
           activeOpacity={0.85}
           style={styles.companyCard}
-          onPress={() => console.log('go: 企业主页')}
+          onPress={() => {
+            if (data.companyId) navigation.navigate('companyPage', { id: data.companyId });
+          }}
         >
           <ExpoImage
-            source={require('@/assets/link/mock-avatar.png')}
+            source={data.companyLogo ? { uri: data.companyLogo } : require('@/assets/link/mock-avatar.png')}
             style={styles.companyAvatar}
             contentFit="cover"
           />
           <View style={styles.companyInfo}>
             <View style={styles.companyNameRow}>
-              <Text style={styles.companyName} numberOfLines={1}>{MOCK.company}</Text>
+              <Text style={styles.companyName} numberOfLines={1}>{data.companyName}</Text>
               <VerifiedBadgeIcon size={14} />
             </View>
-            <Text style={styles.companySub}>{MOCK.companySub}</Text>
+            <Text style={styles.companySub}>{data.companySub}</Text>
           </View>
           <ChevronRightIcon size={12} />
         </TouchableOpacity>
@@ -196,15 +327,15 @@ export default function CooperationIntentView() {
         <View style={styles.plainCard}>
           <Text style={styles.sectionCardTitle}>关联动态</Text>
           <View style={styles.feedList}>
-            {MOCK.feeds.map(item => (
+            {data.feeds.map(item => (
               <TouchableOpacity
                 key={item.id}
                 activeOpacity={0.85}
                 style={styles.feedRow}
-                onPress={() => console.log('go: feed-detail', item.id)}
+                onPress={() => navigation.navigate('bbsDetail', { id: item.id })}
               >
                 <ExpoImage
-                  source={require('@/assets/link/mock-avatar.png')}
+                  source={item.cover ? { uri: item.cover } : require('@/assets/link/mock-avatar.png')}
                   style={styles.feedAvatar}
                   contentFit="cover"
                 />
@@ -222,7 +353,9 @@ export default function CooperationIntentView() {
         <TouchableOpacity
           activeOpacity={0.85}
           style={styles.plainCard}
-          onPress={() => console.log('go: 对接人名片')}
+          onPress={() => {
+            if (data.contactCardId) navigation.navigate('cardDetail', { id: data.contactCardId });
+          }}
         >
           <Text style={styles.sectionCardTitle}>本次对接人</Text>
           <View style={styles.contactRow}>
@@ -232,31 +365,35 @@ export default function CooperationIntentView() {
               contentFit="cover"
             />
             <View style={styles.contactInfo}>
-              <Text style={styles.contactName}>{MOCK.contact.name}</Text>
-              <Text style={styles.contactRole}>{MOCK.contact.role}</Text>
+              <Text style={styles.contactName}>{data.contact.name}</Text>
+              <Text style={styles.contactRole}>{data.contact.title}</Text>
             </View>
             <ChevronRightIcon size={12} />
           </View>
         </TouchableOpacity>
       </Animated.ScrollView>
 
-      {/* 底部操作条 */}
-      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + scaleSizeH(10) }]}>
-        <TouchableOpacity
-          activeOpacity={0.85}
-          style={styles.btnDecline}
-          onPress={() => console.log('go: 暂不考虑')}
-        >
-          <Text style={styles.btnDeclineText}>暂不考虑</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          activeOpacity={0.85}
-          style={styles.btnAccept}
-          onPress={() => console.log('go: 愿意进一步沟通')}
-        >
-          <Text style={styles.btnAcceptText}>愿意进一步沟通</Text>
-        </TouchableOpacity>
-      </View>
+      {/* 底部操作条：仅接收方且待回应时展示 */}
+      {data.canResponse && (
+        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + scaleSizeH(10) }]}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={styles.btnDecline}
+            disabled={submitting}
+            onPress={() => onRespond(2)}
+          >
+            <Text style={styles.btnDeclineText}>暂不考虑</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={styles.btnAccept}
+            disabled={submitting}
+            onPress={() => onRespond(1)}
+          >
+            <Text style={styles.btnAcceptText}>愿意进一步沟通</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </SafeView>
   );
 }
@@ -317,6 +454,10 @@ const styles = StyleSheet.create({
     height: scaleSizeW(63),
     marginTop: scaleSizeH(-17),
     transform: [{ scaleX: -1 }],
+  },
+  mascotLayer: {
+    position: 'relative',
+    zIndex: 1,
   },
   bubble: {
     marginLeft: scaleSizeW(-15),

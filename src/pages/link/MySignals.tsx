@@ -1,12 +1,15 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import SafeView from '@/components/SafeView';
 import EmptyState from '@/components/EmptyState';
 import ListFooter from '@/components/ListFooter';
+import { API } from '@/api';
+import type { LinkSignal, LinkSignalItem } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
+import { elapsedDays } from './linkFormat';
 import { PlusSignalIcon, SignalIcon } from './icons';
 
 const PRIMARY = '#2962D4';
@@ -26,29 +29,45 @@ interface Signal {
   failReason?: string;
 }
 
-/** 静态 mock（接口待联调） */
-const MOCK_SIGNALS: Signal[] = [
-  { id: '1', title: '寻找西南区域吨袋供应合作', status: 'review' },
-  {
-    id: '2',
-    title: '寻找华东编织袋生产企业',
-    status: 'reaching',
-    days: 3,
-    stats: { reached: 126, viewed: 48, replied: 3 },
-  },
-  {
-    id: '3',
-    title: '连接华南食品包装生产企业',
-    status: 'failed',
-    failReason: '目标范围过窄，送达 7 天未找到匹配的高质企业。',
-  },
-  {
-    id: '4',
-    title: '寻找西南区域吨袋供应合作',
-    status: 'ended',
-    stats: { reached: 126, viewed: 48, replied: 3 },
-  },
-];
+/** 后端状态 → 前端卡片状态（failed 同时覆盖「审核驳回」与「投放已暂停」） */
+function toSignalStatus(signal: LinkSignal): SignalStatus {
+  if (signal.auditStatus === 2) return 'failed';
+  switch (signal.status) {
+    case 2:
+      return 'reaching';
+    case 3:
+      return 'failed';
+    case 4:
+    case 5:
+      return 'ended';
+    default:
+      return 'review';
+  }
+}
+
+/** 列表项 → 卡片模型 */
+function toSignal(item: LinkSignalItem): Signal {
+  const s = item.signal ?? ({} as LinkSignal);
+  const status = toSignalStatus(s);
+  return {
+    id: String(s.id),
+    title: s.targetDesc || '未命名信号',
+    status,
+    days: status === 'reaching' ? elapsedDays(s.startTime) : undefined,
+    stats:
+      status === 'reaching' || status === 'ended'
+        ? {
+            reached: s.deliverCount ?? 0,
+            viewed: s.viewCount ?? 0,
+            replied: s.responseCount ?? 0,
+          }
+        : undefined,
+    failReason:
+      status === 'failed'
+        ? s.auditMsg || s.endReason || '信号已被暂停，可修改后重新提交。'
+        : undefined,
+  };
+}
 
 type FilterKey = 'all' | SignalStatus;
 
@@ -128,22 +147,13 @@ function SignalCard({ signal }: { signal: Signal }) {
               <Text style={styles.statsValue}>{signal.stats.replied}</Text>
             </View>
           </View>
-          <View style={styles.actionRow}>
-            <TouchableOpacity
-              activeOpacity={0.85}
-              style={[styles.actionBtn, styles.actionBtnHalf]}
-              onPress={() => navigation.navigate('createCooperationSignal', { id: signal.id })}
-            >
-              <Text style={styles.actionBtnText}>修改信号</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              activeOpacity={0.85}
-              style={[styles.actionBtn, styles.actionBtnHalf, styles.actionBtnProgress]}
-              onPress={() => navigation.navigate('signalProgress', { id: signal.id })}
-            >
-              <Text style={styles.actionBtnProgressText}>查看进展</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={[styles.actionBtn, styles.actionBtnProgress]}
+            onPress={() => navigation.navigate('signalProgress', { id: signal.id })}
+          >
+            <Text style={styles.actionBtnProgressText}>查看进展</Text>
+          </TouchableOpacity>
         </>
       )}
 
@@ -217,21 +227,14 @@ export default function MySignals() {
   const [loaded, setLoaded] = useState(false);
   const loadingRef = useRef(false);
 
-  const counts = useMemo(() => {
-    const result: Record<FilterKey, number> = {
-      all: MOCK_SIGNALS.length,
-      review: 0,
-      reaching: 0,
-      failed: 0,
-      ended: 0,
-    };
-    MOCK_SIGNALS.forEach(s => {
-      result[s.status] += 1;
-    });
-    return result;
-  }, []);
+  const [counts, setCounts] = useState<Record<FilterKey, number>>({
+    all: 0,
+    review: 0,
+    reaching: 0,
+    failed: 0,
+    ended: 0,
+  });
 
-  /** 静态 mock 分页（接口待联调：替换为真实请求，入参 filter/pageNum） */
   const fetchList = useCallback(
     async (filterKey: FilterKey, pageNum: number, append: boolean, isRefresh = false) => {
       if (loadingRef.current) return;
@@ -239,12 +242,24 @@ export default function MySignals() {
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
       try {
-        const source = filterKey === 'all' ? MOCK_SIGNALS : MOCK_SIGNALS.filter(s => s.status === filterKey);
-        const arr = source.slice((pageNum - 1) * PAGE_SIZE, pageNum * PAGE_SIZE);
-        const totalPages = Math.max(Math.ceil(source.length / PAGE_SIZE), 1);
-        setList(prev => (append ? [...prev, ...arr] : arr));
-        setPage(pageNum);
-        setPages(totalPages);
+        const res = await API.signal.list({ statusTab: filterKey, pageNum, pageSize: PAGE_SIZE });
+        const items = (res.data.list ?? []).map(toSignal);
+        setList(prev => (append ? [...prev, ...items] : items));
+        setPage(res.data.pageNum || pageNum);
+        setPages(Math.max(res.data.pages || 1, 1));
+        // 各 tab 计数由后端 counts 下发（口径与 statusTab 一致），不再逐 tab 请求
+        const c = res.data.counts;
+        if (c) {
+          setCounts({
+            all: c.all ?? 0,
+            review: c.review ?? 0,
+            reaching: c.reaching ?? 0,
+            failed: c.failed ?? 0,
+            ended: c.ended ?? 0,
+          });
+        }
+      } catch {
+        // 拦截器已提示错误
       } finally {
         loadingRef.current = false;
         setLoading(false);
@@ -255,11 +270,16 @@ export default function MySignals() {
     [],
   );
 
-  useEffect(() => {
-    fetchList(filter, 1, false);
-  }, [filter, fetchList]);
+  /** 进入页面 / tab 切换时刷新列表（创建或修改信号返回后也能看到最新数据；计数随列表响应更新） */
+  useFocusEffect(
+    useCallback(() => {
+      fetchList(filter, 1, false);
+    }, [fetchList, filter]),
+  );
 
-  const onRefresh = useCallback(() => fetchList(filter, 1, false, true), [filter, fetchList]);
+  const onRefresh = useCallback(() => {
+    fetchList(filter, 1, false, true);
+  }, [filter, fetchList]);
 
   const onEndReached = useCallback(() => {
     if (!loadingRef.current && page < pages) {

@@ -847,4 +847,649 @@ export namespace API {
       return request.get<any>('/capability/card/delete', { params });
     }
   }
+
+  /** 链接 · AI 商机 / 方向（AppAiDiscoveryController：/v1/ai/*） */
+  export namespace aiDiscovery {
+    /** 我的 AI 商机列表（方向推荐页；filter: all / confirmed明确表达 / pending AI研判；keyword 最多30字，counts 联动） */
+    export function list(data: {
+      filter?: 'all' | 'confirmed' | 'pending';
+      keyword?: string;
+      pageNum?: number;
+      pageSize?: number;
+    }) {
+      return request.post<LinkDiscoveryPage>('/ai/discovery/list', data);
+    }
+    /** 首页「链接」聚合：投放中信号数 / 待回应线索数 / 最新方向 / 方向计数 / 正在发生Top2 */
+    export function homeSummary() {
+      return request.get<LinkHomeSummary>('/ai/home/summary');
+    }
+    /** AI 商机详情（来源动态+发布企业+相关企业Top5+判断依据+阶段） */
+    export function detail(params: { opportunityId: number | string }) {
+      return request.get<LinkOpportunityDetail>('/ai/opportunity/detail', { params });
+    }
+    /** 设置可见性（0公开即进入「产业正在发生」 / 1隐藏） */
+    export function setVisible(data: { opportunityId: number | string; visibility: 0 | 1 }) {
+      return request.post<any>('/ai/opportunity/visible', data);
+    }
+    /** 商机阶段流转：confirm 确认(AI研判→明确表达) / withdraw 撤回 / reject 驳回 */
+    export function confirm(data: { opportunityId: number | string; action: 'confirm' | 'withdraw' | 'reject' }) {
+      return request.post<any>('/ai/opportunity/confirm', data);
+    }
+    /** 产业正在发生（公开商机流；oppType: purchase/supply/cooperation/talent/other；keyword 最多30字） */
+    export function happening(data: { oppType?: string; keyword?: string; pageNum?: number; pageSize?: number }) {
+      return request.post<LinkPageResult<LinkOpportunityItem>>('/ai/happening/list', data);
+    }
+    /**
+     * 合作方向列表 / 方向详情
+     * - 不传 directionId/opportunityId：T5 方向列表 { list, total }
+     * - directionId：T5 单方向 { direction, companies }
+     * - opportunityId（方向推荐点进来，优先）：{ direction{opportunityId,...canConfirm}, companies, total }，offset 递增=换一批
+     */
+    export function directions(data: {
+      directionId?: number | string;
+      opportunityId?: number | string;
+      offset?: number;
+      size?: number;
+    }) {
+      return request.post<LinkDirectionResult>('/ai/direction/list', data);
+    }
+    /** 他人名片的合作方向（仅名称+说明） */
+    export function userDirections(params: { userId: number | string }) {
+      return request.get<{ list: LinkDirectionBrief[]; total: number }>('/ai/direction/user', { params });
+    }
+    /** 商机相关企业分页（第1页额外返回 externalCompanies 平台外企业） */
+    export function matchList(data: { opportunityId: number | string; pageNum?: number; pageSize?: number }) {
+      return request.post<LinkMatchPage>('/ai/match/list', data);
+    }
+    /** 忽略推荐企业 */
+    export function ignoreMatch(data: { matchId: number | string }) {
+      return request.post<any>('/ai/match/ignore', data);
+    }
+    /** 企业档案（T10 五字段；不传 cpId 查本企业） */
+    export function companyProfile(params?: { cpId?: number | string }) {
+      return request.get<LinkCompanyProfileResult>('/ai/company/profile', { params });
+    }
+  }
+
+  /** 链接 · AI 实时链路（T8 图片打标 / T2+T7 语义搜索 / 产业标签库） */
+  export namespace aiRealtime {
+    /** 产业标签库两级树（发布页/能力卡选标） */
+    export function tags() {
+      return request.post<{ tags: LinkIndustryTag[] }>('/ai/tags');
+    }
+    /** T8 图片打标（失败 tags 为空数组 → 手动选标） */
+    export function imageTags(data: { imageUrl: string }) {
+      return request.post<{ tags: LinkImageTag[]; description?: string; cached?: boolean }>('/ai/image/tags', data);
+    }
+    /** T2+T7 AI 语义搜索企业（degraded=true 表示走关键词/Milvus 降级） */
+    export function search(data: { query: string }) {
+      return request.post<LinkAiSearchResult>('/ai/search', data);
+    }
+  }
+
+  /** 链接 · 合作信号（AppSignalController：/v1/signal/*） */
+  export namespace signal {
+    /** 创建信号（需已认证企业；创建即待审核 + 投递 T6 预分析） */
+    export function create(data: {
+      targetDesc: string;
+      purpose?: string;
+      abilityContent?: string;
+      identityCardId?: number | string;
+      reachConfig?: string | { cycle_days?: number; max_per_target?: number; regions?: string[] };
+    }) {
+      return request.post<{ signalId: number }>('/signal/create', data);
+    }
+    /** 我的信号列表（statusTab: all 全部 / review 审核中 / reaching 触达中 / failed 审核失败 / ended 已结束；返回 counts 各 tab 计数） */
+    export function list(data: {
+      statusTab?: 'all' | 'review' | 'reaching' | 'failed' | 'ended';
+      pageNum?: number;
+      pageSize?: number;
+    }) {
+      return request.post<LinkPageResult<LinkSignalItem>>('/signal/list', data);
+    }
+    /** 信号详情（编辑回显） */
+    export function detail(params: { signalId: number | string }) {
+      return request.get<{ signal: LinkSignal; company?: any }>('/signal/detail', { params });
+    }
+    /** 修改并重新提交（可编辑：status=1 审核中/驳回 或 status=3 已暂停；保存后重置待审核并重跑 T6） */
+    export function update(data: {
+      signalId: number | string;
+      targetDesc: string;
+      purpose?: string;
+      abilityContent?: string;
+      identityCardId?: number | string;
+      reachConfig?: string | { cycle_days?: number; max_per_target?: number; regions?: string[] };
+    }) {
+      return request.post<{ signalId: number }>('/signal/update', data);
+    }
+    /** 结束信号（投放中/已暂停 → 已结束） */
+    export function finish(data: { signalId: number | string; endReason?: string }) {
+      return request.post<any>('/signal/finish', data);
+    }
+    /** 信号进展（漏斗 + 投放企业明细分页） */
+    export function progress(data: { signalId: number | string; pageNum?: number; pageSize?: number }) {
+      return request.post<LinkSignalProgress>('/signal/progress', data);
+    }
+    /** 复制并再次发布（返回新 signalId） */
+    export function copy(data: { signalId: number | string }) {
+      return request.post<{ signalId: number }>('/signal/copy', data);
+    }
+    /** 收到的信号列表（目标企业视角，需已认证企业） */
+    export function receivedList(data?: { pageNum?: number; pageSize?: number }) {
+      return request.post<LinkPageResult<LinkReceivedSignalItem>>('/signal/received/list', data);
+    }
+    /** 收到的信号详情（首次查看回写 viewed_at + 漏斗已查看+1） */
+    export function receivedDetail(params: { deliveryId: number | string }) {
+      return request.get<{ delivery: LinkSignalDelivery; signal: LinkSignal; senderCompany?: any }>(
+        '/signal/received/detail',
+        { params },
+      );
+    }
+    /** 回应信号（1愿意沟通 → 发起人自动生成待跟进线索 / 2暂不考虑） */
+    export function response(data: { deliveryId: number | string; responseType: 1 | 2; responseContent?: string }) {
+      return request.post<{ responseId?: number; leadId?: number }>('/signal/response', data);
+    }
+  }
+
+  /** 链接 · 合作意向书（AppIntentController：/v1/intent/*） */
+  export namespace intent {
+    /** 创建意向书（需已认证企业；可只传 opportunityId，服务端解析接收企业=商机所属企业并默认挂来源动态） */
+    export function create(data: {
+      opportunityId?: number | string;
+      receiverCpId?: number | string;
+      receiverUserId?: number | string;
+      note: string;
+      cardId?: number | string;
+      relBbs?: Array<number | string>;
+      contactCardId?: number | string;
+    }) {
+      return request.post<{ intentId: number; leadId: number; cardId?: number }>('/intent/create', data);
+    }
+    /** 意向书详情（发送方/接收方双视角，role + canResponse；relBbsList 关联动态含标题/封面） */
+    export function detail(params: { intentId: number | string }) {
+      return request.get<LinkIntentDetail>('/intent/detail', { params });
+    }
+    /** 回应（1愿意沟通 / 2暂不考虑） */
+    export function response(data: { intentId: number | string; responseType: 1 | 2; responseMsg?: string }) {
+      return request.post<any>('/intent/response', data);
+    }
+    /** 撤回（仅发起人、仅待回应） */
+    export function withdraw(data: { intentId: number | string }) {
+      return request.post<any>('/intent/withdraw', data);
+    }
+    /** 我发送的意向书 */
+    export function sentList(data?: { pageNum?: number; pageSize?: number }) {
+      return request.post<LinkPageResult<LinkIntentListItem>>('/intent/sent/list', data);
+    }
+    /** 收到的意向书（需已认证企业） */
+    export function receivedList(data?: { pageNum?: number; pageSize?: number }) {
+      return request.post<LinkPageResult<LinkIntentListItem>>('/intent/received/list', data);
+    }
+  }
+
+  /** 链接 · 我的商机（线索 CRM，AppLeadController：/v1/lead/*） */
+  export namespace lead {
+    /** 商机列表（tab: response / pending / following / connected / closed / all；返回 counts 各 tab 计数） */
+    export function list(data?: { tab?: string; pageNum?: number; pageSize?: number }) {
+      return request.post<LinkPageResult<LinkLeadItem>>('/lead/list', data);
+    }
+    /** 企业合作池（本企业收到的合作机会；tab: pending 待接手 / docked 已对接） */
+    export function pool(data?: { tab?: 'pending' | 'docked'; pageNum?: number; pageSize?: number }) {
+      return request.post<LinkLeadPoolPage>('/lead/pool', data);
+    }
+    /** 接手合作池线索（同企业成员、未被接手、未关闭；待回应→待跟进） */
+    export function claim(data: { leadId: number | string }) {
+      return request.post<{ leadId: number; ownerUserId: number }>('/lead/claim', data);
+    }
+    /** 商机详情（线索 + 目标企业 + 跟进记录 + 来源单据） */
+    export function detail(params: { leadId: number | string }) {
+      return request.get<LinkLeadDetail>('/lead/detail', { params });
+    }
+    /** 记录进展（0/1 → 2 跟进中；nextTime 格式 yyyy-MM-dd HH:mm:ss） */
+    export function follow(data: { leadId: number | string; content: string; nextTime?: string }) {
+      return request.post<{ followUpId?: number; leadStatus?: number }>('/lead/follow', data);
+    }
+    /** 标记已连接（1/2 → 3） */
+    export function connect(data: { leadId: number | string }) {
+      return request.post<any>('/lead/connect', data);
+    }
+    /** 关闭商机 */
+    export function close(data: { leadId: number | string; closeReason: string }) {
+      return request.post<any>('/lead/close', data);
+    }
+    /** 重新开启（已关闭 → 跟进中） */
+    export function reopen(data: { leadId: number | string }) {
+      return request.post<any>('/lead/reopen', data);
+    }
+    /** AI 商机转线索（添加到待跟进，去重） */
+    export function fromOpportunity(data: { opportunityId: number | string }) {
+      return request.post<{ leadId: number; created: boolean }>('/lead/from-opportunity', data);
+    }
+  }
+
+  /** 链接 · 平台协助（AppPlatformAssistanceController：/v1/assist/*） */
+  export namespace assist {
+    /** 提交协助申请（serviceType: 1信息核验 / 2定向寻找 / 3撮合跟进） */
+    export function apply(data: {
+      serviceType: 1 | 2 | 3;
+      context?: string | { remark?: string; opportunityId?: number | string; signalId?: number | string };
+    }) {
+      return request.post<{ assistanceId: number }>('/assist/apply', data);
+    }
+    /** 我的协助申请列表（列表项 = { assistance, serviceTypeName, statusName }） */
+    export function list(data?: { pageNum?: number; pageSize?: number }) {
+      return request.post<LinkPageResult<LinkAssistanceItem>>('/assist/list', data);
+    }
+    /** 申请详情（进度 + 处理结果；结构同列表项） */
+    export function detail(params: { assistanceId: number | string }) {
+      return request.get<LinkAssistanceItem>('/assist/detail', { params });
+    }
+  }
+
+  /** 链接 · 业务员触达任务（AppSalesTaskController：/v1/sales/task/*） */
+  export namespace salesTask {
+    /** 我的任务列表（progressTab: pending / sent / viewed / all） */
+    export function list(data?: { progressTab?: string; pageNum?: number; pageSize?: number }) {
+      return request.post<LinkPageResult<any>>('/sales/task/list', data);
+    }
+    /** 任务详情（匹配分析 + 推荐能力卡 + 话术 + 来源信号） */
+    export function detail(params: { taskId: number | string }) {
+      return request.get<any>('/sales/task/detail', { params });
+    }
+    /** 标记已发送 */
+    export function markSent(data: { taskId: number | string }) {
+      return request.post<any>('/sales/task/sent', data);
+    }
+    /** 标记已查看（幂等） */
+    export function markViewed(data: { taskId: number | string }) {
+      return request.post<any>('/sales/task/viewed', data);
+    }
+    /** 意向反馈（2有意向 / 3无意向 / 4放弃） */
+    export function feedback(data: { taskId: number | string; status: 2 | 3 | 4; feedback?: string }) {
+      return request.post<any>('/sales/task/feedback', data);
+    }
+    /** T4 生成推荐话术（落库 pitch_script） */
+    export function pitch(data: { taskId: number | string }) {
+      return request.post<any>('/sales/task/pitch', data);
+    }
+    /** 待办计数（工作台角标） */
+    export function count() {
+      return request.post<{ pending: number; sent: number; total: number }>('/sales/task/count');
+    }
+  }
+}
+
+/* ============================ 链接模块数据类型 ============================ */
+
+export interface LinkPageResult<T> {
+  list: T[];
+  total: number;
+  pageNum: number;
+  pages: number;
+  /** 各 tab 计数（/signal/list: all/review/reaching/failed/ended；/lead/list: all/response/pending/following/connected/closed） */
+  counts?: Record<string, number>;
+}
+
+export interface LinkOpportunity {
+  id: number;
+  bbsId?: number | null;
+  userId?: number;
+  cardId?: number | null;
+  /** purchase/supply/cooperation/talent/other */
+  oppType?: string;
+  /** 1 系统AI推荐 / 2 信号匹配 */
+  source?: number;
+  signalId?: number | null;
+  title?: string;
+  aiAnalysis?: string;
+  requiredAbilities?: string;
+  region?: string;
+  scale?: string;
+  cooperationMode?: string;
+  cpId?: number | null;
+  strength?: number;
+  /** 0公开 / 1隐藏 */
+  visibility?: number;
+  autoPublished?: number;
+  /** 0 AI研判 / 1 明确表达 / 2 已驳回 */
+  confirmStatus?: number;
+  stageNotified?: number;
+  status?: number;
+  createTime?: string;
+  updateTime?: string;
+}
+
+export interface LinkBasisItem {
+  /** company_info / card / bbs */
+  type: string;
+  label: string;
+  refId?: number | string | null;
+}
+
+export interface LinkOpportunityItem {
+  opportunity: LinkOpportunity;
+  /** AI研判 / 明确表达 */
+  stage?: string;
+  isViewed?: boolean;
+  matchCount?: number;
+  basisList?: LinkBasisItem[];
+  companyName?: string;
+  companyLogo?: string;
+}
+
+export interface LinkDiscoveryPage extends LinkPageResult<LinkOpportunityItem> {
+  counts: { total: number; confirmed: number; pending: number };
+}
+
+export interface LinkHomeSummary {
+  signalDeliveringCount: number;
+  pendingResponseCount: number;
+  latestDirection: {
+    opportunityId: number;
+    title: string;
+    stage: string;
+    matchCount: number;
+    sourceBbsTitle?: string;
+  } | null;
+  directionCounts: { confirmed: number; pending: number };
+  happening: LinkOpportunityItem[];
+}
+
+export interface LinkMatchCompany {
+  matchId?: number;
+  matchScore?: number;
+  matchReason?: string;
+  matchStatus?: number;
+  companyId?: number;
+  companyName?: string;
+  companyLogo?: string;
+  companyTypes?: string;
+}
+
+export interface LinkExternalCompany {
+  companyName?: string;
+  juridicalPerson?: string;
+  registeredCapital?: string;
+  companyStatus?: string;
+  establishTime?: string;
+  province?: string;
+  city?: string;
+  district?: string;
+  address?: string;
+}
+
+export interface LinkMatchPage extends LinkPageResult<LinkMatchCompany> {
+  /** 仅第1页返回：平台外企业（Baize 召回，Redis 缓存，不落库） */
+  externalCompanies?: LinkExternalCompany[];
+}
+
+export interface LinkOpportunityDetail {
+  opportunity: LinkOpportunity;
+  sourceBbs?: any;
+  author?: { userId: number; nickname?: string; avatar?: string };
+  company?: any;
+  myLead?: LinkLead | null;
+  matchCompanies?: LinkMatchCompany[];
+  stage?: string;
+  /** 本人且 confirmStatus∈{0,1} 时可确认/撤回；非本人从「正在发生」进入为 false */
+  canConfirm?: boolean;
+  relBbsList?: any[];
+  basisList?: LinkBasisItem[];
+  matchCount?: number;
+}
+
+export interface LinkDirection {
+  id: number;
+  bizType?: string;
+  cpId?: number;
+  userId?: number;
+  directionType?: number;
+  directionName?: string;
+  directionDesc?: string;
+  relatedCpIds?: string;
+  sourceBbsIds?: string;
+  status?: number;
+  createTime?: string;
+  updateTime?: string;
+}
+
+export interface LinkDirectionCompany {
+  /** 与 matchReason 同值（后端兼容别名） */
+  reason?: string;
+  matchId?: number;
+  matchScore?: number;
+  matchReason?: string;
+  companyId?: number;
+  companyName?: string;
+  companyLogo?: string;
+  companyTypes?: string;
+}
+
+/** 方向详情（/ai/direction/list 传 opportunityId 时由商机组装） */
+export interface LinkDirectionDetail {
+  opportunityId: number;
+  directionName?: string;
+  directionDesc?: string;
+  /** AI研判 / 明确表达 */
+  stage?: string;
+  basisList?: LinkBasisItem[];
+  /** 本人且阶段可流转（AI研判→明确 / 明确→撤回） */
+  canConfirm?: boolean;
+}
+
+export interface LinkDirectionBrief {
+  directionName?: string;
+  directionDesc?: string;
+}
+
+export interface LinkDirectionResult {
+  /** 不传 directionId/opportunityId 时返回 */
+  list?: LinkDirection[];
+  total?: number;
+  /** directionId 非空：T5 方向；opportunityId 非空：方向详情 */
+  direction?: LinkDirection | LinkDirectionDetail;
+  companies?: LinkDirectionCompany[];
+}
+
+export interface LinkIndustryTag {
+  id: number;
+  tagName: string;
+  children?: Array<{ id: number; tagName: string }>;
+}
+
+export interface LinkImageTag {
+  tag_id: number;
+  tag_name: string;
+  score?: number;
+}
+
+export interface LinkAiSearchResult {
+  quad: { region?: string; ability?: string; order?: string; goal?: string } | null;
+  companies: any[];
+  /** true = 已降级（T2 解析失败 / Milvus 回退 Like） */
+  degraded: boolean;
+}
+
+export interface LinkSignal {
+  id: number;
+  userId?: number;
+  senderCpId?: number;
+  targetDesc?: string;
+  purpose?: string;
+  abilityContent?: string;
+  identityCardId?: number;
+  reachConfig?: string;
+  aiSummary?: string;
+  /** 0待审核 1通过 2驳回 */
+  auditStatus?: number;
+  auditMsg?: string;
+  /** 1待审核 2投放中 3已暂停 4已完成 5已结束 */
+  status?: number;
+  endReason?: string;
+  deliverCount?: number;
+  viewCount?: number;
+  responseCount?: number;
+  startTime?: string;
+  endTime?: string;
+  createTime?: string;
+}
+
+export interface LinkSignalItem {
+  signal: LinkSignal;
+  companyName?: string;
+  companyLogo?: string;
+}
+
+export interface LinkSignalDelivery {
+  id: number;
+  signalId?: number;
+  senderCpId?: number;
+  targetCpId?: number;
+  /** 1 normal / 2 merged / 0 skipped */
+  deliveryStatus?: number;
+  viewedAt?: string;
+  deliveredAt?: string;
+}
+
+export interface LinkSignalProgress {
+  signal: LinkSignal;
+  funnel: { deliverCount: number; viewCount: number; responseCount: number };
+  /** 剩余投放天数（不足1天=0；未开始/无结束时间=null） */
+  remainingDays?: number | null;
+  list: Array<{ delivery: LinkSignalDelivery; targetCompanyName?: string; targetCompanyLogo?: string; targetCompanyTypes?: string }>;
+  total: number;
+  pageNum: number;
+  pages: number;
+}
+
+export interface LinkReceivedSignalItem {
+  delivery: LinkSignalDelivery;
+  targetDesc?: string;
+  purpose?: string;
+  abilityContent?: string;
+  signalStatus?: number;
+  senderCompanyName?: string;
+  senderCompanyLogo?: string;
+}
+
+export interface LinkIntent {
+  id: number;
+  senderUserId?: number;
+  senderCpId?: number;
+  receiverCpId?: number;
+  receiverUserId?: number;
+  note?: string;
+  cardId?: number;
+  cardSnapshot?: string;
+  relBbs?: string;
+  contactCardId?: number;
+  /** 0未回应 / 1愿意沟通 / 2暂不考虑 */
+  response?: number;
+  responseMsg?: string;
+  responsedAt?: string;
+  /** 0有效 / -1已撤回 */
+  status?: number;
+  createTime?: string;
+}
+
+export interface LinkIntentListItem {
+  intent: LinkIntent;
+  receiverCompanyName?: string;
+  receiverCompanyLogo?: string;
+  senderCompanyName?: string;
+  senderCompanyLogo?: string;
+  senderUserName?: string;
+  senderUserAvatar?: string;
+}
+
+export interface LinkIntentDetail {
+  intent: LinkIntent;
+  cardSnapshot?: any;
+  senderCompany?: any;
+  receiverCompany?: any;
+  role: 'sender' | 'receiver';
+  canResponse: boolean;
+  lead?: LinkLead | null;
+  /** 关联动态摘要（cover=视频封面→首张图片→海报；不必再逐条调 /my/bbs/detail） */
+  relBbsList?: Array<{ id: number; title?: string; cover?: string }>;
+}
+
+export interface LinkLead {
+  id: number;
+  ownerUserId?: number | null;
+  ownerCpId?: number;
+  /** 1=企业合作池线索（本企业收到的机会，接收方视角），0=普通个人线索 */
+  pool?: number;
+  /** 1意向书 / 2信号 / 3广场 / 4官网 / 5匹配 */
+  source?: number;
+  sourceId?: number;
+  targetCpId?: number;
+  targetUserId?: number;
+  title?: string;
+  /** 0待回应 1待跟进 2跟进中 3已连接 4已关闭 */
+  status?: number;
+  nextFollowTime?: string;
+  lastFollowTime?: string;
+  closeReason?: string;
+  createTime?: string;
+  updateTime?: string;
+}
+
+export interface LinkLeadItem {
+  lead: LinkLead;
+  contactStage?: string;
+  targetCompanyName?: string;
+  targetCompanyLogo?: string;
+  targetCompanyTypes?: string;
+}
+
+export interface LinkLeadDetail {
+  lead: LinkLead;
+  contactStage?: string;
+  targetCompany?: any;
+  followUps?: Array<{ id: number; content?: string; nextTime?: string; createTime?: string }>;
+  sourceDoc?: any;
+}
+
+/** 企业合作池项（/lead/pool） */
+export interface LinkLeadPoolItem {
+  lead: LinkLead;
+  /** 已对接时=接手人姓名，待接手=null */
+  ownerUserName?: string | null;
+  targetCompanyName?: string;
+  targetCompanyLogo?: string;
+  targetCompanyTypes?: string;
+}
+
+export interface LinkLeadPoolPage extends LinkPageResult<LinkLeadPoolItem> {
+  counts: { pending: number; docked: number };
+}
+
+export interface LinkAssistance {
+  id: number;
+  userId?: number;
+  cpId?: number;
+  /** 1信息核验 / 2定向寻找 / 3撮合跟进 */
+  serviceType?: number;
+  context?: string;
+  handleResult?: string;
+  /** 0待处理 1处理中 2已完成 3已驳回 */
+  status?: number;
+  createTime?: string;
+  updateTime?: string;
+}
+
+/** 平台协助列表/详情项（assistance + 中文文案） */
+export interface LinkAssistanceItem {
+  assistance: LinkAssistance;
+  /** 信息核验 / 定向寻找 / 撮合跟进 */
+  serviceTypeName?: string;
+  /** 待处理 / 处理中 / 已完成 / 已驳回 */
+  statusName?: string;
+}
+
+export interface LinkCompanyProfileResult {
+  profile: any;
+  company?: { id: number; name?: string; avatar?: string };
+  opportunities?: LinkOpportunity[];
 }

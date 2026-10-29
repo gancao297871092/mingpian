@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -10,10 +10,14 @@ import {
 } from 'react-native';
 import { BlurView } from '@react-native-community/blur';
 import { Image as ExpoImage } from 'expo-image';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
+import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
+import type { RootStackParamList } from '@/route/map';
 import { AssistCompassIcon, AssistHandshakeIcon, AssistVerifyIcon, ChevronLeftIcon } from './icons';
 
 const PRIMARY = '#2962D4';
@@ -41,10 +45,19 @@ function FrostedCard({
   );
 }
 
-/** 静态 mock（接口待联调） */
-const MOCK_SERVICES = [
+type ServiceType = 1 | 2 | 3;
+
+const SERVICES: {
+  key: string;
+  type: ServiceType;
+  title: string;
+  desc: string;
+  color: string;
+  Icon: typeof AssistVerifyIcon;
+}[] = [
   {
     key: 'verify',
+    type: 1,
     title: '信息核验',
     desc: '核验企业主体、需求真实性与关键联系人。按项目评估',
     color: PRIMARY,
@@ -52,6 +65,7 @@ const MOCK_SERVICES = [
   },
   {
     key: 'seek',
+    type: 2,
     title: '定向寻找',
     desc: '根据需求主动寻找符合条件的企业、专家或服务商。按项目评估',
     color: '#36BE69',
@@ -59,6 +73,7 @@ const MOCK_SERVICES = [
   },
   {
     key: 'match',
+    type: 3,
     title: '撮合跟进',
     desc: '协助双方建立联系、梳理需求并跟进关键节点。按项目评估',
     color: '#F2722C',
@@ -69,7 +84,29 @@ const MOCK_SERVICES = [
 /** 63.申请平台协助（figma 402:2577）：浅蓝底 + 玻璃返回 + 服务项 + 提交按钮 */
 export default function PlatformAssist() {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const route = useRoute<RouteProp<RootStackParamList, 'platformAssist'>>();
+  const opportunityId = route.params?.opportunityId;
+  const signalId = route.params?.signalId;
+  const [selected, setSelected] = useState<ServiceType | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const onSubmit = useCallback(async () => {
+    if (!selected || submitting) return;
+    setSubmitting(true);
+    try {
+      await API.assist.apply({
+        serviceType: selected,
+        context: { opportunityId, signalId },
+      });
+      Toast.show({ type: 'success', text1: '协助申请已提交' });
+      navigation.goBack();
+    } catch {
+      // 拦截器已提示错误
+    } finally {
+      setSubmitting(false);
+    }
+  }, [navigation, opportunityId, selected, signalId, submitting]);
 
   return (
     <SafeView backgroundColor="#E8EFFF">
@@ -119,22 +156,32 @@ export default function PlatformAssist() {
         </FrostedCard>
 
         {/* 服务项 */}
-        {MOCK_SERVICES.map(item => (
-          <FrostedCard key={item.key} style={styles.serviceCard}>
-            <View style={[styles.serviceIcon, { backgroundColor: item.color }]}>
-              <item.Icon />
-            </View>
-            <View style={styles.serviceTextCol}>
-              <Text style={styles.serviceTitle}>{item.title}</Text>
-              <Text style={styles.serviceDesc}>{item.desc}</Text>
-            </View>
-          </FrostedCard>
-        ))}
+        {SERVICES.map(item => {
+          const active = selected === item.type;
+          return (
+            <TouchableOpacity
+              key={item.key}
+              activeOpacity={0.85}
+              onPress={() => setSelected(item.type)}
+            >
+              <FrostedCard style={[styles.serviceCard, active && styles.serviceCardActive]}>
+                <View style={[styles.serviceIcon, { backgroundColor: item.color }]}>
+                  <item.Icon />
+                </View>
+                <View style={styles.serviceTextCol}>
+                  <Text style={styles.serviceTitle}>{item.title}</Text>
+                  <Text style={styles.serviceDesc}>{item.desc}</Text>
+                </View>
+              </FrostedCard>
+            </TouchableOpacity>
+          );
+        })}
 
         <TouchableOpacity
           activeOpacity={0.85}
-          style={styles.submitBtn}
-          onPress={() => console.log('go: 提交协助申请')}
+          disabled={!selected || submitting}
+          style={[styles.submitBtn, (!selected || submitting) && styles.submitBtnDisabled]}
+          onPress={onSubmit}
         >
           <Text style={styles.submitBtnText}>提交协助申请</Text>
         </TouchableOpacity>
@@ -257,6 +304,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: scaleSizeW(14),
     paddingVertical: scaleSizeH(14),
   },
+  serviceCardActive: {
+    borderColor: PRIMARY,
+  },
   serviceIcon: {
     width: scaleSizeW(35),
     height: scaleSizeW(35),
@@ -293,5 +343,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     lineHeight: setSpText(24),
     color: '#FFFFFF',
+  },
+  submitBtnDisabled: {
+    opacity: 0.3,
   },
 });

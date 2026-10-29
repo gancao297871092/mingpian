@@ -1,12 +1,19 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SafeView from '@/components/SafeView';
+import { API } from '@/api';
+import { useUserStore } from '@/store/user';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
+import {
+  stringifyAbilityContent,
+  takePendingTouchSummary,
+  type SignalIntentDraft,
+} from './signalDraft';
 import { ChevronRightIcon, NoteDotIcon } from './icons';
 
 const PRIMARY = '#2962D4';
@@ -16,31 +23,11 @@ const TEXT_SUB = '#6C6C6C';
 
 type PreviewTab = 'customer' | 'reach';
 
-/** 静态 mock（接口待联调）：触达摘要 */
-const MOCK_SUMMARY = [
-  { label: '目标客户', value: '华东地区的编织袋生产企业' },
-  { label: '合作目的', value: '拓展下游客户' },
-  { label: '能力内容', value: '2 篇真实动态 + 能力阐述' },
-  { label: '触达身份', value: '王磊 · 智能制造解决方案顾问' },
-];
-
-/** 静态 mock（接口待联调）：「客户看到的」tab 无 figma 当前稿，按原型 signal-preview-settings 结构还原 */
-const MOCK_CUSTOMER = {
-  desc: '针对贵司煤矿智能化升级场景，希望就综采设备改造、系统集成及调试交付开展进一步合作。',
-  company: { name: '鄂尔多斯市巨鼎煤机制造有限公司', tag: '煤矿装备制造 · 鄂尔多斯' },
-  abilities: [
-    { title: '1.能提供什么', content: '提供从方案设计、设备选型、系统集成到调试交付的一站式服务，帮助企业提升设备智能化水平与运维效率。' },
-    { title: '2.适用企业或场景', content: '煤矿生产企业、智能化升级、老旧设备改造' },
-    { title: '3.产品/服务范围或交付能力', content: '方案设计、综采设备改造、系统集成、调试交付' },
-    { title: '4.案例或实力证明', content: '综采工作面智能化改造案例、液压支架电液控系统优化方案等项目经验与实施成果。' },
-    { title: '5.其他补充', content: '可根据煤矿现场工况提供分阶段实施方案与驻场技术支持。' },
-  ],
-  feeds: [
-    { id: '1', title: '综采工作面智能化改造案例分享', desc: '详细介绍某大型煤矿综采工作面智能化升级项目的实施过程与效果' },
-    { id: '2', title: '液压支架电液控系统优化方案', desc: '分享液压支架电液控改造的技术要点与实施经验' },
-  ],
-  contact: { name: '王磊', title: '智能制造解决方案顾问' },
-};
+/** 触达摘要（订单：目标客户 / 合作目的 / 能力内容 / 触达身份） */
+interface SummaryRow {
+  label: string;
+  value: string;
+}
 
 /** 标题圆点：彩色圆 + 便签 glyph */
 function SectionDot({ color }: { color: string }) {
@@ -52,8 +39,13 @@ function SectionDot({ color }: { color: string }) {
 }
 
 /** 触达设置 tab（figma 53.合作信号预览2 2793:7116 当前稿） */
-function ReachContent() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+function ReachContent({
+  summary,
+  onEditSummary,
+}: {
+  summary: SummaryRow[];
+  onEditSummary: () => void;
+}) {
   return (
     <>
       <View style={styles.card}>
@@ -62,18 +54,14 @@ function ReachContent() {
           <Text style={styles.cardTitle}>触达摘要</Text>
         </View>
         <View style={styles.summaryRows}>
-          {MOCK_SUMMARY.map(row => (
+          {summary.map(row => (
             <View key={row.label} style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>{row.label}</Text>
               <Text style={styles.summaryValue}>{row.value}</Text>
             </View>
           ))}
         </View>
-        <TouchableOpacity
-          activeOpacity={0.85}
-          style={styles.editSummaryBtn}
-          onPress={() => navigation.navigate('editTouchSummary')}
-        >
+        <TouchableOpacity activeOpacity={0.85} style={styles.editSummaryBtn} onPress={onEditSummary}>
           <Text style={styles.editSummaryText}>修改摘要</Text>
         </TouchableOpacity>
       </View>
@@ -112,79 +100,104 @@ function ReachContent() {
   );
 }
 
-/** 客户看到的 tab（按原型结构还原，mock 数据） */
-function CustomerContent() {
+/** 客户看到的 tab：用信号里保存的意向书草稿渲染（未创建意向书时仅展示发送企业） */
+function CustomerContent({
+  note,
+  companyName,
+  companyLogo,
+  intent,
+}: {
+  note: string;
+  companyName: string;
+  companyLogo?: string;
+  intent?: SignalIntentDraft;
+}) {
+  const abilities = intent?.abilities ?? [];
+  const feeds = (intent?.feedTitles ?? []).map((title, i) => ({
+    id: String(intent?.relBbs?.[i] ?? i),
+    title,
+    image: intent?.feedImages?.[i] || '',
+  }));
+  const contactName = intent?.contactName || '';
+  const contactTitle = intent?.contactTitle || '';
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
   return (
     <>
       <View style={styles.card}>
         <Text style={styles.cardTitle}>本次合作说明</Text>
-        <Text style={styles.customerDesc}>{MOCK_CUSTOMER.desc}</Text>
+        <Text style={styles.customerDesc}>{note || '暂无合作说明'}</Text>
       </View>
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>发送企业</Text>
         <TouchableOpacity activeOpacity={0.85} style={styles.customerRow}>
-          <View style={styles.companyLogo}>
-            <Text style={styles.companyLogoText}>JD</Text>
-          </View>
+          {companyLogo ? (
+            <ExpoImage source={{ uri: companyLogo }} style={styles.companyLogo} contentFit="cover" />
+          ) : (
+            <View style={styles.companyLogo}>
+              <Text style={styles.companyLogoText}>{(companyName || '企').slice(0, 1)}</Text>
+            </View>
+          )}
           <View style={styles.customerRowInfo}>
-            <Text style={styles.customerRowTitle} numberOfLines={1}>{MOCK_CUSTOMER.company.name}</Text>
-            <Text style={styles.customerRowSub} numberOfLines={1}>{MOCK_CUSTOMER.company.tag}</Text>
+            <Text style={styles.customerRowTitle} numberOfLines={1}>{companyName || '本企业'}</Text>
+            <Text style={styles.customerRowSub} numberOfLines={1}>企业认证 · 信息已核验</Text>
           </View>
           <ChevronRightIcon size={14} />
         </TouchableOpacity>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>企业能力</Text>
-        <View style={styles.abilityList}>
-          {MOCK_CUSTOMER.abilities.map(item => (
-            <View key={item.title} style={styles.abilityItem}>
-              <Text style={styles.abilityTitle}>{item.title}</Text>
-              <Text style={styles.abilityContent}>{item.content}</Text>
-            </View>
+      {abilities.length > 0 && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>企业能力</Text>
+          <View style={styles.abilityList}>
+            {abilities.map(item => (
+              <View key={item.title} style={styles.abilityItem}>
+                <Text style={styles.abilityTitle}>{item.title}</Text>
+                <Text style={styles.abilityContent}>{item.body}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {feeds.length > 0 && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>关联动态</Text>
+          {feeds.map((item, index) => (
+            <TouchableOpacity
+              key={item.id}
+              activeOpacity={0.85}
+              style={[styles.feedRow, index > 0 && styles.feedRowGap]}
+              onPress={() => navigation.navigate('bbsDetail', { id: item.id })}
+            >
+              {item.image ? (
+                <ExpoImage source={{ uri: item.image }} style={styles.feedCover} contentFit="cover" />
+              ) : (
+                <View style={styles.feedCover} />
+              )}
+              <View style={styles.customerRowInfo}>
+                <Text style={styles.customerRowTitle} numberOfLines={1}>{item.title}</Text>
+              </View>
+              <ChevronRightIcon size={14} />
+            </TouchableOpacity>
           ))}
         </View>
-        <TouchableOpacity
-          activeOpacity={0.7}
-          style={styles.expandRow}
-          onPress={() => console.log('go: 展开全部能力')}
-        >
-          <Text style={styles.expandText}>展开全部</Text>
-          <ChevronRightIcon size={12} color={PRIMARY} />
-        </TouchableOpacity>
-      </View>
+      )}
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>关联动态</Text>
-        {MOCK_CUSTOMER.feeds.map((item, index) => (
-          <TouchableOpacity
-            key={item.id}
-            activeOpacity={0.85}
-            style={[styles.feedRow, index > 0 && styles.feedRowGap]}
-            onPress={() => console.log('go: feed-detail', item.id)}
-          >
-            <View style={styles.feedCover} />
+      {!!contactName && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>本次对接人</Text>
+          <TouchableOpacity activeOpacity={0.85} style={styles.customerRow}>
+            <ExpoImage source={require('@/assets/link/mock-avatar.png')} style={styles.contactAvatar} contentFit="cover" />
             <View style={styles.customerRowInfo}>
-              <Text style={styles.customerRowTitle} numberOfLines={1}>{item.title}</Text>
-              <Text style={styles.customerRowSub} numberOfLines={2}>{item.desc}</Text>
+              <Text style={styles.customerRowTitle}>{contactName}</Text>
+              <Text style={styles.customerRowSub}>{contactTitle}</Text>
             </View>
             <ChevronRightIcon size={14} />
           </TouchableOpacity>
-        ))}
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>本次对接人</Text>
-        <TouchableOpacity activeOpacity={0.85} style={styles.customerRow}>
-          <ExpoImage source={require('@/assets/link/mock-avatar.png')} style={styles.contactAvatar} contentFit="cover" />
-          <View style={styles.customerRowInfo}>
-            <Text style={styles.customerRowTitle}>{MOCK_CUSTOMER.contact.name}</Text>
-            <Text style={styles.customerRowSub}>{MOCK_CUSTOMER.contact.title}</Text>
-          </View>
-          <ChevronRightIcon size={14} />
-        </TouchableOpacity>
-      </View>
+        </View>
+      )}
     </>
   );
 }
@@ -193,7 +206,76 @@ function CustomerContent() {
 export default function CooperationSignalPreview() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const [tab, setTab] = useState<PreviewTab>('reach');
+  const route = useRoute<RouteProp<RootStackParamList, 'cooperationSignalPreview'>>();
+  const id = route.params?.id;
+  const targetDesc = route.params?.targetDesc ?? '';
+  const intent = route.params?.intent;
+  const companyName = useUserStore(s => s.userInfo?.cpName ?? s.userInfo?.wqUser?.cpName ?? '');
+  /** 本企业 Logo（/my/info 返回 cpAvatar，后端未加字段前回退首字占位；不为单字段多调接口） */
+  const companyLogo = useUserStore(s => s.userInfo?.cpAvatar ?? s.userInfo?.wqUser?.cpAvatar ?? '');
+  const [tab, setTab] = useState<PreviewTab>('customer');
+  const [summaryOverride, setSummaryOverride] = useState<SummaryRow[] | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  /** 修改摘要页返回后覆盖摘要 */
+  useFocusEffect(
+    useCallback(() => {
+      const next = takePendingTouchSummary();
+      if (next) {
+        setSummaryOverride([
+          { label: '目标客户', value: next.target },
+          { label: '合作目的', value: next.purpose },
+          { label: '能力内容', value: next.capability },
+          { label: '触达身份', value: next.identity },
+        ]);
+      }
+    }, []),
+  );
+
+  const defaultSummary: SummaryRow[] = [
+    { label: '目标客户', value: targetDesc },
+    { label: '合作目的', value: intent?.note || '拓展合作机会' },
+    {
+      label: '能力内容',
+      value: intent ? `${intent.feedTitles?.length ?? 0} 篇真实动态 + 能力阐述` : '未创建合作意向书',
+    },
+    {
+      label: '触达身份',
+      value: [intent?.contactName, intent?.contactTitle].filter(Boolean).join(' · ') || companyName || '本企业',
+    },
+  ];
+  const summary = summaryOverride ?? defaultSummary;
+
+  const onSubmit = useCallback(async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      const abilityContent = stringifyAbilityContent(intent);
+      if (id) {
+        await API.signal.update({
+          signalId: id,
+          targetDesc,
+          abilityContent,
+          identityCardId: intent?.contactCardId,
+          reachConfig: '{"cycle_days":7,"max_per_target":2}',
+        });
+      } else {
+        await API.signal.create({
+          targetDesc,
+          abilityContent,
+          identityCardId: intent?.contactCardId,
+          reachConfig: '{"cycle_days":7,"max_per_target":2}',
+        });
+      }
+      const hasMySignals = navigation.getState().routes.some(r => r.name === 'mySignals');
+      if (hasMySignals) navigation.popTo('mySignals');
+      else navigation.replace('mySignals');
+    } catch {
+      // 拦截器已提示错误
+    } finally {
+      setSubmitting(false);
+    }
+  }, [id, intent, navigation, submitting, targetDesc]);
 
   return (
     <SafeView backgroundColor="#F6F7FB">
@@ -219,7 +301,28 @@ export default function CooperationSignalPreview() {
           </TouchableOpacity>
         </View>
 
-        {tab === 'reach' ? <ReachContent /> : <CustomerContent />}
+        {tab === 'reach' ? (
+          <ReachContent
+            summary={summary}
+            onEditSummary={() =>
+              navigation.navigate('editTouchSummary', {
+                summary: {
+                  target: summary[0].value,
+                  purpose: summary[1].value,
+                  capability: summary[2].value,
+                  identity: summary[3].value,
+                },
+              })
+            }
+          />
+        ) : (
+          <CustomerContent
+            note={intent?.note || targetDesc}
+            companyName={companyName}
+            companyLogo={companyLogo || undefined}
+            intent={intent}
+          />
+        )}
       </ScrollView>
 
       {/* 底部操作条 */}
@@ -233,10 +336,11 @@ export default function CooperationSignalPreview() {
         </TouchableOpacity>
         <TouchableOpacity
           activeOpacity={0.85}
-          style={[styles.footerBtn, styles.footerBtnConfirm]}
-          onPress={() => console.log('submit: 确认创建信号')}
+          disabled={submitting}
+          style={[styles.footerBtn, styles.footerBtnConfirm, submitting && styles.footerBtnDisabled]}
+          onPress={onSubmit}
         >
-          <Text style={styles.footerBtnConfirmText}>确认创建信号</Text>
+          <Text style={styles.footerBtnConfirmText}>{id ? '确认修改' : '确认创建信号'}</Text>
         </TouchableOpacity>
       </View>
     </SafeView>
@@ -476,6 +580,9 @@ const styles = StyleSheet.create({
   },
   footerBtnConfirm: {
     backgroundColor: PRIMARY,
+  },
+  footerBtnDisabled: {
+    opacity: 0.6,
   },
   footerBtnConfirmText: {
     fontSize: setSpText(15),

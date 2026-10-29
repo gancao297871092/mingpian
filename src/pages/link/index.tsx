@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import LinearGradient from 'react-native-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SafeView from '@/components/SafeView';
+import { API } from '@/api';
+import type { LinkHomeSummary } from '@/api';
 import { SCREEN_WIDTH, scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
 import {
@@ -24,29 +26,49 @@ const ORANGE = '#F2722C';
 const PURPLE = '#7B5BD6';
 const TEXT_SUB = '#6C6C6C';
 
-/** 静态 mock（接口待联调） */
-const MOCK_ENTRY = { signalTouching: 15, oppPending: 3 };
-
 interface Opportunity {
   id: string;
+  opportunityId: number;
   title: string;
   tag: 'AI研判' | '明确表达';
   city: string;
 }
 
-/** 静态 mock（接口待联调） */
-const MOCK_OPPORTUNITIES: Opportunity[] = [
-  { id: '1', title: '苏州企业寻找自动化生产线集成商', tag: 'AI研判', city: '苏州' },
-  { id: '2', title: '新增包装产能，开放代工与长期合作', tag: '明确表达', city: '苏州' },
-];
-
-/** 静态 mock（接口待联调） */
-const MOCK_DISCOVERY = { expressCount: 3, aiCount: 5 };
-
 /** 4.连接（figma 2793:6179，分组10最新稿）：链接 tab 入口页 */
 export default function LinkPage() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const [summary, setSummary] = useState<LinkHomeSummary | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      (async () => {
+        try {
+          const res = await API.aiDiscovery.homeSummary();
+          if (alive) setSummary(res.data);
+        } catch {
+          // 拦截器已提示错误
+        }
+      })();
+      return () => {
+        alive = false;
+      };
+    }, []),
+  );
+
+  const opportunities: Opportunity[] = (summary?.happening ?? []).map(item => {
+    const opp = item.opportunity ?? ({} as typeof item.opportunity);
+    return {
+      id: String(opp.id),
+      opportunityId: opp.id,
+      title: opp.title || '未命名商机',
+      tag: item.stage === '明确表达' || opp.confirmStatus === 1 ? '明确表达' : 'AI研判',
+      city: opp.region || '',
+    };
+  });
+  const expressCount = summary?.directionCounts?.confirmed ?? 0;
+  const aiCount = summary?.directionCounts?.pending ?? 0;
 
   return (
     <SafeView backgroundColor="#F6F7FB">
@@ -104,7 +126,7 @@ export default function LinkPage() {
             </View>
             <Text style={styles.entryDesc}>查看匹配、触达与反馈</Text>
             <View style={[styles.entryPill, styles.pillSignal]}>
-              <Text style={[styles.entryPillText, styles.pillSignalText]}>{MOCK_ENTRY.signalTouching}条触达中</Text>
+              <Text style={[styles.entryPillText, styles.pillSignalText]}>{summary?.signalDeliveringCount ?? 0}条触达中</Text>
             </View>
             <View style={styles.entryChevron}>
               <ChevronRightIcon size={14} />
@@ -121,7 +143,7 @@ export default function LinkPage() {
             </View>
             <Text style={styles.entryDesc}>管理已形成的合作跟进</Text>
             <View style={[styles.entryPill, styles.pillOpp]}>
-              <Text style={[styles.entryPillText, styles.pillOppText]}>{MOCK_ENTRY.oppPending}条待我回应</Text>
+              <Text style={[styles.entryPillText, styles.pillOppText]}>{summary?.pendingResponseCount ?? 0}条待我回应</Text>
             </View>
             <View style={styles.entryChevron}>
               <ChevronRightIcon size={14} />
@@ -141,12 +163,12 @@ export default function LinkPage() {
             <ChevronRightIcon size={12} />
           </TouchableOpacity>
         </View>
-        {MOCK_OPPORTUNITIES.map(item => (
+        {opportunities.map(item => (
           <TouchableOpacity
             key={item.id}
             activeOpacity={0.85}
             style={styles.oppCard}
-            onPress={() => navigation.navigate('opportunityDetail')}
+            onPress={() => navigation.navigate('opportunityDetail', { opportunityId: item.opportunityId })}
           >
             <View style={styles.oppMain}>
               <View style={styles.oppTitleRow}>
@@ -161,9 +183,11 @@ export default function LinkPage() {
                     {item.tag}
                   </Text>
                 </View>
-                <View style={[styles.oppTag, styles.oppCityTag]}>
-                  <Text style={[styles.oppTagText, styles.oppCityTagText]}>{item.city}</Text>
-                </View>
+                {!!item.city && (
+                  <View style={[styles.oppTag, styles.oppCityTag]}>
+                    <Text style={[styles.oppTagText, styles.oppCityTagText]}>{item.city}</Text>
+                  </View>
+                )}
               </View>
             </View>
             <ChevronRightIcon size={16} />
@@ -189,10 +213,10 @@ export default function LinkPage() {
               <Text style={styles.discoverDesc}>AI 从你的企业信息中，发现值得拓展的合作方向</Text>
               <View style={styles.discoverPills}>
                 <View style={[styles.discoverPill, styles.discoverPillLeft, styles.tagExpress]}>
-                  <Text style={[styles.entryPillText, styles.tagExpressText]}>明确表达 {MOCK_DISCOVERY.expressCount}</Text>
+                  <Text style={[styles.entryPillText, styles.tagExpressText]}>明确表达 {expressCount}</Text>
                 </View>
                 <View style={[styles.discoverPill, styles.discoverPillRight, styles.tagAi]}>
-                  <Text style={[styles.entryPillText, styles.tagAiText]}>AI研判 {MOCK_DISCOVERY.aiCount}</Text>
+                  <Text style={[styles.entryPillText, styles.tagAiText]}>AI研判 {aiCount}</Text>
                 </View>
               </View>
               <View style={styles.entryChevron}>

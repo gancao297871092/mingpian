@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -14,51 +14,33 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SafeView from '@/components/SafeView';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { ChevronRightIcon, FeedDocIcon, FeedRemoveIcon, VerifiedBadgeIcon } from './icons';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/route/map';
 import { getSelectBbsResult, type SelectedBbs } from '@/utils/selectBbsBridge';
 import { useUserStore } from '@/store/user';
 import { useSelectBbsStore } from '@/store/selectBbs';
+import { API } from '@/api';
+import { buildAbilities, setPendingIntentDraft, type SignalIntentAbility } from './signalDraft';
 
 const PRIMARY = '#2962D4';
 const TEXT_SUB = '#6C6C6C';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
-/** 静态 mock（接口待联调）：展示身份企业信息 */
-const MOCK_IDENTITY = { company: '深圳联诚采信科技有限公司', verified: true };
+interface CardItem {
+  id: number;
+  /** 选择弹层前缀：名片1 · */
+  prefix: string;
+  /** 对接人姓名 */
+  person: string;
+  /** 对接人职位 */
+  title: string;
+}
 
-/** 静态 mock（接口待联调） */
-const MOCK_CARDS = [
-  { id: 'c1', prefix: '名片1 · ', person: '王磊', title: '智能制造解决方案顾问' },
-  { id: 'c2', prefix: '名片2 · ', person: '王磊', title: '供应链合作负责人、采购代表' },
-  { id: 'c3', prefix: '名片3 · ', person: '王磊', title: '项目交付经理、技术顾问' },
-  { id: 'c4', prefix: '名片4 · ', person: '王磊', title: '海外市场拓展经理' },
-  { id: 'c5', prefix: '名片5 · ', person: '王磊', title: '大客户销售总监' },
-  { id: 'c6', prefix: '名片6 · ', person: '王磊', title: '工业品采购专家' },
-  { id: 'c7', prefix: '名片7 · ', person: '王磊', title: '仓储物流规划师' },
-  { id: 'c8', prefix: '名片8 · ', person: '王磊', title: '质量管理与体系认证顾问' },
-  { id: 'c9', prefix: '名片9 · ', person: '王磊', title: '数字化转型咨询顾问' },
-  { id: 'c10', prefix: '名片10 · ', person: '王磊', title: '新能源项目合作负责人' },
-  { id: 'c11', prefix: '名片11 · ', person: '王磊', title: '精密制造工艺工程师' },
-  { id: 'c12', prefix: '名片12 · ', person: '王磊', title: '品牌与渠道合作经理' },
-];
-
-/** 静态 mock（接口待联调） */
-const MOCK_CAPS = [
-  { id: 'k1', name: '包装材料供应与协同交付' },
-  { id: 'k2', name: '工业物流仓配解决方案' },
-  { id: 'k3', name: '智能制造产线集成' },
-  { id: 'k4', name: '供应链金融服务' },
-  { id: 'k5', name: '工业质检与溯源体系' },
-  { id: 'k6', name: '跨境贸易清关代理' },
-  { id: 'k7', name: '企业数字化中台搭建' },
-  { id: 'k8', name: '新能源设备安装运维' },
-  { id: 'k9', name: '精密零部件定制加工' },
-  { id: 'k10', name: '工业品电商代运营' },
-  { id: 'k11', name: '工厂节能改造方案' },
-  { id: 'k12', name: '品牌包装设计与打样' },
-];
+interface CapItem {
+  id: number;
+  name: string;
+}
 
 type PickerKind = 'card' | 'cap';
 
@@ -67,22 +49,26 @@ function PickerSheet({
   kind,
   visible,
   selectedId,
+  cards,
+  caps,
   onSelect,
   onClose,
   onConfirm,
 }: {
   kind: PickerKind;
   visible: boolean;
-  selectedId: string;
-  onSelect: (id: string) => void;
+  selectedId: number | null;
+  cards: CardItem[];
+  caps: CapItem[];
+  onSelect: (id: number) => void;
   onClose: () => void;
   onConfirm: () => void;
 }) {
   const insets = useSafeAreaInsets();
   const isCard = kind === 'card';
-  const items: { id: string; prefix?: string; name: string }[] = isCard
-    ? MOCK_CARDS.map(c => ({ id: c.id, prefix: c.prefix, name: c.title }))
-    : MOCK_CAPS;
+  const items: { id: number; prefix?: string; name: string }[] = isCard
+    ? cards.map(c => ({ id: c.id, prefix: c.prefix, name: c.title || c.person }))
+    : caps.map(c => ({ id: c.id, name: c.name }));
   const navigation = useNavigation<Nav>();
 
   return (
@@ -121,6 +107,7 @@ function PickerSheet({
                   </React.Fragment>
                 );
               })}
+              {items.length === 0 && <Text style={styles.sheetEmpty}>暂无可选项</Text>}
             </View>
           </ScrollView>
           <View style={styles.sheetBtns}>
@@ -154,14 +141,30 @@ function PickerSheet({
 export default function CreateCooperationIntent() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
+  const { params } = useRoute<RouteProp<RootStackParamList, 'createCooperationIntent'>>();
+  const draftMode = params?.draft === true;
+  /** 编辑信号时回显已保存的意向书草稿 */
+  const existingIntent = params?.intent;
   const myCpId = useUserStore(s => s.userInfo?.cpId ?? s.userInfo?.wqUser?.cpId);
-  const [desc, setDesc] = useState('');
+  const myCompanyName = useUserStore(s => s.userInfo?.cpName ?? s.userInfo?.wqUser?.cpName ?? '');
+  const myAvatar = useUserStore(s => s.userInfo?.wqUser?.avatar ?? '');
+  const authed = useUserStore(s => s.userInfo?.wqUser?.authCompany === true);
+  const [desc, setDesc] = useState(existingIntent?.note ?? '');
   const [picker, setPicker] = useState<PickerKind | null>(null);
-  const [cardId, setCardId] = useState('c3');
-  const [capId, setCapId] = useState('k2');
-  const [cardConfirmed, setCardConfirmed] = useState(false);
-  const [capConfirmed, setCapConfirmed] = useState(false);
-  const [feeds, setFeeds] = useState<SelectedBbs[]>([]);
+  const [cards, setCards] = useState<CardItem[]>([]);
+  const [caps, setCaps] = useState<CapItem[]>([]);
+  const [cardId, setCardId] = useState<number | null>(existingIntent?.contactCardId ?? null);
+  const [capId, setCapId] = useState<number | null>(existingIntent?.cardId ?? null);
+  const [cardConfirmed, setCardConfirmed] = useState(!!existingIntent?.contactCardId);
+  const [capConfirmed, setCapConfirmed] = useState(!!existingIntent?.cardId);
+  const [feeds, setFeeds] = useState<SelectedBbs[]>(() =>
+    (existingIntent?.relBbs ?? []).map((id, i) => ({
+      id: String(id),
+      title: existingIntent?.feedTitles?.[i] ?? '关联动态',
+      imageUrl: existingIntent?.feedImages?.[i] ?? '',
+    })),
+  );
+  const [submitting, setSubmitting] = useState(false);
 
   // 从选择动态页返回后接收选中动态
   useFocusEffect(
@@ -173,8 +176,105 @@ export default function CreateCooperationIntent() {
     }, []),
   );
 
-  const selectedCard = MOCK_CARDS.find(c => c.id === cardId);
-  const selectedCap = MOCK_CAPS.find(c => c.id === capId);
+  /** 名片 / 企业能力卡列表（能力卡与「企业管理-能力卡」同一数据源：ownerType=1 + cpId） */
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const [cardRes, capRes] = await Promise.allSettled([
+          API.card.list(),
+          myCpId
+            ? API.capability.cardList({ ownerType: 1, cpId: myCpId })
+            : Promise.resolve({ data: { list: [] } }),
+        ]);
+        if (!alive) return;
+        if (cardRes.status === 'fulfilled') {
+          const list: CardItem[] = (cardRes.value.data.cardsList ?? []).map((c: any, i: number) => ({
+            id: Number(c.id),
+            prefix: `名片${i + 1} · `,
+            person: c.nameZh || c.alias || '未命名',
+            title: c.position || c.alias || '',
+          }));
+          setCards(list);
+          if (list.length) setCardId(prev => prev ?? list[0].id);
+        }
+        if (capRes.status === 'fulfilled') {
+          const list: CapItem[] = (capRes.value.data.list ?? [])
+            .map((c: any) => ({ id: Number(c.id), name: c.cardName || '未命名能力卡' }))
+            .filter((c: CapItem) => !Number.isNaN(c.id));
+          setCaps(list);
+          if (list.length) setCapId(prev => prev ?? list[0].id);
+        }
+      } catch {
+        // 拦截器已提示错误
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [myCpId]);
+
+  const selectedCard = useMemo(() => cards.find(c => c.id === cardId), [cards, cardId]);
+  const selectedCap = useMemo(() => caps.find(c => c.id === capId), [caps, capId]);
+
+  const onSubmit = useCallback(async () => {
+    if (!desc.trim() || submitting) return;
+    setSubmitting(true);
+    try {
+      if (draftMode) {
+        // 信号流程：意向书作为模板随信号保存（后端 abilityContent），不单独建单
+        let abilities: SignalIntentAbility[] | undefined;
+        if (capId != null) {
+          try {
+            const detail = await API.capability.cardDetail({ id: capId });
+            abilities = buildAbilities(detail.data);
+          } catch {
+            // 能力卡详情失败不阻断草稿保存
+          }
+        }
+        setPendingIntentDraft({
+          note: desc.trim(),
+          cardId: capId ?? undefined,
+          contactCardId: cardId ?? undefined,
+          relBbs: feeds.map(f => Number(f.id)).filter(n => !Number.isNaN(n)),
+          cardName: selectedCap?.name,
+          contactName: selectedCard?.person,
+          contactTitle: selectedCard?.title,
+          feedTitles: feeds.map(f => f.title),
+          feedImages: feeds.map(f => f.imageUrl || ''),
+          abilities,
+        });
+        navigation.goBack();
+        return;
+      }
+      const res = await API.intent.create({
+        opportunityId: params?.opportunityId,
+        receiverCpId: params?.receiverCpId,
+        note: desc.trim(),
+        cardId: capId ?? undefined,
+        contactCardId: cardId ?? undefined,
+        relBbs: feeds.map(f => Number(f.id)).filter(n => !Number.isNaN(n)),
+      });
+      navigation.replace('cooperationIntentView', { intentId: res.data.intentId });
+    } catch {
+      // 拦截器已提示错误
+    } finally {
+      setSubmitting(false);
+    }
+  }, [
+    cardId,
+    capId,
+    desc,
+    draftMode,
+    feeds,
+    navigation,
+    params?.opportunityId,
+    params?.receiverCpId,
+    selectedCap?.name,
+    selectedCard?.person,
+    selectedCard?.title,
+    submitting,
+  ]);
 
   return (
     <SafeView backgroundColor="#F6F7FB">
@@ -201,10 +301,14 @@ export default function CreateCooperationIntent() {
         {/* 展示身份 */}
         <Text style={[styles.label, styles.labelGap]}>展示身份</Text>
         <View style={styles.identityBar}>
-          <ExpoImage source={require('@/assets/link/mock-avatar.png')} style={styles.identityAvatar} contentFit="cover" />
+          <ExpoImage
+            source={myAvatar ? { uri: myAvatar } : require('@/assets/link/mock-avatar.png')}
+            style={styles.identityAvatar}
+            contentFit="cover"
+          />
           <View style={styles.identityInfo}>
-            <Text style={styles.identityName}>{MOCK_IDENTITY.company}</Text>
-            {MOCK_IDENTITY.verified && (
+            <Text style={styles.identityName}>{myCompanyName || '本企业'}</Text>
+            {authed && (
               <View style={styles.identityBadgeRow}>
                 <VerifiedBadgeIcon />
                 <Text style={styles.identityBadgeText}>企业已认证</Text>
@@ -323,11 +427,11 @@ export default function CreateCooperationIntent() {
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, scaleSizeH(20)) }]}>
         <TouchableOpacity
           activeOpacity={0.85}
-          disabled={!desc.trim()}
-          style={[styles.submitBtn, !desc.trim() && styles.submitBtnDisabled]}
-          onPress={() => console.log('submit: 创建合作意向书')}
+          disabled={!desc.trim() || submitting}
+          style={[styles.submitBtn, (!desc.trim() || submitting) && styles.submitBtnDisabled]}
+          onPress={onSubmit}
         >
-          <Text style={styles.submitBtnText}>创建合作意向书</Text>
+          <Text style={styles.submitBtnText}>{existingIntent ? '保存合作意向书' : '创建合作意向书'}</Text>
         </TouchableOpacity>
       </View>
       {/* 选择名片/能力卡弹层 */}
@@ -335,22 +439,30 @@ export default function CreateCooperationIntent() {
         kind="card"
         visible={picker === 'card'}
         selectedId={cardId}
+        cards={cards}
+        caps={caps}
         onSelect={setCardId}
         onClose={() => setPicker(null)}
         onConfirm={() => {
-          setCardConfirmed(true);
-          setPicker(null);
+          if (cardId != null) {
+            setCardConfirmed(true);
+            setPicker(null);
+          }
         }}
       />
       <PickerSheet
         kind="cap"
         visible={picker === 'cap'}
         selectedId={capId}
+        cards={cards}
+        caps={caps}
         onSelect={setCapId}
         onClose={() => setPicker(null)}
         onConfirm={() => {
-          setCapConfirmed(true);
-          setPicker(null);
+          if (capId != null) {
+            setCapConfirmed(true);
+            setPicker(null);
+          }
         }}
       />
     </SafeView>
@@ -606,6 +718,11 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     lineHeight: setSpText(14),
     color: '#000000',
+  },
+  sheetEmpty: {
+    paddingVertical: scaleSizeH(20),
+    fontSize: setSpText(14),
+    color: TEXT_SUB,
   },
   sheetRowPrefix: {
     color: TEXT_SUB,

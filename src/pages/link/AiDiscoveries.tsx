@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FlatList,
   Keyboard,
@@ -16,8 +16,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SafeView from '@/components/SafeView';
 import EmptyState from '@/components/EmptyState';
 import ListFooter from '@/components/ListFooter';
+import { API } from '@/api';
+import type { LinkOpportunityItem } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
+import { formatBasis } from './linkFormat';
 import { ChevronLeftIcon, ChevronRightIcon, DiamondIcon, FeedRemoveIcon, SearchIcon } from './icons';
 
 const PRIMARY = '#2962D4';
@@ -30,6 +33,7 @@ type Tone = 'express' | 'ai';
 
 interface DiscoveryItem {
   id: string;
+  opportunityId: number;
   title: string;
   tone: Tone;
   /** 弱化展示（灰色标题/图标） */
@@ -39,34 +43,34 @@ interface DiscoveryItem {
   found: number;
 }
 
-/** 静态 mock 模板（接口待联调） */
-const BASE_ITEMS: Omit<DiscoveryItem, 'id' | 'found'>[] = [
-  {
-    title: '华东化工客户吨袋集采对接',
-    tone: 'ai',
-    desc: '企业画像显示具备吨袋产能与稳定交付能力，适合对接区域集采需求。',
-    evidence: '依据：企业信息 · 吨袋包装制造 等3条依据',
-  },
-  {
-    title: '包装产线节拍优化服务合作',
-    tone: 'express',
-    desc: '画像中的产线规模与交付节奏，适合引入节拍评估与联线优化服务',
-    evidence: '依据：企业信息 · 产线规模、交付节奏 等3条依据',
-  },
-  {
-    title: '寻找可靠的 MES / 数采方案服务商',
-    tone: 'express',
-    dim: true,
-    desc: '对接可落地的 MES / 数采方案服务商。',
-    evidence: '来源：企业动态 · 采购了一批新的自动化设备',
-  },
-];
+/** 商机类型兜底文案（AI 未给分析摘要时） */
+const OPP_TYPE_LABEL: Record<string, string> = {
+  purchase: '采购需求',
+  supply: '供应能力',
+  cooperation: '合作需求',
+  talent: '人才需求',
+  other: '产业商机',
+};
 
-const MOCK_LIST: DiscoveryItem[] = Array.from({ length: 12 }, (_, index) => ({
-  ...BASE_ITEMS[index % BASE_ITEMS.length],
-  id: String(index + 1),
-  found: 8 + (index % 4) * 3,
-}));
+/** 接口 → 列表模型（阶段：confirmStatus 1=明确表达，否则 AI研判） */
+function toDiscoveryItem(item: LinkOpportunityItem): DiscoveryItem {
+  const opp = item.opportunity ?? ({} as LinkOpportunityItem['opportunity']);
+  const confirmed = opp.confirmStatus === 1;
+  const evidence = formatBasis((item.basisList ?? []).map(b => b.label));
+  const fallbackDesc = [OPP_TYPE_LABEL[opp.oppType ?? ''] ?? '产业商机', opp.region, opp.scale]
+    .filter(Boolean)
+    .join(' · ');
+  return {
+    id: String(opp.id),
+    opportunityId: opp.id,
+    title: opp.title || '未命名商机',
+    tone: confirmed ? 'express' : 'ai',
+    dim: !confirmed,
+    desc: opp.aiAnalysis || fallbackDesc || 'AI 正在解读该商机',
+    evidence,
+    found: item.matchCount ?? 0,
+  };
+}
 
 type Filter = 'all' | Tone;
 
@@ -82,40 +86,40 @@ export default function AiDiscoveries() {
   const [list, setList] = useState<DiscoveryItem[]>([]);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
+  const [counts, setCounts] = useState({ all: 0, express: 0, ai: 0 });
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const loadingRef = useRef(false);
   const listRef = useRef<FlatList<DiscoveryItem>>(null);
-  const keywordRef = useRef('');
 
-  const counts = useMemo(
-    () => ({
-      all: MOCK_LIST.length,
-      express: MOCK_LIST.filter(i => i.tone === 'express').length,
-      ai: MOCK_LIST.filter(i => i.tone === 'ai').length,
-    }),
-    [],
-  );
-
-  /** 静态 mock 分页（接口待联调：替换为真实请求，入参 filter/keyword/pageNum） */
+  /** 分页拉取（filter / keyword 均走后端，counts 随关键词联动） */
   const fetchList = useCallback(
     async (filterKey: Filter, pageNum: number, append: boolean, isRefresh = false, kw = '') => {
       if (loadingRef.current) return;
       loadingRef.current = true;
-      keywordRef.current = kw;
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
       try {
-        const source = MOCK_LIST.filter(item => {
-          if (filterKey !== 'all' && item.tone !== filterKey) return false;
-          if (!kw) return true;
-          return `${item.title}${item.desc}${item.evidence}`.toLowerCase().includes(kw);
+        const res = await API.aiDiscovery.list({
+          filter: filterKey === 'express' ? 'confirmed' : filterKey === 'ai' ? 'pending' : 'all',
+          keyword: kw || undefined,
+          pageNum,
+          pageSize: PAGE_SIZE,
         });
-        const arr = source.slice((pageNum - 1) * PAGE_SIZE, pageNum * PAGE_SIZE);
-        setList(prev => (append ? [...prev, ...arr] : arr));
-        setPage(pageNum);
-        setPages(Math.max(Math.ceil(source.length / PAGE_SIZE), 1));
+        const data = res.data;
+        const items = (data.list || []).map(toDiscoveryItem);
+        setList(prev => (append ? [...prev, ...items] : items));
+        setCounts({
+          all: data.counts?.total ?? 0,
+          express: data.counts?.confirmed ?? 0,
+          ai: data.counts?.pending ?? 0,
+        });
+        setPage(data.pageNum || pageNum);
+        setPages(Math.max(data.pages || 1, 1));
+      } catch {
+        // 拦截器已提示错误，这里只保证不进入 loading 死循环
+        if (!append) setList([]);
       } finally {
         loadingRef.current = false;
         setLoading(false);
@@ -134,7 +138,7 @@ export default function AiDiscoveries() {
 
   /** 提交搜索：仅在用户点键盘「搜索」键时请求 */
   const doSearch = useCallback(() => {
-    const q = keyword.trim().toLowerCase();
+    const q = keyword.trim();
     Keyboard.dismiss();
     listRef.current?.scrollToOffset({ offset: 0, animated: false });
     if (q === appliedKeyword) {
@@ -151,15 +155,15 @@ export default function AiDiscoveries() {
   }, []);
 
   const onRefresh = useCallback(
-    () => fetchList(filter, 1, false, true, keywordRef.current),
-    [filter, fetchList],
+    () => fetchList(filter, 1, false, true, appliedKeyword),
+    [appliedKeyword, filter, fetchList],
   );
 
   const onEndReached = useCallback(() => {
     if (!loadingRef.current && page < pages) {
-      fetchList(filter, page + 1, true, false, keywordRef.current);
+      fetchList(filter, page + 1, true, false, appliedKeyword);
     }
-  }, [filter, fetchList, page, pages]);
+  }, [appliedKeyword, filter, fetchList, page, pages]);
 
   /** 头部搜索按钮：展开/收起搜索框（收起时清空关键词并还原列表） */
   const toggleSearch = useCallback(() => {
@@ -216,6 +220,7 @@ export default function AiDiscoveries() {
                 placeholderTextColor="#AFB1BB"
                 value={keyword}
                 onChangeText={setKeyword}
+                maxLength={30}
                 autoFocus
                 returnKeyType="search"
                 selectionColor={PRIMARY}
@@ -293,7 +298,7 @@ export default function AiDiscoveries() {
           <TouchableOpacity
             activeOpacity={0.85}
             style={styles.card}
-            onPress={() => navigation.navigate('directionDetail')}
+            onPress={() => navigation.navigate('directionDetail', { opportunityId: item.opportunityId })}
           >
             <View style={styles.cardTitleRow}>
               <DiamondIcon size={11.5} color={item.dim ? '#B9BDCF' : PRIMARY} />

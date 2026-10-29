@@ -1,5 +1,6 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { LocalDraft } from '@/utils/draftStore';
+import type { SignalIntentDraft, TouchSummary } from '@/pages/link/signalDraft';
 
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
@@ -81,14 +82,19 @@ export type RootStackParamList = {
   companyErrorCorrection: { collectId?: number } | undefined;
   /** 创建合作信号（figma 51.创建合作信号 2793:6959；传 id 为编辑模式，标题变为编辑合作信号并回显） */
   createCooperationSignal: { id?: string } | undefined;
-  /** 创建合作意向书（figma 40.创建合作意向书 251:1945 / 44.已填写 262:2127） */
-  createCooperationIntent: undefined;
+  /** 创建合作意向书（figma 40.创建合作意向书 251:1945 / 44.已填写 262:2127）：draft=true 时只保存到信号草稿；intent 为编辑回显 */
+  createCooperationIntent: {
+    opportunityId?: number | string;
+    receiverCpId?: number | string;
+    draft?: boolean;
+    intent?: SignalIntentDraft;
+  } | undefined;
   /** 选择动态（figma 1291:4985）：企业主页动态最多选 3 条关联，cpId 缺省取当前用户企业 */
   selectBbs: { cpId?: number | string } | undefined;
   /** 搜索动态（figma 1599:5270）：企业主页动态按 search 关键词搜索并多选 */
   selectBbsSearch: { cpId?: number | string } | undefined;
   /** 合作信号预览（figma 53.合作信号预览2 2793:7116） */
-  cooperationSignalPreview: undefined;
+  cooperationSignalPreview: { id?: string; targetDesc: string; intent?: SignalIntentDraft } | undefined;
   /** 我的信号（figma 50.我的信号 2805:8180） */
   mySignals: undefined;
   /** 信号进展·触达中（figma 2805:7992） */
@@ -98,19 +104,19 @@ export type RootStackParamList = {
   /** 合作中心/我的商机（figma 56.我的商机 2793:6369 等 5 态；tab 指定显示企业合作池 pool 或我的合作 mine，缺省 pool） */
   myOpportunities: { tab?: 'pool' | 'mine' } | undefined;
   /** 商机详情（figma 62.商机详情 402:2051） */
-  opportunityDetail: undefined;
+  opportunityDetail: { opportunityId?: number | string } | undefined;
   /** AI发现-方向推荐（figma 5.AI发现 53:911） */
   aiDiscoveries: undefined;
   /** 产业正在发生（figma 61.产业正在发生 387:2375） */
   industryHappening: undefined;
   /** 申请平台协助（figma 63.申请平台协助 402:2577） */
-  platformAssist: undefined;
+  platformAssist: { opportunityId?: number | string; signalId?: number | string } | undefined;
   /** 潜在合作方向-方向详情（figma 49.潜在合作方向 295:2760） */
-  directionDetail: undefined;
-  /** 合作意向书-查看（figma 37.合作意向书 222:1542） */
-  cooperationIntentView: undefined;
+  directionDetail: { opportunityId?: number | string } | undefined;
+  /** 合作意向书-查看（figma 37.合作意向书 222:1542）：intentId 走详情接口，signalId 为信号预览态 */
+  cooperationIntentView: { intentId?: number | string; signalId?: string } | undefined;
   /** 修改触达摘要（figma 54.修改触达摘要 327:2236） */
-  editTouchSummary: undefined;
+  editTouchSummary: { summary?: TouchSummary } | undefined;
   /** 填写说明（figma 55.填写说明 329:2395） */
   fillGuide: undefined;
 };
