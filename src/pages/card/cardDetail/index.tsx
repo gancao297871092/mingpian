@@ -71,15 +71,19 @@ export default function CardDetail({ navigation, route }: Props) {
     (async () => {
       try {
         const res = await API.card.aggregate({ cardId: id });
-        if (res.code === '200' && res.data) {
+        if (res.code === '200' && res.data?.userCard) {
           setData(res.data);
           setFavored(Number(res.data.userCard?.userIsFavorite) === 1);
+        } else if (res.code === '200') {
+          // 名片不存在（如历史脏数据传了缓存表行ID）：提示并返回，避免停留空壳页
+          Toast.show({ type: 'info', text1: '名片不存在或已删除' });
+          navigation.goBack();
         }
       } catch {
-        // ignore
+        // 拦截器已提示错误
       }
     })();
-  }, [id]);
+  }, [id, navigation]);
 
   const userCard = data?.userCard;
   const userInfo = data?.userInfo;

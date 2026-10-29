@@ -123,13 +123,19 @@ export default function CooperationIntentView() {
           sub: '',
           cover: item.cover || undefined,
         }));
+        const snapshotAbilities = buildAbilities(card);
+        // 兜底取卡仅发送方视角可用（/capability/card/detail 限本人/本企业管理员；接收方待后端快照带 content，见 F-6）
+        const abilities =
+          detail.role === 'receiver'
+            ? snapshotAbilities
+            : await resolveAbilities(intent.cardId, snapshotAbilities);
         setData({
           quote: intent.note || '',
           companyName: detail.senderCompany?.name || '',
           companySub: detail.senderCompany?.types || '企业认证 · 信息已核验',
           companyId: detail.senderCompany?.id,
           companyLogo: detail.senderCompany?.avatar || undefined,
-          abilities: await resolveAbilities(intent.cardId, buildAbilities(card)),
+          abilities,
           feeds,
           contact,
           contactCardId: intent.contactCardId,
@@ -318,77 +324,85 @@ export default function CooperationIntentView() {
           <ChevronRightIcon size={12} />
         </TouchableOpacity>
 
-        {/* 企业能力正文（标题黑 + 内容灰整段排版，底部收起/展开） */}
-        <View style={styles.letterCard}>
-          <Text style={styles.sectionCardTitle}>企业能力</Text>
-          <Text style={styles.letterText}>
-            {visibleSections.map((sec, i) => (
-              <Text key={sec.title}>
-                {i > 0 && '\n\n'}
-                {sec.title}
-                {'\n'}
-                <Text style={styles.letterTextBody}>{sec.body}</Text>
-              </Text>
-            ))}
-          </Text>
+        {/* 企业能力正文（有内容才展示；超过 2 节才显示展开/收起） */}
+        {data.abilities.length > 0 && (
+          <View style={styles.letterCard}>
+            <Text style={styles.sectionCardTitle}>企业能力</Text>
+            <Text style={styles.letterText}>
+              {visibleSections.map((sec, i) => (
+                <Text key={sec.title}>
+                  {i > 0 && '\n\n'}
+                  {sec.title}
+                  {'\n'}
+                  <Text style={styles.letterTextBody}>{sec.body}</Text>
+                </Text>
+              ))}
+            </Text>
+            {data.abilities.length > 2 && (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={styles.collapseBtn}
+                onPress={() => setExpanded(e => !e)}
+              >
+                <Text style={styles.collapseText}>{expanded ? '收起' : '展开'}</Text>
+                <ChevronVerticalIcon up={expanded} />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
+        {/* 关联动态（有才展示） */}
+        {data.feeds.length > 0 && (
+          <View style={styles.plainCard}>
+            <Text style={styles.sectionCardTitle}>关联动态</Text>
+            <View style={styles.feedList}>
+              {data.feeds.map(item => (
+                <TouchableOpacity
+                  key={item.id}
+                  activeOpacity={0.85}
+                  style={styles.feedRow}
+                  onPress={() => navigation.navigate('bbsDetail', { id: item.id })}
+                >
+                  <ExpoImage
+                    source={item.cover ? { uri: item.cover } : require('@/assets/link/mock-avatar.png')}
+                    style={styles.feedAvatar}
+                    contentFit="cover"
+                  />
+                  <View style={styles.feedInfo}>
+                    <Text style={styles.feedTitle} numberOfLines={1}>{item.title}</Text>
+                    <Text style={styles.feedSub} numberOfLines={1}>{item.sub}</Text>
+                  </View>
+                  <ChevronRightIcon size={12} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* 本次对接人（有才展示） */}
+        {!!data.contact.name && (
           <TouchableOpacity
             activeOpacity={0.85}
-            style={styles.collapseBtn}
-            onPress={() => setExpanded(e => !e)}
+            style={styles.plainCard}
+            onPress={() => {
+              if (data.contactCardId) navigation.navigate('cardDetail', { id: data.contactCardId });
+            }}
           >
-            <Text style={styles.collapseText}>{expanded ? '收起' : '展开'}</Text>
-            <ChevronVerticalIcon up={expanded} />
-          </TouchableOpacity>
-        </View>
-
-        {/* 关联动态 */}
-        <View style={styles.plainCard}>
-          <Text style={styles.sectionCardTitle}>关联动态</Text>
-          <View style={styles.feedList}>
-            {data.feeds.map(item => (
-              <TouchableOpacity
-                key={item.id}
-                activeOpacity={0.85}
-                style={styles.feedRow}
-                onPress={() => navigation.navigate('bbsDetail', { id: item.id })}
-              >
-                <ExpoImage
-                  source={item.cover ? { uri: item.cover } : require('@/assets/link/mock-avatar.png')}
-                  style={styles.feedAvatar}
-                  contentFit="cover"
-                />
-                <View style={styles.feedInfo}>
-                  <Text style={styles.feedTitle} numberOfLines={1}>{item.title}</Text>
-                  <Text style={styles.feedSub} numberOfLines={1}>{item.sub}</Text>
-                </View>
-                <ChevronRightIcon size={12} />
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* 本次对接人 */}
-        <TouchableOpacity
-          activeOpacity={0.85}
-          style={styles.plainCard}
-          onPress={() => {
-            if (data.contactCardId) navigation.navigate('cardDetail', { id: data.contactCardId });
-          }}
-        >
-          <Text style={styles.sectionCardTitle}>本次对接人</Text>
-          <View style={styles.contactRow}>
-            <ExpoImage
-              source={require('@/assets/link/mock-avatar.png')}
-              style={styles.contactAvatar}
-              contentFit="cover"
-            />
-            <View style={styles.contactInfo}>
-              <Text style={styles.contactName}>{data.contact.name}</Text>
-              <Text style={styles.contactRole}>{data.contact.title}</Text>
+            <Text style={styles.sectionCardTitle}>本次对接人</Text>
+            <View style={styles.contactRow}>
+              <ExpoImage
+                source={require('@/assets/link/mock-avatar.png')}
+                style={styles.contactAvatar}
+                contentFit="cover"
+              />
+              <View style={styles.contactInfo}>
+                <Text style={styles.contactName}>{data.contact.name}</Text>
+                <Text style={styles.contactRole}>{data.contact.title}</Text>
+              </View>
+              <ChevronRightIcon size={12} />
             </View>
-            <ChevronRightIcon size={12} />
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        )}
       </Animated.ScrollView>
 
       {/* 底部操作条：仅接收方且待回应时展示 */}

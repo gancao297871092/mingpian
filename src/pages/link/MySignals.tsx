@@ -29,17 +29,13 @@ interface Signal {
   failReason?: string;
 }
 
-/** 后端状态 → 前端卡片状态（failed 同时覆盖「审核驳回」与「投放已暂停」） */
+/** 状态判定以 audit_status 为准（DDL：0待审核/1通过/2驳回）；status 仅表达生命周期：2投放中/3已暂停/4完成/5结束 */
 function toSignalStatus(signal: LinkSignal): SignalStatus {
-  if (signal.auditStatus === 2) return 'failed';
-  switch (signal.status) {
-    case 2:
+  switch (signal.auditStatus) {
+    case 1: // 已暂停：UI 无独立 pill，归入触达中（当前后端无暂停入口）
       return 'reaching';
-    case 3:
+    case 2:
       return 'failed';
-    case 4:
-    case 5:
-      return 'ended';
     default:
       return 'review';
   }
@@ -49,6 +45,7 @@ function toSignalStatus(signal: LinkSignal): SignalStatus {
 function toSignal(item: LinkSignalItem): Signal {
   const s = item.signal ?? ({} as LinkSignal);
   const status = toSignalStatus(s);
+  console.log('toSignal', s, status);
   return {
     id: String(s.id),
     title: s.targetDesc || '未命名信号',
@@ -57,10 +54,10 @@ function toSignal(item: LinkSignalItem): Signal {
     stats:
       status === 'reaching' || status === 'ended'
         ? {
-            reached: s.deliverCount ?? 0,
-            viewed: s.viewCount ?? 0,
-            replied: s.responseCount ?? 0,
-          }
+          reached: s.deliverCount ?? 0,
+          viewed: s.viewCount ?? 0,
+          replied: s.responseCount ?? 0,
+        }
         : undefined,
     failReason:
       status === 'failed'
@@ -245,6 +242,7 @@ export default function MySignals() {
       else setLoading(true);
       try {
         const res = await API.signal.list({ statusTab: filterKey, pageNum, pageSize: PAGE_SIZE });
+        console.log(res.data.list, 'list')
         const items = (res.data.list ?? []).map(toSignal);
         setList(prev => (append ? [...prev, ...items] : items));
         setPage(res.data.pageNum || pageNum);
