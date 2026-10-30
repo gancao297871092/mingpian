@@ -24,6 +24,7 @@ import MyOpportunities from '@/pages/link/MyOpportunities';
 import OpportunityDetail from '@/pages/link/OpportunityDetail';
 import AiDiscoveries from '@/pages/link/AiDiscoveries';
 import IndustryHappening from '@/pages/link/IndustryHappening';
+import HappeningSearch from '@/pages/link/HappeningSearch';
 import PlatformAssist from '@/pages/link/PlatformAssist';
 import DirectionDetail from '@/pages/link/DirectionDetail';
 import CooperationIntentView from '@/pages/link/CooperationIntentView';
@@ -866,6 +867,11 @@ export default function RootNavigator() {
         <Stack.Screen
           name="industryHappening"
           component={IndustryHappening}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="happeningSearch"
+          component={HappeningSearch}
           options={{ headerShown: false }}
         />
         <Stack.Screen

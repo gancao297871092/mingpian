@@ -89,7 +89,7 @@ export default function IndustryHappening() {
         <TouchableOpacity
           activeOpacity={0.85}
           style={styles.glassBtn}
-          onPress={() => console.log('go: 搜索机会')}
+          onPress={() => navigation.navigate('happeningSearch', {})}
         >
           <SearchIcon />
         </TouchableOpacity>

@@ -109,6 +109,8 @@ export type RootStackParamList = {
   aiDiscoveries: undefined;
   /** 产业正在发生（figma 61.产业正在发生 387:2375） */
   industryHappening: undefined;
+  /** 产业正在发生-搜索合作机会（46.搜索-筛选/搜索结果，仅关键词查询；keyword 预填并直接搜索） */
+  happeningSearch: { keyword?: string } | undefined;
   /** 申请平台协助（figma 63.申请平台协助 402:2577） */
   platformAssist: { opportunityId?: number | string; signalId?: number | string } | undefined;
   /** 潜在合作方向-方向详情（figma 49.潜在合作方向 295:2760） */
