@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { Animated, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Animated, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import LinearGradient from 'react-native-linear-gradient';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
@@ -106,6 +106,8 @@ export default function CooperationIntentView() {
   const [data, setData] = useState<IntentViewData>(EMPTY);
   const [expanded, setExpanded] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  /** 首次加载中：避免空壳（空白说明卡/企业卡）闪烁 */
+  const [initialLoading, setInitialLoading] = useState(true);
   const [declineReason, setDeclineReason] = useState('');
   const [declineOther, setDeclineOther] = useState('');
   const declineRef = useRef<BottomSheetModal>(null);
@@ -165,6 +167,8 @@ console.log(res, 'route.params')
         });
       } catch {
         // 拦截器已提示错误
+      } finally {
+        setInitialLoading(false);
       }
       return;
     }
@@ -195,6 +199,8 @@ console.log(res, 'route.params')
         });
       } catch {
         // 拦截器已提示错误
+      } finally {
+        setInitialLoading(false);
       }
     }
   }, [intentId, myCompanyName, signalId]);
@@ -283,8 +289,11 @@ console.log(res, 'route.params')
           { paddingTop: insets.top + scaleSizeH(58), paddingBottom: scaleSizeH(90) + insets.bottom },
         ]}
       >
-
-        {/* <View style={styles.heroWrap}>
+        {initialLoading ? (
+          <ActivityIndicator style={styles.loadingPad} size="large" color={PRIMARY} />
+        ) : (
+          <>
+            {/* <View style={styles.heroWrap}>
           <LinearGradient
             colors={['#C6D9FF', '#FFFFFF', '#FFFFFF']}
             locations={[0, 0.46, 1]}
@@ -437,6 +446,8 @@ console.log(res, 'route.params')
             </View>
           </TouchableOpacity>
         )}
+          </>
+        )}
       </Animated.ScrollView>
 
       {/* 底部操作条（接收方视角）：待回应=双按钮；已同意且有效=仅「继续沟通」（跳私信，不调回应接口）；其余（已拒绝/已撤回/发送方）=不展示 */}
@@ -573,6 +584,9 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
   content: {},
+  loadingPad: {
+    paddingVertical: scaleSizeH(120),
+  },
   mascotRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
