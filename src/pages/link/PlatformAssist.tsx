@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -10,12 +10,10 @@ import {
 } from 'react-native';
 import { BlurView } from '@react-native-community/blur';
 import { Image as ExpoImage } from 'expo-image';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
-import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
 import { AssistCompassIcon, AssistHandshakeIcon, AssistVerifyIcon, ChevronLeftIcon } from './icons';
@@ -322,8 +320,5 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     lineHeight: setSpText(24),
     color: '#FFFFFF',
-  },
-  submitBtnDisabled: {
-    opacity: 0.3,
   },
 });
