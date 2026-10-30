@@ -31,6 +31,7 @@ import CooperationIntentView from '@/pages/link/CooperationIntentView';
 import EditTouchSummary from '@/pages/link/EditTouchSummary';
 import FillGuide from '@/pages/link/FillGuide';
 import MessagePage from '@/pages/message';
+import MessageChat from '@/pages/message/chat';
 import My from '@/pages/my';
 import EditProfile from '@/pages/my/EditProfile';
 import UserHome from '@/pages/my/UserHome';
@@ -878,6 +879,15 @@ export default function RootNavigator() {
           name="platformAssist"
           component={PlatformAssist}
           options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="messageDetail"
+          component={MessageChat}
+          options={{
+            headerStyle: { backgroundColor: '#FFFFFF' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
         />
         <Stack.Screen
           name="directionDetail"

@@ -10,6 +10,17 @@ export namespace API {
     }
   }
 
+  export namespace message {
+    /** 打开留言会话（初始/加载更多共用：不传 lastId 拉最新 10 条，传 lastId 往前翻；服务端顺带把己方未读置已读） */
+    export function open(data: { userId?: number; msgNumber?: number; lastId?: number }) {
+      return request.post<any[]>('/message/open', data);
+    }
+    /** 发送留言（beUserId=对方用户ID；msgNumber 为空时服务端按历史会话复用/新建；返回已入库的留言实体） */
+    export function send(data: { beUserId: number; content: string; msgNumber?: number }) {
+      return request.post<any>('/message/send', data);
+    }
+  }
+
   export namespace common {
     /** 通用富文本（userSure 用户协议 / privates 隐私政策 / cardSure 实名认证协议 / cpSure 企业认证协议） */
     export function richText(apiUrl: string) {
@@ -22,6 +33,10 @@ export namespace API {
     /** 校验短信验证码 */
     export function msgValidate(data: { authCode: string; code: string }) {
       return request.post<any>('/common/msg/validate', data);
+    }
+    /** 查任意用户基础信息（用户名/头像/企业等，对齐小程序 /common/user/base/info） */
+    export function userBaseInfo(params: { userId: number | string }) {
+      return request.get<any>('/common/user/base/info', { params });
     }
     export function userSure() {
       return request.get<{ name: string; value: string; htmls: string }>('/common/userSure');

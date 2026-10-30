@@ -38,6 +38,8 @@ interface OpportunityItem {
   intentId?: number;
   /** 线索 ID（接手/沟通等后续动作） */
   leadId?: number;
+  /** 沟通对象用户 ID（「继续沟通」跳留言会话） */
+  peerUserId?: number;
   contactStage?: string;
 }
 
@@ -93,6 +95,7 @@ function toMineItem(item: LinkLeadItem, sub: MineSub): OpportunityItem {
     actionText: sub === 'waiting' ? '查看申请' : '继续沟通',
     actionTone: 'solid',
     intentId: lead.source === 1 ? lead.sourceId : undefined,
+    peerUserId: lead.targetUserId ?? undefined,
     contactStage: stage,
   };
 }
@@ -164,7 +167,12 @@ function OpportunityCard({ item }: { item: OpportunityItem }) {
                 console.log('go: 线索详情', item.leadId);
               }
             } else {
-              navigation.navigate('MainTabs', { screen: 'message' });
+              // 「继续沟通」跳留言会话（对方用户ID 由 lead.targetUserId 下发；缺失时兜底回消息 tab）
+              if (item.peerUserId) {
+                navigation.navigate('messageDetail', { userId: item.peerUserId });
+              } else {
+                navigation.navigate('MainTabs', { screen: 'message' });
+              }
             }
           }}
         >

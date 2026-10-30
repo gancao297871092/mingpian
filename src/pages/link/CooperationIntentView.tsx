@@ -63,6 +63,8 @@ interface IntentViewData {
   /** 意向书状态：0有效 -1已撤回（撤回后不展示底部条） */
   status: number;
   intentId?: number;
+  /** 对方用户ID（接收方视角=发起人 senderUserId，「继续沟通」跳留言会话用） */
+  peerUserId?: number;
 }
 
 const EMPTY: IntentViewData = {
@@ -161,6 +163,7 @@ export default function CooperationIntentView() {
           response: intent.response ?? 0,
           status: intent.status ?? 0,
           intentId: intent.id,
+          peerUserId: intent.senderUserId,
         });
       } catch {
         // 拦截器已提示错误
@@ -446,7 +449,7 @@ export default function CooperationIntentView() {
         )}
       </Animated.ScrollView>
 
-      {/* 底部操作条（接收方视角）：待回应=双按钮；已同意且有效=仅「继续沟通」（跳私信，不调回应接口）；其余（已拒绝/已撤回/发送方）=不展示 */}
+      {/* 底部操作条（接收方视角）：待回应=双按钮；已同意且有效=仅「继续沟通」（跳留言会话，不调回应接口）；其余（已拒绝/已撤回/发送方）=不展示 */}
       {(data.canResponse || (data.response === 1 && data.status === 0)) && (
         <View style={[styles.bottomBar, { paddingBottom: insets.bottom + scaleSizeH(10) }]}>
           {data.canResponse ? (
@@ -472,7 +475,11 @@ export default function CooperationIntentView() {
             <TouchableOpacity
               activeOpacity={0.85}
               style={styles.btnAccept}
-              onPress={() => navigation.navigate('MainTabs', { screen: 'message' })}
+              onPress={() =>
+                data.peerUserId
+                  ? navigation.navigate('messageDetail', { userId: data.peerUserId })
+                  : navigation.navigate('MainTabs', { screen: 'message' })
+              }
             >
               <Text style={styles.btnAcceptText}>继续沟通</Text>
             </TouchableOpacity>

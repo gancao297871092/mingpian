@@ -121,6 +121,8 @@ export type RootStackParamList = {
   editTouchSummary: { summary?: TouchSummary } | undefined;
   /** 填写说明（figma 55.填写说明 329:2395） */
   fillGuide: undefined;
+  /** 32.消息详情（留言模式会话；userId=对方用户ID，msgNumber=已有会话号可选） */
+  messageDetail: { userId: number; msgNumber?: number } | undefined;
 };
 
 export type MainTabParamList = {
