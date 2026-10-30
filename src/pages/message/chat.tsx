@@ -441,16 +441,6 @@ export default function MessageChat() {
   return (
     <SafeView backgroundColor={PAPER}>
       <View style={styles.container} onTouchStart={hideTools}>
-        {/* 对方企业入口（对齐小程序 chatUser.cpName 顶栏） */}
-        {!!peer.cpName && (
-          <TouchableOpacity
-            activeOpacity={0.8}
-            style={styles.cpBar}
-            onPress={() => peer.cpId && navigation.navigate('companyPage', { id: peer.cpId, userId: peerUserId })}
-          >
-            <Text style={styles.cpBarText}>{peer.cpName} &gt;</Text>
-          </TouchableOpacity>
-        )}
         {/* 留言列表：顶部锚定；加载历史保持当前位置；随键盘按溢出量上顶 */}
         <Animated.View
           onLayout={e => {
@@ -595,12 +585,15 @@ const styles = StyleSheet.create({
   headerName: {
     fontSize: setSpText(15),
     fontWeight: '600',
-    color: '#000000',
+    lineHeight: setSpText(19),
+    color: '#17243A',
     maxWidth: scaleSizeW(220),
   },
   headerCp: {
-    marginTop: scaleSizeH(2),
+    marginTop: scaleSizeH(3),
     fontSize: setSpText(11),
+    lineHeight: setSpText(14),
+    fontWeight: '400',
     color: BLUE,
     maxWidth: scaleSizeW(220),
   },
@@ -611,7 +604,7 @@ const styles = StyleSheet.create({
     marginRight: scaleSizeW(4),
     letterSpacing: 1,
   },
-  // 对方企业顶栏（对齐小程序 cpName 栏）
+  // 对方企业顶栏（小程序风格，figma 32.消息详情无此元素，已按 figma 移除；企业名在头部副标题）
   cpBar: {
     backgroundColor: '#FFFFFF',
     paddingVertical: scaleSizeH(8),
