@@ -1029,7 +1029,12 @@ export namespace API {
 
   /** 链接 · 我的商机（线索 CRM，AppLeadController：/v1/lead/*） */
   export namespace lead {
-    /** 商机列表（tab: response / pending / following / connected / closed / all；返回 counts 各 tab 计数） */
+    /**
+     * 商机列表（合作中心定稿 2 tab，后端 2026-10-30：waiting 等待对方=已发申请未回应 /
+     * chatting 沟通中=对方已同意合并(待跟进+跟进中+已连接，contactStage 细分待联系/沟通中)；
+     * 兼容旧 tab：response / pending / following / connected / closed / all。
+     * 返回 counts{waiting, chatting, connectedToContact, connectedChatting, …} 各 tab 计数，与查询口径一致）
+     */
     export function list(data?: { tab?: string; pageNum?: number; pageSize?: number }) {
       return request.post<LinkPageResult<LinkLeadItem>>('/lead/list', data);
     }

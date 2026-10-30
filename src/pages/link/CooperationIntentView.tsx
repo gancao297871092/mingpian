@@ -58,6 +58,10 @@ interface IntentViewData {
   contact: { name: string; title: string };
   contactCardId?: number;
   canResponse: boolean;
+  /** 回应状态：0待回应 1愿意沟通 2暂不考虑（决定底部条形态） */
+  response: number;
+  /** 意向书状态：0有效 -1已撤回（撤回后不展示底部条） */
+  status: number;
   intentId?: number;
 }
 
@@ -69,6 +73,8 @@ const EMPTY: IntentViewData = {
   feeds: [],
   contact: { name: '', title: '' },
   canResponse: false,
+  response: 0,
+  status: 0,
 };
 
 /**
@@ -153,6 +159,8 @@ console.log(res, 'route.params')
           contact,
           contactCardId: intent.contactCardId,
           canResponse: !!detail.canResponse,
+          response: intent.response ?? 0,
+          status: intent.status ?? 0,
           intentId: intent.id,
         });
       } catch {
@@ -164,6 +172,7 @@ console.log(res, 'route.params')
       try {
         const res = await API.signal.detail({ signalId });
         const draft = parseAbilityContent(res.data.signal?.abilityContent);
+        console.log(res, 'res')
         if (!draft) return;
         setData({
           quote: draft.note,
@@ -181,6 +190,8 @@ console.log(res, 'route.params')
           contact: { name: draft.contactName || '', title: draft.contactTitle || '' },
           contactCardId: draft.contactCardId,
           canResponse: false,
+          response: 0,
+          status: 0,
         });
       } catch {
         // 拦截器已提示错误
@@ -428,25 +439,37 @@ console.log(res, 'route.params')
         )}
       </Animated.ScrollView>
 
-      {/* 底部操作条：仅接收方且待回应时展示 */}
-      {data.canResponse && (
+      {/* 底部操作条（接收方视角）：待回应=双按钮；已同意且有效=仅「继续沟通」（跳私信，不调回应接口）；其余（已拒绝/已撤回/发送方）=不展示 */}
+      {(data.canResponse || (data.response === 1 && data.status === 0)) && (
         <View style={[styles.bottomBar, { paddingBottom: insets.bottom + scaleSizeH(10) }]}>
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={styles.btnDecline}
-            disabled={submitting}
-            onPress={() => declineRef.current?.present()}
-          >
-            <Text style={styles.btnDeclineText}>暂不考虑</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={styles.btnAccept}
-            disabled={submitting}
-            onPress={() => onRespond(1)}
-          >
-            <Text style={styles.btnAcceptText}>愿意进一步沟通</Text>
-          </TouchableOpacity>
+          {data.canResponse ? (
+            <>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={styles.btnDecline}
+                disabled={submitting}
+                onPress={() => declineRef.current?.present()}
+              >
+                <Text style={styles.btnDeclineText}>暂不考虑</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={styles.btnAccept}
+                disabled={submitting}
+                onPress={() => onRespond(1)}
+              >
+                <Text style={styles.btnAcceptText}>愿意进一步沟通</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={styles.btnAccept}
+              onPress={() => navigation.navigate('MainTabs', { screen: 'message' })}
+            >
+              <Text style={styles.btnAcceptText}>继续沟通</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
 

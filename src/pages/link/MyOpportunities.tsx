@@ -10,19 +10,17 @@ import { API } from '@/api';
 import type { LinkLead, LinkLeadItem, LinkLeadPoolItem } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
-import { formatRelativeTime, toTimestamp } from './linkFormat';
+import { formatRelativeTime } from './linkFormat';
 import { InfoIcon, VerifiedBadgeIcon } from './icons';
 
 const PRIMARY = '#2962D4';
 const ORANGE = '#F2722C';
 const TEXT_SUB = '#6C6C6C';
 const PAGE_SIZE = 10;
-/** 「已连接」细分（待联系/沟通中）需要按 contactStage 客户端过滤，一次取足 */
-const CONNECTED_PAGE_SIZE = 100;
 
 type TopTab = 'pool' | 'mine';
 type PoolSub = 'pending' | 'docked';
-type MineSub = 'waiting' | 'toContact' | 'chatting';
+type MineSub = 'waiting' | 'chatting';
 
 interface OpportunityItem {
   id: string;
@@ -70,7 +68,7 @@ function toPoolItem(item: LinkLeadPoolItem, sub: PoolSub): OpportunityItem {
       sub === 'pending'
         ? `对方希望就「${lead.title || '合作方向'}」开展合作，您可能符合其合作方向。`
         : `来源：${sourceLabel(lead.source, 'pool')} · ${lead.title || '合作机会'}`,
-    actionText: '查看详情',
+    actionText: sub === 'pending' ? '查看详情' : undefined, // 已对接暂不调详情（产品口径 2026-10-30）
     actionTone: 'light',
     intentId: lead.source === 1 ? lead.sourceId : undefined,
   };
@@ -87,17 +85,12 @@ function toMineItem(item: LinkLeadItem, sub: MineSub): OpportunityItem {
     company: item.targetCompanyName || lead.title || '合作企业',
     logo: item.targetCompanyLogo || undefined,
     sub: isConnected ? `${stage ?? '待联系'}` : item.targetCompanyTypes || '',
-    statusTag: sub === 'waiting' ? '等待对方' : sub === 'toContact' ? '待联系' : '沟通中',
-    statusTone: sub === 'toContact' ? 'orange' : 'blue',
+    statusTag: sub === 'waiting' ? '等待对方' : '沟通中',
+    statusTone: 'blue',
     sourceTag: sourceLabel(lead.source, 'mine'),
     timeTag: formatRelativeTime(lead.updateTime || lead.createTime),
-    desc:
-      sub === 'waiting'
-        ? '你已向对方发送合作申请，等待对方查看并回应。'
-        : sub === 'toContact'
-          ? `来源：${lead.title || '合作意向书'}`
-          : undefined,
-    actionText: sub === 'waiting' ? '查看申请' : sub === 'toContact' ? '开始沟通' : '继续沟通',
+    desc: sub === 'waiting' ? '你已向对方发送合作申请，等待对方查看并回应。' : undefined,
+    actionText: sub === 'waiting' ? '查看申请' : '继续沟通',
     actionTone: 'solid',
     intentId: lead.source === 1 ? lead.sourceId : undefined,
     contactStage: stage,
@@ -111,16 +104,8 @@ const POOL_SUBS: { key: PoolSub; label: string }[] = [
 
 const MINE_SUBS: { key: MineSub; label: string }[] = [
   { key: 'waiting', label: '等待对方' },
-  { key: 'toContact', label: '待联系' },
   { key: 'chatting', label: '沟通中' },
 ];
-
-/** 合并多来源后的排序：更新时间倒序 */
-function byUpdateDesc(a: LinkLeadItem, b: LinkLeadItem): number {
-  const at = toTimestamp(a.lead?.updateTime || a.lead?.createTime) ?? 0;
-  const bt = toTimestamp(b.lead?.updateTime || b.lead?.createTime) ?? 0;
-  return bt - at;
-}
 
 const NOTICES: Record<TopTab, string> = {
   pool: '这里展示企业当前的全部合作机会，包含对方发来的申请和我方信号产生的匹配结果',
@@ -129,7 +114,6 @@ const NOTICES: Record<TopTab, string> = {
 
 const MINE_SUB_NOTICES: Record<MineSub, string> = {
   waiting: '你已发出合作申请，等待对方回应。对方同意后可进入私信沟通。',
-  toContact: '双方已确认合作意向，尚未开始站内沟通。发送消息后将进入[沟通中]。',
   chatting: '正在跟进中的合作，可继续私信沟通。',
 };
 
@@ -214,61 +198,6 @@ export default function MyOpportunities() {
   const activeSub = topTab === 'pool' ? poolSub : mineSub;
   const notice = errorText || (topTab === 'pool' ? NOTICES.pool : MINE_SUB_NOTICES[mineSub]);
 
-  /** 我的合作：跨接口拼子 tab 计数；合作池的 counts 由列表响应直接下发，无需重复请求（见 fetchList） */
-  const fetchCounts = useCallback(async (tab: TopTab) => {
-    try {
-      if (tab === 'pool') return;
-      // 计数由后端 counts 下发；connected 未按 contactStage 细分，仍需拉一次已连接列表拆分（待后端细分后可去掉）
-      const [allRes, connectedRes] = await Promise.all([
-        API.lead.list({ tab: 'all', pageNum: 1, pageSize: 1 }),
-        API.lead.list({ tab: 'connected', pageNum: 1, pageSize: CONNECTED_PAGE_SIZE }),
-      ]);
-      const c = allRes.data.counts ?? {};
-      const connected = connectedRes.data.list ?? [];
-      setCounts({
-        waiting: c.response ?? 0,
-        // 待联系 = 待跟进线索（信号有效回应 / 接手池线索）+ 已连接但还没发消息
-        toContact:
-          (c.pending ?? 0) + connected.filter(i => (i.contactStage ?? '待联系') === '待联系').length,
-        // 沟通中 = 跟进中线索 + 已连接且已在私信沟通
-        chatting:
-          (c.following ?? 0) + connected.filter(i => i.contactStage === '沟通中').length,
-      });
-    } catch {
-      // 拦截器已提示错误
-    }
-  }, []);
-
-  /** 待联系 / 沟通中：跨 status 拉全量后客户端分页（status=1 待跟进、2 跟进中、3 已连接） */
-  const fetchMineAll = useCallback(
-    async (sub: Exclude<MineSub, 'waiting'>): Promise<LinkLeadItem[]> => {
-      const connectedReq = API.lead.list({
-        tab: 'connected',
-        pageNum: 1,
-        pageSize: CONNECTED_PAGE_SIZE,
-      });
-      if (sub === 'toContact') {
-        const [todoRes, connectedRes] = await Promise.all([
-          API.lead.list({ tab: 'pending', pageNum: 1, pageSize: CONNECTED_PAGE_SIZE }),
-          connectedReq,
-        ]);
-        const todo = todoRes.data.list ?? [];
-        const connected = (connectedRes.data.list ?? []).filter(
-          i => (i.contactStage ?? '待联系') === '待联系',
-        );
-        return [...todo, ...connected].sort(byUpdateDesc);
-      }
-      const [followingRes, connectedRes] = await Promise.all([
-        API.lead.list({ tab: 'following', pageNum: 1, pageSize: CONNECTED_PAGE_SIZE }),
-        connectedReq,
-      ]);
-      const following = followingRes.data.list ?? [];
-      const connected = (connectedRes.data.list ?? []).filter(i => i.contactStage === '沟通中');
-      return [...following, ...connected].sort(byUpdateDesc);
-    },
-    [],
-  );
-
   const fetchList = useCallback(
     async (tab: TopTab, sub: string, pageNum: number, append: boolean, isRefresh = false) => {
       if (loadingRef.current) return;
@@ -293,20 +222,15 @@ export default function MyOpportunities() {
             docked: res.data.counts?.docked ?? 0,
           });
           setErrorText('');
-        } else if (sub === 'waiting') {
-          const res = await API.lead.list({ tab: 'response', pageNum, pageSize: PAGE_SIZE });
-          items = (res.data.list ?? []).map(item => toMineItem(item, 'waiting'));
+        } else {
+          // 合作中心定稿 2 tab（后端 2026-10-30）：waiting 等待对方 / chatting 沟通中（对方已同意合并），
+          // 按筛选项传 tab 一次请求，列表分页与 counts{waiting, chatting} 同响应下发
+          const res = await API.lead.list({ tab: sub, pageNum, pageSize: PAGE_SIZE });
+          items = (res.data.list ?? []).map(item => toMineItem(item, sub as MineSub));
           totalPages = Math.max(res.data.pages || 1, 1);
           currentPage = res.data.pageNum || pageNum;
-          setErrorText('');
-        } else {
-          // 待联系 / 沟通中：合并「待跟进 / 跟进中 / 已连接」后按卡片态过滤
-          const all = (await fetchMineAll(sub as Exclude<MineSub, 'waiting'>)).map(item =>
-            toMineItem(item, sub as MineSub),
-          );
-          totalPages = Math.max(Math.ceil(all.length / PAGE_SIZE), 1);
-          currentPage = pageNum;
-          items = all.slice((pageNum - 1) * PAGE_SIZE, pageNum * PAGE_SIZE);
+          const c = res.data.counts ?? {};
+          setCounts({ waiting: c.waiting ?? 0, chatting: c.chatting ?? 0 });
           setErrorText('');
         }
         setList(prev => (append ? [...prev, ...items] : items));
@@ -328,7 +252,7 @@ export default function MyOpportunities() {
         setLoaded(true);
       }
     },
-    [fetchMineAll],
+    [],
   );
 
   useFocusEffect(
@@ -336,14 +260,12 @@ export default function MyOpportunities() {
       setLoaded(false);
       setErrorText('');
       fetchList(topTab, activeSub, 1, false);
-      fetchCounts(topTab);
-    }, [topTab, activeSub, fetchList, fetchCounts]),
+    }, [topTab, activeSub, fetchList]),
   );
 
   const onRefresh = useCallback(() => {
     fetchList(topTab, activeSub, 1, false, true);
-    fetchCounts(topTab);
-  }, [topTab, activeSub, fetchList, fetchCounts]);
+  }, [topTab, activeSub, fetchList]);
 
   const onEndReached = useCallback(() => {
     if (!loadingRef.current && page < pages) {
