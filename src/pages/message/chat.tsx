@@ -150,19 +150,20 @@ export default function MessageChat() {
   const [posterCard, setPosterCard] = useState<any | null>(null);
   const shotRef = useRef<React.ElementRef<typeof ViewShot>>(null);
 
-  // ===== 键盘升降（逐点对齐 coingetApp chatSession）=====
+  // ===== 键盘升降（对齐 coingetApp chatSession）=====
   // translateY 直接承载键盘高度（0~endCoordinates.height）；
-  // 列表按内容溢出量上顶（含输入区高度，封顶 500），输入区与键盘 1:1 上移（插值 [0,500]→[0,-500]）
+  // 输入区与键盘 1:1 上移（插值 [0,500]→[0,-500]）；
+  // 列表仅当内容真的被键盘遮住时才上顶：内容底 > 视口底 - 键盘高，顶上移量 = 被遮住的量（封顶 500）
   const translateY = useRef(new Animated.Value(0)).current;
-  const layoutHeight = useRef({ keyboard: 0, input: 0, contentHieght: 0, maxContentHieght: 0 });
-  /** 布局尺寸变化后强制重算列表上顶量（对齐参考实现 render 体内读 ref 的口径） */
+  const layoutHeight = useRef({ keyboard: 0, contentHieght: 0, maxContentHieght: 0 });
+  /** 布局尺寸变化后强制重算列表上顶量 */
   const [, forceRender] = useState(0);
   const listRef = useRef<FlatList<DisplayItem>>(null);
   const loadingMoreRef = useRef(false);
 
-  const showH = layoutHeight.current.maxContentHieght - layoutHeight.current.keyboard - layoutHeight.current.input;
-  const over = layoutHeight.current.contentHieght - showH;
-  const listShift = layoutHeight.current.contentHieght < showH ? 0 : over > 500 ? 500 : Math.max(over, 0);
+  const visibleH = layoutHeight.current.maxContentHieght - layoutHeight.current.keyboard;
+  const over = layoutHeight.current.contentHieght - visibleH;
+  const listShift = over <= 0 ? 0 : over > 500 ? 500 : over;
 
   const animateRun = useCallback(
     (toValue: number) => {
@@ -497,9 +498,6 @@ export default function MessageChat() {
         {/* 输入区：与键盘 1:1 上移；区内 touch 不触发收键盘 */}
         <Animated.View
           onTouchStart={onComposeTouchStart}
-          onLayout={e => {
-            layoutHeight.current.input = e.nativeEvent.layout.height;
-          }}
           style={[
             styles.compose,
             { paddingBottom: insets.bottom + scaleSizeH(8) },
@@ -629,7 +627,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {
-    flexGrow: 1,
+    // 注意不可加 flexGrow：内容少时须让 onContentSizeChange 上报真实内容高度，
+    // 键盘上顶判断（内容底是否被遮）依赖真实高度
     paddingHorizontal: scaleSizeW(14),
     paddingVertical: scaleSizeH(8),
   },
