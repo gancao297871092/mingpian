@@ -149,6 +149,8 @@ export default function MessageChat() {
   const cardSheetRef = useRef<BottomSheetModal>(null);
   const [posterCard, setPosterCard] = useState<any | null>(null);
   const shotRef = useRef<React.ElementRef<typeof ViewShot>>(null);
+  /** 海报挂载回调：onLayout 时触发截图，替代固定时延 */
+  const posterReadyRef = useRef<(() => void) | null>(null);
 
   // ===== 键盘升降（对齐 coingetApp chatSession）=====
   // translateY 直接承载键盘高度（0~endCoordinates.height）；
@@ -160,6 +162,8 @@ export default function MessageChat() {
   const [, forceRender] = useState(0);
   const listRef = useRef<FlatList<DisplayItem>>(null);
   const loadingMoreRef = useRef(false);
+  /** 待处理的滚到底部请求：由 onContentSizeChange 在内容真实更新后执行（替代 setTimeout 猜渲染时机） */
+  const pendingScrollToEnd = useRef<{ animated: boolean } | null>(null);
 
   const visibleH = layoutHeight.current.maxContentHieght - layoutHeight.current.keyboard;
   const over = layoutHeight.current.contentHieght - visibleH;
@@ -197,7 +201,8 @@ export default function MessageChat() {
       forceRender(n => n + 1);
     };
     const onHide = () => {
-      if (!isFocused) return;
+      // 不看 isFocused：跳转/被压栈时失焦可能早于 keyboardWillHide，
+      // 守卫会把 translateY 卡在键盘高度（返回后输入区悬空）
       if (layoutHeight.current.keyboard === 0) return;
       layoutHeight.current.keyboard = 0;
       animateRun(0);
@@ -230,11 +235,20 @@ export default function MessageChat() {
     navigation.setOptions({ title: peer.name });
   }, [navigation, peer]);
 
+  // ===== 参数守卫：缺 userId 会话不可用，提示后返回 =====
+  useEffect(() => {
+    if (!peerUserId) {
+      Toast.show({ type: 'error', text1: '会话参数缺失' });
+      if (navigation.canGoBack()) navigation.goBack();
+    }
+  }, [peerUserId, navigation]);
+
   // ===== 加载对方信息 =====
   useEffect(() => {
+    if (!peerUserId) return;
     (async () => {
       try {
-        const res = await API.common.userBaseInfo({ userId: peerUserId! });
+        const res = await API.common.userBaseInfo({ userId: peerUserId });
         const d = res.data ?? {};
         setPeer({
           name: d.wqUser?.username || '',
@@ -257,12 +271,16 @@ export default function MessageChat() {
       if (!lastId) {
         // 最新一页：升序存入，并锁定会话号
         if (list[0]?.msgNumber) setMsgNumber(list[0].msgNumber);
+        pendingScrollToEnd.current = { animated: false };
         setMessages(list.slice().reverse());
         setHasMore(list.length >= 10);
         setInitialLoaded(true);
-        setTimeout(() => listRef.current?.scrollToEnd({ animated: false }), 50);
       } else {
-        setMessages(prev => [...list.slice().reverse(), ...prev]);
+        setMessages(prev => {
+          // 按 id 去重防御：服务端边界若返回重复留言不至于炸 key
+          const incoming = list.slice().reverse().filter(m => !prev.some(p => p.id === m.id));
+          return [...incoming, ...prev];
+        });
         setHasMore(list.length >= 10);
       }
     },
@@ -270,6 +288,10 @@ export default function MessageChat() {
   );
 
   useEffect(() => {
+    if (!peerUserId) {
+      setInitialLoaded(true);
+      return;
+    }
     fetchMessages().catch(() => setInitialLoaded(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [peerUserId]);
@@ -313,19 +335,21 @@ export default function MessageChat() {
 
   // ===== 发送留言 =====
   const doSend = useCallback(
-    async (content: string) => {
-      if (sending || !content.trim()) return;
+    async (content: string): Promise<boolean> => {
+      if (!peerUserId || sending || !content.trim()) return false;
       setSending(true);
       try {
-        const res = await API.message.send({ beUserId: peerUserId!, content, msgNumber });
+        const res = await API.message.send({ beUserId: peerUserId, content, msgNumber });
         const saved: ChatMessage = res.data;
         if (saved?.msgNumber) setMsgNumber(saved.msgNumber);
         if (saved?.id) {
+          pendingScrollToEnd.current = { animated: true };
           setMessages(prev => (prev.some(m => m.id === saved.id) ? prev : [...prev, saved]));
-          setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
         }
+        return true;
       } catch {
         // 拦截器已提示错误
+        return false;
       } finally {
         setSending(false);
       }
@@ -340,30 +364,52 @@ export default function MessageChat() {
       return;
     }
     setInput('');
-    doSend(text);
+    doSend(text).then(ok => {
+      // 发送失败恢复草稿，避免已输入内容丢失
+      if (!ok) setInput(text);
+    });
   }, [input, doSend]);
 
   // ===== 发送名片（生成海报 → 上传 → 以 `<custom-card>cardId&url` 留言发送，对齐小程序）=====
-  useEffect(() => {
-    (async () => {
+  /** 名片列表懒加载：点「发送名片」时才拉取，失败允许重试 */
+  const cardsLoadedRef = useRef(false);
+
+  const openCardSheet = useCallback(async () => {
+    Keyboard.dismiss();
+    let cards = myCards;
+    if (!cardsLoadedRef.current) {
+      cardsLoadedRef.current = true;
       try {
         const res = await API.card.list();
         const raw: any[] = res.data?.cardsList || [];
-        setMyCards(raw.filter(c => !c.isCp).map(c => ({ ...c, id: c.cardId ?? c.id })));
+        cards = raw.filter(c => !c.isCp).map(c => ({ ...c, id: c.cardId ?? c.id }));
+        setMyCards(cards);
       } catch {
-        // ignore
+        cardsLoadedRef.current = false;
+        return;
       }
-    })();
-  }, []);
+    }
+    if (cards.length === 0) {
+      Toast.show({ type: 'info', text1: '暂无个人名片，请先创建' });
+      return;
+    }
+    // 等 setMyCards 提交后再弹层，避免首帧空列表闪烁
+    requestAnimationFrame(() => cardSheetRef.current?.present());
+  }, [myCards]);
 
   const sendCard = useCallback(
     async (card: any) => {
       cardSheetRef.current?.dismiss();
       Toast.show({ type: 'info', text1: '名片生成中…' });
       try {
-        // 1. 离屏渲染名片海报并按样式截图
+        // 1. 离屏渲染名片海报，等 onLayout 确认挂载布局完成后再截图（替代固定 300ms 等待）
         setPosterCard(card);
-        await new Promise(resolve => setTimeout(() => resolve(null), 300));
+        await new Promise<void>(resolve => {
+          posterReadyRef.current = () => resolve();
+          // 兜底：极端情况下未触发 onLayout 也不阻塞发送
+          setTimeout(resolve, 1500);
+        });
+        posterReadyRef.current = null;
         const uri = await shotRef.current?.capture?.();
         if (!uri) throw new Error('capture failed');
         // 2. 上传海报
@@ -474,6 +520,12 @@ export default function MessageChat() {
             onContentSizeChange={(_, h) => {
               layoutHeight.current.contentHieght = h;
               if (layoutHeight.current.keyboard > 0) forceRender(n => n + 1);
+              // 内容真实更新后再滚到底（首屏/发送成功），替代固定 50ms 延时
+              if (pendingScrollToEnd.current) {
+                const { animated } = pendingScrollToEnd.current;
+                pendingScrollToEnd.current = null;
+                listRef.current?.scrollToEnd({ animated });
+              }
             }}
             ListHeaderComponent={
               loadingMore ? (
@@ -505,18 +557,7 @@ export default function MessageChat() {
           ]}
         >
           <View style={styles.composeTools}>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              style={styles.chip}
-              onPress={() => {
-                Keyboard.dismiss();
-                if (myCards.length === 0) {
-                  Toast.show({ type: 'info', text1: '暂无个人名片，请先创建' });
-                  return;
-                }
-                cardSheetRef.current?.present();
-              }}
-            >
+            <TouchableOpacity activeOpacity={0.8} style={styles.chip} onPress={openCardSheet}>
               <Text style={styles.chipText}>发送名片</Text>
             </TouchableOpacity>
           </View>
@@ -530,7 +571,12 @@ export default function MessageChat() {
               maxLength={500}
               multiline
             />
-            <TouchableOpacity activeOpacity={0.85} style={styles.sendBtn} onPress={onSendText} disabled={sending}>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={[styles.sendBtn, sending && styles.sendBtnDisabled]}
+              onPress={onSendText}
+              disabled={sending}
+            >
               <Text style={styles.sendBtnText}>{sending ? '发送中' : '发送'}</Text>
             </TouchableOpacity>
           </View>
@@ -559,13 +605,20 @@ export default function MessageChat() {
       {/* 离屏名片海报（截图用，对齐小程序 z-canvas 生成海报） */}
       {posterCard ? (
         <ViewShot ref={shotRef} options={{ format: 'jpg', quality: 0.9 }} style={styles.offscreen}>
-          {posterCard.styleCode === 'TRADITIONAL' ? (
-            <CardPoster2 data={posterCard} />
-          ) : posterCard.styleCode === 'FASHION' ? (
-            <CardPoster3 data={posterCard} />
-          ) : (
-            <CardPoster1 data={posterCard} />
-          )}
+          <View
+            onLayout={() => {
+              posterReadyRef.current?.();
+              posterReadyRef.current = null;
+            }}
+          >
+            {posterCard.styleCode === 'TRADITIONAL' ? (
+              <CardPoster2 data={posterCard} />
+            ) : posterCard.styleCode === 'FASHION' ? (
+              <CardPoster3 data={posterCard} />
+            ) : (
+              <CardPoster1 data={posterCard} />
+            )}
+          </View>
         </ViewShot>
       ) : null}
     </SafeView>
@@ -603,17 +656,6 @@ const styles = StyleSheet.create({
     color: '#151D2A',
     marginRight: scaleSizeW(4),
     letterSpacing: 1,
-  },
-  // 对方企业顶栏（小程序风格，figma 32.消息详情无此元素，已按 figma 移除；企业名在头部副标题）
-  cpBar: {
-    backgroundColor: '#FFFFFF',
-    paddingVertical: scaleSizeH(8),
-    alignItems: 'center',
-  },
-  cpBarText: {
-    fontSize: setSpText(12),
-    fontWeight: '500',
-    color: '#65A8FD',
   },
   // 列表
   listWrap: {
@@ -777,6 +819,9 @@ const styles = StyleSheet.create({
     backgroundColor: BLUE,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  sendBtnDisabled: {
+    opacity: 0.5,
   },
   sendBtnText: {
     fontSize: setSpText(13),
