@@ -1,12 +1,14 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { Animated, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import LinearGradient from 'react-native-linear-gradient';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
+import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import SafeView from '@/components/SafeView';
+import AppBottomSheet from '@/components/AppBottomSheet';
 import { API } from '@/api';
 import { useUserStore } from '@/store/user';
 import { SCREEN_WIDTH, scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
@@ -17,6 +19,9 @@ import { ChevronLeftIcon, ChevronRightIcon, ShareIntentIcon, VerifiedBadgeIcon }
 const PRIMARY = '#2962D4';
 const TEXT_SUB = '#6C6C6C';
 const GREEN = '#36BE69';
+
+/** 「暂不考虑的原因」选项（对齐原型：单选 + 其他补充说明） */
+const DECLINE_REASONS = ['暂时没有合作需求', '已有稳定合作方', '与当前业务不匹配', '其他'];
 
 /** 收起/展开箭头 */
 function ChevronVerticalIcon({ up }: { up?: boolean }) {
@@ -95,12 +100,20 @@ export default function CooperationIntentView() {
   const [data, setData] = useState<IntentViewData>(EMPTY);
   const [expanded, setExpanded] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [declineReason, setDeclineReason] = useState('');
+  const [declineOther, setDeclineOther] = useState('');
+  const declineRef = useRef<BottomSheetModal>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
+
+console.log(route.params, 'route.params')
 
   const load = useCallback(async () => {
     if (intentId) {
       try {
         const res = await API.intent.detail({ intentId });
+
+console.log(res, 'route.params')
+
         const detail = res.data;
         const intent = detail.intent;
         const card = detail.cardSnapshot ?? {};
@@ -182,11 +195,11 @@ export default function CooperationIntentView() {
   );
 
   const onRespond = useCallback(
-    async (responseType: 1 | 2) => {
+    async (responseType: 1 | 2, responseMsg?: string) => {
       if (!data.intentId || submitting) return;
       setSubmitting(true);
       try {
-        await API.intent.response({ intentId: data.intentId, responseType });
+        await API.intent.response({ intentId: data.intentId, responseType, responseMsg });
         await load();
       } catch {
         // 拦截器已提示错误
@@ -196,6 +209,16 @@ export default function CooperationIntentView() {
     },
     [data.intentId, load, submitting],
   );
+
+  /** 确认拒绝：选中项直接传给 responseMsg；「其他」优先补充说明，未填则传「其他」本身 */
+  const onDeclineConfirm = useCallback(() => {
+    const msg =
+      declineReason === '其他'
+        ? declineOther.trim() || '其他'
+        : declineReason || undefined;
+    declineRef.current?.dismiss();
+    onRespond(2, msg);
+  }, [declineOther, declineReason, onRespond]);
 
   const onShare = useCallback(async () => {
     const text = [data.companyName, data.quote].filter(Boolean).join('\n');
@@ -412,7 +435,7 @@ export default function CooperationIntentView() {
             activeOpacity={0.85}
             style={styles.btnDecline}
             disabled={submitting}
-            onPress={() => onRespond(2)}
+            onPress={() => declineRef.current?.present()}
           >
             <Text style={styles.btnDeclineText}>暂不考虑</Text>
           </TouchableOpacity>
@@ -426,6 +449,60 @@ export default function CooperationIntentView() {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* 暂不考虑的原因（原型：底部弹层，单选 + 其他补充说明） */}
+      <AppBottomSheet ref={declineRef} backgroundColor="#FFFFFF" backdropOpacity={0.42}>
+        <Text style={styles.declineTitle}>暂不考虑的原因</Text>
+        <Text style={styles.declineSub}>可选填，帮助平台优化匹配</Text>
+        <View style={styles.declineOptions}>
+          {DECLINE_REASONS.map(reason => {
+            const active = declineReason === reason;
+            return (
+              <TouchableOpacity
+                key={reason}
+                activeOpacity={0.85}
+                style={[styles.declineOption, active && styles.declineOptionActive]}
+                onPress={() => setDeclineReason(active ? '' : reason)}
+              >
+                <Text style={[styles.declineOptionText, active && styles.declineOptionTextActive]}>
+                  {reason}
+                </Text>
+                <View style={[styles.radio, active && styles.radioActive]} />
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        {declineReason === '其他' && (
+          <TextInput
+            style={styles.declineInput}
+            value={declineOther}
+            onChangeText={setDeclineOther}
+            placeholder="补充说明"
+            placeholderTextColor="#9AA3B2"
+            maxLength={100}
+            multiline
+          />
+        )}
+        <View style={styles.declineActions}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={styles.declineCancel}
+            onPress={() => declineRef.current?.dismiss()}
+          >
+            <Text style={styles.declineCancelText}>取消</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={[styles.declineConfirm, submitting && styles.declineConfirmDisabled]}
+            disabled={submitting}
+            onPress={onDeclineConfirm}
+          >
+            <Text style={styles.declineConfirmText}>
+              {declineReason ? '确认拒绝' : '跳过原因，直接拒绝'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </AppBottomSheet>
     </SafeView>
   );
 }
@@ -772,6 +849,106 @@ const styles = StyleSheet.create({
   btnAcceptText: {
     fontSize: setSpText(15),
     fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  declineTitle: {
+    fontSize: setSpText(16),
+    fontWeight: '700',
+    color: '#1A2433',
+    textAlign: 'center',
+  },
+  declineSub: {
+    marginTop: scaleSizeH(4),
+    marginBottom: scaleSizeH(14),
+    fontSize: setSpText(12),
+    color: '#8A93A1',
+    textAlign: 'center',
+  },
+  declineOptions: {
+    gap: scaleSizeH(8),
+    marginBottom: scaleSizeH(14),
+  },
+  declineOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: scaleSizeH(46),
+    paddingHorizontal: scaleSizeW(14),
+    borderWidth: 1,
+    borderColor: '#E5EBF3',
+    borderRadius: scaleSizeW(12),
+    backgroundColor: '#FFFFFF',
+  },
+  declineOptionActive: {
+    borderColor: '#9EC0F8',
+    backgroundColor: '#F3F8FF',
+  },
+  declineOptionText: {
+    fontSize: setSpText(14),
+    fontWeight: '600',
+    color: '#1A2433',
+  },
+  declineOptionTextActive: {
+    color: PRIMARY,
+  },
+  radio: {
+    width: scaleSizeW(18),
+    height: scaleSizeW(18),
+    borderRadius: scaleSizeW(9),
+    borderWidth: 1.5,
+    borderColor: '#C5CEDB',
+  },
+  radioActive: {
+    borderColor: PRIMARY,
+    backgroundColor: PRIMARY,
+    borderWidth: scaleSizeW(4.5),
+  },
+  declineInput: {
+    minHeight: scaleSizeH(76),
+    padding: scaleSizeW(12),
+    marginBottom: scaleSizeH(14),
+    borderWidth: 1,
+    borderColor: '#E5EBF3',
+    borderRadius: scaleSizeW(12),
+    backgroundColor: '#F7F9FC',
+    fontSize: setSpText(13),
+    lineHeight: setSpText(20),
+    color: '#1A2433',
+    textAlignVertical: 'top',
+  },
+  declineActions: {
+    flexDirection: 'row',
+    gap: scaleSizeW(10),
+  },
+  declineCancel: {
+    flex: 1,
+    minHeight: scaleSizeH(44),
+    borderRadius: scaleSizeW(12),
+    borderWidth: 1,
+    borderColor: '#D5DDE8',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  declineCancelText: {
+    fontSize: setSpText(14),
+    fontWeight: '700',
+    color: '#4A5C72',
+  },
+  declineConfirm: {
+    flex: 1.2,
+    minHeight: scaleSizeH(44),
+    borderRadius: scaleSizeW(12),
+    backgroundColor: PRIMARY,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  declineConfirmDisabled: {
+    opacity: 0.6,
+  },
+  declineConfirmText: {
+    fontSize: setSpText(14),
+    fontWeight: '700',
     color: '#FFFFFF',
   },
 });
