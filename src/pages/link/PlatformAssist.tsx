@@ -85,28 +85,7 @@ const SERVICES: {
 export default function PlatformAssist() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const route = useRoute<RouteProp<RootStackParamList, 'platformAssist'>>();
-  const opportunityId = route.params?.opportunityId;
-  const signalId = route.params?.signalId;
   const [selected, setSelected] = useState<ServiceType | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  const onSubmit = useCallback(async () => {
-    if (!selected || submitting) return;
-    setSubmitting(true);
-    try {
-      await API.assist.apply({
-        serviceType: selected,
-        context: { opportunityId, signalId },
-      });
-      Toast.show({ type: 'success', text1: '协助申请已提交' });
-      navigation.goBack();
-    } catch {
-      // 拦截器已提示错误
-    } finally {
-      setSubmitting(false);
-    }
-  }, [navigation, opportunityId, selected, signalId, submitting]);
 
   return (
     <SafeView backgroundColor="#E8EFFF">
