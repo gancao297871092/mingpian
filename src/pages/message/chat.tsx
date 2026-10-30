@@ -11,6 +11,9 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  type GestureResponderEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import ViewShot from 'react-native-view-shot';
@@ -61,7 +64,8 @@ function parseCardMessage(content: string): { cardId: string; url: string } | nu
   return { cardId, url };
 }
 
-/** 日期分割线文案：今天/昨天/YYYY/M/D */function dayDividerLabel(msgTime: string): string {
+/** 日期分割线文案：今天/昨天/YYYY/M/D */
+function dayDividerLabel(msgTime: string): string {
   const date = new Date(msgTime);
   if (Number.isNaN(date.getTime())) return '';
   const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
@@ -78,17 +82,26 @@ function formatHHmm(msgTime: string): string {
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-/** 路由头部：昵称 + 蓝色企业名两行标题 */
-function ChatHeaderTitle({ name, cpName, userType }: { name: string; cpName: string; userType?: number }) {
+/**
+ * 路由头部数据载体：native-stack 对 headerTitle 闭包只在首次渲染生效，
+ * 组件身份必须稳定，因此头部组件从模块级 ref 读数，由 title 字符串变化驱动重渲染。
+ */
+const chatHeaderPeer: { current: { name: string; cpName: string; userType?: number } } = {
+  current: { name: '', cpName: '' },
+};
+
+/** 路由头部：昵称 + 蓝色企业名两行标题（figma 32.消息详情） */
+function ChatHeaderTitle() {
+  const p = chatHeaderPeer.current;
   return (
     <View style={styles.headerTitle}>
       <Text style={styles.headerName} numberOfLines={1}>
-        {name}
-        {userType === 1 ? '（官方账号）' : ''}
+        {p.name}
+        {p.userType === 1 ? '（官方账号）' : ''}
       </Text>
-      {!!cpName && (
+      {!!p.cpName && (
         <Text style={styles.headerCp} numberOfLines={1}>
-          {cpName}
+          {p.cpName}
         </Text>
       )}
     </View>
@@ -104,7 +117,7 @@ function ChatHeaderRight({ onPress }: { onPress: () => void }) {
   );
 }
 
-/** 32.消息详情：留言模式会话（无 IM，参考小程序 pages/msg/chat/chat.vue） */
+/** 32.消息详情：留言模式会话（无 IM；键盘交互对齐 coingetApp chatSession/index.ios.tsx） */
 export default function MessageChat() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'messageDetail'>>();
@@ -137,49 +150,57 @@ export default function MessageChat() {
   const [posterCard, setPosterCard] = useState<any | null>(null);
   const shotRef = useRef<React.ElementRef<typeof ViewShot>>(null);
 
-  // ===== 键盘升降（参考 coingetApp chatSession：translateY 上移输入区 + 内容上顶，避免遮挡最后一条留言）=====
-  const translateP = useRef(new Animated.Value(0)).current;
-  const layoutRef = useRef({ keyboard: 0, input: 0, container: 0, content: 0 });
-  const [shift, setShift] = useState(0);
+  // ===== 键盘升降（逐点对齐 coingetApp chatSession）=====
+  // translateY 直接承载键盘高度（0~endCoordinates.height）；
+  // 列表按内容溢出量上顶（含输入区高度，封顶 500），输入区与键盘 1:1 上移（插值 [0,500]→[0,-500]）
+  const translateY = useRef(new Animated.Value(0)).current;
+  const layoutHeight = useRef({ keyboard: 0, input: 0, contentHieght: 0, maxContentHieght: 0 });
+  /** 布局尺寸变化后强制重算列表上顶量（对齐参考实现 render 体内读 ref 的口径） */
+  const [, forceRender] = useState(0);
   const listRef = useRef<FlatList<DisplayItem>>(null);
+  const loadingMoreRef = useRef(false);
 
-  const computeShift = useCallback(() => {
-    const { keyboard, container, content } = layoutRef.current;
-    if (keyboard <= 0 || container <= 0) return 0;
-    return Math.min(keyboard, Math.max(0, content - (container - keyboard)));
-  }, []);
+  const showH = layoutHeight.current.maxContentHieght - layoutHeight.current.keyboard - layoutHeight.current.input;
+  const over = layoutHeight.current.contentHieght - showH;
+  const listShift = layoutHeight.current.contentHieght < showH ? 0 : over > 500 ? 500 : Math.max(over, 0);
 
-  const animateKeyboard = useCallback(
-    (open: boolean) => {
-      Animated.timing(translateP, {
-        toValue: open ? 1 : 0,
+  const animateRun = useCallback(
+    (toValue: number) => {
+      Animated.timing(translateY, {
+        toValue,
         duration: 250,
-        easing: Easing.out(Easing.ease),
         useNativeDriver: true,
-      }).start(() => {
-        if (open) {
-          // 键盘弹起后滚到底部，保证最后一条留言可见
-          setTimeout(() => listRef.current?.scrollToOffset({ offset: 0, animated: true }), 60);
-        }
-      });
+        easing: Easing.linear,
+      }).start();
     },
-    [translateP],
+    [translateY],
   );
+
+  /** 收键盘并复位（点内容区触发，对齐参考实现 hideTools） */
+  const hideTools = useCallback(() => {
+    Keyboard.dismiss();
+    if (layoutHeight.current.keyboard !== 0) {
+      layoutHeight.current.keyboard = 0;
+      animateRun(0);
+      forceRender(n => n + 1);
+    }
+  }, [animateRun]);
 
   useEffect(() => {
     const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
     const onShow = (e: any) => {
       if (!isFocused) return;
-      layoutRef.current.keyboard = e?.endCoordinates?.height ?? 0;
-      setShift(computeShift());
-      animateKeyboard(true);
+      layoutHeight.current.keyboard = e?.endCoordinates?.height ?? 0;
+      animateRun(layoutHeight.current.keyboard);
+      forceRender(n => n + 1);
     };
     const onHide = () => {
       if (!isFocused) return;
-      layoutRef.current.keyboard = 0;
-      setShift(0);
-      animateKeyboard(false);
+      if (layoutHeight.current.keyboard === 0) return;
+      layoutHeight.current.keyboard = 0;
+      animateRun(0);
+      forceRender(n => n + 1);
     };
     const showSub = Keyboard.addListener(showEvt, onShow);
     const hideSub = Keyboard.addListener(hideEvt, onHide);
@@ -187,26 +208,26 @@ export default function MessageChat() {
       showSub.remove();
       hideSub.remove();
     };
-  }, [isFocused, computeShift, animateKeyboard]);
+  }, [isFocused, animateRun]);
 
-  /** 点击内容区收键盘 */
-  const dismissKeyboard = useCallback(() => {
-    if (layoutRef.current.keyboard > 0) {
-      layoutRef.current.keyboard = 0;
-      setShift(0);
-      animateKeyboard(false);
-    }
-    Keyboard.dismiss();
-  }, [animateKeyboard]);
+  /** 输入区拦截 touch：点击输入框/按钮不收键盘（对齐参考实现 compose 的 stopPropagation） */
+  const onComposeTouchStart = useCallback((e: GestureResponderEvent) => {
+    e.stopPropagation();
+  }, []);
 
-  // ===== 头部：两行标题（昵称 + 蓝色企业名）+ 右侧「···」=====
+  // ===== 头部：稳定组件类型 + title 字符串驱动刷新（native-stack 不认后续闭包）=====
   const onPressMore = useCallback(() => Toast.show({ type: 'info', text1: '聊天设置建设中' }), []);
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerTitle: () => <ChatHeaderTitle name={peer.name} cpName={peer.cpName} userType={peer.userType} />,
+      headerTitle: ChatHeaderTitle,
       headerRight: () => <ChatHeaderRight onPress={onPressMore} />,
     });
-  }, [navigation, peer.name, peer.cpName, peer.userType, onPressMore]);
+  }, [navigation, onPressMore]);
+
+  useEffect(() => {
+    chatHeaderPeer.current = { name: peer.name, cpName: peer.cpName, userType: peer.userType };
+    navigation.setOptions({ title: peer.name });
+  }, [navigation, peer]);
 
   // ===== 加载对方信息 =====
   useEffect(() => {
@@ -238,7 +259,7 @@ export default function MessageChat() {
         setMessages(list.slice().reverse());
         setHasMore(list.length >= 10);
         setInitialLoaded(true);
-        setTimeout(() => listRef.current?.scrollToOffset({ offset: 0, animated: false }), 50);
+        setTimeout(() => listRef.current?.scrollToEnd({ animated: false }), 50);
       } else {
         setMessages(prev => [...list.slice().reverse(), ...prev]);
         setHasMore(list.length >= 10);
@@ -252,16 +273,28 @@ export default function MessageChat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [peerUserId]);
 
-  const onEndReached = useCallback(() => {
-    if (!initialLoaded || loadingMore || !hasMore || messages.length === 0) return;
+  /** 滚动到顶部（视觉最上方=最早的消息）时加载更早的留言 */
+  const onLoadMore = useCallback(() => {
+    if (!initialLoaded || loadingMoreRef.current || !hasMore || messages.length === 0) return;
+    loadingMoreRef.current = true;
     setLoadingMore(true);
     const oldestId = Math.min(...messages.map(m => m.id));
     fetchMessages(oldestId)
       .catch(() => {})
-      .finally(() => setLoadingMore(false));
-  }, [initialLoaded, loadingMore, hasMore, messages, fetchMessages]);
+      .finally(() => {
+        loadingMoreRef.current = false;
+        setLoadingMore(false);
+      });
+  }, [initialLoaded, hasMore, messages, fetchMessages]);
 
-  // ===== 展示数据：按天插分割线（inverted 列表需倒序）=====
+  const onScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (e.nativeEvent.contentOffset.y < 30) onLoadMore();
+    },
+    [onLoadMore],
+  );
+
+  // ===== 展示数据：按天插分割线 =====
   const displayItems = useMemo<DisplayItem[]>(() => {
     const items: DisplayItem[] = [];
     let lastDay = '';
@@ -274,7 +307,7 @@ export default function MessageChat() {
       }
       items.push({ kind: 'msg', key: `msg-${m.id}`, msg: m });
     });
-    return items.reverse();
+    return items;
   }, [messages]);
 
   // ===== 发送留言 =====
@@ -288,7 +321,7 @@ export default function MessageChat() {
         if (saved?.msgNumber) setMsgNumber(saved.msgNumber);
         if (saved?.id) {
           setMessages(prev => (prev.some(m => m.id === saved.id) ? prev : [...prev, saved]));
-          setTimeout(() => listRef.current?.scrollToOffset({ offset: 0, animated: true }), 50);
+          setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
         }
       } catch {
         // 拦截器已提示错误
@@ -406,7 +439,7 @@ export default function MessageChat() {
 
   return (
     <SafeView backgroundColor={PAPER}>
-      <View style={styles.container} onTouchStart={dismissKeyboard}>
+      <View style={styles.container} onTouchStart={hideTools}>
         {/* 对方企业入口（对齐小程序 chatUser.cpName 顶栏） */}
         {!!peer.cpName && (
           <TouchableOpacity
@@ -417,41 +450,41 @@ export default function MessageChat() {
             <Text style={styles.cpBarText}>{peer.cpName} &gt;</Text>
           </TouchableOpacity>
         )}
-        {/* 留言列表：内容上顶，随键盘上移 */}
+        {/* 留言列表：顶部锚定；加载历史保持当前位置；随键盘按溢出量上顶 */}
         <Animated.View
+          onLayout={e => {
+            layoutHeight.current.maxContentHieght = e.nativeEvent.layout.height;
+          }}
           style={[
             styles.listWrap,
             {
               transform: [
                 {
-                  translateY: translateP.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, -shift],
+                  translateY: translateY.interpolate({
+                    inputRange: [0, 500],
+                    outputRange: [0, -listShift],
                     extrapolate: 'clamp',
                   }) as Animated.Value,
                 },
               ],
             },
           ]}
-          onLayout={e => {
-            layoutRef.current.container = e.nativeEvent.layout.height;
-          }}
         >
           <FlatList
             ref={listRef}
             data={displayItems}
-            inverted
             renderItem={renderItem}
             keyExtractor={item => item.key}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContent}
-            onEndReached={onEndReached}
-            onEndReachedThreshold={0.2}
+            maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+            onScroll={onScroll}
+            scrollEventThrottle={80}
             onContentSizeChange={(_, h) => {
-              layoutRef.current.content = h;
-              if (layoutRef.current.keyboard > 0) setShift(computeShift());
+              layoutHeight.current.contentHieght = h;
+              if (layoutHeight.current.keyboard > 0) forceRender(n => n + 1);
             }}
-            ListFooterComponent={
+            ListHeaderComponent={
               loadingMore ? (
                 <ActivityIndicator style={styles.loadingMore} size="small" color={MUTED} />
               ) : !initialLoaded ? (
@@ -459,28 +492,29 @@ export default function MessageChat() {
               ) : null
             }
           />
-          <Text style={styles.quickHint}>发送名片，让对方更快认识你</Text>
         </Animated.View>
-        {/* 输入区：随键盘整体上移，不遮挡留言 */}
+        <Text style={styles.quickHint}>发送名片，让对方更快认识你</Text>
+        {/* 输入区：与键盘 1:1 上移；区内 touch 不触发收键盘 */}
         <Animated.View
+          onTouchStart={onComposeTouchStart}
+          onLayout={e => {
+            layoutHeight.current.input = e.nativeEvent.layout.height;
+          }}
           style={[
             styles.compose,
             { paddingBottom: insets.bottom + scaleSizeH(8) },
             {
               transform: [
                 {
-                  translateY: translateP.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, -layoutRef.current.keyboard],
+                  translateY: translateY.interpolate({
+                    inputRange: [0, 500],
+                    outputRange: [0, -500],
                     extrapolate: 'clamp',
                   }) as Animated.Value,
                 },
               ],
             },
           ]}
-          onLayout={e => {
-            layoutRef.current.input = e.nativeEvent.layout.height;
-          }}
         >
           <View style={styles.composeTools}>
             <TouchableOpacity
@@ -507,11 +541,6 @@ export default function MessageChat() {
               placeholderTextColor="#9AA3B3"
               maxLength={500}
               multiline
-              onFocus={() => {
-                layoutRef.current.keyboard = layoutRef.current.keyboard || scaleSizeH(300);
-                setShift(computeShift());
-                animateKeyboard(true);
-              }}
             />
             <TouchableOpacity activeOpacity={0.85} style={styles.sendBtn} onPress={onSendText} disabled={sending}>
               <Text style={styles.sendBtnText}>{sending ? '发送中' : '发送'}</Text>
@@ -541,11 +570,7 @@ export default function MessageChat() {
 
       {/* 离屏名片海报（截图用，对齐小程序 z-canvas 生成海报） */}
       {posterCard ? (
-        <ViewShot
-          ref={shotRef}
-          options={{ format: 'jpg', quality: 0.9 }}
-          style={styles.offscreen}
-        >
+        <ViewShot ref={shotRef} options={{ format: 'jpg', quality: 0.9 }} style={styles.offscreen}>
           {posterCard.styleCode === 'TRADITIONAL' ? (
             <CardPoster2 data={posterCard} />
           ) : posterCard.styleCode === 'FASHION' ? (
@@ -604,9 +629,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {
+    flexGrow: 1,
     paddingHorizontal: scaleSizeW(14),
-    paddingTop: scaleSizeH(16),
-    paddingBottom: scaleSizeH(8),
+    paddingVertical: scaleSizeH(8),
   },
   loadingMore: {
     marginVertical: scaleSizeH(12),
