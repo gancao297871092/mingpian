@@ -1113,6 +1113,10 @@ export namespace API {
     export function feedback(data: { taskId: number | string; status: 2 | 3 | 4; feedback?: string }) {
       return request.post<any>('/sales/task/feedback', data);
     }
+    /** 能力卡分享计数+1（微信转发） */
+    export function share(data: { cardId: number | string }) {
+      return request.post<any>('/sales/task/share', data);
+    }
     /** T4 生成推荐话术（落库 pitch_script） */
     export function pitch(data: { taskId: number | string }) {
       return request.post<any>('/sales/task/pitch', data);

@@ -1,12 +1,15 @@
-import React from 'react';
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Clipboard from '@react-native-clipboard/clipboard';
 import Toast from 'react-native-toast-message';
 import { Image as ExpoImage } from 'expo-image';
+import { useRoute, type RouteProp } from '@react-navigation/native';
 import SafeView from '@/components/SafeView';
 import LongHtmlView from '@/components/LongHtmlView';
+import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText, SCREEN_WIDTH } from '@/utils/screenUtils';
+import type { RootStackParamList } from '@/route/map';
 import { BlueBadgeIcon, CapPuzzleIcon } from './myIcons';
 
 const PRIMARY = '#2962D4';
@@ -26,29 +29,88 @@ interface TaskDetail {
   script: string;
 }
 
-/** 静态 mock（接口待联调） */
-const MOCK_DETAIL: TaskDetail = {
+const EMPTY_DETAIL: TaskDetail = {
   avatar: '',
-  company: '鄂尔多斯市巨鼎煤机制造有限公司',
+  company: '',
   verified: true,
-  companyTags: '煤矿装备制造 · 鄂尔多斯',
-  analysis:
-    '该企业主营编织袋生产及包装制品加工，其产品形态、原料使用场景与「寻找华东编织袋生产企业」的需求直接对应；\n同时企业具备持续采购与合作落地的业务基础。建议优先核实其 PVC 颗粒的现用规格、月度需求量和交付区域，再以样品、供货稳定性和定制能力为重点安排首轮微信沟通或线下拜访。',
-  capCompany: '重庆渝达精密制造有限公司',
-  capBbsCount: 2,
-  capContent: '稳定供应 PVC 颗粒，支持稳定批次、规格定制与持续交付',
-  script:
-    '张总，平台最近匹配到一家 PVC 颗粒供应企业，正在寻找编织袋生产企业合作，有相关供货案例和交付能力，你可以看看是否适合。',
+  companyTags: '',
+  analysis: '',
+  capCompany: '',
+  capBbsCount: 0,
+  capContent: '',
+  script: '',
 };
 
-/** 96.任务详情 */
+/** 96.任务详情（数据来源 /sales/task/detail；接口未下发企业 Logo/行业标签，待后端补） */
 export default function TouchTaskDetail() {
-  const detail = MOCK_DETAIL;
+  const route = useRoute<RouteProp<RootStackParamList, 'touchTaskDetail'>>();
+  const taskId = route.params?.id;
+  const [detail, setDetail] = useState<TaskDetail>(EMPTY_DETAIL);
+  const [cardId, setCardId] = useState<number | undefined>(undefined);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await API.salesTask.detail({ taskId });
+        const t = res.data.task ?? {};
+        const card = res.data.card;
+        setCardId(card?.id);
+        const next: TaskDetail = {
+          avatar: '',
+          company: t.targetName || '目标客户',
+          verified: true,
+          companyTags: res.data.opportunity?.region || '',
+          analysis: t.matchAnalysis || t.aiJudgement || '',
+          capCompany: card?.cardName || '',
+          // 接口未下发关联动态数，0 时隐藏该行（防御）
+          capBbsCount: card?.bbsCount ?? 0,
+          capContent: card?.content || card?.summary || '',
+          script: t.pitchScript || '',
+        };
+        setDetail(next);
+        // 话术为空时调 T4 生成（AI 耗时，先展示页面再回填）
+        if (!t.pitchScript) {
+          try {
+            const pitchRes = await API.salesTask.pitch({ taskId });
+            const pitch = pitchRes.data?.pitch ?? '';
+            if (pitch) setDetail(prev => ({ ...prev, script: pitch }));
+          } catch {
+            // 生成失败静默，话术区留空
+          }
+        }
+      } catch {
+        // 拦截器已提示错误
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [taskId]);
 
   const onCopy = () => {
+    if (!detail.script) return;
     Clipboard.setString(detail.script);
     Toast.show({ type: 'success', text1: '已复制' });
   };
+
+  /** 微信转发：标记已发送 + 能力卡分享计数（幂等，后端不重复计） */
+  const onShare = useCallback(async () => {
+    try {
+      await API.salesTask.markSent({ taskId });
+      if (cardId) await API.salesTask.share({ cardId });
+      Toast.show({ type: 'success', text1: '已标记发送，请前往微信转发话术' });
+    } catch {
+      // 拦截器已提示错误
+    }
+  }, [taskId, cardId]);
+
+  if (loading) {
+    return (
+      <SafeView backgroundColor="#E8EFFF">
+        <ActivityIndicator style={styles.loadingPad} size="small" color={PRIMARY} />
+      </SafeView>
+    );
+  }
 
   return (
     <SafeView backgroundColor="#E8EFFF">
@@ -105,7 +167,9 @@ export default function TouchTaskDetail() {
 
             </LinearGradient>
             <View style={styles.capBody}>
-              <Text style={styles.capBbsCount}>关联动态 {detail?.capBbsCount ?? 0} 条</Text>
+              {detail.capBbsCount > 0 && (
+                <Text style={styles.capBbsCount}>关联动态 {detail.capBbsCount} 条</Text>
+              )}
               {!!detail?.capContent && (
                 <View style={styles.capContentBox}>
                   <LongHtmlView
@@ -116,10 +180,14 @@ export default function TouchTaskDetail() {
                 </View>
               )}
               <View style={styles.capBtns}>
-                <TouchableOpacity activeOpacity={0.8} style={styles.capBtn}>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  style={styles.capBtn}
+                  onPress={() => Toast.show({ type: 'info', text1: '能力卡详情页建设中' })}
+                >
                   <Text style={styles.capBtnText}>能力卡详情</Text>
                 </TouchableOpacity>
-                <TouchableOpacity activeOpacity={0.8} style={styles.capBtn}>
+                <TouchableOpacity activeOpacity={0.8} style={styles.capBtn} onPress={onShare}>
                   <Text style={[styles.capBtnText, { color: PRIMARY }]}>微信转发</Text>
                 </TouchableOpacity>
               </View>
@@ -145,6 +213,9 @@ export default function TouchTaskDetail() {
 }
 
 const styles = StyleSheet.create({
+  loadingPad: {
+    paddingVertical: scaleSizeH(120),
+  },
   content: {
     padding: scaleSizeW(16),
     paddingBottom: scaleSizeH(40),

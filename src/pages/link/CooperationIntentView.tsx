@@ -113,14 +113,11 @@ export default function CooperationIntentView() {
   const declineRef = useRef<BottomSheetModal>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
 
-console.log(route.params, 'route.params')
-
   const load = useCallback(async () => {
     if (intentId) {
       try {
         const res = await API.intent.detail({ intentId });
 
-console.log(res, 'route.params')
 
         const detail = res.data;
         const intent = detail.intent;
@@ -176,7 +173,6 @@ console.log(res, 'route.params')
       try {
         const res = await API.signal.detail({ signalId });
         const draft = parseAbilityContent(res.data.signal?.abilityContent);
-        console.log(res, 'res')
         if (!draft) return;
         setData({
           quote: draft.note,
