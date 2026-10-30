@@ -177,13 +177,13 @@ export default function PlatformAssist() {
           );
         })}
 
+        {/* 产品口径 2026-10-30：不直接提交申请，跳转「联系我们」（helpCenter，同关于页-联系我们入口） */}
         <TouchableOpacity
           activeOpacity={0.85}
-          disabled={!selected || submitting}
-          style={[styles.submitBtn, (!selected || submitting) && styles.submitBtnDisabled]}
-          onPress={onSubmit}
+          style={styles.submitBtn}
+          onPress={() => navigation.navigate('helpCenter')}
         >
-          <Text style={styles.submitBtnText}>提交协助申请</Text>
+          <Text style={styles.submitBtnText}>联系平台顾问</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeView>
