@@ -24,12 +24,11 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SafeView from '@/components/SafeView';
 import AppBottomSheet from '@/components/AppBottomSheet';
-import CardPoster1 from '@/components/posters/CardPoster1';
-import CardPoster2 from '@/components/posters/CardPoster2';
-import CardPoster3 from '@/components/posters/CardPoster3';
+import PersonalPoster from '@/components/posters/PersonalPoster';
+import { normalizeCardStyle } from '@/components/cards/types';
 import { API } from '@/api';
 import { useUserStore } from '@/store/user';
-import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
+import { scaleSizeH, scaleSizeW, setSpText, SCREEN_WIDTH } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
 
 const BLUE = '#075CFF';
@@ -54,6 +53,9 @@ type DisplayItem =
   | { kind: 'msg'; key: string; msg: ChatMessage };
 
 const CUSTOM_CARD_TAG = '<custom-card>';
+
+/** 名片消息图片默认宽高比（商务/时尚海报 370:268 ≈ 1.38，onLoad 后替换为真实比例） */
+const DEFAULT_CARD_ASPECT = 1.38;
 
 /** 解析 `<custom-card>{cardId}&{posterUrl}` 结构的名片留言 */
 function parseCardMessage(content: string): { cardId: string; url: string } | null {
@@ -151,6 +153,8 @@ export default function MessageChat() {
   const shotRef = useRef<React.ElementRef<typeof ViewShot>>(null);
   /** 海报挂载回调：onLayout 时触发截图，替代固定时延 */
   const posterReadyRef = useRef<(() => void) | null>(null);
+  /** 名片消息图片的宽高比（按 url 记忆，onLoad 后按真实比例展示） */
+  const [cardAspects, setCardAspects] = useState<Record<string, number>>({});
 
   // ===== 键盘升降（对齐 coingetApp chatSession）=====
   // translateY 直接承载键盘高度（0~endCoordinates.height）；
@@ -402,8 +406,14 @@ export default function MessageChat() {
       cardSheetRef.current?.dismiss();
       Toast.show({ type: 'info', text1: '名片生成中…' });
       try {
-        // 1. 离屏渲染名片海报，等 onLayout 确认挂载布局完成后再截图（替代固定 300ms 等待）
-        setPosterCard(card);
+        // 1. 取完整名片数据（海报需要 cpLogo/mediaLinkList/cardPoster 等，对齐名片夹分享）
+        const res = await API.card.aggregate({ cardId: card.id });
+        const userCard = res.data?.userCard;
+        if (!userCard) throw new Error('card detail failed');
+        const fullCard = { ...userCard, id: userCard.id ?? card.id };
+        // 2. 离屏渲染分享海报（与「我的名片-分享名片」同一组件 PersonalPoster，带企业 logo + 扫码条），
+        //    等 onLayout 确认挂载布局完成后再截图
+        setPosterCard(fullCard);
         await new Promise<void>(resolve => {
           posterReadyRef.current = () => resolve();
           // 兜底：极端情况下未触发 onLayout 也不阻塞发送
@@ -412,18 +422,18 @@ export default function MessageChat() {
         posterReadyRef.current = null;
         const uri = await shotRef.current?.capture?.();
         if (!uri) throw new Error('capture failed');
-        // 2. 上传海报
+        // 3. 上传海报（png，与分享名片一致）
         const formData = new FormData();
         formData.append('file', {
           uri,
-          type: 'image/jpeg',
-          name: `card_${card.id}.jpg`,
+          type: 'image/png',
+          name: `card_${fullCard.id}.png`,
         } as any);
         const up = await API.file.upload(formData);
         const url = up.data?.mdUrl || up.data?.url;
         if (!url) throw new Error('upload failed');
-        // 3. 发送名片留言（接收方点击跳转名片详情）
-        await doSend(`${CUSTOM_CARD_TAG}${card.id}&${url}`);
+        // 4. 发送名片留言（接收方点击跳转名片详情）
+        await doSend(`${CUSTOM_CARD_TAG}${fullCard.id}&${url}`);
       } catch {
         Toast.show({ type: 'error', text1: '名片发送失败，请重试' });
       } finally {
@@ -466,7 +476,19 @@ export default function MessageChat() {
                 activeOpacity={0.85}
                 onPress={() => navigation.navigate('cardDetail', { id: card.cardId })}
               >
-                <ExpoImage source={{ uri: card.url }} style={styles.cardImage} contentFit="cover" transition={200} />
+                <ExpoImage
+                  source={{ uri: card.url }}
+                  style={[styles.cardImage, { aspectRatio: cardAspects[card.url] ?? DEFAULT_CARD_ASPECT }]}
+                  contentFit="cover"
+                  transition={200}
+                  onLoad={e => {
+                    const w = e.source?.width;
+                    const h = e.source?.height;
+                    if (w && h && !cardAspects[card.url]) {
+                      setCardAspects(prev => ({ ...prev, [card.url]: w / h }));
+                    }
+                  }}
+                />
               </TouchableOpacity>
             ) : (
               <View style={[styles.bubble, isSelf ? styles.bubbleMine : styles.bubblePeer]}>
@@ -481,7 +503,7 @@ export default function MessageChat() {
         </View>
       );
     },
-    [myId, myAvatar, peer.avatar, peer.name, peer.cpName, navigation],
+    [myId, myAvatar, peer.avatar, peer.name, peer.cpName, navigation, cardAspects],
   );
 
   return (
@@ -602,22 +624,23 @@ export default function MessageChat() {
         ))}
       </AppBottomSheet>
 
-      {/* 离屏名片海报（截图用，对齐小程序 z-canvas 生成海报） */}
+      {/* 离屏名片分享海报（与「我的名片-分享名片」同一组件 PersonalPoster：名片 + 企业 logo + 黑色扫码条） */}
       {posterCard ? (
-        <ViewShot ref={shotRef} options={{ format: 'jpg', quality: 0.9 }} style={styles.offscreen}>
+        <ViewShot ref={shotRef} options={{ format: 'png', quality: 1 }} style={styles.offscreen}>
           <View
+            style={{ width: SCREEN_WIDTH - scaleSizeW(32) }}
             onLayout={() => {
               posterReadyRef.current?.();
               posterReadyRef.current = null;
             }}
           >
-            {posterCard.styleCode === 'TRADITIONAL' ? (
-              <CardPoster2 data={posterCard} />
-            ) : posterCard.styleCode === 'FASHION' ? (
-              <CardPoster3 data={posterCard} />
-            ) : (
-              <CardPoster1 data={posterCard} />
-            )}
+            <PersonalPoster
+              data={posterCard}
+              style={normalizeCardStyle(posterCard.styleCode)}
+              fontColor={posterCard.fontColor}
+              backColor={posterCard.backColor}
+              qrValue={`mingpian://cardDetail?id=${posterCard.id}`}
+            />
           </View>
         </ViewShot>
       ) : null}
@@ -756,7 +779,7 @@ const styles = StyleSheet.create({
   },
   cardImage: {
     width: scaleSizeW(200),
-    height: scaleSizeH(154),
+    // 高度由 aspectRatio 推导（商务/时尚海报与简约海报比例不同，onLoad 后按真实比例）
     borderRadius: scaleSizeW(8),
     backgroundColor: '#FFFFFF',
   },
