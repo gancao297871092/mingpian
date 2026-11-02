@@ -94,10 +94,21 @@ async function resolveCardAspects(list: ChatMessage[]): Promise<Record<string, n
   return aspects;
 }
 
+/**
+ * 解析留言时间：后端格式为 "yyyy/MM/dd HH:mm:ss"（WqUserMessage.msgTime 的 JsonFormat），
+ * Hermes 无法解析该非标准格式，统一归一化为 ISO "yyyy-MM-ddTHH:mm:ss" 再构造。
+ */
+function parseMsgTime(msgTime: string): Date | null {
+  if (!msgTime) return null;
+  const normalized = msgTime.includes('T') ? msgTime : msgTime.replace(/\//g, '-').replace(' ', 'T');
+  const d = new Date(normalized);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 /** 时间分割线文案（对齐 figma 32.消息详情）：今天 09:36 / 昨天 14:20 / 2026/10/30 09:36 */
 function dividerLabel(msgTime: string): string {
-  const date = new Date(msgTime);
-  if (Number.isNaN(date.getTime())) return '';
+  const date = parseMsgTime(msgTime);
+  if (!date) return '';
   const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   const dayDiff = Math.round((startOf(new Date()) - startOf(date)) / 86400000);
   const time = formatHHmm(msgTime);
@@ -107,8 +118,8 @@ function dividerLabel(msgTime: string): string {
 }
 
 function formatHHmm(msgTime: string): string {
-  const date = new Date(msgTime);
-  if (Number.isNaN(date.getTime())) return '';
+  const date = parseMsgTime(msgTime);
+  if (!date) return '';
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
@@ -394,8 +405,9 @@ export default function MessageChat() {
     const items: DisplayItem[] = [];
     let lastTime = 0;
     messages.forEach(m => {
-      const t = new Date(m.msgTime).getTime();
-      if (!Number.isNaN(t)) {
+      const d = parseMsgTime(m.msgTime);
+      if (d) {
+        const t = d.getTime();
         if (t - lastTime > DIVIDER_GAP_MS) {
           const label = dividerLabel(m.msgTime);
           if (label) items.push({ kind: 'divider', key: `divider-${m.id}`, label });
