@@ -198,9 +198,6 @@ export default function MessageChat() {
    * 用户上滑离开底部解除，回到底部附近恢复（微信式行为）
    */
   const stickToBottomRef = useRef(true);
-  /** 手动锚定（替代 maintainVisibleContentPosition，避免其原生锚点与贴底滚动互相打架） */
-  const lastOffsetYRef = useRef(0);
-  const prependAdjustRef = useRef<{ prevH: number; offsetY: number } | null>(null);
   /** 初始贴底定位完成后才允许翻页：防止首屏滚动被钳制在 offset=0 时误触加载历史、把页面锚在中部 */
   const initialScrollDoneRef = useRef(false);
 
@@ -323,8 +320,7 @@ export default function MessageChat() {
           if (stickToBottomRef.current) listRef.current?.scrollToEnd({ animated: false });
         }, 250);
       } else {
-        // 记录 prepend 前的内容高与滚动位置，onContentSizeChange 按净增量修正 offset 保持浏览位置
-        prependAdjustRef.current = { prevH: layoutHeight.current.contentHieght, offsetY: lastOffsetYRef.current };
+        // prepend 历史：视图连贯性由 maintainVisibleContentPosition 原生锚定保证
         setMessages(prev => {
           // 按 id 去重防御：服务端边界若返回重复留言不至于炸 key
           const incoming = list.slice().reverse().filter(m => !prev.some(p => p.id === m.id));
@@ -362,7 +358,6 @@ export default function MessageChat() {
   const onScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
-      lastOffsetYRef.current = contentOffset.y;
       // 距底 <60 视为停在底部：恢复吸附；上滑离开则解除
       stickToBottomRef.current = contentSize.height - layoutMeasurement.height - contentOffset.y < 60;
       if (contentOffset.y < 30) onLoadMore();
@@ -594,29 +589,19 @@ export default function MessageChat() {
             keyExtractor={item => item.key}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContent}
+            maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
             onScroll={onScroll}
             scrollEventThrottle={80}
             onContentSizeChange={(_, h) => {
               layoutHeight.current.contentHieght = h;
               if (layoutHeight.current.keyboard > 0) forceRender(n => n + 1);
-              const adjust = prependAdjustRef.current;
-              if (adjust) {
-                // 翻页 prepend：按净增量修正 offset，浏览位置不动
-                prependAdjustRef.current = null;
-                const delta = h - adjust.prevH;
-                if (delta > 0) {
-                  // 延迟一帧等原生 contentSize 提交，避免滚动命令被钳制到旧范围
-                  requestAnimationFrame(() =>
-                    listRef.current?.scrollToOffset({ offset: adjust.offsetY + delta, animated: false }),
-                  );
-                }
-              } else {
-                // 吸附底部：首屏/新消息/内容变化保持贴底（延迟一帧，等原生滚动范围生效）
-                requestAnimationFrame(() => {
-                  if (stickToBottomRef.current) listRef.current?.scrollToEnd({ animated: false });
-                  initialScrollDoneRef.current = true;
-                });
-              }
+              // 吸附底部：首屏/新消息/内容变化保持贴底（延迟一帧，等原生滚动范围生效；
+              // 与 maintainVisibleContentPosition 不冲突：锚定只在内容从上方插入时修正 offset，
+              // 贴底滚动在内容变化落定后执行）
+              requestAnimationFrame(() => {
+                if (stickToBottomRef.current) listRef.current?.scrollToEnd({ animated: false });
+                initialScrollDoneRef.current = true;
+              });
             }}
           />
           {/* 加载指示放浮层：不占内容高度，避免污染翻页的净增量锚定 */}
