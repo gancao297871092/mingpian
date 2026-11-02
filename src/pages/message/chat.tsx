@@ -364,9 +364,25 @@ export default function MessageChat() {
       const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
       // 距底 <60 视为停在底部：恢复吸附；上滑离开则解除
       stickToBottomRef.current = contentSize.height - layoutMeasurement.height - contentOffset.y < 60;
-      if (contentOffset.y < 30) onLoadMore();
+    },
+    [],
+  );
+
+  /** 滚动完全停下且停在顶部才加载历史（拖动无惯性看 EndDrag，有惯性看 MomentumEnd） */
+  const onScrollSettled = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (e.nativeEvent.contentOffset.y < 30) onLoadMore();
     },
     [onLoadMore],
+  );
+
+  const onScrollEndDrag = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const vy = e.nativeEvent.velocity?.y ?? 0;
+      // 松手后还有惯性则交给 onMomentumScrollEnd
+      if (Math.abs(vy) < 0.1) onScrollSettled(e);
+    },
+    [onScrollSettled],
   );
 
   // ===== 展示数据：按天插分割线 =====
@@ -597,6 +613,8 @@ export default function MessageChat() {
             contentContainerStyle={styles.listContent}
             maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
             onScroll={onScroll}
+            onScrollEndDrag={onScrollEndDrag}
+            onMomentumScrollEnd={onScrollSettled}
             scrollEventThrottle={80}
             onContentSizeChange={(_, h) => {
               layoutHeight.current.contentHieght = h;
