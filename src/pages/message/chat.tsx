@@ -58,6 +58,9 @@ const CUSTOM_CARD_TAG = '<custom-card>';
 /** 名片消息图片默认宽高比（商务/时尚海报 370:268 ≈ 1.38，onLoad 后替换为真实比例） */
 const DEFAULT_CARD_ASPECT = 1.38;
 
+/** 时间分割线分组间隔：相邻留言超过 5 分钟则再显示一条时间（微信式，对齐 figma 32.消息详情） */
+const DIVIDER_GAP_MS = 5 * 60 * 1000;
+
 /** 解析 `<custom-card>{cardId}&{posterUrl}` 结构的名片留言 */
 function parseCardMessage(content: string): { cardId: string; url: string } | null {
   if (!content.includes(CUSTOM_CARD_TAG)) return null;
@@ -91,15 +94,16 @@ async function resolveCardAspects(list: ChatMessage[]): Promise<Record<string, n
   return aspects;
 }
 
-/** 日期分割线文案：今天/昨天/YYYY/M/D */
-function dayDividerLabel(msgTime: string): string {
+/** 时间分割线文案（对齐 figma 32.消息详情）：今天 09:36 / 昨天 14:20 / 2026/10/30 09:36 */
+function dividerLabel(msgTime: string): string {
   const date = new Date(msgTime);
   if (Number.isNaN(date.getTime())) return '';
   const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   const dayDiff = Math.round((startOf(new Date()) - startOf(date)) / 86400000);
-  if (dayDiff === 0) return '今天';
-  if (dayDiff === 1) return '昨天';
-  return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
+  const time = formatHHmm(msgTime);
+  if (dayDiff === 0) return `今天 ${time}`;
+  if (dayDiff === 1) return `昨天 ${time}`;
+  return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()} ${time}`;
 }
 
 function formatHHmm(msgTime: string): string {
@@ -385,16 +389,18 @@ export default function MessageChat() {
     [onScrollSettled],
   );
 
-  // ===== 展示数据：按天插分割线 =====
+  // ===== 展示数据：按时间分组插分割线（微信式：首条必显示，间隔>5分钟再显示，对齐 figma 32.消息详情）=====
   const displayItems = useMemo<DisplayItem[]>(() => {
     const items: DisplayItem[] = [];
-    let lastDay = '';
+    let lastTime = 0;
     messages.forEach(m => {
-      const label = dayDividerLabel(m.msgTime);
-      const dayKey = m.msgTime ? m.msgTime.slice(0, 10) : '';
-      if (label && dayKey !== lastDay) {
-        lastDay = dayKey;
-        items.push({ kind: 'divider', key: `divider-${m.id}`, label });
+      const t = new Date(m.msgTime).getTime();
+      if (!Number.isNaN(t)) {
+        if (t - lastTime > DIVIDER_GAP_MS) {
+          const label = dividerLabel(m.msgTime);
+          if (label) items.push({ kind: 'divider', key: `divider-${m.id}`, label });
+        }
+        lastTime = t;
       }
       items.push({ kind: 'msg', key: `msg-${m.id}`, msg: m });
     });
@@ -571,7 +577,6 @@ export default function MessageChat() {
               </View>
             )}
             {isSelf && msg.beMsgStatus === 1 ? <Text style={styles.readFlag}>已读</Text> : null}
-            {!isSelf ? <Text style={styles.msgTime}>{formatHHmm(msg.msgTime)}</Text> : null}
           </View>
         </View>
       );
@@ -863,11 +868,6 @@ const styles = StyleSheet.create({
     fontSize: setSpText(10),
     color: '#A7AFBC',
     textAlign: 'right',
-  },
-  msgTime: {
-    marginTop: scaleSizeH(4),
-    fontSize: setSpText(10),
-    color: '#A7AFBC',
   },
   cardImage: {
     width: scaleSizeW(200),

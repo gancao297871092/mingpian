@@ -887,6 +887,8 @@ export default function RootNavigator() {
             headerStyle: { backgroundColor: '#FFFFFF' },
             headerTitleStyle: { color: '#000000' },
             headerShadowVisible: false,
+            // iOS 26：去掉列表顶部在导航栏下的渐进模糊层（UIScrollEdgeEffect，默认 automatic）
+            scrollEdgeEffects: { top: 'hidden' },
           }}
         />
         <Stack.Screen
