@@ -186,9 +186,9 @@ export default function MessageChat() {
   // ===== 键盘升降（对齐 coingetApp chatSession）=====
   // translateY 直接承载键盘高度（0~endCoordinates.height）；
   // 输入区与键盘 1:1 上移（插值 [0,500]→[0,-500]）；
-  // 列表仅当内容真的被键盘遮住时才上顶：内容底 > 视口底 - 键盘高，顶上移量 = 被遮住的量（封顶 500）
+  // 列表仅当内容真的被遮住时才上顶，内容底对齐输入区上沿（1:1 插值，见 listShift 注释）
   const translateY = useRef(new Animated.Value(0)).current;
-  const layoutHeight = useRef({ keyboard: 0, contentHieght: 0, maxContentHieght: 0 });
+  const layoutHeight = useRef({ keyboard: 0, contentHieght: 0, maxContentHieght: 0, hint: 0 });
   /** 布局尺寸变化后强制重算列表上顶量 */
   const [, forceRender] = useState(0);
   const listRef = useRef<FlatList<DisplayItem>>(null);
@@ -201,9 +201,13 @@ export default function MessageChat() {
   /** 初始贴底定位完成后才允许翻页：防止首屏滚动被钳制在 offset=0 时误触加载历史、把页面锚在中部 */
   const initialScrollDoneRef = useRef(false);
 
-  const visibleH = layoutHeight.current.maxContentHieght - layoutHeight.current.keyboard;
-  const over = layoutHeight.current.contentHieght - visibleH;
-  const listShift = over <= 0 ? 0 : over > 500 ? 500 : over;
+  /**
+   * 列表上顶量：内容底对齐到「输入区上沿」（不是键盘上沿——输入区浮在键盘上还占一段高度）
+   * = min(内容溢出量, 键盘高) − 提示行高；≤0 表示键盘没遮到内容，不顶
+   */
+  const kbd = layoutHeight.current.keyboard;
+  const over = layoutHeight.current.contentHieght - (layoutHeight.current.maxContentHieght - kbd);
+  const listShift = Math.max(0, Math.min(Math.min(over, kbd) - layoutHeight.current.hint, 500));
 
   const animateRun = useCallback(
     (toValue: number) => {
@@ -572,8 +576,10 @@ export default function MessageChat() {
             {
               transform: [
                 {
+                  // 1:1 映射：键盘完全升起时列表恰好上移 listShift（不要用 [0,500]，
+                  // 那会按 键盘高/500 缩水导致内容顶不到输入区上沿）
                   translateY: translateY.interpolate({
-                    inputRange: [0, 500],
+                    inputRange: [0, Math.max(kbd, 1)],
                     outputRange: [0, -listShift],
                     extrapolate: 'clamp',
                   }) as Animated.Value,
@@ -613,7 +619,15 @@ export default function MessageChat() {
             />
           )}
         </Animated.View>
-        <Text style={styles.quickHint}>发送名片，让对方更快认识你</Text>
+        {/* 提示行：高度计入键盘上顶公式（用 padding 而非 margin 以便 onLayout 可测） */}
+        <Text
+          style={styles.quickHint}
+          onLayout={e => {
+            layoutHeight.current.hint = e.nativeEvent.layout.height;
+          }}
+        >
+          发送名片，让对方更快认识你
+        </Text>
         {/* 输入区：与键盘 1:1 上移；区内 touch 不触发收键盘 */}
         <Animated.View
           onTouchStart={onComposeTouchStart}
@@ -847,7 +861,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: setSpText(11),
     color: '#A2AAB7',
-    marginVertical: scaleSizeH(12),
+    paddingVertical: scaleSizeH(12),
   },
   // 输入区
   compose: {
