@@ -4,6 +4,7 @@ import {
   Animated,
   Easing,
   FlatList,
+  Image as RNImage,
   Keyboard,
   Platform,
   StyleSheet,
@@ -64,6 +65,30 @@ function parseCardMessage(content: string): { cardId: string; url: string } | nu
   const [cardId, url] = payload.split('&');
   if (!cardId || !url) return null;
   return { cardId, url };
+}
+
+/** 拉取图片真实宽高比：名片图在渲染前解析高度，避免 onLoad 后二次撑高列表、滚动落点被顶偏 */
+function getImageAspect(url: string): Promise<number | null> {
+  return new Promise(resolve => {
+    RNImage.getSize(
+      url,
+      (w, h) => resolve(w > 0 && h > 0 ? w / h : null),
+      () => resolve(null),
+    );
+  });
+}
+
+/** 批量解析一页留言中名片图片的宽高比（url → w/h） */
+async function resolveCardAspects(list: ChatMessage[]): Promise<Record<string, number>> {
+  const urls = list.map(m => parseCardMessage(m.content || '')?.url).filter((u): u is string => !!u);
+  if (urls.length === 0) return {};
+  const ratios = await Promise.all(urls.map(getImageAspect));
+  const aspects: Record<string, number> = {};
+  urls.forEach((u, i) => {
+    const r = ratios[i];
+    if (r) aspects[u] = r;
+  });
+  return aspects;
 }
 
 /** 日期分割线文案：今天/昨天/YYYY/M/D */
@@ -153,6 +178,8 @@ export default function MessageChat() {
   const shotRef = useRef<React.ElementRef<typeof ViewShot>>(null);
   /** 海报挂载回调：onLayout 时触发截图，替代固定时延 */
   const posterReadyRef = useRef<(() => void) | null>(null);
+  /** 离屏海报的实际布局尺寸（发送前写入消息图片宽高比，保证 scrollToEnd 落点准确） */
+  const posterLayoutRef = useRef<{ w: number; h: number } | null>(null);
   /** 名片消息图片的宽高比（按 url 记忆，onLoad 后按真实比例展示） */
   const [cardAspects, setCardAspects] = useState<Record<string, number>>({});
 
@@ -166,8 +193,16 @@ export default function MessageChat() {
   const [, forceRender] = useState(0);
   const listRef = useRef<FlatList<DisplayItem>>(null);
   const loadingMoreRef = useRef(false);
-  /** 待处理的滚到底部请求：由 onContentSizeChange 在内容真实更新后执行（替代 setTimeout 猜渲染时机） */
-  const pendingScrollToEnd = useRef<{ animated: boolean } | null>(null);
+  /**
+   * 吸附底部标记：为 true 时内容任何增长（新消息/图片加载出真实高度）都保持贴底；
+   * 用户上滑离开底部解除，回到底部附近恢复（微信式行为）
+   */
+  const stickToBottomRef = useRef(true);
+  /** 手动锚定（替代 maintainVisibleContentPosition，避免其原生锚点与贴底滚动互相打架） */
+  const lastOffsetYRef = useRef(0);
+  const prependAdjustRef = useRef<{ prevH: number; offsetY: number } | null>(null);
+  /** 初始贴底定位完成后才允许翻页：防止首屏滚动被钳制在 offset=0 时误触加载历史、把页面锚在中部 */
+  const initialScrollDoneRef = useRef(false);
 
   const visibleH = layoutHeight.current.maxContentHieght - layoutHeight.current.keyboard;
   const over = layoutHeight.current.contentHieght - visibleH;
@@ -272,14 +307,24 @@ export default function MessageChat() {
     async (lastId?: number) => {
       const res = await API.message.open({ userId: peerUserId, msgNumber, lastId });
       const list: ChatMessage[] = (res.data ?? []) as ChatMessage[];
+      // 先解析本页名片图的真实宽高比，再连同消息一起渲染：内容首帧即最终高度，贴底滚动落点精确
+      const aspects = await resolveCardAspects(list);
+      if (Object.keys(aspects).length > 0) {
+        setCardAspects(prev => ({ ...aspects, ...prev }));
+      }
       if (!lastId) {
-        // 最新一页：升序存入，并锁定会话号
+        // 最新一页：升序存入，并锁定会话号（吸附底部默认开启，由 onContentSizeChange 贴底）
         if (list[0]?.msgNumber) setMsgNumber(list[0].msgNumber);
-        pendingScrollToEnd.current = { animated: false };
         setMessages(list.slice().reverse());
         setHasMore(list.length >= 10);
         setInitialLoaded(true);
+        // 兜底：分批渲染/图片尺寸全部落定后再贴一次底，保证进入会话必见最新一条
+        setTimeout(() => {
+          if (stickToBottomRef.current) listRef.current?.scrollToEnd({ animated: false });
+        }, 250);
       } else {
+        // 记录 prepend 前的内容高与滚动位置，onContentSizeChange 按净增量修正 offset 保持浏览位置
+        prependAdjustRef.current = { prevH: layoutHeight.current.contentHieght, offsetY: lastOffsetYRef.current };
         setMessages(prev => {
           // 按 id 去重防御：服务端边界若返回重复留言不至于炸 key
           const incoming = list.slice().reverse().filter(m => !prev.some(p => p.id === m.id));
@@ -302,7 +347,7 @@ export default function MessageChat() {
 
   /** 滚动到顶部（视觉最上方=最早的消息）时加载更早的留言 */
   const onLoadMore = useCallback(() => {
-    if (!initialLoaded || loadingMoreRef.current || !hasMore || messages.length === 0) return;
+    if (!initialLoaded || !initialScrollDoneRef.current || loadingMoreRef.current || !hasMore || messages.length === 0) return;
     loadingMoreRef.current = true;
     setLoadingMore(true);
     const oldestId = Math.min(...messages.map(m => m.id));
@@ -316,7 +361,11 @@ export default function MessageChat() {
 
   const onScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      if (e.nativeEvent.contentOffset.y < 30) onLoadMore();
+      const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+      lastOffsetYRef.current = contentOffset.y;
+      // 距底 <60 视为停在底部：恢复吸附；上滑离开则解除
+      stickToBottomRef.current = contentSize.height - layoutMeasurement.height - contentOffset.y < 60;
+      if (contentOffset.y < 30) onLoadMore();
     },
     [onLoadMore],
   );
@@ -347,7 +396,8 @@ export default function MessageChat() {
         const saved: ChatMessage = res.data;
         if (saved?.msgNumber) setMsgNumber(saved.msgNumber);
         if (saved?.id) {
-          pendingScrollToEnd.current = { animated: true };
+          // 自己发送的消息：强制吸附底部（即使用户此前上滑看历史）
+          stickToBottomRef.current = true;
           setMessages(prev => (prev.some(m => m.id === saved.id) ? prev : [...prev, saved]));
         }
         return true;
@@ -432,7 +482,14 @@ export default function MessageChat() {
         const up = await API.file.upload(formData);
         const url = up.data?.mdUrl || up.data?.url;
         if (!url) throw new Error('upload failed');
-        // 4. 发送名片留言（接收方点击跳转名片详情）
+        // 4. 提前写入海报真实宽高比：消息渲染即按最终高度占位，
+        //    避免图片加载后高度变化把底部顶出可视区
+        const pl = posterLayoutRef.current;
+        if (pl?.w && pl?.h) {
+          const ratio = pl.w / pl.h;
+          setCardAspects(prev => ({ ...prev, [url]: ratio }));
+        }
+        // 5. 发送名片留言（接收方点击跳转名片详情）
         await doSend(`${CUSTOM_CARD_TAG}${fullCard.id}&${url}`);
       } catch {
         Toast.show({ type: 'error', text1: '名片发送失败，请重试' });
@@ -485,6 +542,7 @@ export default function MessageChat() {
                     const w = e.source?.width;
                     const h = e.source?.height;
                     if (w && h && !cardAspects[card.url]) {
+                      // 高度变化后是否贴底由 onContentSizeChange 的吸附逻辑统一处理
                       setCardAspects(prev => ({ ...prev, [card.url]: w / h }));
                     }
                   }}
@@ -536,27 +594,39 @@ export default function MessageChat() {
             keyExtractor={item => item.key}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContent}
-            maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
             onScroll={onScroll}
             scrollEventThrottle={80}
             onContentSizeChange={(_, h) => {
               layoutHeight.current.contentHieght = h;
               if (layoutHeight.current.keyboard > 0) forceRender(n => n + 1);
-              // 内容真实更新后再滚到底（首屏/发送成功），替代固定 50ms 延时
-              if (pendingScrollToEnd.current) {
-                const { animated } = pendingScrollToEnd.current;
-                pendingScrollToEnd.current = null;
-                listRef.current?.scrollToEnd({ animated });
+              const adjust = prependAdjustRef.current;
+              if (adjust) {
+                // 翻页 prepend：按净增量修正 offset，浏览位置不动
+                prependAdjustRef.current = null;
+                const delta = h - adjust.prevH;
+                if (delta > 0) {
+                  // 延迟一帧等原生 contentSize 提交，避免滚动命令被钳制到旧范围
+                  requestAnimationFrame(() =>
+                    listRef.current?.scrollToOffset({ offset: adjust.offsetY + delta, animated: false }),
+                  );
+                }
+              } else {
+                // 吸附底部：首屏/新消息/内容变化保持贴底（延迟一帧，等原生滚动范围生效）
+                requestAnimationFrame(() => {
+                  if (stickToBottomRef.current) listRef.current?.scrollToEnd({ animated: false });
+                  initialScrollDoneRef.current = true;
+                });
               }
             }}
-            ListHeaderComponent={
-              loadingMore ? (
-                <ActivityIndicator style={styles.loadingMore} size="small" color={MUTED} />
-              ) : !initialLoaded ? (
-                <ActivityIndicator style={styles.loadingMore} size="small" color={BLUE} />
-              ) : null
-            }
           />
+          {/* 加载指示放浮层：不占内容高度，避免污染翻页的净增量锚定 */}
+          {(loadingMore || !initialLoaded) && (
+            <ActivityIndicator
+              style={styles.loadingOverlay}
+              size="small"
+              color={loadingMore ? MUTED : BLUE}
+            />
+          )}
         </Animated.View>
         <Text style={styles.quickHint}>发送名片，让对方更快认识你</Text>
         {/* 输入区：与键盘 1:1 上移；区内 touch 不触发收键盘 */}
@@ -629,7 +699,9 @@ export default function MessageChat() {
         <ViewShot ref={shotRef} options={{ format: 'png', quality: 1 }} style={styles.offscreen}>
           <View
             style={{ width: SCREEN_WIDTH - scaleSizeW(32) }}
-            onLayout={() => {
+            onLayout={e => {
+              const { width, height } = e.nativeEvent.layout;
+              if (width && height) posterLayoutRef.current = { w: width, h: height };
               posterReadyRef.current?.();
               posterReadyRef.current = null;
             }}
@@ -690,8 +762,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: scaleSizeW(14),
     paddingVertical: scaleSizeH(8),
   },
-  loadingMore: {
-    marginVertical: scaleSizeH(12),
+  loadingOverlay: {
+    position: 'absolute',
+    top: scaleSizeH(8),
+    alignSelf: 'center',
+    zIndex: 1,
   },
   divider: {
     textAlign: 'center',
