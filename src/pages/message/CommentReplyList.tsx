@@ -5,6 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import SafeView from '@/components/SafeView';
 import EmptyState from '@/components/EmptyState';
+import { useMessageUnreadStore } from '@/store/message';
 import { API } from '@/api';
 import { useUserStore } from '@/store/user';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
@@ -53,7 +54,10 @@ export default function CommentReplyList() {
   useEffect(() => {
     fetchList(1, false);
     // 进入页面即把「评论与回复」组通知置已读（后端改造项 3.3，未上线静默）
-    API.message.interactionRead({ group: 'comment' }).catch(() => {});
+    API.message
+      .interactionRead({ group: 'comment' })
+      .then(() => useMessageUnreadStore.getState().fetchUnread())
+      .catch(() => {});
   }, [fetchList]);
 
   /** 点赞/取消点赞该条评论（figma 38 行内「点赞」） */

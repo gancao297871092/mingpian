@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
+  AppState,
   Image,
   Platform,
   StyleSheet,
@@ -10,6 +11,7 @@ import {
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { LiquidGlass } from '@/components/capabilities';
 import { useUserStore } from '@/store/user';
+import { useMessageUnreadStore } from '@/store/message';
 import { navigationRef } from '@/route/navigationRef';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 
@@ -55,12 +57,15 @@ function TabItem({
   descriptors,
   state,
   navigation,
+  showBadge,
 }: {
   route: BottomTabBarProps['state']['routes'][number];
   index: number;
   descriptors: BottomTabBarProps['descriptors'];
   state: BottomTabBarProps['state'];
   navigation: BottomTabBarProps['navigation'];
+  /** 未读红点（消息 tab） */
+  showBadge?: boolean;
 }) {
   const { options } = descriptors[route.key];
   const isFocused = state.index === index;
@@ -98,6 +103,7 @@ function TabItem({
       style={styles.tab}
     >
       <TabIcon routeName={route.name} focused={isFocused} />
+      {showBadge ? <View style={styles.badgeDot} /> : null}
       {typeof label === 'string' ? (
         <Text style={[styles.tabLabel, { color: isFocused ? ACTIVE_COLOR : INACTIVE_COLOR }]}>
           {label}
@@ -109,6 +115,21 @@ function TabItem({
 
 export default function LiquidGlassTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const token = useUserStore(s => s.token);
+  const unreadCount = useMessageUnreadStore(s => s.unreadCount);
+
+  /** 未读红点：挂载/登录态变化时拉取，30s 轮询 + 回前台刷新 */
+  useEffect(() => {
+    const fetchUnread = useMessageUnreadStore.getState().fetchUnread;
+    fetchUnread();
+    const timer = setInterval(fetchUnread, 30 * 1000);
+    const sub = AppState.addEventListener('change', s => {
+      if (s === 'active') fetchUnread();
+    });
+    return () => {
+      clearInterval(timer);
+      sub.remove();
+    };
+  }, [token]);
 
   /** 未登录点击发布：与消息/我的一致，直接进入登录页 */
   const onPressPublish = () => {
@@ -149,7 +170,15 @@ export default function LiquidGlassTabBar({ state, descriptors, navigation }: Bo
           </TouchableOpacity>
           {/* 消息/我的 */}
           {state.routes.slice(2).map((route, i) => (
-            <TabItem key={route.key} route={route} index={i + 2} descriptors={descriptors} state={state} navigation={navigation} />
+            <TabItem
+              key={route.key}
+              route={route}
+              index={i + 2}
+              descriptors={descriptors}
+              state={state}
+              navigation={navigation}
+              showBadge={route.name === 'message' && unreadCount > 0}
+            />
           ))}
         </View>
       </LiquidGlass>
@@ -199,6 +228,15 @@ const styles = StyleSheet.create({
   tabIcon: {
     width: scaleSizeW(24),
     height: scaleSizeH(24),
+  },
+  badgeDot: {
+    position: 'absolute',
+    top: scaleSizeH(-1),
+    right: scaleSizeW(-4),
+    width: scaleSizeW(8),
+    height: scaleSizeW(8),
+    borderRadius: scaleSizeW(4),
+    backgroundColor: '#EF4444',
   },
   tabLabel: {
     fontSize: setSpText(10),

@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
 import EmptyState from '@/components/EmptyState';
+import { useMessageUnreadStore } from '@/store/message';
 import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText, SCREEN_WIDTH } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
@@ -119,6 +120,8 @@ export default function MessagePage() {
 
   const loadAll = useCallback(async () => {
     await Promise.allSettled([loadPrivate(), loadSummary(), loadSys(1, false), loadSysCount()]);
+    // 同步底部 tab 红点（私信+系统+互动 总未读）
+    useMessageUnreadStore.getState().fetchUnread();
   }, [loadPrivate, loadSummary, loadSys, loadSysCount]);
 
   /** 每次聚焦刷新（从 38/39/系统详情返回后角标需同步） */
@@ -163,6 +166,8 @@ export default function MessagePage() {
         setSysList(prev => prev.map(it => ({ ...it, readStatus: 1 })));
       }
       Toast.show({ type: 'success', text1: '已全部已读' });
+      // 同步底部 tab 红点
+      useMessageUnreadStore.getState().fetchUnread();
     } catch {
       // 后端改造项未上线时静默
     }

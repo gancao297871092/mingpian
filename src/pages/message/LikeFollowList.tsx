@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import SafeView from '@/components/SafeView';
 import EmptyState from '@/components/EmptyState';
+import { useMessageUnreadStore } from '@/store/message';
 import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
@@ -55,7 +56,10 @@ export default function LikeFollowList() {
   useEffect(() => {
     fetchList(1, false);
     // 进入页面即把「点赞与关注」组通知置已读（后端改造项 3.3，未上线静默）
-    API.message.interactionRead({ group: 'like' }).catch(() => {});
+    API.message
+      .interactionRead({ group: 'like' })
+      .then(() => useMessageUnreadStore.getState().fetchUnread())
+      .catch(() => {});
   }, [fetchList]);
 
   /** 回关（figma 39 关注项右侧「回关」按钮） */
