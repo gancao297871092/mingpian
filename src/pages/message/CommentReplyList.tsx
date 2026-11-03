@@ -129,7 +129,13 @@ export default function CommentReplyList() {
               </View>
             </View>
             {item.bbsCover ? (
-              <ExpoImage source={{ uri: item.bbsCover }} style={styles.bbsCover} contentFit="cover" transition={150} />
+              <ExpoImage
+                source={{ uri: item.bbsCover }}
+                recyclingKey={item.bbsCover}
+                style={styles.bbsCover}
+                contentFit="cover"
+                transition={150}
+              />
             ) : (
               <View style={[styles.bbsCover, styles.bbsCoverEmpty]} />
             )}

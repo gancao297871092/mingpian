@@ -65,7 +65,13 @@ export function MsgAvatar({
   return (
     <View style={[styles.avatarBox, { width: s, height: s, borderRadius: s / 2 }]}>
       {uri ? (
-        <ExpoImage source={{ uri }} style={[StyleSheet.absoluteFill, { borderRadius: s / 2 }]} contentFit="cover" transition={150} />
+        <ExpoImage
+          source={{ uri }}
+          recyclingKey={uri}
+          style={[StyleSheet.absoluteFill, { borderRadius: s / 2 }]}
+          contentFit="cover"
+          transition={150}
+        />
       ) : (
         <View style={[StyleSheet.absoluteFill, styles.avatarFallback]}>
           <Text style={styles.avatarFallbackText}>{(name || '友').slice(0, 1)}</Text>
