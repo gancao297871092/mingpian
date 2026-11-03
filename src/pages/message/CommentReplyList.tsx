@@ -4,6 +4,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import SafeView from '@/components/SafeView';
+import EmptyState from '@/components/EmptyState';
 import { API } from '@/api';
 import { useUserStore } from '@/store/user';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
@@ -150,9 +151,7 @@ export default function CommentReplyList() {
         }}
         ListEmptyComponent={
           loaded ? (
-            <View style={styles.emptyBox}>
-              <Text style={styles.emptyText}>暂无评论与回复</Text>
-            </View>
+            <EmptyState variant="comment" title="暂无评论与回复" style={styles.emptyBox} />
           ) : (
             <ActivityIndicator style={styles.loading} color={PRIMARY} />
           )
@@ -173,12 +172,7 @@ const styles = StyleSheet.create({
   },
   emptyBox: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
-  },
-  emptyText: {
-    fontSize: setSpText(14),
-    color: TEXT_SUB,
   },
   itemRow: {
     flexDirection: 'row',

@@ -3,6 +3,7 @@ import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View }
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import SafeView from '@/components/SafeView';
+import EmptyState from '@/components/EmptyState';
 import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
@@ -141,9 +142,7 @@ export default function LikeFollowList() {
         }}
         ListEmptyComponent={
           loaded ? (
-            <View style={styles.emptyBox}>
-              <Text style={styles.emptyText}>暂无点赞与关注</Text>
-            </View>
+            <EmptyState variant="content" title="暂无点赞与关注" style={styles.emptyBox} />
           ) : (
             <ActivityIndicator style={styles.loading} color={PRIMARY} />
           )
@@ -164,12 +163,7 @@ const styles = StyleSheet.create({
   },
   emptyBox: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
-  },
-  emptyText: {
-    fontSize: setSpText(14),
-    color: TEXT_SUB,
   },
   itemRow: {
     flexDirection: 'row',

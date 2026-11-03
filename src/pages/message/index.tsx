@@ -15,7 +15,9 @@ import { Image as ExpoImage } from 'expo-image';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
+import EmptyState from '@/components/EmptyState';
 import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText, SCREEN_WIDTH } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
@@ -130,6 +132,8 @@ export default function MessagePage() {
     setRefreshing(false);
   }, [loadAll]);
 
+  // 上滑白底头效果暂停用（listProps 中 onScroll 已注释），保留以便恢复
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     setScrolled(e.nativeEvent.contentOffset.y > 10);
   }, []);
@@ -158,6 +162,7 @@ export default function MessagePage() {
         setSysCount(0);
         setSysList(prev => prev.map(it => ({ ...it, readStatus: 1 })));
       }
+      Toast.show({ type: 'success', text1: '已全部已读' });
     } catch {
       // 后端改造项未上线时静默
     }
@@ -258,11 +263,7 @@ export default function MessagePage() {
   );
 
   const emptyNode = useCallback(
-    (text: string) => (
-      <View style={styles.emptyBox}>
-        <Text style={styles.emptyText}>{text}</Text>
-      </View>
-    ),
+    (text: string) => <EmptyState variant="content" title={text} style={styles.emptyBox} />,
     [],
   );
 
@@ -517,7 +518,8 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingTop: scaleSizeH(20),
-    paddingBottom: scaleSizeH(24),
+    // 避开底部悬浮 tabbar（LiquidGlassTabBar 高 scaleSizeH(80)），再留 24 间距
+    paddingBottom: scaleSizeH(104),
     flexGrow: 1,
   },
   loading: {
@@ -525,12 +527,7 @@ const styles = StyleSheet.create({
   },
   emptyBox: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
-  },
-  emptyText: {
-    fontSize: setSpText(14),
-    color: TEXT_SUB,
   },
   // 会话/入口行（figma 29/30）
   row: {
