@@ -123,6 +123,12 @@ export type RootStackParamList = {
   fillGuide: undefined;
   /** 32.消息详情（留言模式会话；userId=对方用户ID，msgNumber=已有会话号可选） */
   messageDetail: { userId: number; msgNumber?: number } | undefined;
+  /** 38.评论与回复（互动消息详情，figma 234:1448） */
+  interactionComment: undefined;
+  /** 39.点赞与关注（互动消息详情，figma 251:1790） */
+  interactionLike: undefined;
+  /** 系统消息详情（figma 31 卡片「查看详情」；item 为列表项直传用于首屏渲染） */
+  sysMessageDetail: { id: number | string; item?: any };
 };
 
 export type MainTabParamList = {

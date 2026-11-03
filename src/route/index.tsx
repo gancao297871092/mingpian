@@ -32,6 +32,9 @@ import EditTouchSummary from '@/pages/link/EditTouchSummary';
 import FillGuide from '@/pages/link/FillGuide';
 import MessagePage from '@/pages/message';
 import MessageChat from '@/pages/message/chat';
+import CommentReplyList from '@/pages/message/CommentReplyList';
+import LikeFollowList from '@/pages/message/LikeFollowList';
+import SysMessageDetail from '@/pages/message/SysMessageDetail';
 import My from '@/pages/my';
 import EditProfile from '@/pages/my/EditProfile';
 import UserHome from '@/pages/my/UserHome';
@@ -889,6 +892,36 @@ export default function RootNavigator() {
             headerShadowVisible: false,
             // iOS 26：去掉列表顶部在导航栏下的渐进模糊层（UIScrollEdgeEffect，默认 automatic）
             scrollEdgeEffects: { top: 'hidden' },
+          }}
+        />
+        <Stack.Screen
+          name="interactionComment"
+          component={CommentReplyList}
+          options={{
+            title: '评论与回复',
+            headerStyle: { backgroundColor: '#FFFFFF' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="interactionLike"
+          component={LikeFollowList}
+          options={{
+            title: '点赞与关注',
+            headerStyle: { backgroundColor: '#FFFFFF' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="sysMessageDetail"
+          component={SysMessageDetail}
+          options={{
+            title: '消息详情',
+            headerStyle: { backgroundColor: '#FFFFFF' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
           }}
         />
         <Stack.Screen

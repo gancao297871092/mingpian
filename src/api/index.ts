@@ -19,6 +19,75 @@ export namespace API {
     export function send(data: { beUserId: number; content: string; msgNumber?: number }) {
       return request.post<any>('/message/send', data);
     }
+    /** 私信会话列表（figma 29.消息-私信；list 项含 cpName/sendUserNickname/sendUserAvatar/noReadCount/msgTime/content） */
+    export function list(data?: { pageNum?: number; pageSize?: number }) {
+      return request.post<{ list: any[]; total: number }>('/message/list', data ?? {});
+    }
+    /** 私信整页已读（头部「全部已读」私信 tab；后端改造项，见 wanq-app MESSAGE-CENTER-CHANGES.md 3.4） */
+    export function readAllPrivate() {
+      return request.get<any>('/message/readAllPrivate');
+    }
+    /** 删除私信会话（msgNumber 维度，服务端 del_ids 软删） */
+    export function del(params: { msgNumber: number }) {
+      return request.get<any>('/message/del', { params });
+    }
+    /** 互动 tab 聚合（评论与回复/点赞与关注 未读数+最新摘要；后端改造项 3.2） */
+    export function interactionSummary() {
+      return request.get<{
+        commentUnread?: number;
+        commentLastContent?: string | null;
+        commentLastTime?: string | null;
+        likeUnread?: number;
+        likeLastContent?: string | null;
+        likeLastTime?: string | null;
+      }>('/message/interaction/summary');
+    }
+    /** 互动按组已读（group: comment 评论与回复 / like 点赞与关注；后端改造项 3.3） */
+    export function interactionRead(data: { group: 'comment' | 'like' }) {
+      return request.post<any>('/message/interaction/read', data);
+    }
+    /** 未读消息总数（底部 tab 红点；后端改造项 3.7 后含互动未读） */
+    export function count() {
+      return request.get<number>('/message/count');
+    }
+    /** 系统消息未读数+最后一条 */
+    export function sys() {
+      return request.get<{ sysCount: number; lastMsg: SysMessage | null }>('/message/sys');
+    }
+    /** 系统消息分页（figma 31.消息-系统） */
+    export function sysPage(data?: { pageNum?: number; pageSize?: number }) {
+      return request.post<{ list: SysMessage[]; total: number; pageNum: number; pages: number }>(
+        '/message/sysPage',
+        data ?? {},
+      );
+    }
+    /** 系统消息详情 */
+    export function sysOne(params: { id: number | string }) {
+      return request.get<SysMessage>('/message/sysOne', { params });
+    }
+    /** 系统消息单条已读 */
+    export function sysReadOne(params: { id: number | string }) {
+      return request.get<any>('/message/readOne', { params });
+    }
+    /** 系统消息全部已读 */
+    export function sysReadAll() {
+      return request.get<any>('/message/readAll');
+    }
+    /** 系统消息（sys_inner_message） */
+    export interface SysMessage {
+      id: number;
+      msgCode?: string;
+      msgTitle?: string;
+      msgContent?: string;
+      recipientId?: number;
+      senderId?: number;
+      senderName?: string;
+      businessId?: number;
+      businessType?: string;
+      readStatus?: number;
+      sendTime?: string;
+      createTime?: string;
+    }
   }
 
   export namespace common {
@@ -179,6 +248,16 @@ export namespace API {
     export function likeCommentList(params: { pageNum?: number; pageSize?: number }) {
       return request.get<{ list: any[]; total: number; pageNum: number; pages: number }>(
         '/interaction/like/comment/list',
+        { params },
+      );
+    }
+    /**
+     * 点赞与关注合并列表（figma 39；kind: 1赞了动态 2赞了评论 3关注了你；
+     * 后端改造项 3.6：合并 wq_user_bbs_like_relation / wq_bbs_comment_like_relation / wq_user_follow）
+     */
+    export function likeList(params: { pageNum?: number; pageSize?: number }) {
+      return request.get<{ list: any[]; total: number; pageNum: number; pages: number }>(
+        '/interaction/like/list',
         { params },
       );
     }
