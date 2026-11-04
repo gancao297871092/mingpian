@@ -46,7 +46,7 @@ export default function Carousel({
         autoplay={autoPlay}
         autoplayInterval={3000}
         style={{ width: PAGE_WIDTH }}
-        renderWindowSize={PAGE_WIDTH}
+        renderWindowSize={3}
         itemSize={PAGE_WIDTH}
       />
     </View>

@@ -940,7 +940,7 @@ export default function BbsDetail() {
                 onSnapToItem={onSnapToItem}
                 style={{ width: SCREEN_WIDTH, height: imgHeight }}
                 itemSize={SCREEN_WIDTH}
-                renderWindowSize={SCREEN_WIDTH}
+                renderWindowSize={3}
                 renderItem={({ item, index }) => (
                   <GestureTrigger index={index} onPress={() => setPreviewIndex(index)}>
                     <TapView>

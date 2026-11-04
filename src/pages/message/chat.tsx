@@ -198,7 +198,7 @@ export default function MessageChat() {
   /** 名片消息图片的宽高比（按 url 记忆，onLoad 后按真实比例展示） */
   const [cardAspects, setCardAspects] = useState<Record<string, number>>({});
 
-  // ===== 键盘升降（对齐 coingetApp chatSession）=====
+  // ===== 键盘升降：iOS 手动位移；Android 由 adjustResize 缩小页面 =====
   // translateY 直接承载键盘高度（0~endCoordinates.height）；
   // 输入区与键盘 1:1 上移（插值 [0,500]→[0,-500]）；
   // 列表仅当内容真的被遮住时才上顶，内容底对齐输入区上沿（1:1 插值，见 listShift 注释）
@@ -220,7 +220,7 @@ export default function MessageChat() {
    * 列表上顶量：内容底对齐到「输入区上沿」（不是键盘上沿——输入区浮在键盘上还占一段高度）
    * = min(内容溢出量, 键盘高) − 提示行高；≤0 表示键盘没遮到内容，不顶
    */
-  const kbd = layoutHeight.current.keyboard;
+  const kbd = Platform.OS === 'ios' ? layoutHeight.current.keyboard : 0;
   const over = layoutHeight.current.contentHieght - (layoutHeight.current.maxContentHieght - kbd);
   const listShift = Math.max(0, Math.min(Math.min(over, kbd) - layoutHeight.current.hint, 500));
 
@@ -252,7 +252,7 @@ export default function MessageChat() {
     const onShow = (e: any) => {
       if (!isFocused) return;
       layoutHeight.current.keyboard = e?.endCoordinates?.height ?? 0;
-      animateRun(layoutHeight.current.keyboard);
+      animateRun(Platform.OS === 'ios' ? layoutHeight.current.keyboard : 0);
       forceRender(n => n + 1);
     };
     const onHide = () => {
@@ -603,6 +603,9 @@ export default function MessageChat() {
         <Animated.View
           onLayout={e => {
             layoutHeight.current.maxContentHieght = e.nativeEvent.layout.height;
+            if (Platform.OS === 'android' && stickToBottomRef.current) {
+              requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: false }));
+            }
           }}
           style={[
             styles.listWrap,
@@ -668,7 +671,7 @@ export default function MessageChat() {
           onTouchStart={onComposeTouchStart}
           style={[
             styles.compose,
-            { paddingBottom: insets.bottom + scaleSizeH(8) },
+            { paddingBottom: (Platform.OS === 'android' && layoutHeight.current.keyboard > 0 ? 0 : insets.bottom) + scaleSizeH(8) },
             {
               transform: [
                 {
