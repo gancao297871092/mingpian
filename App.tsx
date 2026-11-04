@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { StatusBar, StyleSheet } from 'react-native';
+import { Platform, StatusBar, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -66,7 +66,10 @@ function Root() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <StatusBar barStyle={theme.dark ? 'light-content' : 'dark-content'} />
+      <StatusBar
+        barStyle={Platform.OS === 'android' || theme.dark ? 'light-content' : 'dark-content'}
+        {...(Platform.OS === 'android' ? { backgroundColor: '#000000' } : {})}
+      />
       <RootNavigator />
       <Toast config={toastConfig} topOffset={80} />
     </QueryClientProvider>

@@ -167,6 +167,8 @@ export default function RichTextEdit({ route, navigation }: Props) {
             autoSize
             style={styles.editor}
             webview={{
+              // Quill 默认传字符串；Android Fabric 的原生属性要求数组。
+              ...(Platform.OS === 'android' ? { dataDetectorTypes: ['none'] as const } : {}),
               scrollEnabled: false,
               hideKeyboardAccessoryView: true,
               keyboardDisplayRequiresUserAction: false,

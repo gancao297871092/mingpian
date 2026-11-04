@@ -644,6 +644,8 @@ export default function LongTextEdit({ route, navigation }: Props) {
             container={false}
             style={styles.editor}
             webview={{
+              // Quill 默认传字符串；Android Fabric 的原生属性要求数组。
+              ...(Platform.OS === 'android' ? { dataDetectorTypes: ['none'] as const } : {}),
               scrollEnabled: true,
               hideKeyboardAccessoryView: true,
               keyboardDisplayRequiresUserAction: false,
