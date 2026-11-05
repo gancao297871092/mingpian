@@ -21,7 +21,7 @@ import { scaleSizeH, scaleSizeW, setSpText, SCREEN_WIDTH } from '@/utils/screenU
 import { ossVideoSnapshot } from '@/pages/square/bbsDetail/detailTransform';
 import CompanyPostList from '@/pages/my/company/CompanyPostList';
 import { BackArrowIcon } from '@/pages/my/myIcons';
-import { NavIcon, PlayTriangleIcon } from './icons';
+import { NavIcon, PlayTriangleIcon, ShareIcon } from './icons';
 
 const BADGE_CHECK_ICON = require('@/assets/company-website/badge-check-icon.png');
 
@@ -86,7 +86,49 @@ export function BackCircle({ onPress, animatedStyle }: { onPress: () => void; an
   );
 }
 
-/** 企核·实地核查 金色渐变角标（figma 2134:6587）；渐变做绝对填充背景，布局走普通 View（LinearGradient 直接布局子元素会少算宽度） */
+/** 头部右上角分享按钮（figma 10/官网：44 白圆玻璃底 + 20 分享图标，与返回键同排；当前仅 UI 占位，点击行为待接） */
+export function ShareCircle({ onPress }: { onPress?: () => void }) {
+  const insets = useSafeAreaInsets();
+  return (
+    <Reanimated.View
+      style={[styles.shareWrap, { top: insets.top + scaleSizeH(7) }]}
+      pointerEvents="box-none"
+    >
+      <TouchableOpacity activeOpacity={0.7} hitSlop={8} style={styles.backCircle} onPress={onPress}>
+        <ShareIcon size={20} />
+      </TouchableOpacity>
+    </Reanimated.View>
+  );
+}
+
+/** 卡片小节标签：主色竖条 2x14 + 14 加粗标题（figma 10/官网升级版&普通版） */
+export function SectionLabel({ title }: { title: string }) {
+  return (
+    <View style={styles.sectionLabel} pointerEvents="none">
+      <View style={styles.sectionLabelBar} />
+      <Text style={styles.sectionLabelText}>{title}</Text>
+    </View>
+  );
+}
+
+/** 企业官网白色卡片基础样式（升级版/普通版共用：radius 10、左右内边距 14） */
+export const websiteCard = StyleSheet.create({
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: scaleSizeW(10),
+    paddingHorizontal: scaleSizeW(14),
+    paddingTop: scaleSizeH(18),
+    paddingBottom: scaleSizeH(20),
+  },
+  /** 卡片内正文（地址/简介）：14/21 #000 */
+  text: {
+    fontSize: setSpText(14),
+    lineHeight: setSpText(21),
+    color: '#000000',
+  },
+});
+
+/** 企核·实地核查 金色渐变角标（figma 2134:6587 / 10 官网：3px 7px、圆角 5、12/19 #4C3416）；渐变做绝对填充背景，布局走普通 View（LinearGradient 直接布局子元素会少算宽度） */
 export function GoldBadge() {
   return (
     <View style={styles.goldBadge}>
@@ -104,29 +146,21 @@ export function GoldBadge() {
   );
 }
 
-/** 导航按钮（free: 描边#D9D9D9 蓝图标；pro: 描边半透明白 白图标） */
-export function NavPill({ dark, onPress }: { dark?: boolean; onPress: () => void }) {
+/** 导航按钮（figma 10/官网：74x40 描边 rgba(217,217,217,0.5)、黑图标黑字，升级版/普通版一致） */
+export function NavPill({ onPress }: { onPress: () => void }) {
   return (
-    <TouchableOpacity
-      activeOpacity={0.8}
-      style={[styles.navPill, dark ? styles.navPillDark : styles.navPillLight]}
-      onPress={onPress}
-    >
-      <NavIcon size={16} color={dark ? '#FFFFFF' : PRIMARY} />
-      <Text style={[styles.navPillText, dark && styles.textWhite]}>导航</Text>
+    <TouchableOpacity activeOpacity={0.8} style={styles.navPill} onPress={onPress}>
+      <NavIcon size={16} color="#000000" />
+      <Text style={styles.navPillText}>导航</Text>
     </TouchableOpacity>
   );
 }
 
-/** 查看联系方式按钮（free: 蓝底白字；pro: 白底黑字） */
-export function ContactPill({ dark, onPress }: { dark?: boolean; onPress: () => void }) {
+/** 查看联系方式按钮（figma 10/官网：259x40 黑底白字，升级版/普通版一致） */
+export function ContactPill({ onPress }: { onPress: () => void }) {
   return (
-    <TouchableOpacity
-      activeOpacity={0.8}
-      style={[styles.contactPill, dark ? styles.contactPillDark : styles.contactPillLight]}
-      onPress={onPress}
-    >
-      <Text style={[styles.contactPillText, dark && styles.contactPillTextDark]}>查看联系方式</Text>
+    <TouchableOpacity activeOpacity={0.8} style={styles.contactPill} onPress={onPress}>
+      <Text style={styles.contactPillText}>查看联系方式</Text>
     </TouchableOpacity>
   );
 }
@@ -135,14 +169,13 @@ interface WebsiteTabsProps {
   tabs: WebsiteTab[];
   activeId: number | string;
   onChange: (tab: WebsiteTab, index: number) => void;
-  dark?: boolean;
   /** 横向 pager 的 scrollX（传入后指示器/文字颜色随滑动联动，对齐企业主页） */
   scrollX?: Animated.Value;
   pageWidth?: number;
 }
 
-/** 模块 tab 栏（横向滚动，gap 34；激活 15 Medium，未激活 15 Regular；下划线 24×3 圆角；底部分隔线；激活项自动滚入可视区域） */
-export function WebsiteTabs({ tabs, activeId, onChange, dark, scrollX, pageWidth }: WebsiteTabsProps) {
+/** 模块 tab 栏（横向滚动，gap 34；激活 15 Medium #000，未激活 15 Regular #999；下划线 24×3 圆角；底部分隔线左右留 16、rgba(217,217,217,0.5)；激活项自动滚入可视区域） */
+export function WebsiteTabs({ tabs, activeId, onChange, scrollX, pageWidth }: WebsiteTabsProps) {
   const [layouts, setLayouts] = useState<Record<string, { x: number; w: number }>>({});
   const scrollRef = useRef<ScrollView>(null);
   const active = tabs.find((t) => t.id === activeId) || tabs[0];
@@ -183,17 +216,7 @@ export function WebsiteTabs({ tabs, activeId, onChange, dark, scrollX, pageWidth
                   }}
                 >
                   <Animated.Text
-                    style={[
-                      styles.tabText,
-                      isActive && styles.tabTextActive,
-                      dark
-                        ? isActive
-                          ? styles.tabTextDarkActive
-                          : styles.tabTextDark
-                        : isActive
-                          ? styles.tabTextLightActive
-                          : styles.tabTextLight,
-                    ]}
+                    style={[styles.tabText, isActive ? styles.tabTextActive : styles.tabTextInactive]}
                   >
                     {t.name}
                   </Animated.Text>
@@ -206,7 +229,6 @@ export function WebsiteTabs({ tabs, activeId, onChange, dark, scrollX, pageWidth
               <Animated.View
                 style={[
                   styles.tabsIndicator,
-                  dark && styles.tabsIndicatorDark,
                   styles.tabsIndicatorAnimated,
                   {
                     transform: [
@@ -226,7 +248,6 @@ export function WebsiteTabs({ tabs, activeId, onChange, dark, scrollX, pageWidth
                 <View
                   style={[
                     styles.tabsIndicator,
-                    dark && styles.tabsIndicatorDark,
                     { left: activeLayout.x + (activeLayout.w - scaleSizeW(24)) / 2 },
                   ]}
                 />
@@ -344,6 +365,11 @@ const styles = StyleSheet.create({
     left: scaleSizeW(16),
     zIndex: 10,
   },
+  shareWrap: {
+    position: 'absolute',
+    right: scaleSizeW(16),
+    zIndex: 10,
+  },
   backCircle: {
     width: scaleSizeW(44),
     height: scaleSizeW(44),
@@ -356,6 +382,23 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
+  },
+  sectionLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSizeW(5),
+  },
+  sectionLabelBar: {
+    width: scaleSizeW(2),
+    height: scaleSizeH(14),
+    borderRadius: scaleSizeW(1),
+    backgroundColor: PRIMARY,
+  },
+  sectionLabelText: {
+    fontSize: setSpText(14),
+    fontWeight: '700',
+    letterSpacing: -0.4,
+    color: '#000000',
   },
   goldBadge: {
     flexDirection: 'row',
@@ -385,48 +428,32 @@ const styles = StyleSheet.create({
     height: scaleSizeW(10),
   },
   navPill: {
-    width: scaleSizeW(80),
+    width: scaleSizeW(74),
     height: scaleSizeH(40),
     borderRadius: scaleSizeW(20),
     borderWidth: 1,
+    borderColor: 'rgba(217,217,217,0.5)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: scaleSizeW(2),
-  },
-  navPillLight: {
-    borderColor: '#D9D9D9',
-  },
-  navPillDark: {
-    borderColor: 'rgba(217,217,217,0.5)',
   },
   navPillText: {
     fontSize: setSpText(14),
     lineHeight: setSpText(21),
     color: '#000000',
   },
-  textWhite: {
-    color: '#FFFFFF',
-  },
   contactPill: {
-    width: scaleSizeW(280),
+    width: scaleSizeW(259),
     height: scaleSizeH(40),
     borderRadius: scaleSizeW(20),
+    backgroundColor: '#000000',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  contactPillLight: {
-    backgroundColor: PRIMARY,
-  },
-  contactPillDark: {
-    backgroundColor: '#FFFFFF',
   },
   contactPillText: {
     fontSize: setSpText(14),
     color: '#FFFFFF',
-  },
-  contactPillTextDark: {
-    color: '#000000',
   },
   tabsRow: {
     flexDirection: 'row',
@@ -439,27 +466,17 @@ const styles = StyleSheet.create({
     fontSize: setSpText(15),
     letterSpacing: -0.4,
   },
-  tabTextLight: {
-    color: '#6C6C6C',
-  },
-  tabTextDark: {
+  tabTextInactive: {
     color: '#999999',
   },
   tabTextActive: {
     fontWeight: '500',
-  },
-  tabTextLightActive: {
     color: '#000000',
-  },
-  tabTextDarkActive: {
-    color: '#FFFFFF',
   },
   tabsDivider: {
     height: 1,
-    backgroundColor: '#EDECEC',
-  },
-  tabsDividerDark: {
-    backgroundColor: '#424242',
+    marginHorizontal: scaleSizeW(16),
+    backgroundColor: 'rgba(217,217,217,0.5)',
   },
   tabsIndicator: {
     position: 'absolute',
@@ -471,9 +488,6 @@ const styles = StyleSheet.create({
   },
   tabsIndicatorAnimated: {
     left: 0,
-  },
-  tabsIndicatorDark: {
-    backgroundColor: '#FFFFFF',
   },
   albumBox: {
     backgroundColor: '#F5F5F5',

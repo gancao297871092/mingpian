@@ -46,7 +46,7 @@ export type RootStackParamList = {
   editBio: undefined;
   reportBbs: { id: string };
   companyPage: { id: string | number; userId?: string | number };
-  /** 企业官网（figma 企业官网2 2134:6575 / 企业官网升级版 2136:6665；按 mainType 渲染免费/升级版） */
+  /** 企业官网（figma 10/企业官网普通版 2932:6801 / 企业官网升级版 2932:6699；按 mainType 渲染免费/升级版） */
   companyWebsite: { id: string | number; userId?: string | number; fromShare?: number | string };
   certification: { openIndex?: number };
   follows: { tab?: 'mutual' | 'follow' | 'fans'; userId?: number; nickname?: string; followShow?: number; fansShow?: number } | undefined;

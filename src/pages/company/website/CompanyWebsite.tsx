@@ -18,7 +18,8 @@ export default function CompanyWebsite() {
     API.company
       .mainType({ cpId: id })
       .then((res) => {
-        if (res.code === '200' && res.data) setMainType(Number(res.data.mainType ?? 0));
+        setMainType(1)
+        // if (res.code === '200' && res.data) setMainType(Number(res.data.mainType ?? 0));
       })
       .catch(() => setMainType(0));
   }, [id]);
@@ -26,7 +27,7 @@ export default function CompanyWebsite() {
   
   if (mainType === null) {
     return (
-      <SafeView backgroundColor="#FFFFFF">
+      <SafeView backgroundColor="#F6F7FB">
         <View style={styles.loading}>
           <ActivityIndicator color="#2962D4" />
         </View>

@@ -29,7 +29,6 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import SafeView from '@/components/SafeView';
-import { useUserStore } from '@/store/user';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
 import CompanyPostList from '@/pages/my/company/CompanyPostList';
@@ -43,8 +42,11 @@ import {
   ModuleHtml,
   NavPill,
   openNavigation,
+  SectionLabel,
+  ShareCircle,
   stripHtml,
   useCompanyMain,
+  websiteCard,
   WebsiteTabs,
   isVideoMedia,
   type WebsiteTab,
@@ -105,7 +107,8 @@ function HtmlScrollPage({
       scrollEventThrottle={16}
       showsVerticalScrollIndicator={false}
     >
-      {children}
+      {/* 白色内容体（figma 10 官网：tab 内容白卡），flexGrow 撑满 minHeight，头部区域露出页面灰底 */}
+      <View style={styles.pageBody}>{children}</View>
     </Reanimated.ScrollView>
   );
 }
@@ -149,16 +152,15 @@ function DynamicsScrollPage({
 }
 
 /**
- * 企业官网2（figma 2134:6575，免费版浅色官网，对齐小程序 freeView）
+ * 企业官网普通版（figma 10/企业官网普通版 2932:6801，浅色官网，对齐小程序 freeView）
  * 交互对齐快手/企业主页：各 tab 内容独立滚动并记住位置；头部+tab 栏为悬浮层，随当前 tab 滚动 1:1 平移；
  * 切 tab 时若已吸顶，目标页补滚到吸顶点（头部状态共享、不跳），否则保持各自位置
  */
-export default function WebsiteFree({ cpId, fromShare }: WebsiteFreeProps) {
+export default function WebsiteFree({ cpId }: WebsiteFreeProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
   const { data } = useCompanyMain(cpId);
-  const userInfo = useUserStore((s) => s.userInfo);
   const contactRef = useRef<BottomSheetModal>(null);
   const [activeTab, setActiveTab] = useState<number | string>(-2);
   const activeTabRef = useRef(activeTab);
@@ -178,8 +180,6 @@ export default function WebsiteFree({ cpId, fromShare }: WebsiteFreeProps) {
   }, [data]);
 
   const auths: string[] = (data?.authTypeList || []).map((o: any) => o.authTypeCode);
-  const isMyCompany = !!(userInfo?.cpId && String(userInfo.cpId) === String(cpId));
-  const showContact = String(fromShare || 0) === '1' && !isMyCompany;
   const contacts = data?.contactList || [];
   const introHtml = data?.des || (data?.desTxt ? `<p>${data.desTxt}</p>` : '');
   const medias: any[] = useMemo(() => data?.mediaLinkList || [], [data]);
@@ -221,10 +221,12 @@ export default function WebsiteFree({ cpId, fromShare }: WebsiteFreeProps) {
     pageYsRef.current[key] = y;
   }, []);
 
+  /** 头部卡片与内容白卡间距（figma 10 官网：20）；吸顶偏移需包含该间距，否则吸顶后 tab 栏与名称栏之间透出内容 */
+  const cardGap = scaleSizeH(20);
   /** 吸顶偏移量：头部滚出到 tab 栏钉在「状态栏+名称栏」下方时的滚动距离 */
-  const stickyY = Math.max(headerH - insets.top - STICKY_NICK_H, 0);
-  /** 内层页顶部留白 = 头部 + tab 栏；minHeight 保证短内容也能滚到吸顶点 */
-  const padTop = headerH + tabBarH;
+  const stickyY = Math.max(headerH + cardGap - insets.top - STICKY_NICK_H, 0);
+  /** 内层页顶部留白 = 头部 + 间距 + tab 栏；minHeight 保证短内容也能滚到吸顶点 */
+  const padTop = headerH + cardGap + tabBarH;
   const pageMinHeight = contentH > 0 ? contentH + stickyY : 0;
 
   /** 头部+tab 栏悬浮层：随当前 tab 滚动 1:1 平移，吸顶后停住 */
@@ -245,6 +247,26 @@ export default function WebsiteFree({ cpId, fromShare }: WebsiteFreeProps) {
           ),
         },
       ],
+    };
+  });
+
+  /** tab 白卡顶部圆角：随滚动从 20 渐变到 0，吸顶后与名称栏连成一体、消除两侧灰缺口（缩放值须提前算好，worklet 内不能调 scaleSizeW） */
+  const tabRadius = scaleSizeW(20);
+  const tabsWrapStyle = useAnimatedStyle(() => {
+    const sy = Math.max(stickyY, 1);
+    return {
+      borderTopLeftRadius: interpolate(
+        scrollY.value,
+        [sy - tabRadius, sy],
+        [tabRadius, 0],
+        Extrapolation.CLAMP,
+      ),
+      borderTopRightRadius: interpolate(
+        scrollY.value,
+        [sy - tabRadius, sy],
+        [tabRadius, 0],
+        Extrapolation.CLAMP,
+      ),
     };
   });
 
@@ -415,7 +437,7 @@ export default function WebsiteFree({ cpId, fromShare }: WebsiteFreeProps) {
   );
 
   return (
-    <SafeView backgroundColor="#FFFFFF">
+    <SafeView backgroundColor="#F6F7FB">
       <StatusBar barStyle="dark-content" />
       <View style={styles.flex1} onLayout={(e) => setContentH(e.nativeEvent.layout.height)}>
         {/* tab 内容：左右滑动切换（横向 FlatList pager，对齐企业主页），各页内层自滚动 */}
@@ -440,7 +462,7 @@ export default function WebsiteFree({ cpId, fromShare }: WebsiteFreeProps) {
         {/* 头部 + tab 栏悬浮层：随当前 tab 滚动 1:1 平移，吸顶后 tab 栏钉住 */}
         <Reanimated.View style={[styles.headerOverlay, collapseStyle]} pointerEvents="box-none">
           <View
-            style={[styles.content, { paddingTop: insets.top + scaleSizeH(81) }]}
+            style={[styles.content, { paddingTop: insets.top + scaleSizeH(76) }]}
             onLayout={(e) => setHeaderH(e.nativeEvent.layout.height)}
             {...headerPan.panHandlers}
           >
@@ -458,6 +480,13 @@ export default function WebsiteFree({ cpId, fromShare }: WebsiteFreeProps) {
                 ) : (
                   <View style={[styles.logo, styles.logoEmpty]} />
                 )}
+                {/* 认证徽章：贴在头像 62x62 右下角（figma 10 官网：18x18 蓝底徽章） */}
+                <ExpoImage
+                  source={VERIFIED_BADGE}
+                  style={styles.logoBadgeImg}
+                  contentFit="contain"
+                  pointerEvents="none"
+                />
               </View>
               <View style={styles.nameCol}>
                 {data ? (
@@ -469,32 +498,27 @@ export default function WebsiteFree({ cpId, fromShare }: WebsiteFreeProps) {
               </View>
             </View>
 
-            {/* 公司地址 */}
-            <Text style={styles.sectionLabel} pointerEvents="none">
-              公司地址
-            </Text>
-            {data ? (
-              <Text style={styles.address} pointerEvents="none">
-                {data.address || ''}
-              </Text>
-            ) : (
-              <View style={styles.skeletonAddress} pointerEvents="none" />
-            )}
-
-            {/* 导航 / 查看联系方式 */}
-            <View style={styles.btnRow}>
-              <NavPill onPress={() => openNavigation(data)} />
-              {showContact && <ContactPill onPress={onShowContact} />}
+            {/* 公司地址卡片：蓝条标签 + 地址 + 导航/查看联系方式 */}
+            <View style={[websiteCard.card, styles.addrCard]}>
+              <SectionLabel title="公司地址" />
+              {data ? (
+                <Text style={[websiteCard.text, styles.addrText]} pointerEvents="none">
+                  {data.address || ''}
+                </Text>
+              ) : (
+                <View style={styles.skeletonAddress} pointerEvents="none" />
+              )}
+              <View style={styles.btnRow}>
+                <NavPill onPress={() => openNavigation(data)} />
+                {/* 常显（figma 10 官网）：无联系方式时点击 toast 提示 */}
+                <ContactPill onPress={onShowContact} />
+              </View>
             </View>
           </View>
-          {/* 认证徽章：独立绝对定位在头像右下角（figma x50/y173，含 1px 白边描边），避免被圆角头像压住 */}
-          <ExpoImage
-            source={VERIFIED_BADGE}
-            style={[styles.logoBadgeImg, { top: insets.top + scaleSizeH(119) }]}
-            contentFit="contain"
-            pointerEvents="none"
-          />
-          <View style={styles.tabsWrap} onLayout={(e) => setTabBarH(e.nativeEvent.layout.height)}>
+          <Reanimated.View
+            style={[styles.tabsWrap, { marginTop: cardGap }, tabsWrapStyle]}
+            onLayout={(e) => setTabBarH(e.nativeEvent.layout.height)}
+          >
             <WebsiteTabs
               tabs={tabs}
               activeId={currentTab?.id}
@@ -502,7 +526,7 @@ export default function WebsiteFree({ cpId, fromShare }: WebsiteFreeProps) {
               scrollX={scrollX}
               pageWidth={windowWidth}
             />
-          </View>
+          </Reanimated.View>
         </Reanimated.View>
 
         {/* 吸顶名称栏：状态栏占位 + 企业名称，吸顶瞬间滑入 */}
@@ -516,6 +540,8 @@ export default function WebsiteFree({ cpId, fromShare }: WebsiteFreeProps) {
         </Reanimated.View>
 
         <BackCircle onPress={() => navigation.goBack()} />
+        {/* 右上角分享按钮：figma 10 官网新增，当前仅 UI 占位，点击行为待接 */}
+        <ShareCircle />
       </View>
 
       <ContactSheet ref={contactRef} contacts={contacts} onClose={() => contactRef.current?.dismiss()} />
@@ -545,25 +571,27 @@ const styles = StyleSheet.create({
   pageBox: {
     flex: 1,
   },
+  /** 模块 tab 内容白卡（figma 10 官网：tab 栏以下为白色内容体） */
+  pageBody: {
+    flexGrow: 1,
+    backgroundColor: '#FFFFFF',
+  },
   content: {
     paddingHorizontal: scaleSizeW(16),
-    paddingBottom: scaleSizeH(18),
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F6F7FB',
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   logoWrap: {
-    width: scaleSizeW(48),
-    height: scaleSizeW(48),
+    width: scaleSizeW(62),
+    height: scaleSizeW(62),
   },
   logo: {
-    width: scaleSizeW(48),
-    height: scaleSizeW(48),
-    borderRadius: scaleSizeW(24),
-    borderWidth: 1,
-    borderColor: '#D9D9D9',
+    width: scaleSizeW(62),
+    height: scaleSizeW(62),
+    borderRadius: scaleSizeW(31),
     backgroundColor: '#FFFFFF',
   },
   logoEmpty: {
@@ -571,14 +599,15 @@ const styles = StyleSheet.create({
   },
   logoBadgeImg: {
     position: 'absolute',
-    left: scaleSizeW(50),
-    width: scaleSizeW(15),
-    height: scaleSizeW(15),
-    zIndex: 7,
+    right: 0,
+    bottom: 0,
+    width: scaleSizeW(18),
+    height: scaleSizeW(18),
+    zIndex: 2,
   },
   nameCol: {
     flex: 1,
-    marginLeft: scaleSizeW(10),
+    marginLeft: scaleSizeW(20),
     gap: scaleSizeH(10),
   },
   name: {
@@ -586,23 +615,16 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#000000',
   },
-  sectionLabel: {
-    marginTop: scaleSizeH(40),
-    fontSize: setSpText(14),
-    fontWeight: '500',
-    letterSpacing: -0.4,
-    color: '#000000',
+  addrCard: {
+    marginTop: scaleSizeH(20),
   },
-  address: {
-    marginTop: scaleSizeH(10),
-    fontSize: setSpText(14),
-    lineHeight: setSpText(21),
-    color: '#000000',
+  addrText: {
+    marginTop: scaleSizeH(13),
   },
   btnRow: {
     flexDirection: 'row',
-    gap: scaleSizeW(10),
-    marginTop: scaleSizeH(19),
+    gap: scaleSizeW(9),
+    marginTop: scaleSizeH(14),
   },
   headerOverlay: {
     position: 'absolute',
@@ -613,6 +635,9 @@ const styles = StyleSheet.create({
   },
   tabsWrap: {
     backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: scaleSizeW(20),
+    borderTopRightRadius: scaleSizeW(20),
+    overflow: 'hidden',
   },
   nickOverlay: {
     position: 'absolute',
@@ -673,7 +698,7 @@ const styles = StyleSheet.create({
     height: scaleSizeW(14),
     borderRadius: scaleSizeW(4),
     backgroundColor: '#F5F5F5',
-    marginTop: scaleSizeH(10),
+    marginTop: scaleSizeH(13),
   },
   contentLoading: {
     marginTop: scaleSizeH(40),
