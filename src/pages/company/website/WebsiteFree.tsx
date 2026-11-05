@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Animated,
+  FlatList,
   Modal,
   PanResponder,
   ScrollView,
@@ -172,6 +173,16 @@ export default function WebsiteFree({ cpId }: WebsiteFreeProps) {
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
   const [preview, setPreview] = useState<{ urls: string[]; index: number } | null>(null);
+  /** 预览器起步定位完成后再显示，避免打开瞬间露出第 0 张/复用旧图闪帧 */
+  const [previewShown, setPreviewShown] = useState(false);
+  useEffect(() => {
+    if (!preview) {
+      setPreviewShown(false);
+      return undefined;
+    }
+    const t = setTimeout(() => setPreviewShown(true), 120);
+    return () => clearTimeout(t);
+  }, [preview]);
   const [contentH, setContentH] = useState(0);
   const [headerH, setHeaderH] = useState(0);
   const [tabBarH, setTabBarH] = useState(0);
@@ -590,16 +601,26 @@ export default function WebsiteFree({ cpId }: WebsiteFreeProps) {
 
       <Modal transparent visible={!!preview} onRequestClose={() => setPreview(null)}>
         {!!preview && (
-          <GestureViewer
-            data={preview.urls}
-            initialIndex={preview.index}
-            renderItem={(uri: string) => (
-              <ExpoImage source={{ uri }} style={styles.previewImage} contentFit="contain" transition={100} />
-            )}
-            ListComponent={ScrollView}
-            onDismiss={() => setPreview(null)}
-            onSingleTap={() => setPreview(null)}
-          />
+          <View style={!previewShown && styles.previewHidden}>
+            {/* FlatList 模式用 initialScrollIndex 直接定位，避免 ScrollView 模式先渲染第 0 张再跳变（闪上一张图） */}
+            <GestureViewer
+              data={preview.urls}
+              initialIndex={preview.index}
+              renderItem={(uri: string) => (
+                // recyclingKey：cell 复用时先清空旧图再加载新图，防止短暂显示上一张
+                <ExpoImage
+                  source={{ uri }}
+                  style={styles.previewImage}
+                  contentFit="contain"
+                  transition={100}
+                  recyclingKey={uri}
+                />
+              )}
+              ListComponent={FlatList}
+              onDismiss={() => setPreview(null)}
+              onSingleTap={() => setPreview(null)}
+            />
+          </View>
         )}
       </Modal>
     </SafeView>
@@ -790,5 +811,9 @@ const styles = StyleSheet.create({
   previewImage: {
     width: '100%',
     height: '100%',
+  },
+  /** 预览器起步定位期间隐藏（配合 previewShown 延迟显示） */
+  previewHidden: {
+    opacity: 0,
   },
 });

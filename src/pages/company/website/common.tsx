@@ -13,10 +13,10 @@ import { Image as ExpoImage } from 'expo-image';
 import LinearGradient from 'react-native-linear-gradient';
 import Reanimated from 'react-native-reanimated';
 import Toast from 'react-native-toast-message';
-import Video from 'react-native-video';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { API } from '@/api';
 import LongHtmlView from '@/components/LongHtmlView';
+import VideoPlayerModal from '@/components/VideoPlayerModal';
 import { scaleSizeH, scaleSizeW, setSpText, SCREEN_WIDTH } from '@/utils/screenUtils';
 import { ossVideoSnapshot } from '@/pages/square/bbsDetail/detailTransform';
 import CompanyPostList from '@/pages/my/company/CompanyPostList';
@@ -66,9 +66,16 @@ export function mediaUrl(item: any): string {
   return item?.media?.mdUrl || item?.mdUrl || '';
 }
 
+/** 视频播放地址：优先 mdUrlOss 第一段的 OSS 源站真实视频（CDN 地址可能存的是截帧图，直接播放会黑屏） */
+export function mediaVideoUrl(item: any): string {
+  const oss = item?.media?.mdUrlOss || item?.mdUrlOss || '';
+  const origin = String(oss).split(';')[0];
+  return origin || mediaUrl(item);
+}
+
 export function mediaThumb(item: any): string {
   const url = mediaUrl(item);
-  return isVideoMedia(item) ? ossVideoSnapshot(url) : url;
+  return isVideoMedia(item) ? ossVideoSnapshot(mediaVideoUrl(item), 1000) : url;
 }
 
 /** 悬浮返回按钮（figma Button Group 1：44 白圆 + 阴影，对齐 CompanyPage；animatedStyle 用于吸顶时平移进名称栏） */
@@ -261,7 +268,16 @@ export function WebsiteTabs({ tabs, activeId, onChange, scrollX, pageWidth }: We
 }
 
 /** 模块富文本内容（对齐小程序 mp-html）；baseStyle 需稳定引用，避免 LongHtmlView memo 失效 */
-export function ModuleHtml({ html, dark }: { html: string; dark?: boolean }) {
+export function ModuleHtml({
+  html,
+  dark,
+  onImagePress,
+}: {
+  html: string;
+  dark?: boolean;
+  /** 点击富文本图片（查看大图） */
+  onImagePress?: (urls: string[], index: number) => void;
+}) {
   const baseStyle = useMemo(
     () => ({ ...styles.moduleHtmlBase, ...(dark ? styles.moduleHtmlDark : styles.moduleHtmlLight) }),
     [dark],
@@ -271,6 +287,7 @@ export function ModuleHtml({ html, dark }: { html: string; dark?: boolean }) {
       html={html}
       contentWidth={SCREEN_WIDTH - scaleSizeW(32)}
       baseStyle={baseStyle}
+      onImagePress={onImagePress}
     />
   );
 }
@@ -316,7 +333,7 @@ export function openNavigation(data: any) {
   Linking.openURL(url).catch(() => Toast.show({ type: 'info', text1: '未安装可用的地图应用' }));
 }
 
-/** 相册项：图片点击预览；视频点击原位播放（对齐 LongHtmlView RichVideoBox） */
+/** 相册项：图片点击预览大图；视频点击全屏预览播放（VideoPlayerModal） */
 export function AlbumItem({
   item,
   width,
@@ -331,35 +348,33 @@ export function AlbumItem({
   onPreview: () => void;
 }) {
   const video = isVideoMedia(item);
-  const [playing, setPlaying] = useState(false);
+  const [playerVisible, setPlayerVisible] = useState(false);
   const boxStyle = { width, height, borderRadius: radius };
-  if (video && playing) {
-    return (
-      <Video
-        source={{ uri: mediaUrl(item) }}
-        style={[styles.albumBox, boxStyle]}
-        controls
-        paused={false}
-        resizeMode="contain"
-      />
-    );
-  }
   return (
-    <TouchableOpacity activeOpacity={0.9} onPress={video ? () => setPlaying(true) : onPreview}>
-      <ExpoImage
-        source={{ uri: mediaThumb(item) }}
-        recyclingKey={mediaThumb(item)}
-        style={[styles.albumBox, boxStyle]}
-        contentFit="cover"
-        transition={150}
-        cachePolicy="memory-disk"
-      />
+    <>
+      <TouchableOpacity activeOpacity={0.9} onPress={video ? () => setPlayerVisible(true) : onPreview}>
+        <ExpoImage
+          source={{ uri: mediaThumb(item) }}
+          recyclingKey={mediaThumb(item)}
+          style={[styles.albumBox, boxStyle]}
+          contentFit="cover"
+          transition={150}
+          cachePolicy="memory-disk"
+        />
+        {video && (
+          <View style={styles.albumPlayPill} pointerEvents="none">
+            <PlayTriangleIcon size={10} />
+          </View>
+        )}
+      </TouchableOpacity>
       {video && (
-        <View style={styles.albumPlayPill} pointerEvents="none">
-          <PlayTriangleIcon size={10} />
-        </View>
+        <VideoPlayerModal
+          visible={playerVisible}
+          uri={mediaVideoUrl(item)}
+          onClose={() => setPlayerVisible(false)}
+        />
       )}
-    </TouchableOpacity>
+    </>
   );
 }
 

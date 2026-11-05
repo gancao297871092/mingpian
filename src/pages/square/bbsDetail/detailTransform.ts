@@ -30,9 +30,9 @@ export interface DetailData {
   videoUrl: string;
 }
 
-export function ossVideoSnapshot(videoUrl: string): string {
+export function ossVideoSnapshot(videoUrl: string, t = 0): string {
   if (!videoUrl) return '';
-  return `${videoUrl}?x-oss-process=video/snapshot,t_0,f_jpg,w_750,h_1000,m_fast`;
+  return `${videoUrl}?x-oss-process=video/snapshot,t_${t},f_jpg,w_750,h_1000,m_fast`;
 }
 
 export function formatPushTime(t?: string): string {
