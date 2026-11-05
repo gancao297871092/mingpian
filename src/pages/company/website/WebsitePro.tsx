@@ -580,6 +580,7 @@ export default function WebsitePro({ cpId }: WebsiteProProps) {
           <Reanimated.View
             style={[styles.tabsWrap, { marginTop: cardGap }, tabsWrapStyle]}
             onLayout={(e) => setTabBarH(e.nativeEvent.layout.height)}
+            {...headerPan.panHandlers}
           >
             <WebsiteTabs
               tabs={tabs}
