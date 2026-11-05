@@ -1,5 +1,5 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import Reanimated from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
@@ -47,7 +47,7 @@ interface PostState {
   loaded: boolean;
 }
 
-function transformBbsToItem(bbs: any): WaterfallItem {
+function transformBbsToItem(bbs: any, cardWidth: number): WaterfallItem {
   const media = bbs.mediaLinkList?.[0]?.media;
   const isVideo = media?.fileType === 'video';
   const imageUrl = isVideo
@@ -55,7 +55,8 @@ function transformBbsToItem(bbs: any): WaterfallItem {
     : media?.mdUrl || bbs.posterUrl || bbs.coverUrl || '';
   const originalWidth = media?.width ? parseInt(media.width, 10) : 194;
   const originalHeight = media?.height ? parseInt(media.height, 10) : 200;
-  const imageHeight = Math.min(Math.round((194 * originalHeight) / originalWidth), 320);
+  // 瀑布流按自身尺寸显示：高度按原始宽高比折算到实际列宽（设备 px，不再走 scaleSizeH），最大高度对齐原 320 逻辑值
+  const imageHeight = Math.min(Math.round((cardWidth * originalHeight) / originalWidth), scaleSizeW(320));
   return {
     id: String(bbs.id),
     imageUrl,
@@ -93,6 +94,9 @@ const CompanyPostList = forwardRef<TabHandle, CompanyPostListProps>(function Com
   ref,
 ) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { width: windowWidth } = useWindowDimensions();
+  /** 瀑布流卡片定宽：列表左右留白 5、卡片左右外边距 2（对齐 402 设计稿列宽 192），防止 masonry 下卡片收缩、图片变小 */
+  const cardWidth = (windowWidth - scaleSizeW(10)) / 2 - scaleSizeW(4);
   const [state, setState] = useState<PostState>({ list: [], page: 1, pages: 1, loading: false, loaded: false });
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -104,7 +108,7 @@ const CompanyPostList = forwardRef<TabHandle, CompanyPostListProps>(function Com
       try {
         const res = await API.company.bbsMain({ cpId, pageNum, pageSize: PAGE_SIZE });
         if (res.code === '200') {
-          const list = (res.data?.list ?? []).map(transformBbsToItem);
+          const list = (res.data?.list ?? []).map((bbs: any) => transformBbsToItem(bbs, cardWidth));
           setState((prev) => ({
             list: pageNum === 1 ? list : [...prev.list, ...list],
             page: res.data?.pageNum || pageNum,
@@ -119,7 +123,7 @@ const CompanyPostList = forwardRef<TabHandle, CompanyPostListProps>(function Com
         setState((prev) => ({ ...prev, loading: false, loaded: true }));
       }
     },
-    [cpId],
+    [cpId, cardWidth],
   );
 
   useEffect(() => {
@@ -186,6 +190,9 @@ const CompanyPostList = forwardRef<TabHandle, CompanyPostListProps>(function Com
     return (
       <WaterfallCard
         item={item}
+        cardWidth={cardWidth}
+        imageWidthPx={cardWidth}
+        imageHeightPx={item.imageHeight}
         onToggleLike={onToggleLike}
         onPress={() => {
           setDetailCache(item.id, item.raw);

@@ -535,9 +535,13 @@ export default function WebsitePro({ cpId }: WebsiteProProps) {
                     </TouchableOpacity>
                   )}
                 </View>
-                {/* 首帧不截断测行数（截断后 lines 最多只报截断行数，测不出真实行数），测完再按 5 行截断 */}
+                {/* 首帧不截断测行数（截断后 lines 最多只报截断行数，测不出真实行数），测完再按 5 行截断；测量期间透明，避免先看到全文再收起 */}
                 <Text
-                  style={[websiteCard.text, styles.aboutDesc]}
+                  style={[
+                    websiteCard.text,
+                    styles.aboutDesc,
+                    aboutLines === 0 && styles.aboutMeasuring,
+                  ]}
                   numberOfLines={aboutLines === 0 || expanded ? undefined : 5}
                   pointerEvents="none"
                   onTextLayout={(e) => {
@@ -708,6 +712,10 @@ const styles = StyleSheet.create({
   aboutDesc: {
     marginTop: scaleSizeH(13),
     lineHeight: setSpText(25),
+  },
+  /** 关于企业行数测量期间隐藏，避免先看到全文再收起 */
+  aboutMeasuring: {
+    opacity: 0,
   },
   albumCard: {
     marginTop: scaleSizeH(10),

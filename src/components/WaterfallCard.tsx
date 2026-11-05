@@ -39,6 +39,10 @@ interface CardProps {
   imageHeightPx?: number;
   /** 固定卡片整体高度（px） */
   cardHeight?: number;
+  /** 固定卡片宽度（px）：FlashList masonry 下容器宽度可能未强制，需显式定宽防止卡片收缩 */
+  cardWidth?: number;
+  /** 固定图片宽度（px）：与 cardWidth 配套，避免 '100%' 在 masonry 测量时回退为图片固有尺寸 */
+  imageWidthPx?: number;
   /** 隐藏标题（横滑区对齐小程序：只展示图片+信息） */
   hideTitle?: boolean;
 }
@@ -49,18 +53,24 @@ export default function WaterfallCard({
   onPress,
   imageHeightPx,
   cardHeight,
+  cardWidth,
+  imageWidthPx,
   hideTitle,
 }: CardProps) {
   return (
     <TouchableOpacity
       activeOpacity={0.9}
-      style={[styles.card, cardHeight ? { height: cardHeight } : null]}
+      style={[styles.card, cardWidth ? { width: cardWidth } : null, cardHeight ? { height: cardHeight } : null]}
       onPress={() => onPress?.(item.id)}
     >
       {!!item.imageUrl && (
         <ExpoImage
           source={{ uri: item.imageUrl }}
-          style={[styles.cardImage, { height: imageHeightPx ?? scaleSizeH(item.imageHeight) }]}
+          style={[
+            styles.cardImage,
+            imageWidthPx ? { width: imageWidthPx } : null,
+            { height: imageHeightPx ?? scaleSizeH(item.imageHeight) },
+          ]}
           contentFit="cover"
           transition={200}
           cachePolicy="memory-disk"
