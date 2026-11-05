@@ -1,4 +1,4 @@
-import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Linking,
@@ -260,13 +260,17 @@ export function WebsiteTabs({ tabs, activeId, onChange, scrollX, pageWidth }: We
   );
 }
 
-/** 模块富文本内容（对齐小程序 mp-html） */
+/** 模块富文本内容（对齐小程序 mp-html）；baseStyle 需稳定引用，避免 LongHtmlView memo 失效 */
 export function ModuleHtml({ html, dark }: { html: string; dark?: boolean }) {
+  const baseStyle = useMemo(
+    () => ({ ...styles.moduleHtmlBase, ...(dark ? styles.moduleHtmlDark : styles.moduleHtmlLight) }),
+    [dark],
+  );
   return (
     <LongHtmlView
       html={html}
       contentWidth={SCREEN_WIDTH - scaleSizeW(32)}
-      baseStyle={{ ...styles.moduleHtmlBase, ...(dark ? styles.moduleHtmlDark : styles.moduleHtmlLight) }}
+      baseStyle={baseStyle}
     />
   );
 }

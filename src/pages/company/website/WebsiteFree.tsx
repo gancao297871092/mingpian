@@ -8,6 +8,7 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
   useWindowDimensions,
 } from 'react-native';
@@ -33,6 +34,7 @@ import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
 import CompanyPostList from '@/pages/my/company/CompanyPostList';
 import ContactSheet from './ContactSheet';
+import { ChevronDownIcon } from './icons';
 import {
   AlbumItem,
   BackCircle,
@@ -53,6 +55,10 @@ import {
 } from './common';
 
 const VERIFIED_BADGE = require('@/assets/company-website/verified-badge.png');
+
+/** 企业简介收起时展示 5 行（与富文本基础行高 setSpText(24) 对齐） */
+const INTRO_MAX_LINES = 5;
+const INTRO_COLLAPSED_H = INTRO_MAX_LINES * setSpText(24);
 
 interface WebsiteFreeProps {
   cpId: number | string;
@@ -169,6 +175,9 @@ export default function WebsiteFree({ cpId }: WebsiteFreeProps) {
   const [contentH, setContentH] = useState(0);
   const [headerH, setHeaderH] = useState(0);
   const [tabBarH, setTabBarH] = useState(0);
+  /** 企业简介展开/收起；纯文本实测行数（0 = 未测量），超过 5 行才显示展开按钮 */
+  const [introExpanded, setIntroExpanded] = useState(false);
+  const [introLines, setIntroLines] = useState(0);
 
   const tabs: WebsiteTab[] = useMemo(() => {
     if (!data) return [{ id: -2, name: '企业信息' }];
@@ -397,8 +406,40 @@ export default function WebsiteFree({ cpId }: WebsiteFreeProps) {
             <View style={styles.infoContent}>
               {!!stripHtml(introHtml) && (
                 <>
-                  <Text style={styles.infoTitle}>企业简介</Text>
-                  <ModuleHtml html={introHtml} />
+                  <View style={styles.infoHeadRow}>
+                    <Text style={[styles.infoTitle, styles.infoTitleFlat]}>企业简介</Text>
+                    {introLines > INTRO_MAX_LINES && (
+                      <TouchableOpacity
+                        activeOpacity={0.7}
+                        style={styles.expandBtn}
+                        onPress={() => setIntroExpanded((v) => !v)}
+                      >
+                        <Text style={styles.expandText}>{introExpanded ? '收起' : '展开'}</Text>
+                        <View style={introExpanded && styles.expandIconUp}>
+                          <ChevronDownIcon size={10} />
+                        </View>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  {/* 收起时按 5 行高度裁剪（行高与富文本基础样式对齐）；行数测出前隐藏正文，避免先看到全文再收起 */}
+                  <View
+                    style={[
+                      !introExpanded && introLines > INTRO_MAX_LINES ? styles.introClamp : undefined,
+                      introLines === 0 && styles.introMeasuring,
+                    ]}
+                  >
+                    <ModuleHtml html={introHtml} />
+                  </View>
+                  {/* 隐藏纯文本测行数：与富文本同宽同字号，>5 行才显示展开按钮；Text 布局稳定，只触发一次 setState */}
+                  {introLines === 0 && (
+                    <Text
+                      pointerEvents="none"
+                      style={styles.introMeasureText}
+                      onTextLayout={(e) => setIntroLines(e.nativeEvent.lines.length)}
+                    >
+                      {stripHtml(introHtml)}
+                    </Text>
+                  )}
                 </>
               )}
               {medias.length > 0 && (
@@ -433,7 +474,7 @@ export default function WebsiteFree({ cpId }: WebsiteFreeProps) {
         </HtmlScrollPage>
       );
     },
-    [activeIndexSV, scrollY, onScrollJS, windowWidth, padTop, pageMinHeight, registerRef, cpId, data, introHtml, medias, onPreviewImage],
+    [activeIndexSV, scrollY, onScrollJS, windowWidth, padTop, pageMinHeight, registerRef, cpId, data, introHtml, introExpanded, introLines, medias, onPreviewImage],
   );
 
   return (
@@ -669,6 +710,47 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#000000',
     marginBottom: scaleSizeH(8),
+  },
+  infoHeadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: scaleSizeH(8),
+  },
+  /** 标题在 infoHeadRow 内时，外边距由行容器承担 */
+  infoTitleFlat: {
+    marginBottom: 0,
+  },
+  expandBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSizeW(5),
+  },
+  expandText: {
+    fontSize: setSpText(14),
+    color: '#6C6C6C',
+  },
+  expandIconUp: {
+    transform: [{ rotate: '180deg' }],
+  },
+  /** 企业简介高度测量期间隐藏，避免先看到全文再收起 */
+  introMeasuring: {
+    opacity: 0,
+  },
+  /** 隐藏测行数文本：与富文本同宽（内容区 padding 16）、同字号行高 */
+  introMeasureText: {
+    position: 'absolute',
+    left: scaleSizeW(16),
+    right: scaleSizeW(16),
+    top: 0,
+    opacity: 0,
+    fontSize: setSpText(14),
+    lineHeight: setSpText(24),
+  },
+  /** 企业简介收起时按 5 行高度裁剪 */
+  introClamp: {
+    height: INTRO_COLLAPSED_H,
+    overflow: 'hidden',
   },
   albumTitle: {
     marginTop: scaleSizeH(22),
