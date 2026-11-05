@@ -14,3 +14,7 @@ export function setDetailCache(id: string, data: any) {
 export function getDetailCache(id: string): any {
   return cache.get(id);
 }
+
+export function removeDetailCache(id: string) {
+  cache.delete(id);
+}

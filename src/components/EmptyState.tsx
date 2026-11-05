@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, ImageSourcePropType, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { Image, ImageSourcePropType, ImageStyle, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { useTheme } from '@/theme';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 
@@ -8,6 +8,7 @@ const variantImages: Record<string, ImageSourcePropType> = {
   search: require('@/assets/empty-state/empty-search.png'),
   comment: require('@/assets/empty-state/empty-comment.png'),
   permission: require('@/assets/empty-state/empty-permission.png'),
+  unavailable: require('@/assets/empty-state/empty-unavailable.png'),
 };
 
 const variantTitles: Record<string, string> = {
@@ -15,11 +16,14 @@ const variantTitles: Record<string, string> = {
   search: '暂无搜索结果',
   comment: '暂无评论',
   permission: '暂无权限',
+  unavailable: '当前内容无法查看',
 };
 
 export interface EmptyStateProps {
-  variant?: 'content' | 'search' | 'comment' | 'permission' | 'custom';
+  variant?: 'content' | 'search' | 'comment' | 'permission' | 'unavailable' | 'custom';
   image?: ImageSourcePropType;
+  imageOpacity?: number;
+  imageStyle?: ImageStyle;
   title?: string;
   description?: string;
   actionText?: string;
@@ -30,6 +34,8 @@ export interface EmptyStateProps {
 export default function EmptyState({
   variant = 'content',
   image,
+  imageOpacity = 1,
+  imageStyle,
   title,
   description,
   actionText,
@@ -43,7 +49,7 @@ export default function EmptyState({
 
   return (
     <View style={[styles.container, style]}>
-      <Image source={source} style={styles.image} resizeMode="contain" />
+      <Image source={source} style={[styles.image, { opacity: imageOpacity }, imageStyle]} resizeMode="contain" />
       {displayTitle ? (
         <Text style={[styles.title, { color: theme.text }]}>{displayTitle}</Text>
       ) : null}

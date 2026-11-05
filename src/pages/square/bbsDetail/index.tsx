@@ -38,7 +38,7 @@ import { useUserStore } from '@/store/user';
 import { useSettingStore } from '@/store/setting';
 import { useBbsInteractionStore } from '@/store/bbsInteraction';
 import { toggleFollow, useFollowStore, setFollow } from '@/store/follow';
-import { getDetailCache } from '@/utils/detailCache';
+import { getDetailCache, removeDetailCache } from '@/utils/detailCache';
 import CommentInputSheet from './CommentInputSheet';
 import CommentActionSheet, { type CommentAction } from './CommentActionSheet';
 import CommentReportSheet from './CommentReportSheet';
@@ -52,10 +52,13 @@ import {
   type DetailData,
 } from './detailTransform';
 import type { RootStackParamList } from '@/route/map';
+import { isBbsUnavailable } from '@/utils/request';
 import { goUserHome } from '@/route/navigationRef';
 
 const BLUE = '#2962D4';
 const LIKE_RED = '#FE2B55';
+
+let unavailableTickTimer: ReturnType<typeof setInterval> | null = null;
 
 const THUMB_PATH =
   'M12.6741 7.94118C13.0831 6.11417 13.3687 4.79274 13.5314 3.97427C13.9409 1.91363 12.8775 0 10.7699 0C8.86939 0 7.91493 0.944479 7.35213 2.83239L7.33769 2.88751C6.99985 4.41474 6.48325 5.59862 5.79944 6.44571C5.44362 6.8876 4.99556 7.24642 4.4866 7.49707C3.97763 7.74772 3.42006 7.88415 2.85286 7.89682L2.31368 7.90837C1.02795 7.93593 0 8.99433 0 10.2908V18.1126C0 19.7073 1.28232 21.0001 2.86441 21.0001H13.0164C15.1017 21.0001 16.9631 19.6818 17.6705 17.7044L19.7795 11.8083C20.316 10.3082 19.5448 8.65335 18.0567 8.11233C17.7452 7.99909 17.4163 7.94117 17.0849 7.94118H12.6741ZM10.7688 1.57501C11.7348 1.57501 12.2331 2.47276 11.9966 3.66504C11.8102 4.60374 11.4555 6.23492 10.9329 8.55412C10.8219 9.04684 11.1928 9.51619 11.6936 9.51619H17.0749C17.2251 9.51619 17.3742 9.54244 17.5156 9.59415C18.1911 9.83985 18.5412 10.5922 18.2976 11.2742L16.1919 17.1699C15.7086 18.5234 14.4368 19.4251 13.0119 19.4251H2.87517C2.15697 19.4251 1.57501 18.8373 1.57501 18.1126V10.2908C1.57501 9.85114 1.92308 9.4923 2.35831 9.48311L2.89644 9.47156C3.68964 9.45367 4.46933 9.26254 5.18088 8.91157C5.89244 8.5606 6.51864 8.05828 7.0156 7.4398C7.86086 6.39138 8.47117 4.99592 8.8581 3.25921C9.23925 1.99343 9.6687 1.57501 10.7691 1.57501H10.7688Z';
@@ -310,29 +313,29 @@ function ReplyRow({
   return (
     <TouchableOpacity activeOpacity={1} onLongPress={onLongPress} delayLongPress={350}>
       <View style={styles.replyRow}>
-      <ExpoImage source={{ uri: reply.avatar }} style={styles.replyAvatar} contentFit="cover" transition={150} recyclingKey={reply.avatar} />
-      <View style={styles.replyBody}>
-        <View style={styles.replyNameRow}>
-          <Text style={styles.commentName} numberOfLines={1}>{reply.userName}</Text>
-          {reply.isAuthor && (
-            <View style={styles.authorBadge}>
-              <Text style={styles.authorBadgeText}>作者</Text>
-            </View>
-          )}
-        </View>
-        <Text style={styles.commentContent}>
-          {reply.replyTo ? `回复 ${reply.replyTo}：` : ''}{reply.content}
-        </Text>
-        <View style={styles.commentMetaRow}>
-          <View style={styles.commentMetaLeft}>
-            <Text style={styles.commentMetaText}>{reply.time} {reply.location}</Text>
-            <PermissionButton activeOpacity={0.7} hitSlop={6} onPress={() => onReply?.(reply.userName, reply.userId)}>
-              <Text style={styles.commentReplyText}>回复</Text>
-            </PermissionButton>
+        <ExpoImage source={{ uri: reply.avatar }} style={styles.replyAvatar} contentFit="cover" transition={150} recyclingKey={reply.avatar} />
+        <View style={styles.replyBody}>
+          <View style={styles.replyNameRow}>
+            <Text style={styles.commentName} numberOfLines={1}>{reply.userName}</Text>
+            {reply.isAuthor && (
+              <View style={styles.authorBadge}>
+                <Text style={styles.authorBadgeText}>作者</Text>
+              </View>
+            )}
           </View>
-          <CommentLike commentId={reply.id} count={reply.likeCount} isLike={reply.isLike} showCount={false} />
+          <Text style={styles.commentContent}>
+            {reply.replyTo ? `回复 ${reply.replyTo}：` : ''}{reply.content}
+          </Text>
+          <View style={styles.commentMetaRow}>
+            <View style={styles.commentMetaLeft}>
+              <Text style={styles.commentMetaText}>{reply.time} {reply.location}</Text>
+              <PermissionButton activeOpacity={0.7} hitSlop={6} onPress={() => onReply?.(reply.userName, reply.userId)}>
+                <Text style={styles.commentReplyText}>回复</Text>
+              </PermissionButton>
+            </View>
+            <CommentLike commentId={reply.id} count={reply.likeCount} isLike={reply.isLike} showCount={false} />
+          </View>
         </View>
-      </View>
       </View>
     </TouchableOpacity>
   );
@@ -389,7 +392,7 @@ function CommentItem({
             <Text style={styles.topBadgeText}>置顶评论</Text>
           </View>
         )}
-          {visibleReplies.map(r => (
+        {visibleReplies.map(r => (
           <ReplyRow
             key={r.id}
             reply={r}
@@ -415,6 +418,140 @@ function CommentItem({
 
 export default function BbsDetail() {
   const route = useRoute<RouteProp<RootStackParamList, 'bbsDetail'>>();
+  // console.log('bbsDetail route.params', route.params);
+  // const route: { params: RootStackParamList['bbsDetail'] & Record<string, unknown> } = {
+  //   params: {
+  //     ...actualRoute.params,
+  //     "id": '1027',
+  //     "bbs": {
+  //       "id": 1027,
+  //       "userId": 412,
+  //       "cardId": null,
+  //       "title": "11",
+  //       "content": "11",
+  //       "isAi": 0,
+  //       "tags": null,
+  //       "source": null,
+  //       "countBrowse": 30,
+  //       "countFavorite": 0,
+  //       "countLike": 0,
+  //       "status": 1,
+  //       "boardType": 0,
+  //       "category": null,
+  //       "declaration": 0,
+  //       "visibility": 0,
+  //       "commentScope": 0,
+  //       "aiConnectEnabled": 1,
+  //       "syncHappening": 1,
+  //       "coverUrl": null,
+  //       "ipLocation": null,
+  //       "checkMsg": null,
+  //       "pushTime": "2026/10/14 16:24:46",
+  //       "createTime": null,
+  //       "longitude": 106.568048,
+  //       "latitude": 29.59141,
+  //       "province": "重庆市",
+  //       "city": "重庆市",
+  //       "sunCode": "https://static.cqwqjl.com/cards/sunCode/20261014/2d58d4c41eec40b5b32c704d2d9deb22.png",
+  //       "isToLife": 0,
+  //       "isLifeTop": 0,
+  //       "isIndexTop": 0,
+  //       "posterUrl": null,
+  //       "userIsZan": 0,
+  //       "userIsFavorites": 0,
+  //       "mediaLinkList": [
+  //         {
+  //           "id": 28494,
+  //           "userId": 412,
+  //           "type": 6,
+  //           "mdId": 28560,
+  //           "targetId": 1027,
+  //           "isIndex": 0,
+  //           "createTime": "2026/10/14 16:24:48",
+  //           "media": {
+  //             "id": 28560,
+  //             "userId": 412,
+  //             "mdUrl": "https://static.cqwqjl.com/cards/images/20261014/1791966270085-w2v9h2.jpg",
+  //             "duration": null,
+  //             "fileType": "image",
+  //             "height": null,
+  //             "width": null,
+  //             "size": null,
+  //             "status": 1,
+  //             "createTime": "2026/10/14 16:24:48",
+  //             "mdUrlOss": null
+  //           }
+  //         }
+  //       ],
+  //       "userInfoVo": {
+  //         "id": null,
+  //         "userId": 412,
+  //         "cardId": null,
+  //         "title": null,
+  //         "content": null,
+  //         "isAi": null,
+  //         "tags": null,
+  //         "source": null,
+  //         "countBrowse": null,
+  //         "countFavorite": null,
+  //         "countLike": null,
+  //         "status": null,
+  //         "boardType": null,
+  //         "category": null,
+  //         "declaration": null,
+  //         "visibility": null,
+  //         "commentScope": null,
+  //         "aiConnectEnabled": null,
+  //         "syncHappening": null,
+  //         "coverUrl": null,
+  //         "ipLocation": null,
+  //         "checkMsg": null,
+  //         "pushTime": null,
+  //         "createTime": null,
+  //         "longitude": null,
+  //         "latitude": null,
+  //         "province": null,
+  //         "city": null,
+  //         "sunCode": null,
+  //         "isToLife": null,
+  //         "isLifeTop": null,
+  //         "isIndexTop": null,
+  //         "posterUrl": null,
+  //         "userIsZan": 0,
+  //         "userIsFavorites": 0,
+  //         "mediaLinkList": null,
+  //         "userInfoVo": null,
+  //         "mediaList": null,
+  //         "totalWeight": null,
+  //         "aiStage": null,
+  //         "distanceKm": null,
+  //         "avatar": "https://card.yiduipj.com/static/ming/user@2x.png",
+  //         "username": "WQ_47741085",
+  //         "nickname": "WQ_47741085",
+  //         "realName": "甘草",
+  //         "cpName": "重庆酷麟贸易有限公司",
+  //         "types": null,
+  //         "userType": 0
+  //       },
+  //       "mediaList": null,
+  //       "totalWeight": null,
+  //       "aiStage": 1
+  //     },
+  //     "aiInsight": [
+  //       {
+  //         "confirmStatus": 1,
+  //         "opportunityId": 23,
+  //         "title": "贸易渠道资源互换：川渝地区分销网络",
+  //         "stage": "明确表达",
+  //         "strength": 58,
+  //         "oppType": "other"
+  //       }
+  //     ],
+  //     "isFollowed": false,
+  //     "commentCount": 2,
+  //     "audit": false,
+  //   }
+  // }
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   // 审核模式（对齐小程序 details.vue from=dynamicsEx）：详情走审核接口，底部为拒绝/通过
   const isAudit = route.params.audit === true;
@@ -424,6 +561,7 @@ export default function BbsDetail() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(true);
   const [detail, setDetail] = useState<DetailData | null>(null);
+  const [unavailable, setUnavailable] = useState(false);
   const [commentCount, setCommentCount] = useState(0);
   const [comments, setComments] = useState<CommentData[]>([]);
   const [commentPage, setCommentPage] = useState(1);
@@ -436,6 +574,7 @@ export default function BbsDetail() {
   const [previewIndex, setPreviewIndex] = useState(-1);
   const [previewImages, setPreviewImages] = useState<string[] | null>(null);
   const [visibility, setVisibility] = useState<VisibilityKey>('public');
+  const [redirectCountdown, setRedirectCountdown] = useState(3);
   /** 关注状态走全局 follow store（key=作者 userId），他人主页变更后返回自动同步 */
   const authorId = detail?.authorId;
   const following = useFollowStore(s => (authorId != null ? s.map[String(authorId)] : undefined)) ?? false;
@@ -665,10 +804,10 @@ export default function BbsDetail() {
                     prev.map(c =>
                       c.replies.some(r => r.id === commentId)
                         ? {
-                            ...c,
-                            replyCount: Math.max(0, c.replyCount - 1),
-                            replies: c.replies.filter(r => r.id !== commentId),
-                          }
+                          ...c,
+                          replyCount: Math.max(0, c.replyCount - 1),
+                          replies: c.replies.filter(r => r.id !== commentId),
+                        }
                         : c,
                     ),
                   );
@@ -685,6 +824,38 @@ export default function BbsDetail() {
 
   const onCommentAction = useCallback(
     (action: CommentAction) => {
+      if (actionVariant === 'manage') {
+        actionSheetRef.current?.dismiss();
+        if (!isBbsAuthor || !requireLogin()) return;
+        const bbsId = Number(route.params.id);
+        if (action === 'edit') {
+          navigation.navigate('publish', { editBbsId: bbsId });
+        } else if (action === 'permission') {
+          Toast.show({ type: 'info', text1: '请在编辑页面设置可见范围并保存' });
+          navigation.navigate('publish', { editBbsId: bbsId });
+        } else if (action === 'pin') {
+          API.bbs.top({ bbsId }).then(res => {
+            if (String(res.code) !== '200') return;
+            setDetail(prev => prev ? { ...prev, isLifeTop: !prev.isLifeTop } : prev);
+            Toast.show({ type: 'success', text1: detail?.isLifeTop ? '已取消置顶' : '置顶成功' });
+          }).catch(() => { });
+        } else if (action === 'delete') {
+          Alert.alert('提示', '确认删除该动态吗？', [
+            { text: '取消', style: 'cancel' },
+            {
+              text: '删除', style: 'destructive', onPress: () => {
+                API.bbs.del({ bbsId }).then(res => {
+                  if (String(res.code) !== '200') return;
+                  Toast.show({ type: 'success', text1: '动态已删除' });
+                  removeDetailCache(route.params.id);
+                  navigation.goBack();
+                }).catch(() => { });
+              }
+            },
+          ]);
+        }
+        return;
+      }
       if (action === 'report') {
         if (!requireLogin()) {
           actionSheetRef.current?.dismiss();
@@ -705,7 +876,7 @@ export default function BbsDetail() {
       }
       actionSheetRef.current?.dismiss();
     },
-    [selectedComment, onToggleTop, onDeleteComment, navigation, route.params.id, requireLogin],
+    [actionVariant, isBbsAuthor, detail?.isLifeTop, selectedComment, onToggleTop, onDeleteComment, navigation, route.params.id, requireLogin],
   );
 
   const onActionSheetClose = useCallback(() => {
@@ -748,9 +919,10 @@ export default function BbsDetail() {
 
   useEffect(() => {
     let mounted = true;
+    setUnavailable(false);
     // 优先用列表带过来的缓存数据渲染，详情接口返回后再更新（审核模式不用缓存，避免与广场缓存串数据）
     const cached = isAudit ? null : getDetailCache(route.params.id);
-    if (cached) {
+    if (cached && !isBbsUnavailable(cached?.msg ?? cached?.message)) {
       const d = transformDetail(cached);
       setDetail(d);
       setLiked(d.isLiked);
@@ -769,7 +941,7 @@ export default function BbsDetail() {
         : API.square.bbsDetail({ bbsId: route.params.id });
     detailReq
       .then(res => {
-        console.log(res.data);
+        console.log(res.data, '1111');
         if (!mounted) return;
         // 审核详情接口的作者信息在 res.data.userInfo（wqUser 嵌套头像/昵称，cpName 同级），映射为 userInfoVo 供 transformDetail 使用
         const rawBbs = res.data?.bbs ?? res.data ?? {};
@@ -785,6 +957,14 @@ export default function BbsDetail() {
           rawBbs.userId = rawBbs.userId ?? wqUser.id ?? 0;
         }
         const d = transformDetail(rawBbs);
+        if (!d?.authorId && !d?.content && !d?.title) {
+          setUnavailable(true);
+          removeDetailCache(route.params.id);
+          setDetail(null);
+          setComments([]);
+          setCommentCount(0);
+          return;
+        }
 
         setDetail(d);
         setLiked(d.isLiked);
@@ -794,7 +974,15 @@ export default function BbsDetail() {
         setLikeCount(d.likeCount);
         setFavCount(d.favCount);
       })
-      .catch(() => { })
+      .catch(error => {
+        const rawMsg = String(error?.msg ?? error?.response?.data?.msg ?? '');
+        if (!mounted || !isBbsUnavailable(rawMsg)) return;
+        setUnavailable(true);
+        removeDetailCache(route.params.id);
+        setDetail(null);
+        setComments([]);
+        setCommentCount(0);
+      })
       .finally(() => {
         if (mounted) {
           setLoading(false);
@@ -807,8 +995,30 @@ export default function BbsDetail() {
   }, [route.params.id, route.params.isFollowed, route.params.fromMy, isAudit]);
 
   useEffect(() => {
-    if (!isAudit && !commentRestricted) loadComments(1);
-  }, [loadComments, commentRestricted, isAudit]);
+    if (!unavailable || isAudit) return;
+    if (unavailableTickTimer) clearInterval(unavailableTickTimer);
+    unavailableTickTimer = setInterval(() => {
+      const newRedirectCountdown = redirectCountdown - 1
+      if (newRedirectCountdown == -1) {
+        if (unavailableTickTimer) clearInterval(unavailableTickTimer);
+        const targetUserId = Number((route.params as any).authorId ?? detail?.authorId ?? myId ?? 0);
+        if (targetUserId) {
+          goUserHome(targetUserId);
+        } else {
+          navigation.goBack();
+        }
+        return
+      }
+      setRedirectCountdown(newRedirectCountdown)
+    }, 1000);
+    return () => {
+      if (unavailableTickTimer) clearInterval(unavailableTickTimer);
+    };
+  }, [unavailable, isAudit, route.params, detail?.authorId, myId, navigation, redirectCountdown]);
+
+  useEffect(() => {
+    if (!isAudit && !commentRestricted && !refreshing && !unavailable) loadComments(1);
+  }, [loadComments, commentRestricted, isAudit, refreshing, unavailable]);
 
   const onToggleFollow = useCallback(() => {
     if (!authorId || refreshing) return;
@@ -1016,6 +1226,32 @@ export default function BbsDetail() {
     );
   };
 
+  if (unavailable) {
+    return (
+      <SafeView backgroundColor="#F6F7FB">
+        <NavHeader showDivider={false} backgroundColor='#F6F7FB' />
+        <View style={styles.unavailableWrap}>
+          <RNImage source={require('@/assets/empty-state/empty-search.png')} style={styles.unavailableImage} resizeMode="contain" />
+          <Text style={styles.unavailableText}>当前内容无法查看</Text>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={styles.unavailableBtn}
+            onPress={() => {
+              const targetUserId = Number((route.params as any).authorId ?? detail?.authorId ?? myId ?? 0);
+              if (targetUserId) {
+                goUserHome(targetUserId);
+              } else {
+                navigation.goBack();
+              }
+            }}
+          >
+            <Text style={styles.unavailableBtnText}>跳转 Ta 的主页 {redirectCountdown} 秒</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeView>
+    );
+  }
+
   return (
     <SafeView backgroundColor="#FFFFFF">
       <NavHeader
@@ -1039,30 +1275,30 @@ export default function BbsDetail() {
         }
         right={
           isAudit ? null : (
-          <>
-            {!isBbsAuthor && (
-              <PermissionButton
+            <>
+              {!isBbsAuthor && (
+                <PermissionButton
+                  activeOpacity={0.7}
+                  disabled={refreshing}
+                  style={[styles.followBtn, following && styles.followedBtn, refreshing && styles.actionDisabled]}
+                  onPress={onToggleFollow}
+                >
+                  <Text style={[styles.followText, following && styles.followedText]}>{following ? '已关注' : '关注'}</Text>
+                </PermissionButton>
+              )}
+              <TouchableOpacity
                 activeOpacity={0.7}
-                disabled={refreshing}
-                style={[styles.followBtn, following && styles.followedBtn, refreshing && styles.actionDisabled]}
-                onPress={onToggleFollow}
+                hitSlop={8}
+                style={styles.moreBtn}
+                onPress={() => moreSheetRef.current?.present()}
               >
-                <Text style={[styles.followText, following && styles.followedText]}>{following ? '已关注' : '关注'}</Text>
-              </PermissionButton>
-            )}
-            <TouchableOpacity
-              activeOpacity={0.7}
-              hitSlop={8}
-              style={styles.moreBtn}
-              onPress={() => moreSheetRef.current?.present()}
-            >
-              <Svg width={scaleSizeW(30)} height={scaleSizeW(14)} viewBox="0 0 30 14">
-                <Circle cx={7} cy={7} r={2} fill="#999999" />
-                <Circle cx={15} cy={7} r={2} fill="#999999" />
-                <Circle cx={23} cy={7} r={2} fill="#999999" />
-              </Svg>
-            </TouchableOpacity>
-          </>
+                <Svg width={scaleSizeW(30)} height={scaleSizeW(14)} viewBox="0 0 30 14">
+                  <Circle cx={7} cy={7} r={2} fill="#999999" />
+                  <Circle cx={15} cy={7} r={2} fill="#999999" />
+                  <Circle cx={23} cy={7} r={2} fill="#999999" />
+                </Svg>
+              </TouchableOpacity>
+            </>
           )
         }
       />
@@ -1071,125 +1307,125 @@ export default function BbsDetail() {
         {loading && !detail ? (
           <DetailSkeleton />
         ) : (
-        <FlatList
-          data={isAudit || commentRestricted ? [] : comments}
-          keyExtractor={item => item.id}
-          renderItem={({ item }) => (
-            <CommentItem
-              item={item}
-              onReply={openCommentInput}
-              onLongPress={openCommentActions}
-              onLongPressReply={openReplyActions}
-              onExpandReplies={expandReplies}
-            />
-          )}
-          ListHeaderComponent={renderHeader()}
-          ListEmptyComponent={
-            isAudit ? null : commentRestricted ? (
-              <View style={styles.restrictedEmpty}>
-                <RNImage
-                  source={require('@/assets/empty-state/comment-restricted.png')}
-                  style={styles.restrictedImage}
-                  resizeMode="contain"
-                />
-                <Text style={styles.restrictedText}>{commentLockText}</Text>
-              </View>
-            ) : (
-              <EmptyState variant="comment" title="暂无评论" style={styles.emptyComment} />
-            )
-          }
-          onEndReachedThreshold={0.3}
-          onEndReached={() => {
-            // 未登录只允许看第一页评论，更多内容引导登录
-            if (!isAudit && token && commentPage < commentPages) loadComments(commentPage + 1);
-          }}
-          ListFooterComponent={
-            !isAudit && !token && comments.length > 0 ? (
-              <View style={styles.loginBar}>
-                <Text style={styles.loginBarText}>登录后查看全部评论</Text>
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  style={styles.loginBarBtn}
-                  onPress={() => navigation.navigate('login')}
-                >
-                  <Text style={styles.loginBarBtnText}>立即登录</Text>
-                </TouchableOpacity>
-              </View>
-            ) : null
-          }
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-        />
-      )}
-      {isAudit ? (
-        <View style={[styles.bottomBar, styles.auditBottomBar]}>
-          <View style={styles.auditBtnRow}>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              style={[styles.auditBtn, styles.auditBtnReject]}
-              disabled={auditSubmitting}
-              onPress={() => rejectSheetRef.current?.present()}
-            >
-              <Text style={styles.auditBtnRejectText}>拒绝</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              style={[styles.auditBtn, styles.auditBtnApprove]}
-              disabled={auditSubmitting}
-              onPress={onAuditPass}
-            >
-              <Text style={styles.auditBtnApproveText}>通过</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      ) : (
-      <View style={[styles.bottomBar, { paddingBottom: scaleSizeH(10) }]}>
-        <View style={styles.bottomBarRow}>
-          {isBbsAuthor ? (
-            <>
+          <FlatList
+            data={isAudit || commentRestricted ? [] : comments}
+            keyExtractor={item => item.id}
+            renderItem={({ item }) => (
+              <CommentItem
+                item={item}
+                onReply={openCommentInput}
+                onLongPress={openCommentActions}
+                onLongPressReply={openReplyActions}
+                onExpandReplies={expandReplies}
+              />
+            )}
+            ListHeaderComponent={renderHeader()}
+            ListEmptyComponent={
+              isAudit ? null : commentRestricted ? (
+                <View style={styles.restrictedEmpty}>
+                  <RNImage
+                    source={require('@/assets/empty-state/comment-restricted.png')}
+                    style={styles.restrictedImage}
+                    resizeMode="contain"
+                  />
+                  <Text style={styles.restrictedText}>{commentLockText}</Text>
+                </View>
+              ) : (
+                <EmptyState variant="comment" title="暂无评论" style={styles.emptyComment} />
+              )
+            }
+            onEndReachedThreshold={0.3}
+            onEndReached={() => {
+              // 未登录只允许看第一页评论，更多内容引导登录
+              if (!isAudit && token && commentPage < commentPages) loadComments(commentPage + 1);
+            }}
+            ListFooterComponent={
+              !isAudit && !token && comments.length > 0 ? (
+                <View style={styles.loginBar}>
+                  <Text style={styles.loginBarText}>登录后查看全部评论</Text>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={styles.loginBarBtn}
+                    onPress={() => navigation.navigate('login')}
+                  >
+                    <Text style={styles.loginBarBtnText}>立即登录</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null
+            }
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
+        {isAudit ? (
+          <View style={[styles.bottomBar, styles.auditBottomBar]}>
+            <View style={styles.auditBtnRow}>
               <TouchableOpacity
-                onPress={() => {
-                  setSelectedComment(null);
-                  setActionVariant('manage');
-                  actionSheetRef.current?.present();
-                }}
-                activeOpacity={0.7}
-                style={[styles.bottomInput, styles.authorBtn]}
+                activeOpacity={0.8}
+                style={[styles.auditBtn, styles.auditBtnReject]}
+                disabled={auditSubmitting}
+                onPress={() => rejectSheetRef.current?.present()}
               >
-                <Text style={[styles.commentInputText, styles.authorBtnText]}>编辑和权限设置</Text>
+                <Text style={styles.auditBtnRejectText}>拒绝</Text>
               </TouchableOpacity>
-            </>
-          ) : (
-            <PermissionButton activeOpacity={0.7} style={styles.bottomInput} onPress={() => openCommentInput()}>
-              <Text style={styles.commentInputText}>
-                {commentRestricted ? commentLockText : '留下你的看法'}
-              </Text>
-            </PermissionButton>
-          )}
-          <PermissionButton activeOpacity={0.7} hitSlop={6} disabled={refreshing} style={[styles.bottomAction, refreshing && styles.actionDisabled]} onPress={onToggleLike}>
-            <Svg width={scaleSizeW(20)} height={scaleSizeW(21)} viewBox="0 0 20 21">
-              <Path d={THUMB_PATH} fill={liked ? LIKE_RED : '#000000'} />
-            </Svg>
-            <Text style={[styles.bottomActionText, { color: liked ? LIKE_RED : '#000000' }]}>{formatLikeCount(likeCount)}</Text>
-          </PermissionButton>
-          <PermissionButton activeOpacity={0.7} hitSlop={6} disabled={refreshing} style={[styles.bottomAction, refreshing && styles.actionDisabled]} onPress={onToggleFav}>
-            <Svg width={scaleSizeW(22)} height={scaleSizeW(21)} viewBox="0 0 22 21">
-              <Path d={STAR_PATH} fill={faved ? '#FFB800' : '#000000'} />
-            </Svg>
-            <Text style={[styles.bottomActionText, { color: faved ? '#FFB800' : '#000000' }]}>{formatLikeCount(favCount)}</Text>
-          </PermissionButton>
-          <PermissionButton
-            onPress={() => openCommentInput()}
-            style={styles.bottomAction}
-          >
-            <Svg width={scaleSizeW(21)} height={scaleSizeW(21)} viewBox="0 0 21 21">
-              <Path d={COMMENT_PATH} fill="#000000" />
-            </Svg>
-            <Text style={styles.bottomActionText}>{formatLikeCount(commentCount)}</Text>
-          </PermissionButton>
-        </View>
-      </View>
-      )}
+              <TouchableOpacity
+                activeOpacity={0.8}
+                style={[styles.auditBtn, styles.auditBtnApprove]}
+                disabled={auditSubmitting}
+                onPress={onAuditPass}
+              >
+                <Text style={styles.auditBtnApproveText}>通过</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <View style={[styles.bottomBar, { paddingBottom: scaleSizeH(10) }]}>
+            <View style={styles.bottomBarRow}>
+              {isBbsAuthor ? (
+                <>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSelectedComment(null);
+                      setActionVariant('manage');
+                      actionSheetRef.current?.present();
+                    }}
+                    activeOpacity={0.7}
+                    style={[styles.bottomInput, styles.authorBtn]}
+                  >
+                    <Text style={[styles.commentInputText, styles.authorBtnText]}>编辑和权限设置</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <PermissionButton activeOpacity={0.7} style={styles.bottomInput} onPress={() => openCommentInput()}>
+                  <Text style={styles.commentInputText}>
+                    {commentRestricted ? commentLockText : '留下你的看法'}
+                  </Text>
+                </PermissionButton>
+              )}
+              <PermissionButton activeOpacity={0.7} hitSlop={6} disabled={refreshing} style={[styles.bottomAction, refreshing && styles.actionDisabled]} onPress={onToggleLike}>
+                <Svg width={scaleSizeW(20)} height={scaleSizeW(21)} viewBox="0 0 20 21">
+                  <Path d={THUMB_PATH} fill={liked ? LIKE_RED : '#000000'} />
+                </Svg>
+                <Text style={[styles.bottomActionText, { color: liked ? LIKE_RED : '#000000' }]}>{formatLikeCount(likeCount)}</Text>
+              </PermissionButton>
+              <PermissionButton activeOpacity={0.7} hitSlop={6} disabled={refreshing} style={[styles.bottomAction, refreshing && styles.actionDisabled]} onPress={onToggleFav}>
+                <Svg width={scaleSizeW(22)} height={scaleSizeW(21)} viewBox="0 0 22 21">
+                  <Path d={STAR_PATH} fill={faved ? '#FFB800' : '#000000'} />
+                </Svg>
+                <Text style={[styles.bottomActionText, { color: faved ? '#FFB800' : '#000000' }]}>{formatLikeCount(favCount)}</Text>
+              </PermissionButton>
+              <PermissionButton
+                onPress={() => openCommentInput()}
+                style={styles.bottomAction}
+              >
+                <Svg width={scaleSizeW(21)} height={scaleSizeW(21)} viewBox="0 0 21 21">
+                  <Path d={COMMENT_PATH} fill="#000000" />
+                </Svg>
+                <Text style={styles.bottomActionText}>{formatLikeCount(commentCount)}</Text>
+              </PermissionButton>
+            </View>
+          </View>
+        )}
       </View>
       {/* 审核模式：拒绝理由输入（复用评论输入弹层） */}
       <CommentInputSheet
@@ -1205,8 +1441,8 @@ export default function BbsDetail() {
       <CommentActionSheet
         ref={actionSheetRef}
         variant={actionVariant}
-        isTop={selectedComment && 'isTop' in selectedComment ? selectedComment.isTop : false}
-        canPin={canPin}
+        isTop={actionVariant === 'manage' ? detail?.isLifeTop : selectedComment && 'isTop' in selectedComment ? selectedComment.isTop : false}
+        canPin={actionVariant === 'manage' || canPin}
         onAction={onCommentAction}
         onClose={onActionSheetClose}
       />
@@ -1242,6 +1478,36 @@ export default function BbsDetail() {
 const styles = StyleSheet.create({
   flex1: {
     flex: 1,
+  },
+  unavailableWrap: {
+    flex: 1,
+    alignItems: 'center',
+    paddingTop: scaleSizeH(137),
+  },
+  unavailableImage: {
+    width: scaleSizeW(120),
+    height: scaleSizeH(127),
+    marginBottom: scaleSizeH(6),
+    opacity: 0.3,
+  },
+  unavailableText: {
+    fontSize: setSpText(14),
+    fontWeight: '400',
+    color: '#C1C1C1',
+    marginBottom: scaleSizeH(20),
+  },
+  unavailableBtn: {
+    paddingHorizontal: scaleSizeW(10),
+    paddingVertical: scaleSizeH(10),
+    borderRadius: scaleSizeW(90),
+    borderWidth: 1,
+    borderColor: '#D9D9D9',
+  },
+  unavailableBtnText: {
+    fontSize: setSpText(14),
+    fontWeight: '400',
+    color: '#6C6C6C',
+    lineHeight: scaleSizeH(16),
   },
   loginBar: {
     flexDirection: 'row',

@@ -294,7 +294,7 @@ export namespace API {
     }
     /** 动态聚合详情（作者/媒体/点赞收藏状态/评论数） */
     export function bbsDetail(params: { bbsId: string | number }) {
-      return request.get<{ bbs: any; commentCount: number; isFollowed: 0 | 1 }>('/square/bbs/detail', { params });
+      return request.get<{ bbs: any; commentCount: number; isFollowed: 0 | 1 }>('/square/bbs/detail', { params, handleBbsUnavailable: true });
     }
   }
 
@@ -394,6 +394,14 @@ export namespace API {
   }
 
   export namespace bbs {
+    /** 作者删除自己的动态 */
+    export function del(params: { bbsId: number }) {
+      return request.get<any>('/bbs/user/del', { params });
+    }
+    /** 作者切换个人主页置顶状态 */
+    export function top(params: { bbsId: number }) {
+      return request.get<any>('/bbs/user/bbs/top', { params });
+    }
     /** 他人主页的发布动态列表 */
     export function userMain(data: { targetUserId: number; pageNum?: number; pageSize?: number }) {
       return request.post<{ list: any[]; total: number; pageNum: number; pages: number }>('/bbs/user/main', data);
@@ -403,7 +411,7 @@ export namespace API {
       return request.get<any>('/bbs/like', { params });
     }
     export function bbsDetail(params: { bbsId: number }) {
-      return request.get<any>('/my/bbs/detail', { params });
+      return request.get<any>('/my/bbs/detail', { params, handleBbsUnavailable: true });
     }
     /** 发布动态（/publish/submit；draftType 必填，视频动态传 videoUrl） */
     export function push(data: {

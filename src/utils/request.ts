@@ -6,6 +6,16 @@ import { resetToLogin } from '@/route/navigationRef';
 
 export const BASE_URL = env.apiUrl;
 
+export function isBbsUnavailable(message?: string) {
+  return /动态不存在|动态已删除|动态已下架|帖子不存在|帖子已删除|帖子已下架/.test(message ?? '');
+}
+
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    handleBbsUnavailable?: boolean;
+  }
+}
+
 export interface ResponseResult<T = any> {
   code: string;
   msg: string;
@@ -64,8 +74,8 @@ class Request {
   constructor() {
     this.instance = axios.create({
       // baseURL: `${BASE_URL.replace(/\/+$/, '')}/v1`,
-      baseURL: `http://192.168.110.222:9090/v1`,
-      // baseURL: `https://apptest.cqwqjl.com/v1`,
+      // baseURL: `http://192.168.110.222:9090/v1`,
+      baseURL: `https://apptest.cqwqjl.com/v1`,
       timeout: env.apiTimeout,
       headers: {
         'X-Requested-With': 'XMLHttpRequest',
@@ -93,7 +103,7 @@ class Request {
             handleAuthError();
             return Promise.reject(data);
           }
-          if (data?.msg) {
+          if (data?.msg && !(response.config.handleBbsUnavailable && isBbsUnavailable(data.msg))) {
             Alert.alert('提示', data.msg);
           }
           return Promise.reject(data);
