@@ -182,7 +182,7 @@ const DEV_COMPANY_ID: string | number = 9;
 
 /** 深链配置：mingpian://bbsDetail?id=xx（H5 落地页「App内打开」/分享图二维码），查询参数自动解析为路由参数 */
 const linking: LinkingOptions<RootStackParamList> = {
-  prefixes: ['mingpian://'],
+  prefixes: ['mingpian://', 'https://www.lccxin.com'],
   config: {
     screens: {
       bbsDetail: 'bbsDetail',

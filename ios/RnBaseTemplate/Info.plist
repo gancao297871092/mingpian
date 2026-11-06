@@ -88,9 +88,5 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
-	<key>com.apple.developer.associated-domains</key>
-	<array>
-		<string>applinks:your-universal-link-domain.com</string>
-	</array>
 </dict>
 </plist>

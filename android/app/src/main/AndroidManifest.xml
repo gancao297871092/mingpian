@@ -52,6 +52,16 @@
         <category android:name="android.intent.category.BROWSABLE" />
         <data android:scheme="mingpian" />
       </intent-filter>
+      <intent-filter android:autoVerify="true">
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="https" android:host="www.lccxin.com" />
+        <data android:path="/bbsDetail" />
+        <data android:path="/cardDetail" />
+        <data android:path="/companyPage" />
+        <data android:path="/companyWebsite" />
+      </intent-filter>
     </activity>
 
     <activity

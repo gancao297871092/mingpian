@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.wqlccx.com",
+      "sha256_cert_fingerprints": [
+        "AE:E7:1A:E3:11:01:A1:52:84:64:64:BB:1A:B1:11:B9:27:94:5F:08:63:4B:15:2E:E8:9C:7F:10:6E:AD:2A:42"
+      ]
+    }
+  }
+]

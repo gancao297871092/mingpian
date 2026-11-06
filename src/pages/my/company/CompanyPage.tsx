@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
+  PanResponder,
   RefreshControl,
   ScrollView,
   StatusBar,
@@ -73,6 +74,8 @@ export default function CompanyPage() {
   // ---- 吸顶/滑动交互状态（对齐 UserHome，动画全程 UI 线程） ----
   const [pageIndex, setPageIndex] = useState(0);
   const [settledIndex, setSettledIndex] = useState(0);
+  /** 横滑涉及的 tab 对 [起点, 目标]：期间 pager 高度撑到两者最大值，防止恢复滚动被旧高度钳制跳变 */
+  const [swipePair, setSwipePair] = useState<[number, number] | null>(null);
   const [headerH, setHeaderH] = useState(0);
   const [contentH, setContentH] = useState(0);
   const [tabBarH, setTabBarH] = useState(0);
@@ -89,13 +92,24 @@ export default function CompanyPage() {
   const [barDark, setBarDark] = useState(false);
   const pageIndexRef = useRef(pageIndex);
   pageIndexRef.current = pageIndex;
+  /** 已落定的 tab 索引（横滑开始时作为锚点；pageIndex 过半程即翻转，不适合做预调整锚点） */
+  const settledIndexRef = useRef(settledIndex);
+  settledIndexRef.current = settledIndex;
   const tabRefs = useRef<Record<TabKey, TabHandle | null>>({ post: null, gallery: null }).current;
   const scrollOffsetsRef = useRef<Record<TabKey, number>>({ post: 0, gallery: 0 }).current;
+  /** 用户驱动的滚动才计入各 tab 位置记忆（程序化恢复滚动不写记忆，避免切 tab 把中间态/钳制值写进去） */
+  const userScrollingRef = useRef(false);
+  /** 横滑预调整记录（idx=目标 tab，prevY=调整前位置，savedY=目标页被覆盖前的记忆；滑动取消时回退） */
+  const preparedRef = useRef<{ idx: number; prevY: number; savedY: number } | null>(null);
+  /** 待补滚的恢复目标（内容高度落定导致偏移被钳制时，由 effect 再滚一次） */
+  const pendingRestoreRef = useRef<{ tab: TabKey; target: number } | null>(null);
 
   const activeTab = TAB_KEYS[pageIndex];
   const settledTab = TAB_KEYS[settledIndex];
 
   const bannerH = scaleSizeW(302);
+  /** 吸顶名称栏总高（状态栏占位 + 46 名称行） */
+  const nickTotal = insets.top + STICKY_NICK_H;
 
   useEffect(() => {
     const id = scrollX.addListener(({ value }) => {
@@ -152,9 +166,11 @@ export default function CompanyPage() {
     Promise.all(tasks).finally(() => setRefreshing(false));
   }, [tabRefs, fetchBasicInfo, fetchGallery]);
 
-  /** 记录各 tab 滚动位置（UI 线程每帧回调到 JS，仅写 ref） */
+  /** 记录各 tab 滚动位置（UI 线程每帧回调到 JS，仅写 ref）；只记用户驱动滚动，程序化恢复滚动不写记忆（避免切 tab 把钳制中间值写进去） */
   const recordOffset = useCallback(
     (y: number) => {
+      if (!userScrollingRef.current) return;
+      pendingRestoreRef.current = null;
       scrollOffsetsRef[TAB_KEYS[pageIndexRef.current]] = y;
     },
     [scrollOffsetsRef],
@@ -170,7 +186,8 @@ export default function CompanyPage() {
       const y = e.contentOffset.y;
       scrollY.value = y;
       runOnJS(recordOffset)(y);
-      const dark = headerHSV.value > 0 && y >= headerHSV.value - STICKY_NICK_H;
+      // 吸顶点 = 头部滚出到 tab 栏钉在名称栏下方（对齐官网 stickyY）
+      const dark = headerHSV.value > 0 && y >= Math.max(headerHSV.value - nickTotal, 0);
       if (dark !== barDarkSV.value) {
         barDarkSV.value = dark;
         runOnJS(onStickyChange)(dark);
@@ -194,28 +211,24 @@ export default function CompanyPage() {
     ],
   }));
 
-  /** 吸顶昵称栏高度 0→(状态栏+46) 跟随滚动；状态栏占位含在容器内，未展开时不占空间（UI 线程布局，不抖） */
-  const nickStyle = useAnimatedStyle(() => ({
-    height: interpolate(
-      scrollY.value,
-      [Math.max(headerHSV.value - STICKY_NICK_H, 0), Math.max(headerHSV.value, 1)],
-      [0, insets.top + STICKY_NICK_H],
-      Extrapolation.CLAMP,
-    ),
+  /**
+   * tab 栏悬浮层（对齐官网 collapseStyle）：随滚动 1:1 平移，到达「状态栏+名称栏」下方停住吸顶。
+   * 列表流内用同高 spacer 占位，悬浮层静止时正好压在 spacer 上。
+   */
+  const tabBarFloatStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: Math.max(headerHSV.value - scrollY.value, nickTotal) }],
   }));
-  /** 吸顶过程中，覆盖层返回按钮平移到吸顶栏内（不跟随下拉） */
-  const navStyle = useAnimatedStyle(() => ({
-    transform: [
-      {
-        translateY: interpolate(
-          scrollY.value,
-          [Math.max(headerHSV.value - STICKY_NICK_H, 0), Math.max(headerHSV.value, 1)],
-          [0, 1 - headerBtnsMT],
-          Extrapolation.CLAMP,
-        ),
-      },
-    ],
-  }));
+  /** 吸顶名称栏：到达吸顶点瞬间从顶部滑入（1px 阈值，对齐官网 nickStyle） */
+  const nickOverlayStyle = useAnimatedStyle(() => {
+    const sy = Math.max(headerHSV.value - nickTotal, 1);
+    return {
+      transform: [
+        {
+          translateY: interpolate(scrollY.value, [sy - 1, sy], [-nickTotal, 0], Extrapolation.CLAMP),
+        },
+      ],
+    };
+  });
 
   const position = Animated.divide(scrollX, windowWidth);
   const onTabPress = (i: number) => {
@@ -238,30 +251,159 @@ export default function CompanyPage() {
     [],
   );
 
-  /** 内层列表不滚动，需保证内容够长让外层可滚动（吸顶才能触发） */
-  const minPagerHeight = Math.max(contentH - insets.top - tabBarH - scaleSizeH(100), 0);
+  /** 内层列表不滚动，需保证内容够长让外层可滚动到吸顶点（吸顶点 = headerH - nickTotal） */
+  const minPagerHeight = Math.max(contentH - nickTotal - tabBarH - scaleSizeH(100), 0);
   const pagerHeightFor = useCallback(
     (tab: TabKey) => Math.max(listHeights[tab] || 0, minPagerHeight),
     [listHeights, minPagerHeight],
   );
-  const pagerHeight = pagerHeightFor(settledTab);
+  /** 横滑/落定恢复期间把 pager 高度撑到相关 tab 的最大值（撑高只向下延伸空白，视觉上无感），避免高度变化钳制滚动偏移造成跳变 */
+  const swipePairMax = swipePair
+    ? Math.max(pagerHeightFor(TAB_KEYS[swipePair[0]]), pagerHeightFor(TAB_KEYS[swipePair[1]]))
+    : 0;
+  const pagerHeight = Math.max(pagerHeightFor(settledTab), swipePairMax);
 
+  /** 吸顶点：tab 栏钉在「状态栏+名称栏」下方时的滚动距离（对齐官网 stickyY） */
+  const stickY = Math.max(headerH - nickTotal, 0);
+  /**
+   * 目标 tab 应滚到的位置（共享头部语义，对齐企业官网 WebsiteFree）：
+   * 头部位置完全共享（h = min(当前y, 吸顶点)），各 tab 只记忆「吸顶之后多滚的部分」（extra = max(记忆y − 吸顶点, 0)）
+   */
+  const resolveTargetY = useCallback(
+    (saved: number, curY: number) => {
+      const h = Math.min(Math.max(curY, 0), stickY);
+      return h + Math.max(saved - stickY, 0);
+    },
+    [stickY],
+  );
+  /** 某 tab 内容高度下外层列表的最大滚动偏移（名称栏/tab 栏均为悬浮层，不占流内高度；流内 = 头部 + spacer + pager + 底部留白） */
+  const maxOffsetFor = useCallback(
+    (tab: TabKey) => {
+      const totalH = headerH + tabBarH + pagerHeightFor(tab) + scaleSizeH(100);
+      return Math.max(totalH - contentH, 0);
+    },
+    [contentH, headerH, tabBarH, pagerHeightFor],
+  );
+  /** 程序化恢复目标 tab 的滚动位置（写记忆 + 动画滚动平滑过渡；高度未落定被钳制时由下方 effect 补滚） */
+  const restoreTo = useCallback(
+    (tab: TabKey, target: number, animated: boolean) => {
+      const t = Math.max(0, target);
+      scrollOffsetsRef[tab] = t;
+      pendingRestoreRef.current = { tab, target: t };
+      outerRef.current?.scrollToOffset({ offset: Math.min(t, maxOffsetFor(tab)), animated });
+    },
+    [scrollOffsetsRef, maxOffsetFor],
+  );
+
+  /** 切 tab 后内容高度落定（或分页加载变高）时，补齐之前被钳制的恢复滚动；用户接管滚动即取消（recordOffset 里清除） */
+  useEffect(() => {
+    const pending = pendingRestoreRef.current;
+    if (!pending || pending.tab !== settledTab) return;
+    const max = maxOffsetFor(settledTab);
+    outerRef.current?.scrollToOffset({ offset: Math.min(pending.target, max), animated: true });
+    if (max >= pending.target - 0.5) pendingRestoreRef.current = null;
+  }, [settledIndex, pagerHeight, settledTab, maxOffsetFor]);
+
+  /** 撑高收回的延迟定时器（落定后等恢复滑动画走完再收回，避免中途钳制） */
+  const shrinkTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearShrinkTimer = useCallback(() => {
+    if (shrinkTimerRef.current) {
+      clearTimeout(shrinkTimerRef.current);
+      shrinkTimerRef.current = null;
+    }
+  }, []);
+  const scheduleClearSwipePair = useCallback(
+    (delay: number) => {
+      clearShrinkTimer();
+      shrinkTimerRef.current = setTimeout(() => setSwipePair(null), delay);
+    },
+    [clearShrinkTimer],
+  );
+  useEffect(() => clearShrinkTimer, [clearShrinkTimer]);
+
+  /** 横滑一开始就预先把共享滚动位置平滑调整到目标 tab 的位置，避免新页滑入后落定时高度变化 + 位置恢复叠加「跳两下」 */
+  useEffect(() => {
+    const id = scrollX.addListener(({ value }) => {
+      const settled = settledIndexRef.current;
+      const dx = value - settled * windowWidth;
+      if (Math.abs(dx) <= 30) return;
+      const target = settled + (dx > 0 ? 1 : -1);
+      if (target < 0 || target >= TAB_KEYS.length || preparedRef.current?.idx === target) return;
+      const prevY = scrollOffsetsRef[TAB_KEYS[settled]] || 0;
+      const savedY = scrollOffsetsRef[TAB_KEYS[target]] || 0;
+      preparedRef.current = { idx: target, prevY, savedY };
+      clearShrinkTimer();
+      setSwipePair([settled, target]);
+      restoreTo(TAB_KEYS[target], resolveTargetY(savedY, prevY), true);
+    });
+    return () => scrollX.removeListener(id);
+  }, [scrollX, windowWidth, restoreTo, resolveTargetY, scrollOffsetsRef, clearShrinkTimer]);
+
+  /** 横滑落定：落回原 tab 撤销预调整；落到新 tab 确保数据加载并切换内容高度 */
   const onSwiperMomentumEnd = useCallback(
     (e: { nativeEvent: { contentOffset: { x: number } } }) => {
       const i = Math.round(e.nativeEvent.contentOffset.x / windowWidth);
       if (i < 0 || i >= TAB_KEYS.length) return;
+      const prepared = preparedRef.current;
+      preparedRef.current = null;
+      if (i === settledIndexRef.current) {
+        // 横滑取消：立即回退到调整前位置、还原目标页记忆并收回撑高
+        if (prepared && prepared.idx !== i) {
+          scrollOffsetsRef[TAB_KEYS[prepared.idx]] = prepared.savedY;
+          pendingRestoreRef.current = null;
+          outerRef.current?.scrollToOffset({ offset: prepared.prevY, animated: false });
+        }
+        clearShrinkTimer();
+        setSwipePair(null);
+        return;
+      }
       const tab = TAB_KEYS[i];
       tabRefs[tab]?.ensureLoaded?.();
-      const saved = scrollOffsetsRef[tab] || 0;
-      const viewportH = contentH - insets.top;
-      const nextPagerH = pagerHeightFor(tab);
-      const totalH = headerH + insets.top + STICKY_NICK_H + tabBarH + nextPagerH + scaleSizeH(100);
-      const maxOffset = Math.max(totalH - viewportH, 0);
+      if (!prepared || prepared.idx !== i) {
+        // 未发生预调整（快速翻过等）：落定这一刻再平滑恢复目标位置
+        clearShrinkTimer();
+        setSwipePair([settledIndexRef.current, i]);
+        const prevY = scrollOffsetsRef[TAB_KEYS[settledIndexRef.current]] || 0;
+        restoreTo(tab, resolveTargetY(scrollOffsetsRef[tab] || 0, prevY), true);
+      }
       setSettledIndex(i);
-      outerRef.current?.scrollToOffset({ offset: Math.min(saved, maxOffset), animated: false });
+      // 延迟收回撑高，等恢复滑动画走完，避免高度收缩钳制偏移
+      scheduleClearSwipePair(300);
     },
-    [windowWidth, tabRefs, scrollOffsetsRef, contentH, insets.top, pagerHeightFor, headerH, tabBarH],
+    [windowWidth, tabRefs, scrollOffsetsRef, restoreTo, resolveTargetY, clearShrinkTimer, scheduleClearSwipePair],
   );
+
+  /** 外层列表用户滚动标记：拖动开始置位，滚动完全停止后清除（velocity≈0 表示不会接惯性滚动） */
+  const onOuterDragBegin = useCallback(() => {
+    userScrollingRef.current = true;
+  }, []);
+  const onOuterDragEnd = useCallback(
+    (e: { nativeEvent: { velocity?: { y: number } } }) => {
+      if (Math.abs(e.nativeEvent.velocity?.y ?? 0) < 0.1) userScrollingRef.current = false;
+    },
+    [],
+  );
+  const onOuterMomentumEnd = useCallback(() => {
+    userScrollingRef.current = false;
+  }, []);
+
+  /** tab 栏悬浮层手势（对齐官网 headerPan）：纵向拖动转发给外层列表滚动并直接写位置记忆；横向吞掉避免误触 */
+  const tabBarDragY = useRef(0);
+  const tabBarPan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dy) > 5 || Math.abs(g.dx) > 10,
+      onPanResponderGrant: () => {
+        tabBarDragY.current = scrollOffsetsRef[TAB_KEYS[pageIndexRef.current]] || 0;
+      },
+      onPanResponderMove: (_e, g) => {
+        if (Math.abs(g.dy) <= Math.abs(g.dx)) return;
+        const tab = TAB_KEYS[pageIndexRef.current];
+        const y = Math.min(Math.max(tabBarDragY.current - g.dy, 0), maxOffsetFor(tab));
+        scrollOffsetsRef[tab] = y;
+        outerRef.current?.scrollToOffset({ offset: y, animated: false });
+      },
+    }),
+  ).current;
 
   // ---- 业务数据派生 ----
   const medias: string[] = (data?.mediaLinkList || [])
@@ -303,9 +445,11 @@ export default function CompanyPage() {
           style={styles.flex1}
           data={[0, 1, 2]}
           keyExtractor={(i: number) => String(i)}
-          stickyHeaderIndices={[1]}
           onScroll={scrollHandler}
           scrollEventThrottle={16}
+          onScrollBeginDrag={onOuterDragBegin}
+          onScrollEndDrag={onOuterDragEnd}
+          onMomentumScrollEnd={onOuterMomentumEnd}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           onEndReached={() => tabRefs[TAB_KEYS[pageIndexRef.current]]?.onEndReached()}
@@ -417,52 +561,8 @@ export default function CompanyPage() {
                 </View>
               </View>
             ) : index === 1 ? (
-              <Animated.View>
-                {/* 吸顶昵称栏：滚动接近吸顶点时展开，内部含状态栏占位，贴底滑出（全程 UI 线程） */}
-                <Reanimated.View style={[styles.stickyNick, nickStyle]}>
-                  <View style={styles.stickyNickInner}>
-                    <Text style={styles.stickyName} numberOfLines={1}>
-                      {data?.name || ''}
-                    </Text>
-                  </View>
-                </Reanimated.View>
-                <Animated.View style={styles.tabCard} onLayout={(e) => setTabBarH(e.nativeEvent.layout.height)}>
-                  <View style={styles.tabBar}>
-                    {TABS.map((t, i) => {
-                      const textColor = scrollXJS.interpolate({
-                        inputRange: [i - 1, i, i + 1],
-                        outputRange: ['#6C6C6C', '#000000', '#6C6C6C'],
-                        extrapolate: 'clamp',
-                      });
-                      return (
-                        <TouchableOpacity
-                          key={t.key}
-                          activeOpacity={0.7}
-                          style={styles.tabItem}
-                          onLayout={(e) => {
-                            const { x, width } = e.nativeEvent.layout;
-                            setTabLayouts((prev) => {
-                              if (prev[i] && prev[i].x === x && prev[i].w === width) return prev;
-                              const next = [...prev];
-                              next[i] = { x, w: width };
-                              return next;
-                            });
-                          }}
-                          onPress={() => onTabPress(i)}
-                        >
-                          <Animated.Text style={[styles.tabText, { color: textColor }, pageIndex === i && styles.tabTextActive]}>
-                            {t.label}
-                          </Animated.Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                  {tabLayouts.length === TAB_KEYS.length && (
-                    <Animated.View style={[styles.tabIndicator, { transform: [{ translateX: indicatorTranslate }] }]} />
-                  )}
-                  <View style={styles.tabsDivider} />
-                </Animated.View>
-              </Animated.View>
+              // tab 栏悬浮层的流内占位（真实 tab 栏在列表后的悬浮层，悬浮吸顶对齐官网）
+              <View style={{ height: tabBarH }} />
             ) : (
               <Animated.FlatList
                 ref={swiperRef}
@@ -483,11 +583,60 @@ export default function CompanyPage() {
             )
           }
         />
-        {/* 悬浮返回按钮（吸顶后平移进昵称栏，白底转黑箭头去底色） */}
-        <Reanimated.View
-          pointerEvents="box-none"
-          style={[styles.navOverlay, { paddingTop: insets.top }, navStyle]}
-        >
+        {/* tab 栏悬浮层：随滚动 1:1 平移，吸顶后钉在「状态栏+名称栏」下方（对齐官网 headerOverlay；纵向拖动转发外层列表） */}
+        <Reanimated.View style={[styles.tabBarFloat, tabBarFloatStyle]} pointerEvents="box-none">
+          <Animated.View
+            style={styles.tabCard}
+            onLayout={(e) => setTabBarH(e.nativeEvent.layout.height)}
+            {...tabBarPan.panHandlers}
+          >
+            <View style={styles.tabBar}>
+              {TABS.map((t, i) => {
+                const textColor = scrollXJS.interpolate({
+                  inputRange: [i - 1, i, i + 1],
+                  outputRange: ['#6C6C6C', '#000000', '#6C6C6C'],
+                  extrapolate: 'clamp',
+                });
+                return (
+                  <TouchableOpacity
+                    key={t.key}
+                    activeOpacity={0.7}
+                    style={styles.tabItem}
+                    onLayout={(e) => {
+                      const { x, width } = e.nativeEvent.layout;
+                      setTabLayouts((prev) => {
+                        if (prev[i] && prev[i].x === x && prev[i].w === width) return prev;
+                        const next = [...prev];
+                        next[i] = { x, w: width };
+                        return next;
+                      });
+                    }}
+                    onPress={() => onTabPress(i)}
+                  >
+                    <Animated.Text style={[styles.tabText, { color: textColor }, pageIndex === i && styles.tabTextActive]}>
+                      {t.label}
+                    </Animated.Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            {tabLayouts.length === TAB_KEYS.length && (
+              <Animated.View style={[styles.tabIndicator, { transform: [{ translateX: indicatorTranslate }] }]} />
+            )}
+            <View style={styles.tabsDivider} />
+          </Animated.View>
+        </Reanimated.View>
+        {/* 吸顶名称栏：状态栏占位 + 企业名称，吸顶瞬间从顶部滑入（对齐官网 nickOverlay） */}
+        <Reanimated.View style={[styles.nickOverlay, nickOverlayStyle]} pointerEvents="none">
+          <View style={{ height: insets.top }} />
+          <View style={styles.stickyNickInner}>
+            <Text style={styles.stickyName} numberOfLines={1}>
+              {data?.name || ''}
+            </Text>
+          </View>
+        </Reanimated.View>
+        {/* 悬浮返回按钮（固定不动，名称栏吸顶滑入到其下方；吸顶后白底转黑箭头去底色，对齐官网 BackCircle） */}
+        <View pointerEvents="box-none" style={[styles.navOverlay, { paddingTop: insets.top }]}>
           <View style={styles.navOverlayRow} pointerEvents="box-none">
             <TouchableOpacity
               activeOpacity={0.7}
@@ -498,7 +647,7 @@ export default function CompanyPage() {
               <BackArrowIcon size={20} color={barDark ? '#000000' : '#1A1A1A'} />
             </TouchableOpacity>
           </View>
-        </Reanimated.View>
+        </View>
       </View>
     </SafeView>
   );
@@ -655,16 +804,25 @@ const styles = StyleSheet.create({
     fontSize: setSpText(14),
     color: '#000000',
   },
-  stickyNick: {
-    backgroundColor: '#FFFFFF',
-    overflow: 'hidden',
-  },
-  /** 昵称贴容器底滑出，上方留白即状态栏占位 */
-  stickyNickInner: {
+  /** tab 栏悬浮层（对齐官网 headerOverlay） */
+  tabBarFloat: {
     position: 'absolute',
-    bottom: 0,
+    top: 0,
     left: 0,
     right: 0,
+    zIndex: 5,
+  },
+  /** 吸顶名称栏悬浮层（对齐官网 nickOverlay）：白底盖住状态栏区域 */
+  nickOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    zIndex: 6,
+  },
+  /** 吸顶栏企业名称行（左右留白避开返回键） */
+  stickyNickInner: {
     height: STICKY_NICK_H,
     alignItems: 'center',
     justifyContent: 'center',
@@ -723,6 +881,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     paddingHorizontal: scaleSizeW(15),
+    // 高于名称栏悬浮层（zIndex 6），否则吸顶时被白底名称栏盖住（对齐官网 BackCircle zIndex 10）
+    zIndex: 10,
   },
   navOverlayRow: {
     height: scaleSizeH(44),
