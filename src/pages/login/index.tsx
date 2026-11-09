@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Alert,
   Image,
@@ -16,6 +16,8 @@ import { isWechatAvailable, isWechatConfigured, wechatLogin } from '@/utils/wech
 import { PhoneIcon, WechatIcon } from '@/assets/login/icons';
 import type { RootStackParamList } from '@/route/map';
 import { CheckIcon } from '@/assets/login/icons';
+import { API } from '@/api';
+import { useUserStore } from '@/store/user';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'login'>;
 
@@ -24,8 +26,11 @@ export default function LoginHome({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const [agreed, setAgreed] = useState(false);
   const [wechatLoading, setWechatLoading] = useState(false);
+  const wechatPending = useRef(false);
+  const { setToken, setUserInfo } = useUserStore();
 
   const onWechatLogin = async () => {
+    if (wechatPending.current) return;
     if (!agreed) {
       Alert.alert('提示', '请先阅读并同意《用户协议》和《隐私政策》');
       return;
@@ -34,19 +39,38 @@ export default function LoginHome({ navigation }: Props) {
       Alert.alert('提示', '微信登录暂未开放（未配置 WECHAT_APPID）');
       return;
     }
-    const installed = await isWechatAvailable();
-    if (!installed) {
-      Alert.alert('提示', '未检测到微信，请先安装微信');
-      return;
-    }
+    wechatPending.current = true;
     setWechatLoading(true);
     try {
+      if (!(await isWechatAvailable())) {
+        Alert.alert('提示', '未检测到微信，请先安装微信');
+        return;
+      }
       const { code } = await wechatLogin();
-      console.log('[wechat] 授权成功，code:', code);
-      // TODO: 用 code 调后端换取 token 后进入主界面
+      const res = await API.auth.wechatCode({ code });
+      if (res.code !== '200' || !res.data) {
+        throw new Error(res.msg || '微信登录失败，请重试');
+      }
+      if ('needBindPhone' in res.data && res.data.needBindPhone && res.data.openid) {
+        navigation.navigate('otherLogin', { wechatOpenid: res.data.openid });
+      } else if ('token' in res.data && res.data.token) {
+        setUserInfo(null);
+        setToken(res.data.token);
+        try {
+          const info = await API.user.info();
+          if (info.code === '200') setUserInfo(info.data);
+        } catch {
+          // 登录已成功，用户信息可由后续页面重新加载。
+        }
+        navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+      } else {
+        throw new Error('登录信息不完整，请重新授权');
+      }
     } catch (e: any) {
+      if (e?.code === -2) return;
       Alert.alert('登录失败', e?.message ?? '微信登录失败');
     } finally {
+      wechatPending.current = false;
       setWechatLoading(false);
     }
   };
@@ -82,7 +106,7 @@ export default function LoginHome({ navigation }: Props) {
         >
           <WechatIcon size={scaleSizeW(20)} /> 
           <Text style={styles.btnSecondaryText}>
-            {wechatLoading ? '拉起微信中…' : '微信登录'}
+            {wechatLoading ? '微信登录中…' : '微信登录'}
           </Text>
         </TouchableOpacity>
         <View style={styles.agreement}>

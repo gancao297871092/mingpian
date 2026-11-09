@@ -2,6 +2,21 @@ import { request } from '@/utils/request';
 
 export namespace API {
   export namespace auth {
+    export interface LoginResult {
+      token: string;
+      userId: number;
+    }
+
+    export function wechatCode(data: { code: string }) {
+      return request.post<LoginResult | { needBindPhone: true; openid: string }>(
+        '/auth/wechat/code', data,
+      );
+    }
+
+    export function wechatBind(data: { openid: string; phone: string; authCode: string; code: string }) {
+      return request.post<LoginResult>('/auth/wechat/bind', data);
+    }
+
     export function smsSend(data: { phone: string }) {
       return request.post<{ authCode: string }>('/auth/sms/send', data);
     }

@@ -5,7 +5,7 @@ import type { SignalIntentDraft, TouchSummary } from '@/pages/link/signalDraft';
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
   login: undefined;
-  otherLogin: undefined;
+  otherLogin: { wechatOpenid: string } | undefined;
   agreement: { type: string; title?: string };
   cardDetail: { id: string | number; userId?: string | number };
   myCard: undefined;
