@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { Platform, StatusBar, StyleSheet } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Image, Platform, StatusBar, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -32,6 +32,9 @@ const toastConfig: ToastConfig = {
 };
 
 function Root() {
+  const [showLaunch, setShowLaunch] = useState(Platform.OS === 'android');
+  const launchOpacity = useRef(new Animated.Value(1)).current;
+  const launchStarted = useRef(false);
   const theme = useTheme();
   const { setToken, setUserInfo } = useUserStore();
 
@@ -61,7 +64,7 @@ function Root() {
         // ignore
       });
     }
-    BootSplash.hide({ fade: true });
+    if (Platform.OS !== 'android') BootSplash.hide({ fade: true });
   }, [setToken, setUserInfo]);
 
   return (
@@ -72,6 +75,24 @@ function Root() {
       />
       <RootNavigator />
       <Toast config={toastConfig} topOffset={80} />
+      {showLaunch && (
+        <Animated.View
+          style={[styles.launch, { opacity: launchOpacity }]}
+          onLayout={() => {
+            if (launchStarted.current) return;
+            launchStarted.current = true;
+            BootSplash.hide({ fade: false }).then(() => {
+              Animated.timing(launchOpacity, {
+                toValue: 0,
+                duration: 300,
+                useNativeDriver: true,
+              }).start(() => setShowLaunch(false));
+            });
+          }}
+        >
+          <Image source={require('./launch/launch-wordmark.png')} style={styles.wordmark} />
+        </Animated.View>
+      )}
     </QueryClientProvider>
   );
 }
@@ -93,6 +114,22 @@ function App() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+  },
+  launch: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+  },
+  wordmark: {
+    position: 'absolute',
+    top: '29.1762%',
+    width: '58.4577%',
+    aspectRatio: 235 / 96,
+    resizeMode: 'contain',
   },
 });
 
