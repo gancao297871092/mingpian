@@ -23,7 +23,10 @@ export function initWechat(): () => void {
   }
   if (registered) return () => {};
   registered = true;
-  return registerApp({ appid: env.wechatAppId });
+  return registerApp({
+    appid: env.wechatAppId,
+    universalLink: 'https://www.lccxin.com/wechat/',
+  });
 }
 
 export function isWechatConfigured(): boolean {

@@ -8,7 +8,8 @@
           "/bbsDetail",
           "/cardDetail",
           "/companyPage",
-          "/companyWebsite"
+          "/companyWebsite",
+          "/wechat/*"
         ]
       }
     ]

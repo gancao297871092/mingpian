@@ -1,0 +1,18 @@
+diff --git a/node_modules/native-wechat/ios/RTNWechat/RTNWechat.mm b/node_modules/native-wechat/ios/RTNWechat/RTNWechat.mm
+--- a/node_modules/native-wechat/ios/RTNWechat/RTNWechat.mm
++++ b/node_modules/native-wechat/ios/RTNWechat/RTNWechat.mm
+@@ -28,7 +28,13 @@
+ {
+     NSDictionary* userInfo = notification.userInfo;
+         
+-    return [WXApi handleOpenURL:[NSURL URLWithString: userInfo[@"url"]] delegate:self];
++    NSURL *url = [NSURL URLWithString:userInfo[@"url"]];
++    if ([url.scheme.lowercaseString isEqualToString:@"https"]) {
++        NSUserActivity *activity = [[NSUserActivity alloc] initWithActivityType:NSUserActivityTypeBrowsingWeb];
++        activity.webpageURL = url;
++        return [WXApi handleOpenUniversalLink:activity delegate:self];
++    }
++    return [WXApi handleOpenURL:url delegate:self];
+ }
+ 
+ - (dispatch_queue_t)methodQueue
