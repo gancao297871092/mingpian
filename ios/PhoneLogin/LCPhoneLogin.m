@@ -543,7 +543,20 @@ RCT_EXPORT_METHOD(close) {
     backBtn.frame = CGRectMake(0, 667.0 * s, container.frame.size.width, 22.0 * s);
   };
 
-  if (self.bottomSheetMode) {
+  if (!self.bottomSheetMode) {
+    // 全屏模式：进出淡入淡出，弱化原生推/拉动画带来的“跳页”感
+    CABasicAnimation *fadeIn = [CABasicAnimation animationWithKeyPath:@"opacity"];
+    fadeIn.fromValue = @0.0;
+    fadeIn.toValue = @1.0;
+    fadeIn.duration = 0.2;
+    model.entryAnimation = fadeIn;
+
+    CABasicAnimation *fadeOut = [CABasicAnimation animationWithKeyPath:@"opacity"];
+    fadeOut.fromValue = @1.0;
+    fadeOut.toValue = @0.0;
+    fadeOut.duration = 0.15;
+    model.exitAnimation = fadeOut;
+  } else {
     // 底部弹窗模式（小红书式）：半屏弹层 + 顶部圆角 + 蒙层
     model.presentDirection = PNSPresentationDirectionBottom;
     model.contentViewFrameBlock = ^CGRect(CGSize screenSize, CGSize superViewSize, CGRect frame) {

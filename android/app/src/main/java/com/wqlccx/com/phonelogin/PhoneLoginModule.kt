@@ -4,6 +4,7 @@ import android.graphics.Color
 import android.os.Handler
 import android.util.Log
 import android.os.Looper
+import android.view.Gravity
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -290,17 +291,43 @@ class PhoneLoginModule(private val reactContext: ReactApplicationContext) :
       .setNavTextColor(0xFF1A1A1A.toInt())
       .setNavTextSizeDp(17)
       .setNavReturnImgPath("lccx_ic_nav_back")
-      // 品牌区隐藏默认 Logo，其余控件保持 SDK 默认样式
+      // 品牌区隐藏默认 Logo
       .setLogoHidden(true)
-      // 协议区（设计稿 12pt，文案「《用户协议》和《隐私政策》」）
+      // slogan（SDK 默认在号码上方；文案与设计稿一致，14pt #6C6C6C）
+      .setSloganText("使用本机号码完成快速登录")
+      .setSloganTextColor(0xFF6C6C6C.toInt())
+      .setSloganTextSizeDp(14)
+      // 掩码手机号（设计稿 24pt 黑）
+      .setNumberColor(0xFF000000.toInt())
+      .setNumberSizeDp(24)
+      // 主按钮（设计稿全圆角蓝底白字 15pt）；尺寸/边距保持 SDK 默认——
+      // 该版本 SDK 对宽高值按 dp 解释，传 px 会把按钮撑变形
+      .setLogBtnText("本机号码一键登录")
+      .setLogBtnTextColor(Color.WHITE)
+      .setLogBtnTextSizeDp(15)
+      .setLogBtnBackgroundPath("lccx_auth_login_btn")
+      // 切换入口（设计稿文案「其他号码登录」）
+      .setSwitchAccText("其他号码登录")
+      .setSwitchAccTextColor(0xFF323232.toInt())
+      .setSwitchAccTextSizeDp(15)
+      // 状态栏：白底深色图标
+      .setLightColor(true)
+      .setStatusBarColor(Color.WHITE)
+      // 协议区（设计稿 12pt：灰字蓝链，文案「《用户协议》和《隐私政策》」）
       .setAppPrivacyOne("《用户协议》", AGREEMENT_USER_SURE_URL)
       .setAppPrivacyTwo("《隐私政策》", AGREEMENT_PRIVATES_URL)
-      .setAppPrivacyColor(0xFF000000.toInt(), 0xFF2962D4.toInt())
+      .setAppPrivacyColor(0xFF6C6C6C.toInt(), 0xFF2962D4.toInt())
+      .setPrivacyOperatorColor(0xFF2962D4.toInt())
       .setPrivacyTextSizeDp(12)
       .setPrivacyConectTexts(arrayOf("和", "和"))
       .setPrivacyState(false)
-      .setCheckBoxWidth(dp(12))
-      .setCheckBoxHeight(dp(12))
+      // 协议文字左对齐（默认整体居中，与设计稿不符）
+      .setProtocolGravity(Gravity.START)
+      // 注意：该版本 SDK 的勾选框尺寸按 dp 解释（传 px 会被放大 density 倍）
+      .setCheckBoxWidth(12)
+      .setCheckBoxHeight(12)
+      // 勾选框相对协议文字稍微下移，视觉对齐第一行文字中线
+      .setCheckBoxMarginTop(3)
       .setUncheckedImgPath("lccx_checkbox_unchecked")
       .setCheckedImgPath("lccx_checkbox_checked")
       .setVendorPrivacyPrefix("《")
@@ -308,6 +335,9 @@ class PhoneLoginModule(private val reactContext: ReactApplicationContext) :
       // 协议点击跳 App 内协议页（清单中已注册对应 intent-filter 的透明中转 Activity）
       .setProtocolAction(PROTOCOL_ACTION)
       .setPackageName(reactContext.packageName)
+      // 授权页进出淡入淡出，弱化 Activity 切换带来的“跳页”感
+      .setAuthPageActIn("lccx_fade_in", "lccx_fade_out")
+      .setAuthPageActOut("lccx_fade_in", "lccx_fade_out")
 
     if (presentation == "bottomSheet") {
       // 注意：弹窗模式需先在 AndroidManifest 的 LoginAuthActivity 上配置

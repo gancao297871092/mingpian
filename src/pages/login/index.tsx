@@ -70,13 +70,14 @@ export default function LoginHome({ navigation }: Props) {
       }
       setUserInfo(null);
       setToken(res.data.token);
+      // 先跳首页，避免后端请求期间露出登录页；用户信息后台拉取
+      navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
       try {
         const info = await API.user.info();
         if (info.code === '200') setUserInfo(info.data);
       } catch {
         // 登录已成功，用户信息可由后续页面重新加载。
       }
-      navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
     } catch (e: any) {
       const code = e?.code;
       if (code === 'CANCELLED' || code === 'SWITCH_BACK') return;
