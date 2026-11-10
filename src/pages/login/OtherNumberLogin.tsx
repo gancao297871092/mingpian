@@ -21,8 +21,7 @@ const COUNTDOWN_SECONDS = 60;
 
 type Props = NativeStackScreenProps<RootStackParamList, 'otherLogin'>;
 
-export default function OtherNumberLogin({ navigation, route }: Props) {
-  const wechatOpenid = route.params?.wechatOpenid;
+export default function OtherNumberLogin({ navigation }: Props) {
   const theme = useTheme();
   const { setToken, setUserInfo } = useUserStore();
   const [phone, setPhone] = useState('');
@@ -92,9 +91,7 @@ export default function OtherNumberLogin({ navigation, route }: Props) {
     }
     setLoading(true);
     try {
-      const res = wechatOpenid
-        ? await API.auth.wechatBind({ openid: wechatOpenid, phone, authCode, code })
-        : await API.auth.login({ phone, authCode, code });
+      const res = await API.auth.login({ phone, authCode, code });
       const { code: respCode, msg, data } = res;
       if (respCode === '200' && data?.token) {
         setToken(data.token);
@@ -122,10 +119,8 @@ export default function OtherNumberLogin({ navigation, route }: Props) {
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
       <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.header}>
-        <Text style={styles.title}>{wechatOpenid ? '绑定手机号' : '其他号码登录'}</Text>
-        <Text style={styles.subtitle}>
-          {wechatOpenid ? '微信授权成功，请验证手机号完成登录' : '未注册的手机号登录成功后将自动注册'}
-        </Text>
+        <Text style={styles.title}>其他号码登录</Text>
+        <Text style={styles.subtitle}>未注册的手机号登录成功后将自动注册</Text>
       </View>
 
       <View style={styles.form}>
@@ -176,7 +171,7 @@ export default function OtherNumberLogin({ navigation, route }: Props) {
           onPress={onLogin}
         >
           <Text style={[styles.loginBtnText, canLogin && styles.loginBtnTextActive]}>
-            {loading ? '登录中…' : wechatOpenid ? '绑定并登录' : '登录'}
+            {loading ? '登录中…' : '登录'}
           </Text>
         </TouchableOpacity>
 

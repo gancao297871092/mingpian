@@ -8,13 +8,9 @@ export namespace API {
     }
 
     export function wechatCode(data: { code: string }) {
-      return request.post<LoginResult | { needBindPhone: true; openid: string }>(
+      return request.post<LoginResult>(
         '/auth/wechat/code', data,
       );
-    }
-
-    export function wechatBind(data: { openid: string; phone: string; authCode: string; code: string }) {
-      return request.post<LoginResult>('/auth/wechat/bind', data);
     }
 
     export function smsSend(data: { phone: string }) {

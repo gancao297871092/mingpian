@@ -51,9 +51,7 @@ export default function LoginHome({ navigation }: Props) {
       if (res.code !== '200' || !res.data) {
         throw new Error(res.msg || '微信登录失败，请重试');
       }
-      if ('needBindPhone' in res.data && res.data.needBindPhone && res.data.openid) {
-        navigation.navigate('otherLogin', { wechatOpenid: res.data.openid });
-      } else if ('token' in res.data && res.data.token) {
+      if (res.data.token) {
         setUserInfo(null);
         setToken(res.data.token);
         try {
