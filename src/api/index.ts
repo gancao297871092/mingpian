@@ -19,6 +19,11 @@ export namespace API {
     export function login(data: { phone: string; authCode: string; code: string }) {
       return request.post<{ token: string; userId: number }>('/auth/login', data);
     }
+
+    /** 阿里云一键登录：客户端 SDK 取到的认证 token 换登录态（后端 GetMobile 换手机号并自动注册） */
+    export function oneclick(data: { token: string; userAuthorization?: string }) {
+      return request.post<LoginResult>('/auth/oneclick', data);
+    }
   }
 
   export namespace message {

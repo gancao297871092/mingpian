@@ -124,6 +124,10 @@ dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
 
+    // 阿里云号码认证（一键登录）：将控制台下载的 3 个 aar（auth/logger/main 开头）放入 android/app/libs
+    implementation fileTree(dir: 'libs', include: ['*.aar'])
+    implementation "androidx.appcompat:appcompat:1.6.1"
+
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
     } else {

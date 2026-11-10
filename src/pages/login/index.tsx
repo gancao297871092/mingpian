@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Image,
@@ -18,6 +18,13 @@ import type { RootStackParamList } from '@/route/map';
 import { CheckIcon } from '@/assets/login/icons';
 import { API } from '@/api';
 import { useUserStore } from '@/store/user';
+import {
+  checkPhoneLoginSupport,
+  closePhoneLogin,
+  isPhoneLoginAvailable,
+  openPhoneLogin,
+  preLoginPhone,
+} from '@/native/PhoneLogin';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'login'>;
 
@@ -26,8 +33,71 @@ export default function LoginHome({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const [agreed, setAgreed] = useState(false);
   const [wechatLoading, setWechatLoading] = useState(false);
+  const [phoneLoading, setPhoneLoading] = useState(false);
   const wechatPending = useRef(false);
+  const phonePending = useRef(false);
   const { setToken, setUserInfo } = useUserStore();
+
+  // 进入登录页即预取号，加速一键登录授权页弹起
+  useEffect(() => {
+    preLoginPhone();
+  }, []);
+
+  const onPhoneLogin = async () => {
+    if (phonePending.current) return;
+    phonePending.current = true;
+    setPhoneLoading(true);
+    try {
+      // 不支持一键登录（无 SIM/非蜂窝网络/老版本无原生模块）时直接走短信登录
+      if (!isPhoneLoginAvailable || !(await checkPhoneLoginSupport())) {
+        navigation.navigate('otherLogin');
+        return;
+      }
+      preLoginPhone();
+      const auth = await openPhoneLogin({ presentation: 'fullscreen' });
+      if (!auth?.token) {
+        throw new Error('未获取到登录凭证，请重试');
+      }
+      const res = await API.auth.oneclick({
+        token: auth.token,
+        ...(auth.userAuthorization ? { userAuthorization: auth.userAuthorization } : {}),
+      });
+      // TODO: 一键登录联调日志，上线前删除
+      console.log('[phoneLogin] oneclick response:', JSON.stringify(res));
+      console.log('一键登录结果', res);
+      if (res.code !== '200' || !res.data?.token) {
+        throw new Error(res.msg || '登录失败，请重试');
+      }
+      setUserInfo(null);
+      setToken(res.data.token);
+      try {
+        const info = await API.user.info();
+        if (info.code === '200') setUserInfo(info.data);
+      } catch {
+        // 登录已成功，用户信息可由后续页面重新加载。
+      }
+      navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+    } catch (e: any) {
+      const code = e?.code;
+      if (code === 'CANCELLED' || code === 'SWITCH_BACK') return;
+      if (code === 'SWITCH_OTHER' || code === 'UNSUPPORTED') {
+        navigation.navigate('otherLogin');
+        return;
+      }
+      // 授权页内点击《用户协议》/《隐私政策》：打开 App 内协议页（与登录页一致）
+      if (code === 'OPEN_AGREEMENT') {
+        navigation.navigate('agreement', { type: e?.message === 'privates' ? 'privates' : 'userSure' });
+        return;
+      }
+      // TODO: 一键登录联调日志，上线前删除
+      console.log('[phoneLogin] oneclick error:', code, e?.msg ?? e?.message);
+      Alert.alert('登录失败', e?.msg ?? e?.message ?? '一键登录失败，请重试');
+    } finally {
+      closePhoneLogin();
+      phonePending.current = false;
+      setPhoneLoading(false);
+    }
+  };
 
   const onWechatLogin = async () => {
     if (wechatPending.current) return;
@@ -90,10 +160,13 @@ export default function LoginHome({ navigation }: Props) {
         <TouchableOpacity
           style={[styles.btn, styles.btnPrimary]}
           activeOpacity={0.85}
-          onPress={() => navigation.navigate('otherLogin')}
+          disabled={phoneLoading}
+          onPress={onPhoneLogin}
         >
           <PhoneIcon size={scaleSizeW(20)} />
-          <Text style={styles.btnPrimaryText}>手机登录</Text>
+          <Text style={styles.btnPrimaryText}>
+            {phoneLoading ? '登录中…' : '手机登录'}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity

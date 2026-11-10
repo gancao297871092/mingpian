@@ -28,6 +28,9 @@ target 'RnBaseTemplate' do
 
   pod 'LiquidGlassView', :path => "#{Pod::Config.instance.installation_root}/LiquidGlassView"
 
+  # 阿里云号码认证一键登录（本地 pod，需先把 ATAuthSDK_D.framework 放入 ios/PhoneLogin/）
+  pod 'PhoneLogin', :path => "#{Pod::Config.instance.installation_root}/PhoneLogin"
+
   post_install do |installer|
     react_native_post_install(
       installer,
