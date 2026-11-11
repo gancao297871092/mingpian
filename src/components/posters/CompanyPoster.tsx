@@ -2,19 +2,18 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import LinearGradient from 'react-native-linear-gradient';
-import QRCode from 'react-native-qrcode-svg';
+
 import { scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { CardVerifiedIcon } from '@/components/cards/cardIcons';
 import type { CompanyCardData } from '@/components/cards/CompanyCard';
 
 interface CompanyPosterProps {
   data: CompanyCardData;
-  qrValue: string;
   width?: number;
 }
 
 /** 企业名片分享海报：整图 + 渐变 + 角标 + 二维码（figma 分享 1072:4204） */
-export default function CompanyPoster({ data, qrValue, width }: CompanyPosterProps) {
+export default function CompanyPoster({ data, width }: CompanyPosterProps) {
   return (
     <View style={[styles.container, width ? { width } : null]}>
       {data.poster ? (
@@ -40,7 +39,9 @@ export default function CompanyPoster({ data, qrValue, width }: CompanyPosterPro
         </View>
       </View>
       <View style={styles.qrBox}>
-        <QRCode value={qrValue} size={scaleSizeW(62)} color="#000000" backgroundColor="#FFFFFF" />
+        {!!data.sunCode && (
+            <ExpoImage source={{ uri: data.sunCode }} style={{ width: scaleSizeW(62), height: scaleSizeW(62) }} contentFit="contain" />
+          )}
       </View>
     </View>
   );

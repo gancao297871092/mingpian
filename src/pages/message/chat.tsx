@@ -748,7 +748,6 @@ export default function MessageChat() {
               style={normalizeCardStyle(posterCard.styleCode)}
               fontColor={posterCard.fontColor}
               backColor={posterCard.backColor}
-              qrValue={`mingpian://cardDetail?id=${posterCard.id}`}
             />
           </View>
         </ViewShot>

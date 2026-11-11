@@ -11,7 +11,7 @@ import { normalizeCardStyle, type CardData } from '@/components/cards/types';
 import type { CompanyCardData } from '@/components/cards/CompanyCard';
 import { saveToGallery } from '@/components/capabilities/Gallery';
 import { isWechatAvailable } from '@/utils/wechat';
-import { MomentsIcon, SaveIcon, ShareImgIcon, WechatIcon } from '@/pages/square/bbsDetail/sheetIcons';
+import { MomentsIcon, SaveIcon, WechatIcon } from '@/pages/square/bbsDetail/sheetIcons';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 
 const WX_SCENE_SESSION = 0;
@@ -33,10 +33,6 @@ export default function CardShareSheet({ visible, onClose, card, company }: Card
   const shotRef = useRef<React.ElementRef<typeof ViewShot>>(null);
 
   const isPersonal = !!card;
-  const qrValue = isPersonal
-    ? `mingpian://cardDetail?id=${card?.id}`
-    : `mingpian://companyPage?id=${company?.cpId || ''}`;
-
   const capture = useCallback(async (): Promise<string | null> => {
     try {
       const uri = await shotRef.current?.capture?.();
@@ -98,10 +94,9 @@ export default function CardShareSheet({ visible, onClose, card, company }: Card
                 style={normalizeCardStyle(card?.styleCode)}
                 fontColor={card?.fontColor}
                 backColor={card?.backColor}
-                qrValue={qrValue}
               />
             ) : (
-              <CompanyPoster data={company || {}} qrValue={qrValue} />
+              <CompanyPoster data={company || {}} />
             )}
           </ViewShot>
         </View>
@@ -135,16 +130,6 @@ export default function CardShareSheet({ visible, onClose, card, company }: Card
                 <SaveIcon />
               </View>
               <Text style={styles.actionLabel}>保存图片</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={styles.actionItem}
-              onPress={() => shareToWechat(WX_SCENE_SESSION)}
-            >
-              <View style={styles.actionCircle}>
-                <ShareImgIcon />
-              </View>
-              <Text style={styles.actionLabel}>转发为贴图</Text>
             </TouchableOpacity>
           </View>
         </View>

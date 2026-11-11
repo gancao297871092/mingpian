@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import QRCode from 'react-native-qrcode-svg';
+import { Image as ExpoImage } from 'expo-image';
 import { scaleSizeW, setSpText } from '@/utils/screenUtils';
 import PersonalCard from '@/components/cards/PersonalCard';
 import type { CardData, CardStyle } from '@/components/cards/types';
@@ -10,20 +10,21 @@ interface PersonalPosterProps {
   style?: CardStyle;
   fontColor?: string;
   backColor?: string;
-  qrValue: string;
   /** 海报整体宽度，默认按设计稿 370 缩放 */
   width?: number;
 }
 
 /** 个人名片分享海报：名片 + 黑色扫码条（figma 分享个人名片 1072:4545） */
-export default function PersonalPoster({ data, style, fontColor, backColor, qrValue, width }: PersonalPosterProps) {
+export default function PersonalPoster({ data, style, fontColor, backColor, width }: PersonalPosterProps) {
   return (
     <View style={[styles.container, width ? { width } : null]}>
       <PersonalCard data={data} style={style} fontColor={fontColor} backColor={backColor} squareBottom />
       <View style={styles.footer}>
         <Text style={styles.footerText}>您好，这是我的名片，请扫码查看详情~</Text>
         <View style={styles.qrBox}>
-          <QRCode value={qrValue} size={scaleSizeW(37)} color="#000000" backgroundColor="#FFFFFF" />
+          {!!data.sunCode && (
+            <ExpoImage source={{ uri: data.sunCode }} style={{ width: scaleSizeW(37), height: scaleSizeW(37) }} contentFit="contain" />
+          )}
         </View>
       </View>
     </View>
