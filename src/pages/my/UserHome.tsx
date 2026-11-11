@@ -257,7 +257,10 @@ export default function UserHome() {
     });
   }, [targetUserId, followed, followBusy]);
 
-  const todo = () => Toast.show({ type: 'info', text1: '功能开发中' });
+  const onSendMessage = () => {
+    if (!targetUserId || isSelf) return;
+    navigation.navigate('messageDetail', { userId: targetUserId });
+  };
 
   const stats: { num: string | number; label: string; tab?: 'mutual' | 'follow' | 'fans'; onPress?: () => void }[] = [
     { num: profile?.likeCount ?? 0, label: '获赞', ...(isSelf ? { onPress: () => setLikesVisible(true) } : {}) },
@@ -505,7 +508,7 @@ export default function UserHome() {
                         {followed ? '已关注' : '关注'}
                       </Text>
                     </TouchableOpacity>
-                    <TouchableOpacity activeOpacity={0.8} style={styles.msgBtn} onPress={todo}>
+                    <TouchableOpacity activeOpacity={0.8} style={styles.msgBtn} onPress={onSendMessage}>
                       <ChatBubbleIcon size={18} color="#000000" />
                       <Text style={styles.msgBtnText}>发私信</Text>
                     </TouchableOpacity>

@@ -45,7 +45,6 @@ import {
   NavPill,
   openNavigation,
   SectionLabel,
-  ShareCircle,
   stripHtml,
   useCompanyMain,
   websiteCard,
@@ -54,6 +53,8 @@ import {
   type WebsiteTab,
 } from './common';
 import { ChevronDownIcon } from './icons';
+
+import WebsiteShare from './WebsiteShare';
 
 const VERIFIED_BADGE = require('@/assets/company-website/verified-badge.png');
 
@@ -622,8 +623,7 @@ export default function WebsitePro({ cpId }: WebsiteProProps) {
         </Reanimated.View>
 
         <BackCircle onPress={() => navigation.goBack()} />
-        {/* 右上角分享按钮：figma 10 官网新增，当前仅 UI 占位，点击行为待接 */}
-        <ShareCircle />
+        <WebsiteShare cpId={cpId} title={data?.name} coverUrl={data?.avatar} />
       </View>
 
       <ContactSheet ref={contactRef} contacts={contacts} onClose={() => contactRef.current?.dismiss()} />
