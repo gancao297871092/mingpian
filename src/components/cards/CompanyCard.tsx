@@ -11,6 +11,8 @@ export interface CompanyCardData {
   cpName?: string;
   /** 企业封面/海报图 */
   poster?: string;
+  /** 接口返回的小程序太阳码图片 */
+  sunCode?: string;
   countBrowse?: number;
   isAuth?: number;
   [key: string]: any;

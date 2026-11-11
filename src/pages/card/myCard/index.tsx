@@ -274,6 +274,7 @@ export default function MyCard() {
                 cpId: companyCard?.cpId,
                 cpName: companyCard?.posterTitle || companyCard?.cpName,
                 poster: companyCard?.cardPoster,
+                sunCode: companyCard?.sunCode,
                 isAuth: companyCard?.isAuth,
               }
             : undefined
