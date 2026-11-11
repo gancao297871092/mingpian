@@ -97,8 +97,9 @@ export default function BbsShareImage() {
         const uri = await capture();
         if (!uri) throw new Error('capture failed');
         await shareImage({ src: uri, scene });
-      } catch {
-        Toast.show({ type: 'error', text1: '分享失败' });
+      } catch (error) {
+        console.warn('[wechatShare] poster share failed:', error);
+        Toast.show({ type: 'error', text1: '分享失败', text2: error instanceof Error ? error.message : '请稍后重试' });
       } finally {
         setBusy(false);
       }
@@ -199,7 +200,7 @@ export default function BbsShareImage() {
                       <Text style={styles.slogan}>让真实产业动态，连接可信合作。</Text>
                     </View>
                     <QRCode
-                      value={`mingpian://bbsDetail?id=${detail.id}`}
+                      value={`https://company.lccxin.com/?id=${detail.id}`}
                       size={scaleSizeW(74)}
                       color="#000000"
                       backgroundColor="#FFFFFF"

@@ -39,6 +39,7 @@ import { useSettingStore } from '@/store/setting';
 import { useBbsInteractionStore } from '@/store/bbsInteraction';
 import { toggleFollow, useFollowStore, setFollow } from '@/store/follow';
 import { getDetailCache, removeDetailCache } from '@/utils/detailCache';
+import { ossVideoSnapshot } from './detailTransform';
 import CommentInputSheet from './CommentInputSheet';
 import CommentActionSheet, { type CommentAction } from './CommentActionSheet';
 import CommentReportSheet from './CommentReportSheet';
@@ -53,6 +54,8 @@ import {
 } from './detailTransform';
 import type { RootStackParamList } from '@/route/map';
 import { isBbsUnavailable } from '@/utils/request';
+import { isWechatAvailable } from '@/utils/wechat';
+import { shareWebpage } from 'native-wechat';
 import { goUserHome } from '@/route/navigationRef';
 
 const BLUE = '#2962D4';
@@ -904,17 +907,58 @@ export default function BbsDetail() {
     [selectedComment],
   );
 
+  /** 动态 H5 分享链接（company.lccxin.com?id=动态 id，id 取详情数据） */
+  const bbsShareUrl = `https://company.lccxin.com/?id=${detail?.id ?? route.params.id}`;
+
+  const shareBbsToWechat = useCallback(
+    async (scene: number) => {
+      if (!(await isWechatAvailable())) {
+        Toast.show({ type: 'error', text1: '微信不可用' });
+        return;
+      }
+      const base = {
+        title: detail?.title || '动态分享',
+        description: detail?.content ? detail.content.slice(0, 60) : '查看这条动态',
+        scene,
+        webpageUrl: bbsShareUrl,
+      };
+      const coverUrl =
+        detail?.images?.[0] ??
+        (detail?.isVideo && detail.videoUrl ? ossVideoSnapshot(detail.videoUrl) : undefined);
+      try {
+        await shareWebpage({ ...base, coverUrl });
+        Toast.show({ type: 'success', text1: '已分享' });
+      } catch (e) {
+        // 封面下载失败等场景：退化为无封面再试一次，保证分享可用
+        try {
+          await shareWebpage(base);
+          Toast.show({ type: 'success', text1: '已分享' });
+        } catch (err) {
+          console.log('[wechatShare] shareWebpage failed:', e, 'fallback:', err);
+          Toast.show({ type: 'error', text1: '分享失败' });
+        }
+      }
+    },
+    [bbsShareUrl, detail],
+  );
+
   const onMoreAction = useCallback(
     (action: MoreAction) => {
       moreSheetRef.current?.dismiss();
       if (action === 'report') {
         if (!requireLogin()) return;
         navigation.navigate('reportBbs', { id: route.params.id });
+      } else if (action === 'wechat') {
+        // 微信好友（scene 0；朋友圈为 1）
+        shareBbsToWechat(0);
+      } else if (action === 'link') {
+        Clipboard.setString(bbsShareUrl);
+        Toast.show({ type: 'success', text1: '链接已复制' });
       } else if (action === 'shareImage') {
         navigation.navigate('bbsShareImage', { id: route.params.id });
       }
     },
-    [navigation, route.params.id, requireLogin],
+    [bbsShareUrl, navigation, requireLogin, route.params.id, shareBbsToWechat],
   );
 
   useEffect(() => {

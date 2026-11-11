@@ -1,7 +1,56 @@
+diff --git a/node_modules/native-wechat/android/src/main/java/com/hector/nativewechat/NativeWechatUtils.java b/node_modules/native-wechat/android/src/main/java/com/hector/nativewechat/NativeWechatUtils.java
+index 3ad523f..a4d0b97 100644
+--- a/node_modules/native-wechat/android/src/main/java/com/hector/nativewechat/NativeWechatUtils.java
++++ b/node_modules/native-wechat/android/src/main/java/com/hector/nativewechat/NativeWechatUtils.java
+@@ -27,6 +27,20 @@ public class NativeWechatUtils {
+   private static final OkHttpClient client = new OkHttpClient();
+ 
+   public static void downloadFileAsBitmap(String url, DownloadBitmapCallback callback) {
++    // patch: 支持 file:// 本地文件（如 react-native-view-shot 截图），直接解码，不走网络
++    if (url != null && url.startsWith("file://")) {
++      try {
++        Bitmap localBitmap = BitmapFactory.decodeFile(new java.net.URI(url).getPath());
++        if (localBitmap != null) {
++          callback.onResponse(localBitmap);
++        } else {
++          callback.onFailure(null, new IOException("Failed to decode local bitmap: " + url));
++        }
++      } catch (Exception e) {
++        callback.onFailure(null, new IOException(e));
++      }
++      return;
++    }
+     Request request = new Request.Builder().url(url).build();
+ 
+     client.newCall(request).enqueue(new Callback() {
+@@ -118,6 +132,22 @@ public class NativeWechatUtils {
+   }
+ 
+   public static void downloadToFile(String url, File targetFile, DownloadFileCallback callback) {
++    // patch: 支持 file:// 本地文件（如 react-native-view-shot 截图），直接拷贝，不走网络
++    if (url != null && url.startsWith("file://")) {
++      try (java.io.FileInputStream in = new java.io.FileInputStream(new java.net.URI(url).getPath());
++           FileOutputStream fos = new FileOutputStream(targetFile)) {
++        byte[] buffer = new byte[8192];
++        int read;
++        while ((read = in.read(buffer)) > 0) {
++          fos.write(buffer, 0, read);
++        }
++        fos.getFD().sync();
++        callback.onResponse(targetFile);
++      } catch (Exception e) {
++        callback.onFailure(null, new IOException(e));
++      }
++      return;
++    }
+     Request request = new Request.Builder().url(url).build();
+ 
+     client.newCall(request).enqueue(new Callback() {
 diff --git a/node_modules/native-wechat/ios/RTNWechat/RTNWechat.mm b/node_modules/native-wechat/ios/RTNWechat/RTNWechat.mm
+index 7daae7b..5596343 100644
 --- a/node_modules/native-wechat/ios/RTNWechat/RTNWechat.mm
 +++ b/node_modules/native-wechat/ios/RTNWechat/RTNWechat.mm
-@@ -28,7 +28,13 @@
+@@ -28,7 +28,13 @@ - (BOOL)handleOpenURL: (NSNotification *)notification
  {
      NSDictionary* userInfo = notification.userInfo;
          
@@ -16,3 +65,33 @@ diff --git a/node_modules/native-wechat/ios/RTNWechat/RTNWechat.mm b/node_module
  }
  
  - (dispatch_queue_t)methodQueue
+diff --git a/node_modules/native-wechat/ios/RTNWechat/RTNWechatUtils.m b/node_modules/native-wechat/ios/RTNWechat/RTNWechatUtils.m
+index f6768c9..e2d1f87 100644
+--- a/node_modules/native-wechat/ios/RTNWechat/RTNWechatUtils.m
++++ b/node_modules/native-wechat/ios/RTNWechat/RTNWechatUtils.m
+@@ -12,6 +12,25 @@ @implementation RTNWechatUtils
+ 
+ + (void)downloadFile:(NSURL *)url onSuccess:(void (^)(NSData * _Nullable data))onSuccess onError:(void (^)(NSError *error))onError
+ {
++    // iOS ViewShot returns an absolute path without a file:// scheme.
++    if (url.scheme.length == 0 && url.path.isAbsolutePath) {
++        url = [NSURL fileURLWithPath:url.path];
++    }
++    // Local screenshots must be read from disk rather than through NSURLSession.
++    if (url.isFileURL) {
++        dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
++            NSError *error = nil;
++            NSData *data = [NSData dataWithContentsOfURL:url options:NSDataReadingMappedIfSafe error:&error];
++            dispatch_async(dispatch_get_main_queue(), ^{
++                if (data != nil) {
++                    onSuccess(data);
++                } else {
++                    onError(error ?: [NSError errorWithDomain:@"NativeWechat" code:-1 userInfo:@{NSLocalizedDescriptionKey: @"Unable to read share image"}]);
++                }
++            });
++        });
++        return;
++    }
+     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
+     
+     NSURLSessionConfiguration *configuration = [NSURLSessionConfiguration defaultSessionConfiguration];
