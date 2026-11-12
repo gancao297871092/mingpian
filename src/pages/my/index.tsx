@@ -230,7 +230,7 @@ export default function My() {
     { label: '浏览记录', icon: <EntryHistoryIcon />, onPress: () => navigation.navigate('browseHistory') },
   ];
 
-  const regionText = ['IP', wqUser?.city].filter(Boolean).join('·');
+  const regionText = ['IP', wqUser?.city || '未知'].join('·');
 
   // ---- 吸顶动画：滚动经过头部时昵称栏展开（figma 101），全程 UI 线程 ----
   /** 昵称栏高度 0→46 跟随滚动（Reanimated height 动画在 UI 线程布局，不抖） */

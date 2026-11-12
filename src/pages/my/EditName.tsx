@@ -11,7 +11,9 @@ import type { RootStackParamList } from '@/route/map';
 
 const BLUE = '#2962D4';
 const MAX_LEN = 20;
-const INVALID_CHARS = /[@<>/]/;
+/** 昵称输入过滤：允许中英文等各国字母、数字、空格与少量安全标点（·•—-_）；表情及其余符号（@<>/#+$- 等）直接丢弃 */
+const NICKNAME_CHAR = /[\p{L}\p{N}\s·•—\-_]/u;
+const sanitizeNickname = (text: string) => Array.from(text).filter(ch => NICKNAME_CHAR.test(ch)).join('');
 
 export default function EditName() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -21,7 +23,7 @@ export default function EditName() {
   const [saving, setSaving] = useState(false);
 
   const trimmed = value.trim();
-  const valid = trimmed.length >= 2 && trimmed.length <= MAX_LEN && !INVALID_CHARS.test(trimmed);
+  const valid = trimmed.length >= 2 && trimmed.length <= MAX_LEN;
   const canSave = valid && trimmed !== origin && !saving;
 
   useEffect(() => {
@@ -56,7 +58,7 @@ export default function EditName() {
         <TextInput
           style={styles.input}
           value={value}
-          onChangeText={setValue}
+          onChangeText={text => setValue(sanitizeNickname(text))}
           maxLength={MAX_LEN}
           placeholder="请输入昵称"
           placeholderTextColor="#999999"
