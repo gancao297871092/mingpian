@@ -237,12 +237,13 @@ export default function RootNavigator() {
         <Stack.Screen
           name="editCard"
           component={EditCard}
-          options={{
-            title: '创建名片',
+          options={({ route }) => ({
+            // 带 id 进入为编辑已有名片
+            title: route.params?.id ? '编辑名片' : '创建名片',
             headerStyle: { backgroundColor: '#F6F7FB' },
             headerTitleStyle: { color: '#000000' },
             headerShadowVisible: false,
-          }}
+          })}
         />
         <Stack.Screen
           name="myCard"

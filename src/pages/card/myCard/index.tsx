@@ -12,7 +12,6 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SafeView from '@/components/SafeView';
-import Empty from '@/components/Empty';
 import EmptyState from '@/components/EmptyState';
 import PersonalCard from '@/components/cards/PersonalCard';
 import CompanyCard from '@/components/cards/CompanyCard';
@@ -183,7 +182,14 @@ export default function MyCard() {
 
   const renderCompany = () => {
     if (!companyCard) {
-      return <Empty label="暂无企业名片" />;
+      return (
+        <EmptyState
+          variant="content"
+          title="暂无企业名片"
+          description="加入或创建企业后，自动生成企业名片"
+          style={styles.emptyState}
+        />
+      );
     }
     return (
       <>

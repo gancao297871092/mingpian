@@ -24,7 +24,7 @@ function fullAddress(data: CardData): string {
   return `${data.province || ''}${data.city || ''}${data.district || ''}${data.address || ''}`;
 }
 
-/** 商务风格：白底 + 右侧装饰条；右上角企业 logo，无 logo 时编辑态显示 LOGO 占位（对齐小程序 card1） */
+/** 商务风格：白底 + 右侧装饰条；右上角企业 logo，无 logo 时不渲染（避免遮挡姓名） */
 function BusinessCard({ data, placeholder, squareBottom }: PersonalCardProps) {
   const company = data.cpName || (placeholder ? '企业名称' : '');
   const email = data.email || (placeholder ? 'example@mail.com' : '');
@@ -46,11 +46,6 @@ function BusinessCard({ data, placeholder, squareBottom }: PersonalCardProps) {
           />
           <View style={[StyleSheet.absoluteFill, styles.cpLogoFrost]} pointerEvents="none" />
           <ExpoImage source={{ uri: data.cpLogo }} style={styles.cpLogoImg} contentFit="cover" transition={150} />
-        </View>
-      )}
-      {!data.cpLogo && placeholder && (
-        <View style={styles.cpLogoPlaceholder}>
-          <Text style={styles.cpLogoPlaceholderText}>LOGO</Text>
         </View>
       )}
       <View style={styles.businessContent}>
@@ -256,22 +251,6 @@ const styles = StyleSheet.create({
   cpLogoImg: {
     width: '100%',
     height: '100%',
-  },
-  cpLogoPlaceholder: {
-    position: 'absolute',
-    right: scaleSizeW(14),
-    top: scaleSizeW(21),
-    width: scaleSizeW(114),
-    height: scaleSizeW(114),
-    borderRadius: scaleSizeW(10),
-    backgroundColor: '#292929',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cpLogoPlaceholderText: {
-    fontSize: setSpText(10),
-    fontWeight: '600',
-    color: '#FFFFFF',
   },
   businessContent: {
     flex: 1,
