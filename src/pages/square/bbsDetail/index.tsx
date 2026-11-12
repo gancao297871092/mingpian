@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   Animated,
   Easing,
   FlatList,
@@ -13,6 +12,7 @@ import {
   View,
   type ViewProps,
 } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { Image as ExpoImage } from 'expo-image';
 import { Carousel } from 'react-native-reanimated-carousel';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -644,7 +644,7 @@ export default function BbsDetail() {
 
   // 通过前二次确认（对齐小程序 onPass）
   const onAuditPass = useCallback(() => {
-    Alert.alert('提示', '请再次确认操作！', [
+    AppAlert.alert('提示', '请再次确认操作！', [
       { text: '取消', style: 'cancel' },
       { text: '确认', onPress: () => onAuditDo(1) },
     ]);
@@ -776,7 +776,7 @@ export default function BbsDetail() {
         .top({ commentId: Number(commentId), force })
         .then(res => {
           if (res.data?.needConfirm) {
-            Alert.alert('提示', res.data.msg || '已有其他置顶评论，是否替换？', [
+            AppAlert.alert('提示', res.data.msg || '已有其他置顶评论，是否替换？', [
               { text: '取消', style: 'cancel' },
               { text: '确认', onPress: () => onToggleTop(commentId, 1) },
             ]);
@@ -791,7 +791,7 @@ export default function BbsDetail() {
 
   const onDeleteComment = useCallback(
     (commentId: string) => {
-      Alert.alert('提示', '确认删除该评论吗？', [
+      AppAlert.alert('提示', '确认删除该评论吗？', [
         { text: '取消', style: 'cancel' },
         {
           text: '删除',
@@ -846,7 +846,7 @@ export default function BbsDetail() {
             Toast.show({ type: 'success', text1: detail?.isLifeTop ? '已取消置顶' : '置顶成功' });
           }).catch(() => { });
         } else if (action === 'delete') {
-          Alert.alert('提示', '确认删除该动态吗？', [
+          AppAlert.alert('提示', '确认删除该动态吗？', [
             { text: '取消', style: 'cancel' },
             {
               text: '删除', style: 'destructive', onPress: () => {

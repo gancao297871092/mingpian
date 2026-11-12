@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import LinearGradient from 'react-native-linear-gradient';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -70,7 +71,7 @@ export default function CertificationCenter() {
   /** 职位/企业认证以实名认证为前提，未实名先拦截提示（同小程序 onTipsAuthRealCard） */
   const onAction = (key: CertKey) => {
     if (key !== 'real' && authStatus !== 1) {
-      Alert.alert('提示', '您还未实名认证，是否进行认证!', [
+      AppAlert.alert('提示', '您还未实名认证，是否进行认证!', [
         { text: '取消', style: 'cancel' },
         { text: '去认证', onPress: () => navigation.navigate('companyRealName') },
       ]);

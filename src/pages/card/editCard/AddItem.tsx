@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
   Image,
   KeyboardAvoidingView,
   Modal,
@@ -13,6 +12,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import ImagePicker from 'react-native-image-crop-picker';
@@ -81,7 +81,7 @@ export default function AddItem({ route, navigation }: Props) {
 
   const onSave = async () => {
     if (!itTitle) {
-      Alert.alert('提示', '请输入板块名称');
+      AppAlert.alert('提示', '请输入板块名称');
       return;
     }
     setSaving(true);
@@ -115,7 +115,7 @@ export default function AddItem({ route, navigation }: Props) {
         navigation.goBack();
       }
     } catch {
-      Alert.alert('保存失败');
+      AppAlert.alert('保存失败');
     } finally {
       setSaving(false);
     }
@@ -124,7 +124,7 @@ export default function AddItem({ route, navigation }: Props) {
   // 板块图片上传
   const uploadImg = async () => {
     if (mediaLinkList.length >= 9) {
-      Alert.alert('提示', '最多上传9张图片');
+      AppAlert.alert('提示', '最多上传9张图片');
       return;
     }
     try {
@@ -157,7 +157,7 @@ export default function AddItem({ route, navigation }: Props) {
       }
     } catch (e: any) {
       if (e?.code !== 'E_PICKER_CANCELLED') {
-        Alert.alert('上传失败');
+        AppAlert.alert('上传失败');
       }
     }
   };

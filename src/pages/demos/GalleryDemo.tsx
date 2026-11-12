@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, Image, Alert, TouchableOpacity,
+  View, Text, StyleSheet, FlatList, Image, TouchableOpacity,
   SafeAreaView, ActivityIndicator,
 } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { getGalleryPhotos } from '@/components/capabilities';
 
 interface Photo {
@@ -29,7 +30,7 @@ export default function GalleryDemo() {
         setPhotos(mapped);
       }
     } catch {
-      Alert.alert('加载失败', '无法读取相册');
+      AppAlert.alert('加载失败', '无法读取相册');
     } finally {
       setLoading(false);
       setHasLoaded(true);

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, Pressable } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import RNExitApp from 'react-native-exit-app';
 
 export default function ExitAppDemo() {
@@ -8,7 +9,7 @@ export default function ExitAppDemo() {
 
   const handleExit = () => {
     if (!armed) {
-      Alert.alert('提示', '点击后会立即退出应用，确认继续吗？', [
+      AppAlert.alert('提示', '点击后会立即退出应用，确认继续吗？', [
         { text: '取消', style: 'cancel' },
         {
           text: '继续',

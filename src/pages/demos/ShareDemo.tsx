@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, SafeAreaView, TextInput, Alert,
+  View, Text, StyleSheet, SafeAreaView, TextInput, 
 } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { SharePanel, saveToGallery } from '@/components/capabilities';
 
 export default function ShareDemo() {
@@ -34,7 +35,7 @@ export default function ShareDemo() {
               style={styles.mockImg}
               onTouchEnd={() =>
                 saveToGallery('https://via.placeholder.com/300/1EA3B5/fff?text=Test')
-                  .then(ok => ok ? Alert.alert('提示', '保存成功') : null)
+                  .then(ok => ok ? AppAlert.alert('提示', '保存成功') : null)
               }
             >
               <Text style={styles.mockImgText}>点击保存</Text>

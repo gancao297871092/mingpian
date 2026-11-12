@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Image,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
@@ -62,9 +62,6 @@ export default function LoginHome({ navigation }: Props) {
         token: auth.token,
         ...(auth.userAuthorization ? { userAuthorization: auth.userAuthorization } : {}),
       });
-      // TODO: 一键登录联调日志，上线前删除
-      console.log('[phoneLogin] oneclick response:', JSON.stringify(res));
-      console.log('一键登录结果', res);
       if (res.code !== '200' || !res.data?.token) {
         throw new Error(res.msg || '登录失败，请重试');
       }
@@ -90,9 +87,7 @@ export default function LoginHome({ navigation }: Props) {
         navigation.navigate('agreement', { type: e?.message === 'privates' ? 'privates' : 'userSure' });
         return;
       }
-      // TODO: 一键登录联调日志，上线前删除
-      console.log('[phoneLogin] oneclick error:', code, e?.msg ?? e?.message);
-      Alert.alert('登录失败', e?.msg ?? e?.message ?? '一键登录失败，请重试');
+      AppAlert.alert('登录失败', e?.msg ?? e?.message ?? '一键登录失败，请重试');
     } finally {
       closePhoneLogin();
       phonePending.current = false;
@@ -103,18 +98,18 @@ export default function LoginHome({ navigation }: Props) {
   const onWechatLogin = async () => {
     if (wechatPending.current) return;
     if (!agreed) {
-      Alert.alert('提示', '请先阅读并同意《用户协议》和《隐私政策》');
+      AppAlert.alert('提示', '请先阅读并同意《用户协议》和《隐私政策》');
       return;
     }
     if (!isWechatConfigured()) {
-      Alert.alert('提示', '微信登录暂未开放（未配置 WECHAT_APPID）');
+      AppAlert.alert('提示', '微信登录暂未开放（未配置 WECHAT_APPID）');
       return;
     }
     wechatPending.current = true;
     setWechatLoading(true);
     try {
       if (!(await isWechatAvailable())) {
-        Alert.alert('提示', '未检测到微信，请先安装微信');
+        AppAlert.alert('提示', '未检测到微信，请先安装微信');
         return;
       }
       const { code } = await wechatLogin();
@@ -137,7 +132,7 @@ export default function LoginHome({ navigation }: Props) {
       }
     } catch (e: any) {
       if (e?.code === -2) return;
-      Alert.alert('登录失败', e?.message ?? '微信登录失败');
+      AppAlert.alert('登录失败', e?.message ?? '微信登录失败');
     } finally {
       wechatPending.current = false;
       setWechatLoading(false);

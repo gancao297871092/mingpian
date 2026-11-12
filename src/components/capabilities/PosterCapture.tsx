@@ -1,7 +1,8 @@
 import React, { useRef, useCallback } from 'react';
 import {
-  View, StyleSheet, TouchableOpacity, Text, Alert,
+  View, StyleSheet, TouchableOpacity, Text,
 } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import ViewShot from 'react-native-view-shot';
 import { saveToGallery } from './Gallery';
 
@@ -10,7 +11,7 @@ interface PosterCaptureProps {
   filename?: string;
 }
 
-export default function PosterCapture({ children, filename }: PosterCaptureProps) {
+export default function PosterCapture({ children, filename: _filename }: PosterCaptureProps) {
   const ref = useRef<any>(null);
 
   const handleCapture = useCallback(async () => {
@@ -19,10 +20,10 @@ export default function PosterCapture({ children, filename }: PosterCaptureProps
       if (!uri) return;
       const saved = await saveToGallery(uri, 'photo');
       if (saved) {
-        Alert.alert('保存成功', '海报已保存到相册');
+        AppAlert.alert('保存成功', '海报已保存到相册');
       }
     } catch {
-      Alert.alert('保存失败');
+      AppAlert.alert('保存失败');
     }
   }, []);
 

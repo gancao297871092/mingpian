@@ -1,6 +1,5 @@
 import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -10,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import QuillEditor from 'react-native-cn-quill';
 import ImagePicker from 'react-native-image-crop-picker';
@@ -88,7 +88,7 @@ export default function RichTextEdit({ route, navigation }: Props) {
       }
     } catch (e: any) {
       if (e?.code !== 'E_PICKER_CANCELLED') {
-        Alert.alert('上传失败');
+        AppAlert.alert('上传失败');
       }
     }
   };
@@ -103,7 +103,7 @@ export default function RichTextEdit({ route, navigation }: Props) {
   };
   // 清空
   const onClear = () => {
-    Alert.alert('确认', '确定清空内容吗？', [
+    AppAlert.alert('确认', '确定清空内容吗？', [
       { text: '取消', style: 'cancel' },
       {
         text: '确定',

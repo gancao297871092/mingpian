@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Linking,
   Modal,
@@ -14,6 +13,7 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { Image as ExpoImage } from 'expo-image';
 import { GestureViewer } from 'react-native-gesture-image-viewer';
 import Toast from 'react-native-toast-message';
@@ -380,7 +380,7 @@ export default function UnjoinedCompanyInfo() {
       navigation.navigate('companyCert');
       return;
     }
-    Alert.alert('认领企业', '确认认领该企业并录入到平台？', [
+    AppAlert.alert('认领企业', '确认认领该企业并录入到平台？', [
       { text: '取消', style: 'cancel' },
       {
         text: '认领',

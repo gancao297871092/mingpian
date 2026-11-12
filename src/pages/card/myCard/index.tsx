@@ -1,6 +1,5 @@
 import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Modal,
   ScrollView,
   StyleSheet,
@@ -8,6 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -105,7 +105,7 @@ export default function MyCard() {
 
   const onDelete = useCallback(() => {
     if (!currentCard?.id) return;
-    Alert.alert('删除名片', '确定删除该名片吗？', [
+    AppAlert.alert('删除名片', '确定删除该名片吗？', [
       { text: '取消', style: 'cancel' },
       {
         text: '删除',

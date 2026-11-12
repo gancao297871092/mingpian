@@ -1,6 +1,5 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import {
-  Alert,
   Image,
   Modal,
   ScrollView,
@@ -10,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { API } from '@/api';
 import { scaleSizeW, setSpText } from '@/utils/screenUtils';
 import AreaPicker from '@/components/AreaPicker';
@@ -100,19 +100,19 @@ const StepOne = forwardRef<StepHandle, StepOneProps>(function StepOneForm({ card
     setForm((prev) => ({ ...prev, alias, nameZh }));
 
     if (!nameZh) {
-      Alert.alert('提示', '请输入姓名');
+      AppAlert.alert('提示', '请输入姓名');
       return;
     }
     if (!validatePhone(form.phone)) {
-      Alert.alert('提示', '请输入正确的手机号码');
+      AppAlert.alert('提示', '请输入正确的手机号码');
       return;
     }
     if (!validateEmail(form.email)) {
-      Alert.alert('提示', '请输入正确的邮箱地址');
+      AppAlert.alert('提示', '请输入正确的邮箱地址');
       return;
     }
     if (form.profile && form.profile.length > 100) {
-      Alert.alert('提示', '个性签名字符不能超过100');
+      AppAlert.alert('提示', '个性签名字符不能超过100');
       return;
     }
 
@@ -152,7 +152,7 @@ const StepOne = forwardRef<StepHandle, StepOneProps>(function StepOneForm({ card
         });
       }
     } catch (e: any) {
-      Alert.alert('保存失败', e?.msg || '请稍后重试');
+      AppAlert.alert('保存失败', e?.msg || '请稍后重试');
     }
   };
 

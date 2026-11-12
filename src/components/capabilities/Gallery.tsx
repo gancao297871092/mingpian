@@ -1,4 +1,4 @@
-import { Alert } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { CameraRoll } from '@react-native-camera-roll/camera-roll';
 import { requestPermission } from '@/utils/permission';
 
@@ -9,7 +9,7 @@ export async function requestGalleryPermission(): Promise<boolean> {
 export async function saveToGallery(url: string, type: 'photo' | 'video' = 'photo') {
   const hasPermission = await requestGalleryPermission();
   if (!hasPermission) {
-    Alert.alert('权限不足', '需要相册访问权限');
+    AppAlert.alert('权限不足', '需要相册访问权限');
     return false;
   }
   try {

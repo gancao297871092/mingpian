@@ -9,6 +9,7 @@ import Toast, { type ToastConfig } from 'react-native-toast-message';
 import { Text, View } from 'react-native';
 import { ThemeProvider, useTheme } from '@/theme';
 import RootNavigator from '@/route';
+import { AppAlertHost } from '@/components/AppAlert';
 import { initWechat } from '@/utils/wechat';
 import { initPhoneLogin } from '@/native/PhoneLogin';
 import { useUserStore } from '@/store/user';
@@ -76,6 +77,7 @@ function Root() {
         {...(Platform.OS === 'android' ? { backgroundColor: '#000000' } : {})}
       />
       <RootNavigator />
+      <AppAlertHost />
       <Toast config={toastConfig} topOffset={80} />
       {showLaunch && (
         <Animated.View

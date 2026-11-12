@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, SafeAreaView, Pressable, ScrollView, Image, Alert, ActivityIndicator,
+  View, Text, StyleSheet, SafeAreaView, Pressable, ScrollView, Image, ActivityIndicator,
 } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import ImagePicker from 'react-native-image-crop-picker';
 import {
   Image as ImageCompressor,
@@ -54,7 +55,7 @@ export default function CompressorDemo() {
       setCompressedSize(compressedMeta.size);
     } catch (error: any) {
       if (error?.message !== 'User cancelled image selection') {
-        Alert.alert('压缩失败', String(error?.message ?? error));
+        AppAlert.alert('压缩失败', String(error?.message ?? error));
       }
     } finally {
       setBusy(null);
@@ -83,7 +84,7 @@ export default function CompressorDemo() {
       setVideoThumbnail(thumb.path);
     } catch (error: any) {
       if (error?.message !== 'User cancelled image selection') {
-        Alert.alert('压缩失败', String(error?.message ?? error));
+        AppAlert.alert('压缩失败', String(error?.message ?? error));
       }
     } finally {
       setBusy(null);

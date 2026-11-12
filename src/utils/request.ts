@@ -1,5 +1,5 @@
+import { AppAlert } from '@/components/AppAlert';
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
-import { Alert } from 'react-native';
 import { storageUtils } from './storage';
 import { env } from '@/config/env';
 import { resetToLogin } from '@/route/navigationRef';
@@ -31,7 +31,7 @@ function handleAuthError() {
   storageUtils.remove('userInfo');
   if (authAlertShowing) return;
   authAlertShowing = true;
-  Alert.alert('提示', '登录已过期，请重新登录', [
+  AppAlert.alert('提示', '登录已过期，请重新登录', [
     {
       text: '取消',
       style: 'cancel',
@@ -46,7 +46,12 @@ function handleAuthError() {
         resetToLogin();
       },
     },
-  ]);
+  ], {
+    // 返回键关闭时也要解除锁，避免后续 401 不再提示
+    onDismiss: () => {
+      authAlertShowing = false;
+    },
+  });
 }
 
 export interface PageList<T = any> {
@@ -104,7 +109,7 @@ class Request {
             return Promise.reject(data);
           }
           if (data?.msg && !(response.config.handleBbsUnavailable && isBbsUnavailable(data.msg))) {
-            Alert.alert('提示', data.msg);
+            AppAlert.alert('提示', data.msg);
           }
           return Promise.reject(data);
         }

@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { FlashList } from '@shopify/flash-list';
 import { Image as ExpoImage } from 'expo-image';
 import Toast from 'react-native-toast-message';
@@ -95,7 +96,7 @@ export default function CompanyMemberAudit() {
 
   /** 审核操作（对齐小程序 onExamine：确认后调 /company/auth/check 并更新状态角标） */
   const mark = (item: AuthItem, status: 0 | 1) => {
-    Alert.alert('提示', `确认${status === 1 ? '通过' : '拒绝'}审核?`, [
+    AppAlert.alert('提示', `确认${status === 1 ? '通过' : '拒绝'}审核?`, [
       { text: '取消', style: 'cancel' },
       {
         text: '确认',

@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   StyleProp,
   StyleSheet,
@@ -10,6 +9,7 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import ImagePicker from 'react-native-image-crop-picker';
 import Video from 'react-native-video';
 import Svg, { Path } from 'react-native-svg';
@@ -135,7 +135,7 @@ export default function VideoUploader({
       const pickedItem = Array.isArray(picked) ? picked[0] : picked;
       if (!pickedItem?.path) return;
       if (pickedItem.size && pickedItem.size > maxBytes) {
-        Alert.alert('提示', `视频过大，请选择${Math.round(maxBytes / 1024 / 1024)}MB以内的视频`);
+        AppAlert.alert('提示', `视频过大，请选择${Math.round(maxBytes / 1024 / 1024)}MB以内的视频`);
         return;
       }
       onPick?.(pickedItem.path);

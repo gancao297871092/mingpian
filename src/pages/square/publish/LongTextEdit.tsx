@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Animated,
   Easing,
   Keyboard,
@@ -13,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
@@ -399,7 +399,7 @@ export default function LongTextEdit({ route, navigation }: Props) {
       quillRef.current.insertEmbed(sel?.index || 0, 'image', url);
     } catch (e: any) {
       if (e?.code !== 'E_PICKER_CANCELLED') {
-        Alert.alert('上传失败');
+        AppAlert.alert('上传失败');
       }
     }
   };
@@ -444,7 +444,7 @@ export default function LongTextEdit({ route, navigation }: Props) {
   const applyCustomWidth = () => {
     const n = parseInt(customWidth, 10);
     if (!n || n < 1 || n > 100) {
-      Alert.alert('提示', '请输入 1-100 的百分比');
+      AppAlert.alert('提示', '请输入 1-100 的百分比');
       return;
     }
     applyEmbedWidth(`${n}%`);

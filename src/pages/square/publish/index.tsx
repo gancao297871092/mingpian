@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   Keyboard,
   KeyboardAvoidingView,
@@ -18,6 +17,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { useNavigation, useFocusEffect, useRoute, usePreventRemove, type RouteProp } from '@react-navigation/native';
 import { BottomSheetTextInput, type BottomSheetModal } from '@gorhom/bottom-sheet';
 import Animated, { FadeInUp, FadeOut, FadeOutUp, Easing } from 'react-native-reanimated';
@@ -434,7 +434,7 @@ export default function Publish() {
         .then(url => setLongCover(prev => (prev === uri ? url : prev)))
         .catch(() => {
           setLongCover(prev => (prev === uri ? null : prev));
-          Alert.alert('提示', '封面上传失败，请重新选择');
+          AppAlert.alert('提示', '封面上传失败，请重新选择');
         })
         .finally(() => setLongCoverUploading(false));
     } catch {
@@ -535,20 +535,20 @@ export default function Publish() {
   const onExitDraft = () => {
     setExitMenuVisible(false);
     if (activeTab === 'short' && images.length === 0) {
-      Alert.alert('提示', '短图文至少需要一张图片才能存草稿');
+      AppAlert.alert('提示', '短图文至少需要一张图片才能存草稿');
       return;
     }
     if (activeTab === 'video' && !videoUrl) {
-      Alert.alert('提示', '视频动态至少需要上传一个视频才能存草稿');
+      AppAlert.alert('提示', '视频动态至少需要上传一个视频才能存草稿');
       return;
     }
     if (activeTab === 'long') {
       if (!longCover) {
-        Alert.alert('提示', '长文需要添加封面才能存草稿');
+        AppAlert.alert('提示', '长文需要添加封面才能存草稿');
         return;
       }
       if (!longTitle.trim() && !htmlHasContent(longHtml)) {
-        Alert.alert('提示', '长文至少需要填写标题或正文才能存草稿');
+        AppAlert.alert('提示', '长文至少需要填写标题或正文才能存草稿');
         return;
       }
     }
@@ -570,7 +570,7 @@ export default function Publish() {
     });
     setDraftId(id);
     clearAll();
-    Alert.alert('提示', '已存入草稿箱', [{ text: '知道了', onPress: () => setAllowLeave(true) }]);
+    AppAlert.alert('提示', '已存入草稿箱', [{ text: '知道了', onPress: () => setAllowLeave(true) }]);
   };
 
   const openSheet = (target: React.RefObject<BottomSheetModal | null>) => {
@@ -594,57 +594,57 @@ export default function Publish() {
     const activeTitle = activeTab === 'video' ? videoTitle : activeTab === 'long' ? longTitle : title;
     const activeContent = activeTab === 'video' ? videoBody : activeTab === 'long' ? longHtml : body;
     if (activeTab === 'short' && !activeTitle.trim() && !activeContent.trim() && images.length === 0) {
-      Alert.alert('提示', '请先填写内容');
+      AppAlert.alert('提示', '请先填写内容');
       return;
     }
     if (activeTab === 'video' && !videoUrl) {
-      Alert.alert('提示', '请先上传视频');
+      AppAlert.alert('提示', '请先上传视频');
       return;
     }
     if (activeTab === 'long') {
       if (!longCover) {
-        Alert.alert('提示', '请添加封面');
+        AppAlert.alert('提示', '请添加封面');
         return;
       }
       if (longCoverUploading) {
-        Alert.alert('提示', '封面上传中，请稍候');
+        AppAlert.alert('提示', '封面上传中，请稍候');
         return;
       }
       if (!longTitle.trim()) {
-        Alert.alert('提示', '请填写标题');
+        AppAlert.alert('提示', '请填写标题');
         return;
       }
       if (!htmlHasContent(longHtml)) {
-        Alert.alert('提示', '请填写正文');
+        AppAlert.alert('提示', '请填写正文');
         return;
       }
       if ([...htmlToPlain(longHtml)].length > LONG_BODY_LIMIT) {
-        Alert.alert('提示', `正文最多${LONG_BODY_LIMIT}字`);
+        AppAlert.alert('提示', `正文最多${LONG_BODY_LIMIT}字`);
         return;
       }
       if (extractMediaSrcs(longHtml, 'img').length > 20) {
-        Alert.alert('提示', '长文图片最多20张');
+        AppAlert.alert('提示', '长文图片最多20张');
         return;
       }
       if (extractMediaSrcs(longHtml, 'video').length > 5) {
-        Alert.alert('提示', '长文内嵌视频最多5个');
+        AppAlert.alert('提示', '长文内嵌视频最多5个');
         return;
       }
     }
     if ([...activeTitle].length > TITLE_LIMIT) {
-      Alert.alert('提示', '标题最多20字');
+      AppAlert.alert('提示', '标题最多20字');
       return;
     }
     if (imgBusy) {
-      Alert.alert('提示', '图片上传中或存在上传失败，请稍候');
+      AppAlert.alert('提示', '图片上传中或存在上传失败，请稍候');
       return;
     }
     if (videoBusy) {
-      Alert.alert('提示', '视频上传中或存在上传失败，请稍候');
+      AppAlert.alert('提示', '视频上传中或存在上传失败，请稍候');
       return;
     }
     if (activeTab === 'video' && coverUploading) {
-      Alert.alert('提示', '封面上传中，请稍候');
+      AppAlert.alert('提示', '封面上传中，请稍候');
       return;
     }
     if (publishing) return;
@@ -685,7 +685,7 @@ export default function Publish() {
           aiConnectEnabled: syncOn ? 1 : 0,
         });
         if (draftId) deleteDraft(draftId);
-        Alert.alert('提示', res.data?.statusMsg || '修改成功', [
+        AppAlert.alert('提示', res.data?.statusMsg || '修改成功', [
           { text: '知道了', onPress: () => setAllowLeave(true) },
         ]);
       } else {
@@ -706,7 +706,7 @@ export default function Publish() {
           aiConnectEnabled: syncOn ? 1 : 0,
         });
         if (draftId) deleteDraft(draftId);
-        Alert.alert('提示', res.data?.statusMsg || '发布成功', [
+        AppAlert.alert('提示', res.data?.statusMsg || '发布成功', [
           {
             text: '知道了',
             onPress: () => {
@@ -717,7 +717,7 @@ export default function Publish() {
         ]);
       }
     } catch (e: any) {
-      Alert.alert('发布失败', e?.msg || '请稍后重试');
+      AppAlert.alert('发布失败', e?.msg || '请稍后重试');
     } finally {
       setPublishing(false);
     }

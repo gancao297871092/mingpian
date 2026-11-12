@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { FlashList } from '@shopify/flash-list';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -155,7 +156,7 @@ export default function BrowseHistory() {
 
   const onDelete = useCallback(() => {
     if (selected.size === 0) return;
-    Alert.alert('删除浏览记录', `确认删除已选 ${selected.size} 条记录？`, [
+    AppAlert.alert('删除浏览记录', `确认删除已选 ${selected.size} 条记录？`, [
       { text: '取消', style: 'cancel' },
       {
         text: '删除',
@@ -176,7 +177,7 @@ export default function BrowseHistory() {
   }, [selected]);
 
   const onClear = useCallback(() => {
-    Alert.alert('清空浏览记录', '确认清空全部浏览记录？', [
+    AppAlert.alert('清空浏览记录', '确认清空全部浏览记录？', [
       { text: '取消', style: 'cancel' },
       {
         text: '清空',

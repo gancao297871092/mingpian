@@ -1,5 +1,6 @@
 import React from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Image as ExpoImage } from 'expo-image';
@@ -53,7 +54,7 @@ export default function Settings() {
   const logout = useUserStore(s => s.logout);
 
   const onClearCache = () => {
-    Alert.alert('清理缓存', '确定要清理本地缓存吗？', [
+    AppAlert.alert('清理缓存', '确定要清理本地缓存吗？', [
       { text: '取消', style: 'cancel' },
       {
         text: '确定',
@@ -69,7 +70,7 @@ export default function Settings() {
   };
 
   const onSwitchAccount = () => {
-    Alert.alert('切换账号', '确定要切换账号吗？', [
+    AppAlert.alert('切换账号', '确定要切换账号吗？', [
       { text: '取消', style: 'cancel' },
       {
         text: '确定',
@@ -82,7 +83,7 @@ export default function Settings() {
   };
 
   const onLogout = () => {
-    Alert.alert('退出登录', '确定要退出当前账号吗？', [
+    AppAlert.alert('退出登录', '确定要退出当前账号吗？', [
       { text: '取消', style: 'cancel' },
       {
         text: '退出登录',

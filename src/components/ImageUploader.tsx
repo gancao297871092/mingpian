@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   Modal,
   ScrollView,
@@ -12,6 +11,7 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import ImagePicker from 'react-native-image-crop-picker';
 import { Image as ExpoImage } from 'expo-image';
 import Animated from 'react-native-reanimated';
@@ -410,7 +410,7 @@ export default function ImageUploader({
         }
       });
       if (oversize) {
-        Alert.alert('提示', `图片过大，请选择${Math.round(maxBytes / 1024 / 1024)}MB以内的图片`);
+        AppAlert.alert('提示', `图片过大，请选择${Math.round(maxBytes / 1024 / 1024)}MB以内的图片`);
       }
       const newItems: UploadImage[] = valid.slice(0, remain).map(item => ({
         key: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,

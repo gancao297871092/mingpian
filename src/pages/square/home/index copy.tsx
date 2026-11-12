@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   Dimensions,
   Image,
   ScrollView,
@@ -9,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import PagerView from 'react-native-pager-view';
@@ -119,7 +119,7 @@ export default function Home() {
           setCurrentIndex(0);
         }
       }
-    } catch (e) {
+    } catch {
       // ignore
     }
   }, [isLogin]);
@@ -131,10 +131,10 @@ export default function Home() {
       if (res.code === '200') {
         setUserInfo(res.data);
       }
-    } catch (e) {
+    } catch {
       // ignore
     }
-  }, [isLogin]);
+  }, [isLogin, setUserInfo]);
 
   useFocusEffect(
     useCallback(() => {
@@ -157,7 +157,7 @@ export default function Home() {
   };
 
   const onDelCard = async (item: any) => {
-    Alert.alert('提示', '确认删除名片吗？', [
+    AppAlert.alert('提示', '确认删除名片吗？', [
       { text: '取消', style: 'cancel' },
       {
         text: '删除',
@@ -168,7 +168,7 @@ export default function Home() {
             if (res.code === '200') {
               getList();
             }
-          } catch (e) {
+          } catch {
             // ignore
           }
         },
@@ -189,13 +189,13 @@ export default function Home() {
       if (!uri) return;
       const saved = await saveToGallery(uri, 'photo');
       if (saved) {
-        Alert.alert('保存成功', '名片海报已保存到相册');
+        AppAlert.alert('保存成功', '名片海报已保存到相册');
         setShareVisible(false);
       } else {
-        Alert.alert('保存失败', '请检查相册权限');
+        AppAlert.alert('保存失败', '请检查相册权限');
       }
     } catch {
-      Alert.alert('保存失败');
+      AppAlert.alert('保存失败');
     }
   };
 
@@ -299,7 +299,7 @@ export default function Home() {
     </ScrollView>
   );
 
-  const renderCardActions = (item: any, idx: number) => (
+  const renderCardActions = (item: any, _idx: number) => (
     <View style={styles.actionsRow}>
       <PermissionButton mode="direct" style={styles.actionBtn} onPress={() => onShareCard(item)}>
         <Image source={require('@/assets/ming/share_new1.png')} style={styles.actionIcon} />
@@ -363,7 +363,7 @@ export default function Home() {
     );
   };
 
-  const renderCpCard = (item: any, idx: number) => (
+  const renderCpCard = (item: any, _idx: number) => (
     <View style={styles.pageContainer}>
       <PermissionButton
         mode="direct"

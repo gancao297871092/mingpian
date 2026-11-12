@@ -1,12 +1,12 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import {
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { API } from '@/api';
@@ -127,7 +127,7 @@ const StepFour = forwardRef<StepHandle, StepFourProps>(function StepFourForm({ c
         navigation.navigate('viewCard', { id: cardId, mode: isEdit ? 'update' : 'add' });
       }
     } catch {
-      Alert.alert('保存失败');
+      AppAlert.alert('保存失败');
     } finally {
       setSaving(false);
     }
@@ -141,13 +141,13 @@ const StepFour = forwardRef<StepHandle, StepFourProps>(function StepFourForm({ c
       if (await saveStyle()) {
         const res = await API.card.push({ cardId });
         if (res.code === '200') {
-          Alert.alert('提示', isEdit ? '名片保存成功！' : '名片创建成功！', [
+          AppAlert.alert('提示', isEdit ? '名片保存成功！' : '名片创建成功！', [
             { text: '确定', onPress: () => navigation.goBack() },
           ]);
         }
       }
     } catch {
-      Alert.alert('保存失败');
+      AppAlert.alert('保存失败');
     } finally {
       setSaving(false);
     }

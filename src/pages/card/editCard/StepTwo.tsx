@@ -1,11 +1,11 @@
 import React, { forwardRef, useImperativeHandle, useState } from 'react';
 import {
-  Alert,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { Image as ExpoImage } from 'expo-image';
 import ImagePicker from 'react-native-image-crop-picker';
 import { API } from '@/api';
@@ -32,11 +32,11 @@ const StepTwo = forwardRef<StepHandle, StepTwoProps>(function StepTwoForm({ card
 
   const uploadImg = async () => {
     if (mediaList.length >= 9) {
-      Alert.alert('提示', '最多上传9张图片');
+      AppAlert.alert('提示', '最多上传9张图片');
       return;
     }
     if (!cid) {
-      Alert.alert('提示', '请先完成第一步');
+      AppAlert.alert('提示', '请先完成第一步');
       return;
     }
 
@@ -85,7 +85,7 @@ const StepTwo = forwardRef<StepHandle, StepTwoProps>(function StepTwoForm({ card
       }
     } catch (e: any) {
       if (e?.code !== 'E_PICKER_CANCELLED') {
-        Alert.alert('上传失败', e?.msg || '请稍后重试');
+        AppAlert.alert('上传失败', e?.msg || '请稍后重试');
       }
     } finally {
       setUploading(false);
@@ -101,7 +101,7 @@ const StepTwo = forwardRef<StepHandle, StepTwoProps>(function StepTwoForm({ card
       }
       setIndexId(item.mdId);
     } catch {
-      Alert.alert('设置失败');
+      AppAlert.alert('设置失败');
     }
   };
 
@@ -117,14 +117,14 @@ const StepTwo = forwardRef<StepHandle, StepTwoProps>(function StepTwoForm({ card
       try {
         await API.common.mediaDel({ mediaId: item.mdId });
       } catch {
-        Alert.alert('删除失败');
+        AppAlert.alert('删除失败');
       }
     }
   };
 
   const onSubmit = async () => {
     if (mediaList.length <= 0) {
-      Alert.alert('提示', '请上传名片照片');
+      AppAlert.alert('提示', '请上传名片照片');
       return;
     }
     // 未手动设封面时默认第一张为封面（对齐小程序）；接口失败不影响本地封面态

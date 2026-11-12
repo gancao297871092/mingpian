@@ -1,5 +1,6 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { FlashList } from '@shopify/flash-list';
 import { Image as ExpoImage } from 'expo-image';
 import { useNavigation } from '@react-navigation/native';
@@ -174,7 +175,7 @@ export default function BrowseHistorySearch() {
   }, [searched, fetchList, page, pages]);
 
   const onClearAll = useCallback(() => {
-    Alert.alert('全部删除', '确认删除全部搜索历史？', [
+    AppAlert.alert('全部删除', '确认删除全部搜索历史？', [
       { text: '取消', style: 'cancel' },
       { text: '删除', style: 'destructive', onPress: () => saveChips([]) },
     ]);

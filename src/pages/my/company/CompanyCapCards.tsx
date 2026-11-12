@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import Toast from 'react-native-toast-message';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -52,7 +53,7 @@ export default function CompanyCapCards() {
   );
 
   const onDelete = (item: CapCardItem) => {
-    Alert.alert('删除能力卡', `确认删除「${item.cardName || ''}」？`, [
+    AppAlert.alert('删除能力卡', `确认删除「${item.cardName || ''}」？`, [
       { text: '取消', style: 'cancel' },
       {
         text: '删除',

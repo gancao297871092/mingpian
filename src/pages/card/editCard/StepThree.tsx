@@ -1,11 +1,11 @@
 import React, { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react';
 import {
-  Alert,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { API } from '@/api';
 import { scaleSizeW, setSpText } from '@/utils/screenUtils';
@@ -66,7 +66,7 @@ const StepThree = forwardRef<StepHandle, StepThreeProps>(function StepThreeForm(
         setPjId(res.data[0].id);
       }
     } catch {
-      Alert.alert('添加失败');
+      AppAlert.alert('添加失败');
     }
   };
 
@@ -77,7 +77,7 @@ const StepThree = forwardRef<StepHandle, StepThreeProps>(function StepThreeForm(
         setItemsList(res.data?.itemsList || []);
       }
     } catch {
-      Alert.alert('删除失败');
+      AppAlert.alert('删除失败');
     }
   };
 

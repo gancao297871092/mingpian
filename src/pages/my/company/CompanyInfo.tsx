@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Image as ExpoImage } from 'expo-image';
@@ -324,7 +325,7 @@ function MenusTab({ navigation }: { navigation: NativeStackNavigationProp<RootSt
   );
 
   const onDelete = (item: any) => {
-    Alert.alert('删除模块', `确认删除「${item.mdName || ''}」？`, [
+    AppAlert.alert('删除模块', `确认删除「${item.mdName || ''}」？`, [
       { text: '取消', style: 'cancel' },
       {
         text: '删除',
@@ -405,7 +406,7 @@ function ContactsTab({ navigation }: { navigation: NativeStackNavigationProp<Roo
       Toast.show({ type: 'error', text1: '删除失败：缺少联系人ID' });
       return;
     }
-    Alert.alert('删除联系方式', `确认删除联系人「${item.name || ''}」？`, [
+    AppAlert.alert('删除联系方式', `确认删除联系人「${item.name || ''}」？`, [
       { text: '取消', style: 'cancel' },
       {
         text: '删除',

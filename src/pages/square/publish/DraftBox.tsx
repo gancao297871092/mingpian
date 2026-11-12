@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Video from 'react-native-video';
@@ -55,7 +56,7 @@ export default function DraftBox() {
   );
 
   const onDelete = (draft: LocalDraft) => {
-    Alert.alert('删除草稿', '删除后不可恢复，确认删除？', [
+    AppAlert.alert('删除草稿', '删除后不可恢复，确认删除？', [
       { text: '取消', style: 'cancel' },
       {
         text: '删除',

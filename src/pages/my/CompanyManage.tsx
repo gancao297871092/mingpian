@@ -1,5 +1,6 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
@@ -127,13 +128,13 @@ export default function CompanyManage() {
   /** 退出企业（对齐小程序 exitCp）：超管需先移交，普通成员确认后调 /company/user/liveOut */
   const onExit = () => {
     if (userInfo?.isMaster === 1) {
-      Alert.alert('提示', '请先移交管理员权限，再退出企业', [
+      AppAlert.alert('提示', '请先移交管理员权限，再退出企业', [
         { text: '取消', style: 'cancel' },
         { text: '去移交', onPress: () => navigation.navigate('companyMembers') },
       ]);
       return;
     }
-    Alert.alert('提示', '确认退出企业吗？', [
+    AppAlert.alert('提示', '确认退出企业吗？', [
       { text: '取消', style: 'cancel' },
       {
         text: '退出',

@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Keyboard,
   StyleSheet,
   Text,
@@ -9,6 +8,7 @@ import {
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { API } from '@/api';
 import { CheckIcon } from '@/assets/login/icons';
@@ -57,7 +57,7 @@ export default function OtherNumberLogin({ navigation }: Props) {
   const onGetCode = async () => {
     if (countdown > 0) return;
     if (!isPhoneValid) {
-      Alert.alert('提示', '请输入正确的11位手机号码');
+      AppAlert.alert('提示', '请输入正确的11位手机号码');
       return;
     }
     try {
@@ -66,27 +66,27 @@ export default function OtherNumberLogin({ navigation }: Props) {
       if (respCode === '200' && data?.authCode) {
         setAuthCode(data.authCode);
         startCountdown();
-        Alert.alert('提示', '验证码已发送，请注意查收');
+        AppAlert.alert('提示', '验证码已发送，请注意查收');
       } else {
-        Alert.alert('提示', msg || '验证码发送失败');
+        AppAlert.alert('提示', msg || '验证码发送失败');
       }
     } catch (e: any) {
-      Alert.alert('提示', e?.message || '网络错误，请稍后重试');
+      AppAlert.alert('提示', e?.message || '网络错误，请稍后重试');
     }
   };
 
   const onLogin = async () => {
     if (loading) return;
     if (!isPhoneValid) {
-      Alert.alert('提示', '请输入正确的11位手机号码');
+      AppAlert.alert('提示', '请输入正确的11位手机号码');
       return;
     }
     if (code.length < 4) {
-      Alert.alert('提示', '请输入验证码');
+      AppAlert.alert('提示', '请输入验证码');
       return;
     }
     if (!agreed) {
-      Alert.alert('提示', '请先阅读并同意《用户协议》和《隐私政策》');
+      AppAlert.alert('提示', '请先阅读并同意《用户协议》和《隐私政策》');
       return;
     }
     setLoading(true);
@@ -106,10 +106,10 @@ export default function OtherNumberLogin({ navigation }: Props) {
         }
         navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
       } else {
-        Alert.alert('提示', msg || '登录失败');
+        AppAlert.alert('提示', msg || '登录失败');
       }
     } catch (e: any) {
-      Alert.alert('提示', e?.message || '网络错误，请稍后重试');
+      AppAlert.alert('提示', e?.message || '网络错误，请稍后重试');
     } finally {
       setLoading(false);
     }

@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { FlashList } from '@shopify/flash-list';
@@ -151,7 +152,7 @@ export default function CompanyMembers() {
         const check = await API.company.memberSetKfCheck(params);
         if (check.code !== '200') return;
         if (!check.data) {
-          Alert.alert('提示', `是否将客服移交给${m.realName || '该成员'}？`, [
+          AppAlert.alert('提示', `是否将客服移交给${m.realName || '该成员'}？`, [
             { text: '取消', style: 'cancel' },
             { text: '确认', onPress: () => runAction(() => API.company.memberSetKf(params), '设置成功') },
           ]);
@@ -177,7 +178,7 @@ export default function CompanyMembers() {
           color: '#EF4444',
           onPress: () => {
             closeRow();
-            Alert.alert('踢出成员', `确认将「${m.realName || ''}」移出企业？`, [
+            AppAlert.alert('踢出成员', `确认将「${m.realName || ''}」移出企业？`, [
               { text: '取消', style: 'cancel' },
               { text: '踢出', style: 'destructive', onPress: () => runAction(() => API.company.memberDel(params)) },
             ]);
@@ -202,7 +203,7 @@ export default function CompanyMembers() {
           color: '#F2722C',
           onPress: () => {
             closeRow();
-            Alert.alert('提示', '移交后您将失去管理员权限，确认移交吗？', [
+            AppAlert.alert('提示', '移交后您将失去管理员权限，确认移交吗？', [
               { text: '取消', style: 'cancel' },
               {
                 text: '确认',
@@ -230,7 +231,7 @@ export default function CompanyMembers() {
           color: '#EF4444',
           onPress: () => {
             closeRow();
-            Alert.alert('踢出成员', `确认将「${m.realName || ''}」移出企业？`, [
+            AppAlert.alert('踢出成员', `确认将「${m.realName || ''}」移出企业？`, [
               { text: '取消', style: 'cancel' },
               { text: '踢出', style: 'destructive', onPress: () => runAction(() => API.company.memberDel(params)) },
             ]);

@@ -1,5 +1,6 @@
 import React from 'react';
-import { Alert, TouchableOpacity, type TouchableOpacityProps, type GestureResponderEvent } from 'react-native';
+import { TouchableOpacity, type TouchableOpacityProps, type GestureResponderEvent } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useUserStore } from '@/store/user';
@@ -34,7 +35,7 @@ export default function PermissionButton({
   const handlePress = (e: GestureResponderEvent) => {
     if (!isLogin) {
       if (mode === 'tip') {
-        Alert.alert(tipTitle, tipContent, [
+        AppAlert.alert(tipTitle, tipContent, [
           { text: '取消', style: 'cancel' },
           {
             text: confirmText,

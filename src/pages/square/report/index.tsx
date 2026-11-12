@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Toast from 'react-native-toast-message';
@@ -28,7 +29,7 @@ export default function ReportBbs() {
   const onSubmit = () => {
     if (!canSubmit) return;
     if (imgBusy) {
-      Alert.alert('提示', '图片上传中，请稍候再提交');
+      AppAlert.alert('提示', '图片上传中，请稍候再提交');
       return;
     }
     setSubmitting(true);
@@ -41,7 +42,7 @@ export default function ReportBbs() {
         reportImages: images.join(';') || undefined,
       })
       .then(() => {
-        Alert.alert('提示', '举报成功，我们会尽快处理', [
+        AppAlert.alert('提示', '举报成功，我们会尽快处理', [
           { text: '确定', onPress: () => navigation.goBack() },
         ]);
       })

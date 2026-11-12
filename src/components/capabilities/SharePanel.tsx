@@ -1,7 +1,8 @@
 import React, { useCallback } from 'react';
 import {
-  View, StyleSheet, TouchableOpacity, Text, Alert, Clipboard,
+  View, StyleSheet, TouchableOpacity, Text, Clipboard,
 } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import Share from 'react-native-share';
 
 interface SharePanelProps {
@@ -27,14 +28,14 @@ export default function SharePanel({
       });
     } catch (error: any) {
       if (error?.message !== 'User did not share') {
-        Alert.alert('分享失败', error?.message);
+        AppAlert.alert('分享失败', error?.message);
       }
     }
   }, [url, title, message, imageUrl]);
 
   const handleCopyLink = useCallback(() => {
     Clipboard.setString(url);
-    Alert.alert('已复制', '链接已复制到剪贴板');
+    AppAlert.alert('已复制', '链接已复制到剪贴板');
   }, [url]);
 
   return (

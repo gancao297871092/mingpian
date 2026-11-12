@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Alert } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { Camera, useCameraDevice } from 'react-native-vision-camera';
 import {
   checkPermission,
@@ -34,7 +35,7 @@ export default function CameraView({ onCapture, onClose }: CameraViewProps) {
       return;
     }
     if (state.status === 'blocked' || state.status === 'restricted') {
-      Alert.alert('相机权限已关闭', '请在系统设置中开启相机权限', [
+      AppAlert.alert('相机权限已关闭', '请在系统设置中开启相机权限', [
         { text: '取消', style: 'cancel' },
         { text: '去设置', onPress: () => openAppSettings() },
       ]);
