@@ -105,7 +105,7 @@ export default function ChangePhoneVerify() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'changePhoneVerify'>>();
   const scene = route.params?.scene ?? 'changePhone';
-  const originPhone = useUserStore(s => s.userInfo?.wqUser?.phone) || '';
+  const originPhone = useUserStore(s => s.userInfo?.wqUser?.mobile) || '';
   const masked = originPhone.replace(/^(\d{3})\d{4}(\d{4})$/, '$1****$2');
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');

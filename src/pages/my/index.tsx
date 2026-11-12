@@ -112,6 +112,8 @@ export default function My() {
   /** JS 侧副本，驱动标签颜色/图标跟手渐变（原生驱动只用于下指示器位移） */
   const scrollXJS = useRef(new Animated.Value(0)).current;
   const swiperRef = useRef<any>(null);
+  /** 业务员工作台待触达数（/sales/task/count 的 pending，入口角标） */
+  const [workbenchTodo, setWorkbenchTodo] = useState(0);
   const barDarkRef = useRef(false);
   const pageIndexRef = useRef(pageIndex);
   pageIndexRef.current = pageIndex;
@@ -152,6 +154,10 @@ export default function My() {
       if (token) {
         API.user.info()
           .then(res => res.data && setUserInfo(res.data))
+          .catch(() => { });
+        // 工作台待触达角标
+        API.salesTask.count()
+          .then(res => setWorkbenchTodo(res.data?.pending ?? 0))
           .catch(() => { });
       }
     }, [token, setUserInfo]),
@@ -225,7 +231,7 @@ export default function My() {
 
   const entries: { label: string; icon: React.ReactNode; badge?: number; onPress: () => void }[] = [
     { label: '企业管理', icon: <EntryCompanyIcon />, onPress: () => navigation.navigate('companyManage') },
-    { label: '业务员工作台', icon: <EntryWorkbenchIcon />, badge: 2, onPress: () => navigation.navigate('workbench') },
+    { label: '业务员工作台', icon: <EntryWorkbenchIcon />, badge: workbenchTodo, onPress: () => navigation.navigate('workbench') },
     { label: '认证中心', icon: <EntryCertIcon />, onPress: () => navigation.navigate('certificationCenter') },
     { label: '浏览记录', icon: <EntryHistoryIcon />, onPress: () => navigation.navigate('browseHistory') },
   ];

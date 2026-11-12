@@ -7,7 +7,7 @@ import SafeView from '@/components/SafeView';
 import { API } from '@/api';
 import { useUserStore } from '@/store/user';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
-import { BLUE, SettingCard, SettingDivider, SettingRow } from './components';
+import { BLUE, SettingCard, SettingRow } from './components';
 import { CertBadgeIcon, WechatIcon } from './subIcons';
 import type { RootStackParamList } from '@/route/map';
 
@@ -25,13 +25,25 @@ export default function AccountSecurity() {
   const load = useCallback(() => {
     API.setting
       .accountSecurity()
-      .then(res => res.data && setInfo(res.data))
+      .then(
+        res =>
+          res.data &&
+          // 接口未返回的字段用本地用户信息兜底（手机号 wqUser.mobile；微信绑定态按 xcxOpenid 非空判断，openid 不适合展示，只显示已绑定/未绑定）
+          setInfo({
+            authReal: userInfo?.wqUser?.authRealCard,
+            authPosition: userInfo?.wqUser?.authPosition,
+            authCompany: userInfo?.wqUser?.authCompany,
+            ...res.data,
+            phone: res.data.phone || userInfo?.wqUser?.mobile,
+            wechatBound: res.data.wechatBound ?? !!userInfo?.wqUser?.xcxOpenid,
+          }),
+      )
       .catch(() => {
         // TODO 联调后处理失败兜底
         setInfo({
-          phone: userInfo?.wqUser?.phone,
+          phone: userInfo?.wqUser?.mobile,
           hasPassword: false,
-          wechatBound: false,
+          wechatBound: !!userInfo?.wqUser?.xcxOpenid,
           authReal: userInfo?.wqUser?.authRealCard,
           authPosition: userInfo?.wqUser?.authPosition,
           authCompany: userInfo?.wqUser?.authCompany,
@@ -62,12 +74,14 @@ export default function AccountSecurity() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <SettingCard>
           <SettingRow label="手机号" value={maskPhone(info.phone)} onPress={() => setPhoneTipVisible(true)} />
+          {/* 登录密码：功能后续实现，先隐藏
           <SettingDivider />
           <SettingRow
             label="登录密码"
             value={info.hasPassword ? '已设置' : '未设置'}
             onPress={() => navigation.navigate('verifyIdentity', { scene: 'resetPassword' })}
           />
+          */}
         </SettingCard>
         <View style={styles.gap} />
         <SettingCard>

@@ -121,7 +121,11 @@ export default function OtherNumberLogin({ navigation }: Props) {
         try {
           const infoRes = await API.user.info();
           if (infoRes.code === '200') {
-            setUserInfo(infoRes.data);
+            // 手机号登录即完成绑定：后端未回传 mobile 时用本次登录手机号兜底，保证账号与安全页能脱敏展示
+            setUserInfo({
+              ...infoRes.data,
+              wqUser: { ...infoRes.data?.wqUser, mobile: infoRes.data?.wqUser?.mobile || phone },
+            });
           }
         } catch {
           // ignore

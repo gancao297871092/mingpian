@@ -23,7 +23,10 @@ export interface WqUser {
   district?: string;
   address?: string;
   email?: string;
-  phone?: string;
+  /** 手机号（/user/base/info 返回，登录手机号自动绑定落库 wq_user.mobile） */
+  mobile?: string;
+  /** 微信小程序/APP 微信 openid（非空即已绑定微信；无昵称字段，仅作绑定态展示） */
+  xcxOpenid?: string;
   position?: string;
   nameZh?: string;
   nameEn?: string;
