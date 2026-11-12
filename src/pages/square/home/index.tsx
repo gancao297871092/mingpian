@@ -134,6 +134,10 @@ export default function Home() {
   }, [likeMap, favMap, setList]);
 
   const onToggleLike = (id: string) => {
+    if (!token) {
+      navigation.navigate('login');
+      return;
+    }
     const target = list.find(item => item.id === id);
     if (!target) return;
     const next = !target.isLiked;

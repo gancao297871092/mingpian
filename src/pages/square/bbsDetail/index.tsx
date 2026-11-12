@@ -60,6 +60,8 @@ import { goUserHome } from '@/route/navigationRef';
 
 const BLUE = '#2962D4';
 const LIKE_RED = '#FE2B55';
+/** 未登录 / 无头像时的默认占位头像 */
+const DEFAULT_AVATAR = require('@/assets/ming/default-avatar.png');
 
 let unavailableTickTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -313,10 +315,11 @@ function ReplyRow({
   onReply?: (name: string, userId: number) => void;
   onLongPress?: () => void;
 }) {
+  console.log('ReplyRow reply', reply.avatar);
   return (
     <TouchableOpacity activeOpacity={1} onLongPress={onLongPress} delayLongPress={350}>
       <View style={styles.replyRow}>
-        <ExpoImage source={{ uri: reply.avatar }} style={styles.replyAvatar} contentFit="cover" transition={150} recyclingKey={reply.avatar} />
+        <ExpoImage source={reply.avatar ? { uri: reply.avatar } : DEFAULT_AVATAR} style={styles.replyAvatar} contentFit="cover" transition={150} recyclingKey={reply.avatar || 'default'} />
         <View style={styles.replyBody}>
           <View style={styles.replyNameRow}>
             <Text style={styles.commentName} numberOfLines={1}>{reply.userName}</Text>
@@ -371,7 +374,7 @@ function CommentItem({
 
   return (
     <TouchableOpacity activeOpacity={1} style={styles.commentRow} onLongPress={() => onLongPress?.(item)} delayLongPress={350}>
-      <ExpoImage source={{ uri: item.avatar }} style={styles.commentAvatar} contentFit="cover" transition={150} recyclingKey={item.avatar} />
+      <ExpoImage source={item.avatar ? { uri: item.avatar } : DEFAULT_AVATAR} style={styles.commentAvatar} contentFit="cover" transition={150} recyclingKey={item.avatar || 'default'} />
       <View style={styles.commentBody}>
         <View style={styles.replyNameRow}>
           <Text style={styles.commentName} numberOfLines={1}>{item.userName}</Text>
@@ -1135,7 +1138,7 @@ export default function BbsDetail() {
   }, []);
 
   const onToggleLike = () => {
-    if (refreshing) return;
+    if (refreshing || !requireLogin()) return;
     const next = !liked;
     setLiked(next);
     setLikeCount(c => {
@@ -1154,7 +1157,7 @@ export default function BbsDetail() {
       });
   };
   const onToggleFav = () => {
-    if (refreshing) return;
+    if (refreshing || !requireLogin()) return;
     const next = !faved;
     setFaved(next);
     setFavCount(c => {
@@ -1252,7 +1255,7 @@ export default function BbsDetail() {
           {!isAudit && (
             <View style={styles.commentInputRow}>
               <ExpoImage
-                source={{ uri: currentAvatar || 'https://i.pravatar.cc/100?img=8' }}
+                source={currentAvatar ? { uri: currentAvatar } : DEFAULT_AVATAR}
                 style={styles.commentAvatar}
                 contentFit="cover"
                 transition={150}
@@ -1306,13 +1309,23 @@ export default function BbsDetail() {
               style={styles.headerAuthor}
               onPress={() => goUserHome(detail.authorId)}
             >
-              <ExpoImage source={{ uri: detail.authorAvatar }} style={styles.headerAvatar} contentFit="cover" transition={150} />
+              <ExpoImage source={detail.authorAvatar ? { uri: detail.authorAvatar } : DEFAULT_AVATAR} style={styles.headerAvatar} contentFit="cover" transition={150} />
               <View style={styles.headerAuthorText}>
                 <Text style={styles.headerName} numberOfLines={1}>{detail.authorName}</Text>
-                {detail.authorCompany && <View style={styles.headerCompanyRow}>
-                  <Text style={styles.headerCompany} numberOfLines={1}>{detail.authorCompany}</Text>
-                  <VerifiedBadge />
-                </View>}
+                {detail.authorCompany && (
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    disabled={!detail.authorCpId}
+                    onPress={() =>
+                      navigation.navigate('companyPage', { id: detail.authorCpId, userId: detail.authorId })
+                    }
+                  >
+                    <View style={styles.headerCompanyRow}>
+                      <Text style={styles.headerCompany} numberOfLines={1}>{detail.authorCompany}</Text>
+                      <VerifiedBadge />
+                    </View>
+                  </TouchableOpacity>
+                )}
               </View>
             </TouchableOpacity>
           ) : null

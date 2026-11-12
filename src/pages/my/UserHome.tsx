@@ -60,7 +60,7 @@ export default function UserHome() {
   const route = useRoute<RouteProp<RootStackParamList, 'userHome'>>();
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
-  const { userInfo: selfInfo, setUserInfo } = useUserStore();
+  const { userInfo: selfInfo, setUserInfo, token } = useUserStore();
   const myId = selfInfo?.wqUser?.id ?? 0;
   const targetUserId = route.params?.userId;
   const isSelf = !targetUserId || targetUserId === myId;
@@ -76,6 +76,8 @@ export default function UserHome() {
 
   const profile: UserInfo | null = isSelf ? selfInfo : otherInfo;
   const wqUser: WqUser | undefined = profile?.wqUser;
+  /** 企业 ID 可能在 wqUser 或用户聚合信息顶层 */
+  const companyCpId = wqUser?.cpId ?? profile?.cpId;
   const listUserId = isSelf ? undefined : targetUserId;
 
   /** 他人主页：收藏/点赞 tab 受对方隐私设置控制（0-不显示 1-显示，缺省按显示）；自己主页全部显示 */
@@ -162,7 +164,9 @@ export default function UserHome() {
           const ui = d.userInfo ?? {};
           const nextProfile = {
             ...ui,
-            wqUser: ui.wqUser ? { ...ui.wqUser, cpName: ui.cpName } : undefined,
+            wqUser: ui.wqUser
+              ? { ...ui.wqUser, cpName: ui.cpName, cpId: ui.wqUser.cpId ?? ui.cpId }
+              : undefined,
             followCount: ui.followCount ?? d.followCount,
             fansCount: ui.fansCount ?? d.fansCount,
             bbsCount: ui.bbsCount ?? d.bbsCount,
@@ -245,6 +249,10 @@ export default function UserHome() {
   }, [headerH, headerHSV]);
 
   const onToggleFollow = useCallback(() => {
+    if (!token) {
+      navigation.navigate('login');
+      return;
+    }
     if (!targetUserId || followBusy) return;
     setFollowBusy(true);
     toggleFollow(targetUserId, followed).finally(() => {
@@ -255,9 +263,13 @@ export default function UserHome() {
         setUserHomeCache(targetUserId, { profile: otherInfoRef.current, isFollowed: settled });
       }
     });
-  }, [targetUserId, followed, followBusy]);
+  }, [token, navigation, targetUserId, followed, followBusy]);
 
   const onSendMessage = () => {
+    if (!token) {
+      navigation.navigate('login');
+      return;
+    }
     if (!targetUserId || isSelf) return;
     navigation.navigate('messageDetail', { userId: targetUserId });
   };
@@ -432,10 +444,18 @@ export default function UserHome() {
                 <View style={styles.profileText}>
                   <Text style={styles.nickname}>{wqUser?.username || wqUser?.nickname || ''}</Text>
                   {!!wqUser?.cpName && (
-                    <View style={styles.companyRow}>
-                      <Text style={styles.companyText} numberOfLines={1}>{wqUser.cpName}</Text>
-                      <CompanyIcon />
-                    </View>
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      disabled={!companyCpId}
+                      onPress={() =>
+                        navigation.navigate('companyPage', { id: companyCpId!, userId: targetUserId ?? myId })
+                      }
+                    >
+                      <View style={styles.companyRow}>
+                        <Text style={styles.companyText} numberOfLines={1}>{wqUser.cpName}</Text>
+                        <CompanyIcon />
+                      </View>
+                    </TouchableOpacity>
                   )}
                 </View>
               </View>

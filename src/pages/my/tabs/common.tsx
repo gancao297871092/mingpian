@@ -50,6 +50,8 @@ export interface PostCardData {
   title: string;
   date: string;
   likeCount: number;
+  /** 当前用户是否已点赞（广场同源：userIsZan） */
+  isLiked?: boolean;
   /** 1已发布 3待审核 4未通过（沿用老项目 pageItem 语义；2草稿已改本地存储，不会出现） */
   status?: number;
   raw?: any;
@@ -116,6 +118,7 @@ export function mapPost(bbs: any): PostCardData {
     title: bbs.title || (bbs.content || '').replace(/<[^>]*>/g, '').slice(0, 50),
     date: formatPushTime(bbs.pushTime || bbs.createTime).slice(0, 5),
     likeCount: bbs.countLike || 0,
+    isLiked: bbs.userIsZan === 1,
     status: bbs.status,
     raw: bbs,
   };
@@ -146,7 +149,7 @@ function StatusBadge({ status }: { status?: number }) {
   );
 }
 
-export function PostCard({ item, onPress }: { item: PostCardData; onPress: () => void }) {
+export function PostCard({ item, onPress, onToggleLike }: { item: PostCardData; onPress: () => void; onToggleLike?: () => void }) {
   return (
     <TouchableOpacity activeOpacity={0.9} style={tabStyles.postCard} onPress={onPress}>
       {!!item.imageUrl && (
@@ -168,10 +171,10 @@ export function PostCard({ item, onPress }: { item: PostCardData; onPress: () =>
         </Text>
         <View style={tabStyles.postMeta}>
           <Text style={tabStyles.postDate}>{item.date}</Text>
-          <View style={tabStyles.postLike}>
-            <CardLikeIcon />
-            <Text style={tabStyles.postDate}>{formatLikeCount(item.likeCount)}</Text>
-          </View>
+          <TouchableOpacity activeOpacity={0.7} style={tabStyles.postLike} hitSlop={8} onPress={onToggleLike}>
+            <CardLikeIcon color={item.isLiked ? '#FE2B55' : '#666666'} />
+            <Text style={[tabStyles.postDate, item.isLiked && tabStyles.postDateLiked]}>{formatLikeCount(item.likeCount)}</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </TouchableOpacity>
@@ -290,6 +293,9 @@ export const tabStyles = StyleSheet.create({
   postDate: {
     fontSize: setSpText(12),
     color: '#616161',
+  },
+  postDateLiked: {
+    color: '#FE2B55',
   },
   postLike: {
     flexDirection: 'row',

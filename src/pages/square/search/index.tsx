@@ -26,6 +26,7 @@ import { NavBackButton } from '@/components/NavHeader';
 import { API } from '@/api';
 import { setFollow } from '@/store/follow';
 import { useBbsInteractionStore } from '@/store/bbsInteraction';
+import { useUserStore } from '@/store/user';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { storageUtils } from '@/utils/storage';
 import { goUserHome } from '@/route/navigationRef';
@@ -230,6 +231,7 @@ function UserSeparator() {
 
 export default function SearchPage() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const token = useUserStore(s => s.token);
   const [keyword, setKeyword] = useState('');
   // 是否已执行搜索：搜索前筛选置灰、展示历史/热门；搜索后展示结果区与筛选下拉
   const [searched, setSearched] = useState(false);
@@ -351,6 +353,10 @@ export default function SearchPage() {
 
   // 动态点赞：乐观更新，失败回滚（对齐广场首页）
   const onToggleBbsLike = useCallback((id: string) => {
+    if (!token) {
+      navigation.navigate('login');
+      return;
+    }
     let next = false;
     let likeCount = 0;
     setBbsItems(prev =>
@@ -369,7 +375,7 @@ export default function SearchPage() {
           prev.map(item => (item.id === id ? { ...item, isLiked: !next, likeCount: item.likeCount + (next ? -1 : 1) } : item)),
         );
       });
-  }, []);
+  }, [token, navigation]);
 
   // 用户关注/取关（对齐小程序 user.vue：/user/follow/operate 成功后本地切换）
   const onToggleFollowUser = useCallback((item: UserItem) => {

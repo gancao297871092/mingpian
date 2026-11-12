@@ -16,6 +16,8 @@ export interface DetailData {
   images: string[];
   authorName: string;
   authorCompany: string;
+  /** 作者所属企业 ID（点击企业名称跳企业主页） */
+  authorCpId: number;
   authorAvatar: string;
   authorId: number;
   likeCount: number;
@@ -82,6 +84,7 @@ export function transformDetail(bbs: any): DetailData {
     images,
     authorName: bbs.userInfoVo?.nickname || bbs.userInfoVo?.username || '',
     authorCompany: bbs.userInfoVo?.cpName || '',
+    authorCpId: Number(bbs.userInfoVo?.cpId ?? bbs.cpId ?? 0),
     authorAvatar: bbs.userInfoVo?.avatar || '',
     authorId: bbs.userId || 0,
     likeCount: bbs.countLike || 0,

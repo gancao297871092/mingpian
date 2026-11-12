@@ -147,6 +147,7 @@ function MainTabs() {
       name="link"
       component={LinkPage}
       options={{ title: '链接', headerShown: false }}
+      listeners={{ tabPress: requireLogin }}
     />
   );
   return (

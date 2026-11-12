@@ -8,6 +8,7 @@ import EmptyState from '@/components/EmptyState';
 import ListFooter from '@/components/ListFooter';
 import { API } from '@/api';
 import { useUserStore } from '@/store/user';
+import { useBbsInteractionStore } from '@/store/bbsInteraction';
 import { setDetailCache } from '@/utils/detailCache';
 import type { RootStackParamList } from '@/route/map';
 import { DraftIcon } from '../myIcons';
@@ -45,6 +46,7 @@ interface Props {
 export default forwardRef<TabHandle, Props>(function WaterfallTab({ tab, myId, targetUserId, active, draftCount, draftCover, onHeight, onTotal }, ref) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const token = useUserStore(s => s.token);
+  const likeMap = useBbsInteractionStore(s => s.likeMap);
   const [state, setState] = useState<TabState<PostCardData>>(initialTabState);
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -114,6 +116,53 @@ export default forwardRef<TabHandle, Props>(function WaterfallTab({ tab, myId, t
     [fetchPage],
   );
 
+  // 广场/详情页点赞后，用户主页列表同步最新状态
+  useEffect(() => {
+    setState(prev => {
+      if (!prev.list.length) return prev;
+      let changed = false;
+      const list = prev.list.map(item => {
+        const like = likeMap[item.id];
+        if (!like) return item;
+        if (item.isLiked === like.isLiked && item.likeCount === like.likeCount) return item;
+        changed = true;
+        return { ...item, isLiked: like.isLiked, likeCount: like.likeCount };
+      });
+      return changed ? { ...prev, list } : prev;
+    });
+  }, [likeMap]);
+
+  const onToggleLike = useCallback(
+    (id: string) => {
+      if (!token) {
+        navigation.navigate('login');
+        return;
+      }
+      const target = stateRef.current.list.find(item => item.id === id);
+      if (!target) return;
+      const next = !target.isLiked;
+      const likeCount = target.likeCount + (next ? 1 : -1);
+      setState(prev => ({
+        ...prev,
+        list: prev.list.map(item => (item.id === id ? { ...item, isLiked: next, likeCount } : item)),
+      }));
+      API.bbs
+        .like({ bbsId: Number(id), status: next ? 1 : 0 })
+        .then(() => {
+          useBbsInteractionStore.getState().setLike(id, { isLiked: next, likeCount });
+        })
+        .catch(() => {
+          setState(prev => ({
+            ...prev,
+            list: prev.list.map(item =>
+              item.id === id ? { ...item, isLiked: !next, likeCount: item.likeCount + (next ? -1 : 1) } : item,
+            ),
+          }));
+        });
+    },
+    [token, navigation],
+  );
+
   const openDetail = useCallback(
     (item: PostCardData) => {
       if (item.raw) setDetailCache(item.id, item.raw);
@@ -150,7 +199,7 @@ export default forwardRef<TabHandle, Props>(function WaterfallTab({ tab, myId, t
             </View>
           </TouchableOpacity>
         ) : (
-          <PostCard item={item} onPress={() => openDetail(item)} />
+          <PostCard item={item} onPress={() => openDetail(item)} onToggleLike={() => onToggleLike(item.id)} />
         )
       }
       showsVerticalScrollIndicator={false}
