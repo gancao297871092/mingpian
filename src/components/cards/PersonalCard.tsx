@@ -24,7 +24,7 @@ function fullAddress(data: CardData): string {
   return `${data.province || ''}${data.city || ''}${data.district || ''}${data.address || ''}`;
 }
 
-/** 商务风格：白底 + 右侧装饰条；右上角企业 logo，无 logo 时不渲染（避免遮挡姓名） */
+/** 商务风格：白底 + 右侧装饰条；右上角企业 logo，名片未关联企业或无 logo 时不渲染（避免遮挡姓名） */
 function BusinessCard({ data, placeholder, squareBottom }: PersonalCardProps) {
   const company = data.cpName || (placeholder ? '企业名称' : '');
   const email = data.email || (placeholder ? 'example@mail.com' : '');
@@ -35,7 +35,8 @@ function BusinessCard({ data, placeholder, squareBottom }: PersonalCardProps) {
         <View style={[styles.decoBar, styles.decoBarBlue]} />
         <View style={[styles.decoBar, styles.decoBarGreen]} />
       </View>
-      {!!data.cpLogo && (
+      {/* 名片无企业（无 cpName/cpId）时不显示 LOGO，分享海报同规则（同一渲染链路） */}
+      {!!(data.cpLogo && (data.cpName || data.cpId)) && (
         <View style={styles.cpLogo}>
           {/* 磨砂玻璃底（figma 我的名片 image 17：backdrop blur 5px + 白色0.8） */}
           <BlurView
