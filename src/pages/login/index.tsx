@@ -34,7 +34,6 @@ export default function LoginHome({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const [agreed, setAgreed] = useState(false);
   const [wechatLoading, setWechatLoading] = useState(false);
-  const [phoneLoading, setPhoneLoading] = useState(false);
   const wechatPending = useRef(false);
   const phonePending = useRef(false);
   const { setToken, setUserInfo } = useUserStore();
@@ -60,11 +59,10 @@ export default function LoginHome({ navigation }: Props) {
     preLoginPhone();
   }, []);
 
-  /** 协议校验通过后的真正一键登录流程（不做协议检查，供「同意并继续」继续调用） */
+  /** 协议校验通过后的真正一键登录流程（不做协议检查，供「同意并继续」继续调用）。点击仅是拉起授权页/跳短信页，按钮无 loading */
   const startPhoneLogin = async () => {
     if (phonePending.current) return;
     phonePending.current = true;
-    setPhoneLoading(true);
     try {
       // 不支持一键登录（无 SIM/非蜂窝网络/老版本无原生模块）时直接走短信登录
       if (!isPhoneLoginAvailable || !(await checkPhoneLoginSupport())) {
@@ -109,7 +107,6 @@ export default function LoginHome({ navigation }: Props) {
     } finally {
       closePhoneLogin();
       phonePending.current = false;
-      setPhoneLoading(false);
     }
   };
 
@@ -191,13 +188,10 @@ export default function LoginHome({ navigation }: Props) {
         <TouchableOpacity
           style={[styles.btn, styles.btnPrimary]}
           activeOpacity={0.85}
-          disabled={phoneLoading}
           onPress={onPhoneLogin}
         >
           <PhoneIcon size={scaleSizeW(20)} />
-          <Text style={styles.btnPrimaryText}>
-            {phoneLoading ? '登录中…' : '手机登录'}
-          </Text>
+          <Text style={styles.btnPrimaryText}>手机登录</Text>
         </TouchableOpacity>
 
         <TouchableOpacity

@@ -21,6 +21,12 @@ import type { RootStackParamList } from '@/route/map';
 
 const COUNTDOWN_SECONDS = 60;
 
+/** 业务错误（{code,msg}）已由请求拦截层按 msg 统一弹窗，这里只兜底真实网络/HTTP 异常 */
+function alertRequestError(e: any) {
+  if (e?.msg) return;
+  AppAlert.alert('提示', e?.message || '网络错误，请稍后重试');
+}
+
 type Props = NativeStackScreenProps<RootStackParamList, 'otherLogin'>;
 
 export default function OtherNumberLogin({ navigation }: Props) {
@@ -90,7 +96,7 @@ export default function OtherNumberLogin({ navigation }: Props) {
         AppAlert.alert('提示', msg || '验证码发送失败');
       }
     } catch (e: any) {
-      AppAlert.alert('提示', e?.message || '网络错误，请稍后重试');
+      alertRequestError(e);
     }
   };
 
@@ -125,7 +131,7 @@ export default function OtherNumberLogin({ navigation }: Props) {
         AppAlert.alert('提示', msg || '登录失败');
       }
     } catch (e: any) {
-      AppAlert.alert('提示', e?.message || '网络错误，请稍后重试');
+      alertRequestError(e);
     } finally {
       setLoading(false);
     }

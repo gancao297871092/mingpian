@@ -5,7 +5,7 @@ import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import BootSplash from 'react-native-bootsplash';
-import Toast, { type ToastConfig } from 'react-native-toast-message';
+import Toast, { type ToastConfig, type ToastShowParams } from 'react-native-toast-message';
 import { Text, View } from 'react-native';
 import { ThemeProvider, useTheme } from '@/theme';
 import RootNavigator from '@/route';
@@ -25,12 +25,17 @@ const queryClient = new QueryClient({
   },
 });
 
+/** 全站统一暗色胶囊提示（对齐原型「验证码已发送」样式），success/error/info 视觉一致 */
+const AppToast = (props: ToastShowParams) => (
+  <View style={toastStyles.wrap}>
+    <Text style={toastStyles.text}>{props.text1}</Text>
+  </View>
+);
+
 const toastConfig: ToastConfig = {
-  success: props => (
-    <View style={toastStyles.wrap}>
-      <Text style={toastStyles.text}>{props.text1}</Text>
-    </View>
-  ),
+  success: AppToast,
+  error: AppToast,
+  info: AppToast,
 };
 
 function Root() {
