@@ -7,6 +7,7 @@ import {
   View,
 } from 'react-native';
 import { AppAlert } from '@/components/AppAlert';
+import AgreementSheet from '@/components/AgreementSheet';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
@@ -37,6 +38,22 @@ export default function LoginHome({ navigation }: Props) {
   const wechatPending = useRef(false);
   const phonePending = useRef(false);
   const { setToken, setUserInfo } = useUserStore();
+  // 协议同意弹窗：记录被拦截、待用户同意后继续的登录动作
+  const [agreeVisible, setAgreeVisible] = useState(false);
+  const agreeContinue = useRef<(() => void) | null>(null);
+
+  const showAgreementSheet = (continueAction: () => void) => {
+    agreeContinue.current = continueAction;
+    setAgreeVisible(true);
+  };
+
+  const onAgreeContinue = () => {
+    setAgreed(true);
+    setAgreeVisible(false);
+    const action = agreeContinue.current;
+    agreeContinue.current = null;
+    action?.();
+  };
 
   // 进入登录页即预取号，加速一键登录授权页弹起
   useEffect(() => {
@@ -98,7 +115,7 @@ export default function LoginHome({ navigation }: Props) {
   const onWechatLogin = async () => {
     if (wechatPending.current) return;
     if (!agreed) {
-      AppAlert.alert('提示', '请先阅读并同意《用户协议》和《隐私政策》');
+      showAgreementSheet(() => onWechatLogin());
       return;
     }
     if (!isWechatConfigured()) {
@@ -202,6 +219,15 @@ export default function LoginHome({ navigation }: Props) {
           </Text>
         </View>
       </View>
+      <AgreementSheet
+        visible={agreeVisible}
+        onClose={() => setAgreeVisible(false)}
+        onAgree={onAgreeContinue}
+        onOpenAgreement={type => {
+          setAgreeVisible(false);
+          navigation.navigate('agreement', { type });
+        }}
+      />
     </View>
   );
 }

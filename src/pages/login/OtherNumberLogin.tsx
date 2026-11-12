@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { AppAlert } from '@/components/AppAlert';
+import AgreementSheet from '@/components/AgreementSheet';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { API } from '@/api';
 import { CheckIcon } from '@/assets/login/icons';
@@ -31,6 +32,23 @@ export default function OtherNumberLogin({ navigation }: Props) {
   const [countdown, setCountdown] = useState(0);
   const [loading, setLoading] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // 协议同意弹窗：记录被拦截、待用户同意后继续的登录动作
+  const [agreeVisible, setAgreeVisible] = useState(false);
+  const agreeContinue = useRef<(() => void) | null>(null);
+
+  const showAgreementSheet = (continueAction: () => void) => {
+    Keyboard.dismiss();
+    agreeContinue.current = continueAction;
+    setAgreeVisible(true);
+  };
+
+  const onAgreeContinue = () => {
+    setAgreed(true);
+    setAgreeVisible(false);
+    const action = agreeContinue.current;
+    agreeContinue.current = null;
+    action?.();
+  };
 
   const isPhoneValid = /^1\d{10}$/.test(phone);
   const canLogin = isPhoneValid && code.length >= 4 && agreed;
@@ -86,7 +104,7 @@ export default function OtherNumberLogin({ navigation }: Props) {
       return;
     }
     if (!agreed) {
-      AppAlert.alert('提示', '请先阅读并同意《用户协议》和《隐私政策》');
+      showAgreementSheet(() => onLogin());
       return;
     }
     setLoading(true);
@@ -200,8 +218,17 @@ export default function OtherNumberLogin({ navigation }: Props) {
             </Text>
           </Text>
         </View>
+        </View>
       </View>
-      </View>
+      <AgreementSheet
+        visible={agreeVisible}
+        onClose={() => setAgreeVisible(false)}
+        onAgree={onAgreeContinue}
+        onOpenAgreement={type => {
+          setAgreeVisible(false);
+          navigation.navigate('agreement', { type });
+        }}
+      />
     </TouchableWithoutFeedback>
   );
 }
