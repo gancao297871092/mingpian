@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import LinearGradient from 'react-native-linear-gradient';
-import { BlurView } from '@react-native-community/blur';
+import AppBlurView from '@/components/capabilities/AppBlurView';
 import { scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { CardCompanyIcon, CardEmailIcon, CardLocationIcon, CardVerifiedIcon } from './cardIcons';
 import { getCardPhoto, normalizeCardStyle, type CardData, type CardStyle } from './types';
@@ -38,12 +38,12 @@ function BusinessCard({ data, placeholder, squareBottom }: PersonalCardProps) {
       {/* 名片无企业（无 cpName/cpId）时不显示 LOGO，分享海报同规则（同一渲染链路） */}
       {!!(data.cpLogo && (data.cpName || data.cpId)) && (
         <View style={styles.cpLogo}>
-          {/* 磨砂玻璃底（figma 我的名片 image 17：backdrop blur 5px + 白色0.8） */}
-          <BlurView
+          {/* 磨砂玻璃底（figma 我的名片 image 17：backdrop blur 5px + 白色0.8）；安卓走纯色降级 */}
+          <AppBlurView
             style={StyleSheet.absoluteFill}
             blurType="light"
             blurAmount={5}
-            reducedTransparencyFallbackColor="rgba(255,255,255,0.5)"
+            androidFallbackColor="rgba(255,255,255,0.5)"
           />
           <View style={[StyleSheet.absoluteFill, styles.cpLogoFrost]} pointerEvents="none" />
           <ExpoImage source={{ uri: data.cpLogo }} style={styles.cpLogoImg} contentFit="cover" transition={150} />

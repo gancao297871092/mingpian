@@ -8,7 +8,7 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import { BlurView } from '@react-native-community/blur';
+import AppBlurView from '@/components/capabilities/AppBlurView';
 import { Image as ExpoImage } from 'expo-image';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -21,7 +21,7 @@ import { AssistCompassIcon, AssistHandshakeIcon, AssistVerifyIcon, ChevronLeftIc
 const PRIMARY = '#2962D4';
 const TEXT_SUB = '#6C6C6C';
 
-/** 半透明卡片：高斯模糊底（backdrop blur 5px）+ 白色 0.8 覆盖层，保证文字可读 */
+/** 半透明卡片：高斯模糊底（backdrop blur 5px）+ 白色 0.8 覆盖层，保证文字可读；安卓走纯色降级 */
 function FrostedCard({
   style,
   children,
@@ -31,11 +31,11 @@ function FrostedCard({
 }) {
   return (
     <View style={[styles.frostedCard, style]}>
-      <BlurView
+      <AppBlurView
         style={StyleSheet.absoluteFill}
         blurType="light"
         blurAmount={5}
-        reducedTransparencyFallbackColor="rgba(255,255,255,0.5)"
+        androidFallbackColor="rgba(255,255,255,0.5)"
       />
       <View style={[StyleSheet.absoluteFill, styles.frostedTint]} pointerEvents="none" />
       {children}
@@ -96,11 +96,11 @@ export default function PlatformAssist() {
       <View style={[styles.navbar, { paddingTop: insets.top + scaleSizeH(10) }]}>
         <TouchableOpacity activeOpacity={0.85} style={styles.glassBtn} onPress={() => navigation.goBack()}>
           <View style={styles.glassBtnBlur} pointerEvents="none">
-            <BlurView
+            <AppBlurView
               style={StyleSheet.absoluteFill}
               blurType="light"
               blurAmount={5}
-              reducedTransparencyFallbackColor="rgba(255,255,255,0.5)"
+              androidFallbackColor="rgba(255,255,255,0.5)"
             />
             <View style={[StyleSheet.absoluteFill, styles.glassTint]} />
           </View>

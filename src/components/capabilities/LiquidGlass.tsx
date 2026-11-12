@@ -8,6 +8,7 @@ import {
   Platform,
 } from "react-native";
 import { BlurView } from '@react-native-community/blur';
+import AppBlurView from './AppBlurView';
 
 interface LiquidGlassProps {
   tintColor?: string;
@@ -78,9 +79,12 @@ const LiquidGlass: React.FC<LiquidGlassProps> = ({
           style={StyleSheet.absoluteFill}
         />
       ) : (
-        <View
-          style={[StyleSheet.absoluteFill, { backgroundColor: androidFallback }]}
-          pointerEvents="none"
+        /* 安卓同样使用真模糊，AppBlurView 内部延迟到路由过渡结束后挂载（过渡期间用纯色兜底，防上一屏快照重影） */
+        <AppBlurView
+          blurType={blurType}
+          blurAmount={blurAmount}
+          style={StyleSheet.absoluteFill}
+          androidFallbackColor={androidFallback}
         />
       )}
       <View style={[StyleSheet.absoluteFill, { backgroundColor: resolvedTint }]} pointerEvents="none" />

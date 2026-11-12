@@ -3,7 +3,7 @@ import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import ViewShot from 'react-native-view-shot';
 import Toast from 'react-native-toast-message';
 import { shareImage } from 'native-wechat';
-import { BlurView } from '@react-native-community/blur';
+import AppBlurView from '@/components/capabilities/AppBlurView';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PersonalPoster from '@/components/posters/PersonalPoster';
 import CompanyPoster from '@/components/posters/CompanyPoster';
@@ -81,7 +81,7 @@ export default function CardShareSheet({ visible, onClose, card, company }: Card
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.mask}>
-        <BlurView style={StyleSheet.absoluteFill} blurType="dark" blurAmount={10} reducedTransparencyFallbackColor="rgba(0,0,0,0.25)" />
+        <AppBlurView style={StyleSheet.absoluteFill} blurType="dark" blurAmount={10} androidFallbackColor="rgba(0,0,0,0.25)" />
         <View style={styles.maskDim} />
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
 

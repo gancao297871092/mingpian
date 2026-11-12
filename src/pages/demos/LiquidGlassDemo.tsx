@@ -8,7 +8,7 @@ export default function LiquidGlassDemo() {
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>液态玻璃 (Glassmorphism)</Text>
         <Text style={styles.desc}>
-          iOS 使用原生 BlurView，Android 使用半透明叠加层模拟
+          iOS 使用原生 BlurView，Android 使用真模糊（路由过渡结束后延迟挂载，过渡期间纯色兜底）
         </Text>
 
         <View style={styles.demoArea}>

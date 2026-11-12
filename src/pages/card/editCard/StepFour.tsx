@@ -176,14 +176,13 @@ const StepFour = forwardRef<StepHandle, StepFourProps>(function StepFourForm({ c
         })}
       </View>
 
-      {/* 名片预览 */}
+      {/* 名片预览：未填字段（企业/职位/邮箱/地址/英文名等）不显示占位文案，只渲染真实数据 */}
       <View style={styles.preview}>
         <PersonalCard
           data={cardInfo}
           style={currentStyle}
           fontColor={effectiveFontColor}
           backColor={effectiveBackColor}
-          placeholder
         />
       </View>
 
