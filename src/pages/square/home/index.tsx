@@ -62,29 +62,34 @@ function transformBbsToItem(bbs: any): WaterfallItem {
   };
 }
 
-function fetchWaterfallList(params: FetchParams): Promise<PageList<WaterfallItem>> {
-  return API.square.feed(params).then((res) => {
-    const data = res.data;
-    return {
-      code: res.code,
-      msg: res.msg,
-      data: {
-        list: data.list.map(transformBbsToItem),
-        total: data.total,
-        pageNum: data.pageNum,
-        pages: data.pages,
-      },
-    };
-  });
-}
-
 type HomeTab = 'recommend' | 'follow';
 
 export default function Home() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const token = useUserStore(s => s.token);
   const [activeTab, setActiveTab] = useState<HomeTab>('recommend');
+  const [followUnread, setFollowUnread] = useState(0);
   const params = useMemo(() => ({ tab: activeTab }), [activeTab]);
+
+  const fetchWaterfallList = useCallback((p: FetchParams): Promise<PageList<WaterfallItem>> => {
+    return API.square.feed(p).then((res) => {
+      const data = res.data;
+      // 后端随 /square/feed 返回关注流未读数（登录态才有），用于关注 tab 角标
+      if (typeof data.followUnreadCount === 'number') {
+        setFollowUnread(Math.max(0, data.followUnreadCount));
+      }
+      return {
+        code: res.code,
+        msg: res.msg,
+        data: {
+          list: data.list.map(transformBbsToItem),
+          total: data.total,
+          pageNum: data.pageNum,
+          pages: data.pages,
+        },
+      };
+    });
+  }, []);
 
   /** 关注 tab 需要登录：未登录直接进入登录页，不切换 */
   const onPressFollowTab = useCallback(() => {
@@ -197,9 +202,11 @@ export default function Home() {
           <TouchableOpacity activeOpacity={0.7} onPress={onPressFollowTab}>
             <View style={styles.tabItem}>
               <Text style={[styles.tabText, activeTab === 'follow' && styles.tabTextActive]}>关注</Text>
-              <View style={styles.tabBadge}>
-                <Text style={styles.tabBadgeText}>8</Text>
-              </View>
+              {!!token && followUnread > 0 && (
+                <View style={styles.tabBadge}>
+                  <Text style={styles.tabBadgeText}>{followUnread > 99 ? '99+' : followUnread}</Text>
+                </View>
+              )}
               {activeTab === 'follow' && <View style={styles.tabIndicator} />}
             </View>
           </TouchableOpacity>

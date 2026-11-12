@@ -13,6 +13,7 @@ import AgreementSheet from '@/components/AgreementSheet';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { API } from '@/api';
 import { CheckIcon } from '@/assets/login/icons';
+import Toast from 'react-native-toast-message';
 import { useTheme } from '@/theme';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { useUserStore } from '@/store/user';
@@ -84,7 +85,7 @@ export default function OtherNumberLogin({ navigation }: Props) {
       if (respCode === '200' && data?.authCode) {
         setAuthCode(data.authCode);
         startCountdown();
-        AppAlert.alert('提示', '验证码已发送，请注意查收');
+        Toast.show({ type: 'success', text1: '验证码已发送' });
       } else {
         AppAlert.alert('提示', msg || '验证码发送失败');
       }
@@ -93,7 +94,8 @@ export default function OtherNumberLogin({ navigation }: Props) {
     }
   };
 
-  const onLogin = async () => {
+  /** 协议校验通过后的真正登录流程（不做协议检查，供「同意并继续」继续调用；前置校验保留） */
+  const startLogin = async () => {
     if (loading) return;
     if (!isPhoneValid) {
       AppAlert.alert('提示', '请输入正确的11位手机号码');
@@ -101,10 +103,6 @@ export default function OtherNumberLogin({ navigation }: Props) {
     }
     if (code.length < 4) {
       AppAlert.alert('提示', '请输入验证码');
-      return;
-    }
-    if (!agreed) {
-      showAgreementSheet(() => onLogin());
       return;
     }
     setLoading(true);
@@ -133,10 +131,20 @@ export default function OtherNumberLogin({ navigation }: Props) {
     }
   };
 
+  const onLogin = () => {
+    // 未勾选协议：弹协议半屏弹窗，「同意并继续」后接着本次登录
+    if (!agreed) {
+      showAgreementSheet(startLogin);
+      return;
+    }
+    startLogin();
+  };
+
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={styles.header}>
+    <>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <View style={styles.header}>
         <Text style={styles.title}>其他号码登录</Text>
         <Text style={styles.subtitle}>未注册的手机号登录成功后将自动注册</Text>
       </View>
@@ -219,7 +227,8 @@ export default function OtherNumberLogin({ navigation }: Props) {
           </Text>
         </View>
         </View>
-      </View>
+        </View>
+        </TouchableWithoutFeedback>
       <AgreementSheet
         visible={agreeVisible}
         onClose={() => setAgreeVisible(false)}
@@ -229,7 +238,7 @@ export default function OtherNumberLogin({ navigation }: Props) {
           navigation.navigate('agreement', { type });
         }}
       />
-    </TouchableWithoutFeedback>
+    </>
   );
 }
 

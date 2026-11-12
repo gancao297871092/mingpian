@@ -60,7 +60,8 @@ export default function LoginHome({ navigation }: Props) {
     preLoginPhone();
   }, []);
 
-  const onPhoneLogin = async () => {
+  /** 协议校验通过后的真正一键登录流程（不做协议检查，供「同意并继续」继续调用） */
+  const startPhoneLogin = async () => {
     if (phonePending.current) return;
     phonePending.current = true;
     setPhoneLoading(true);
@@ -112,12 +113,19 @@ export default function LoginHome({ navigation }: Props) {
     }
   };
 
-  const onWechatLogin = async () => {
-    if (wechatPending.current) return;
+  const onPhoneLogin = () => {
+    if (phonePending.current) return;
+    // 未勾选协议：弹协议半屏弹窗，「同意并继续」后接着本次登录
     if (!agreed) {
-      showAgreementSheet(() => onWechatLogin());
+      showAgreementSheet(startPhoneLogin);
       return;
     }
+    startPhoneLogin();
+  };
+
+  /** 协议校验通过后的真正微信登录流程（不做协议检查，供「同意并继续」继续调用） */
+  const startWechatLogin = async () => {
+    if (wechatPending.current) return;
     if (!isWechatConfigured()) {
       AppAlert.alert('提示', '微信登录暂未开放（未配置 WECHAT_APPID）');
       return;
@@ -156,6 +164,16 @@ export default function LoginHome({ navigation }: Props) {
     }
   };
 
+  const onWechatLogin = () => {
+    if (wechatPending.current) return;
+    // 未勾选协议：弹协议半屏弹窗，「同意并继续」后接着本次登录
+    if (!agreed) {
+      showAgreementSheet(startWechatLogin);
+      return;
+    }
+    startWechatLogin();
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       {navigation.canGoBack() && (
@@ -165,7 +183,7 @@ export default function LoginHome({ navigation }: Props) {
       )}
       <View style={styles.brand}>
         <Image source={require('@/assets/login/logo.png')} style={styles.logo} />
-        <Text style={styles.brandName}>联诚采信</Text>
+        <Image source={require('@/assets/login/brand-title.png')} style={styles.brandName} />
       </View>
       <Text style={styles.slogan}>让中国好企业被看见</Text>
 
@@ -254,9 +272,10 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
   brandName: {
-    fontSize: setSpText(32),
-    fontWeight: '700',
-    color: '#2962D4',
+    // 设计稿为特殊字体（SF Pro Bold 渲染），RN 文本无法复刻，直接用 Figma 导出图（figma 3:271，1.登录首页）
+    width: scaleSizeW(128),
+    height: scaleSizeH(31),
+    resizeMode: 'contain',
   },
   slogan: {
     marginTop: scaleSizeH(12),

@@ -306,6 +306,8 @@ export namespace API {
         total: number;
         pageNum: number;
         pages: number;
+        /** 关注流未读数（关注 tab 角标） */
+        followUnreadCount?: number;
       }>('/square/feed', data);
     }
     /** 动态聚合详情（作者/媒体/点赞收藏状态/评论数） */
