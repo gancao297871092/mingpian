@@ -16,6 +16,7 @@ import * as Contacts from 'expo-contacts/legacy';
 import Toast from 'react-native-toast-message';
 import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
+import { formatFullAddress } from '@/utils/region';
 import { CardVerifiedIcon } from '@/components/cards/cardIcons';
 import CardShareSheet from '@/components/cards/CardShareSheet';
 import { ChevronRightIcon } from '@/pages/square/bbsDetail/sheetIcons';
@@ -116,7 +117,8 @@ export default function CardDetail({ navigation, route }: Props) {
         Toast.show({ type: 'error', text1: '请允许访问通讯录' });
         return;
       }
-      const street = `${userCard.province || ''}${userCard.city || ''}${userCard.district || ''}${userCard.address || ''}`;
+      // 直辖市等省市同名场景去重后再写入通讯录
+      const street = formatFullAddress(userCard);
       const contact = {
         contactType: Contacts.ContactTypes.Person,
         name: userCard.nameZh || '',

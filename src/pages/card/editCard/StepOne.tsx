@@ -9,9 +9,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { AppAlert } from '@/components/AppAlert';
+import Toast from 'react-native-toast-message';
 import { API } from '@/api';
 import { scaleSizeW, setSpText } from '@/utils/screenUtils';
+import { formatRegionText } from '@/utils/region';
 import AreaPicker from '@/components/AreaPicker';
 import { ChevronRightIcon } from '@/pages/square/bbsDetail/sheetIcons';
 import type { StepHandle } from './types';
@@ -31,6 +32,21 @@ const validateEmail = (email: string) => {
   if (!email) return true;
   return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email.trim());
 };
+
+/** 传真：可选 3-4 位区号 + 横杠 + 7-8 位号，或整段 11 位纯数字 */
+const validateFax = (fax: string) => {
+  if (!fax) return true;
+  return /^(\d{3,4}-)?\d{7,8}$|^\d{11}$/.test(fax.trim());
+};
+
+/** 座机：可选 3-4 位区号 + 横杠 + 7-8 位号（比传真少 11 位纯数字那一支） */
+const validateTelNumber = (tel: string) => {
+  if (!tel) return true;
+  return /^(\d{3,4}-)?\d{7,8}$/.test(tel.trim());
+};
+
+/** 输入时即去空格的字段（页面说明：名片别名/姓名 maxlength=10，输入时去空格） */
+const NO_SPACE_KEYS = new Set(['alias', 'nameZh']);
 
 const StepOne = forwardRef<StepHandle, StepOneProps>(function StepOneForm({ cardId, data, onNext }, ref) {
   const [form, setForm] = useState<Record<string, any>>({
@@ -77,7 +93,10 @@ const StepOne = forwardRef<StepHandle, StepOneProps>(function StepOneForm({ card
   }, [data.positionList]);
 
   const updateField = useCallback((key: string, value: any) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
+    // 名片别名/姓名：输入时即去除空格
+    const next =
+      typeof value === 'string' && NO_SPACE_KEYS.has(key) ? value.replace(/\s/g, '') : value;
+    setForm((prev) => ({ ...prev, [key]: next }));
   }, []);
 
   const positionText = selectedPositions.length > 0
@@ -93,26 +112,44 @@ const StepOne = forwardRef<StepHandle, StepOneProps>(function StepOneForm({ card
     );
   };
 
+  /** 职位：加入企业后才能选择（未加入时职位列表为空，点击拦截提示）；管理员可选企业下所有职位（由后端返回列表保证） */
+  const onPressPosition = () => {
+    if (positionOptions.length === 0) {
+      Toast.show({ type: 'error', text1: '加入企业后才能选择职位' });
+      return;
+    }
+    setPositionModalVisible(true);
+  };
+
   const onSubmit = async () => {
-    // 对齐小程序：提交前去除 alias/nameZh 空格
+    // 兜底：alias/nameZh 输入时已去空格，提交前再清理一次
     const alias = (form.alias || '').replace(/\s/g, '');
     const nameZh = (form.nameZh || '').replace(/\s/g, '');
     setForm((prev) => ({ ...prev, alias, nameZh }));
 
+    // 至少填了姓名才能下一步，未填 toast 提示
     if (!nameZh) {
-      AppAlert.alert('提示', '请输入姓名');
+      Toast.show({ type: 'error', text1: '请输入姓名' });
       return;
     }
     if (!validatePhone(form.phone)) {
-      AppAlert.alert('提示', '请输入正确的手机号码');
+      Toast.show({ type: 'error', text1: '请输入正确的手机号码' });
       return;
     }
     if (!validateEmail(form.email)) {
-      AppAlert.alert('提示', '请输入正确的邮箱地址');
+      Toast.show({ type: 'error', text1: '请输入正确的邮箱地址' });
+      return;
+    }
+    if (!validateFax(form.fax)) {
+      Toast.show({ type: 'error', text1: '请输入正确的传真号码' });
+      return;
+    }
+    if (!validateTelNumber(form.telNumber)) {
+      Toast.show({ type: 'error', text1: '请输入正确的座机号码' });
       return;
     }
     if (form.profile && form.profile.length > 100) {
-      AppAlert.alert('提示', '个性签名字符不能超过100');
+      Toast.show({ type: 'error', text1: '个性签名字符不能超过100' });
       return;
     }
 
@@ -152,7 +189,7 @@ const StepOne = forwardRef<StepHandle, StepOneProps>(function StepOneForm({ card
         });
       }
     } catch (e: any) {
-      AppAlert.alert('保存失败', e?.msg || '请稍后重试');
+      Toast.show({ type: 'error', text1: e?.msg || '保存失败，请稍后重试' });
     }
   };
 
@@ -225,7 +262,7 @@ const StepOne = forwardRef<StepHandle, StepOneProps>(function StepOneForm({ card
       <View style={styles.formCard}>
         {renderInputRow('姓名', 'nameZh', { required: true, disabled: !!form.isAuth, maxLength: 10 })}
         {renderInputRow('其他名称', 'nameEn', { maxLength: 10 })}
-        {renderSelectRow('职位', positionText, () => setPositionModalVisible(true), { last: true })}
+        {renderSelectRow('职位', positionText, onPressPosition, { last: true })}
       </View>
 
       <View style={styles.formCard}>
@@ -238,16 +275,33 @@ const StepOne = forwardRef<StepHandle, StepOneProps>(function StepOneForm({ card
       <View style={styles.formCard}>
         {renderSelectRow(
           '地址',
-          form.province
-            ? `${form.province}${form.city ? ` ${form.city}` : ''}${form.district ? ` ${form.district}` : ''}`
-            : '',
+          // 直辖市等省市同名场景展示去重：「重庆市-重庆市-九龙坡区」→「重庆市九龙坡区」
+          form.province ? formatRegionText(form.province, form.city, form.district) : '',
           () => setAreaPickerVisible(true),
         )}
         {renderInputRow('详细地址', 'address', { last: true })}
       </View>
 
       <View style={styles.formCard}>
-        {renderInputRow('个性签名', 'profile', { maxLength: 100, last: true })}
+        {/* 个性签名：多行自适应；超过 50 字时在左侧「个性签名」下方显示 x/100，上限 100 字 */}
+        <View style={styles.signRow}>
+          <View style={styles.signSide}>
+            <Text style={styles.formLabel}>个性签名</Text>
+            {(form.profile || '').length > 50 && (
+              <Text style={styles.signCount}>{(form.profile || '').length}/100</Text>
+            )}
+          </View>
+          <TextInput
+            style={[styles.formInput, styles.signInput]}
+            placeholder="请输入"
+            placeholderTextColor="#999999"
+            value={form.profile || ''}
+            onChangeText={(text) => updateField('profile', text)}
+            maxLength={100}
+            multiline
+            textAlign="right"
+          />
+        </View>
       </View>
 
       <View style={{ height: scaleSizeW(40) }} />
@@ -346,6 +400,25 @@ const styles = StyleSheet.create({
   formDivider: {
     height: 1,
     backgroundColor: '#EDECEC',
+  },
+  /** 个性签名行：多行自适应高度，左侧标签列 + 右侧多行输入 */
+  signRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    minHeight: scaleSizeW(55),
+    paddingVertical: scaleSizeW(16),
+  },
+  signSide: {
+    alignItems: 'flex-start',
+    gap: scaleSizeW(8),
+  },
+  signCount: {
+    fontSize: setSpText(11),
+    color: '#999999',
+  },
+  signInput: {
+    textAlignVertical: 'top',
   },
   selectValueRow: {
     flexDirection: 'row',

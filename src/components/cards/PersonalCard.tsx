@@ -4,6 +4,7 @@ import { Image as ExpoImage } from 'expo-image';
 import LinearGradient from 'react-native-linear-gradient';
 import AppBlurView from '@/components/capabilities/AppBlurView';
 import { scaleSizeW, setSpText } from '@/utils/screenUtils';
+import { formatFullAddress } from '@/utils/region';
 import { CardCompanyIcon, CardEmailIcon, CardLocationIcon, CardVerifiedIcon } from './cardIcons';
 import { getCardPhoto, normalizeCardStyle, type CardData, type CardStyle } from './types';
 
@@ -21,7 +22,8 @@ interface PersonalCardProps {
 }
 
 function fullAddress(data: CardData): string {
-  return `${data.province || ''}${data.city || ''}${data.district || ''}${data.address || ''}`;
+  // 直辖市等省市同名场景展示去重：「重庆市-重庆市-九龙坡区」→「重庆市九龙坡区」
+  return formatFullAddress(data);
 }
 
 /** 商务风格：白底 + 右侧装饰条；右上角企业 logo，名片未关联企业或无 logo 时不渲染（避免遮挡姓名） */

@@ -4,6 +4,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { scaleSizeW, setSpText } from '@/utils/screenUtils';
+import { formatFullAddress } from '@/utils/region';
 import type { RootStackParamList } from '@/route/map';
 import { ChevronRightIcon } from '@/pages/square/bbsDetail/sheetIcons';
 import { PhoneBlueIcon } from './icons';
@@ -17,7 +18,8 @@ interface BaseInfoProps {
 export default function BaseInfo({ userCard, userInfo }: BaseInfoProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const wqUser = userInfo?.wqUser;
-  const address = `${userCard?.province || ''}${userCard?.city || ''}${userCard?.district || ''}${userCard?.address || ''}`;
+  // 直辖市等省市同名场景展示去重
+  const address = formatFullAddress(userCard);
 
   const contacts: { label: string; value: string; tel?: boolean }[] = [
     { label: '电话', value: userCard?.phone || '', tel: true },
