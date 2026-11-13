@@ -134,6 +134,7 @@ export type RootStackParamList = {
 export type MainTabParamList = {
   home: undefined;
   link: undefined;
-  message: undefined;
+  /** 消息中心；tab 指定初始子 tab（推送点击跳转用：interaction 互动 / system 系统 / private 私信） */
+  message: { tab?: 'private' | 'interaction' | 'system' } | undefined;
   my: undefined;
 };

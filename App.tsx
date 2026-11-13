@@ -13,6 +13,9 @@ import { AppAlertHost } from '@/components/AppAlert';
 import { initWechat } from '@/utils/wechat';
 import { initPhoneLogin } from '@/native/PhoneLogin';
 import { reportActivation } from '@/utils/activation';
+import { setupPush } from '@/utils/push';
+import PrivacyConsentGate from '@/components/PrivacyConsentGate';
+import { hasPrivacyConsent, setPrivacyConsent } from '@/utils/privacyConsent';
 import { useUserStore } from '@/store/user';
 import { storageUtils } from '@/utils/storage';
 import { API } from '@/api';
@@ -46,11 +49,17 @@ function Root() {
   const theme = useTheme();
   const { setToken, setUserInfo } = useUserStore();
 
+  // 隐私政策是否已同意（MMKV 同步读取，无闪烁）；同意前不初始化三方 SDK、不上报任何数据（工信部合规）
+  const [consented, setConsented] = useState(hasPrivacyConsent());
+
   useEffect(() => {
+    if (!consented) return;
     initWechat();
     initPhoneLogin();
     // 渠道激活上报（免登录、幂等、失败静默）
     reportActivation();
+    // 极光推送：合规授权 + 初始化 + rid 绑定 + 通知点击路由（后端当前仅推 Android）
+    setupPush();
     // 对齐小程序 main.js：启动时从 storage 恢复 token 和用户信息
     const token = storageUtils.getString('token');
     const userInfoStr = storageUtils.getString('userInfo');
@@ -76,7 +85,7 @@ function Root() {
       });
     }
     if (Platform.OS !== 'android') BootSplash.hide({ fade: true });
-  }, [setToken, setUserInfo]);
+  }, [consented, setToken, setUserInfo]);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -87,6 +96,14 @@ function Root() {
       <RootNavigator />
       <AppAlertHost />
       <Toast config={toastConfig} topOffset={80} />
+      {!consented && (
+        <PrivacyConsentGate
+          onAgree={() => {
+            setPrivacyConsent();
+            setConsented(true);
+          }}
+        />
+      )}
       {showLaunch && (
         <Animated.View
           style={[styles.launch, { opacity: launchOpacity }]}

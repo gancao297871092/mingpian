@@ -31,7 +31,7 @@ PODS:
     - Yoga
   - ExpoAsset (57.0.8):
     - ExpoModulesCore
-  - ExpoContacts (57.0.7):
+  - ExpoContacts (57.0.9):
     - ExpoModulesCore
   - ExpoDomWebView (57.0.1):
     - ExpoModulesCore
@@ -93,6 +93,15 @@ PODS:
   - hermes-engine (250829098.0.14):
     - hermes-engine/Pre-built (= 250829098.0.14)
   - hermes-engine/Pre-built (250829098.0.14)
+  - JCore (5.6.0)
+  - JCoreRN (2.3.8):
+    - JCore (= 5.6.0)
+    - React
+  - JPush (6.3.0):
+    - JCore (> 5.5.0)
+  - JPushRN (3.3.0):
+    - JPush (= 6.3.0)
+    - React
   - libavif/core (1.0.0)
   - libavif/libdav1d (1.0.0):
     - libavif/core
@@ -2977,6 +2986,8 @@ DEPENDENCIES:
   - "ExpoSvgaPlayer (from `../node_modules/@jayming/expo-svga-player/ios`)"
   - FBLazyVector (from `../node_modules/react-native/Libraries/FBLazyVector`)
   - hermes-engine (from `../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)
+  - JCoreRN (from `../node_modules/jcore-react-native`)
+  - JPushRN (from `../node_modules/jpush-react-native`)
   - LiquidGlassView (from `/Users/admin/Desktop/mai/mingpian-app/ios/LiquidGlassView`)
   - lottie-react-native (from `../node_modules/lottie-react-native`)
   - NitroBackgroundTimer (from `../node_modules/react-native-nitro-bg-timer`)
@@ -3089,6 +3100,8 @@ DEPENDENCIES:
 
 SPEC REPOS:
   trunk:
+    - JCore
+    - JPush
     - libavif
     - libdav1d
     - libwebp
@@ -3143,6 +3156,10 @@ EXTERNAL SOURCES:
   hermes-engine:
     :podspec: "../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec"
     :tag: hermes-v250829098.0.14
+  JCoreRN:
+    :path: "../node_modules/jcore-react-native"
+  JPushRN:
+    :path: "../node_modules/jpush-react-native"
   LiquidGlassView:
     :path: "/Users/admin/Desktop/mai/mingpian-app/ios/LiquidGlassView"
   lottie-react-native:
@@ -3365,7 +3382,7 @@ SPEC CHECKSUMS:
   EXConstants: 5efe6122eecac2d970aa50a2a502ecc6ce4b7564
   Expo: cba780b47e8661e90c9fe8e1a92a81cef5773290
   ExpoAsset: a76534cf7b762978861dd31708308496c676166f
-  ExpoContacts: e8e3bb40f5f19cced50f45cd8af2d098995cb0fc
+  ExpoContacts: 488ca935287127545090f9a714b604e471963abd
   ExpoDomWebView: beaec034e51bd028428b98bb1f2633ab79c6d095
   ExpoFileSystem: e441dae0ae671fc451640517550973d9e024fdf0
   ExpoFont: 59e1faf66ba9bcd232ae1e2ce58d202a48b6f65e
@@ -3379,6 +3396,10 @@ SPEC CHECKSUMS:
   ExpoSvgaPlayer: 9802fe8c5668e09416b21d28280dc82b05662661
   FBLazyVector: b3e7ad108f0d882e30445c5527d774e3fd432f3d
   hermes-engine: 8ed13a3224cc48c6bc1a2ff503e3379cd627104c
+  JCore: 8917bec456f222197e2c9e7b38c5c9315cd03718
+  JCoreRN: 8c13fb256a5b5f64b67be60bf9f0eb25b8849a38
+  JPush: 51edf7cd44403b62aec64bc117d5fcc71e008ebb
+  JPushRN: b901a03db7e461fe6601cb83a9f49dbc627194de
   libavif: 5f8e715bea24debec477006f21ef9e95432e254d
   libdav1d: 23581a4d8ec811ff171ed5e2e05cd27bad64c39f
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8

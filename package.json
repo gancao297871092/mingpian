@@ -33,6 +33,8 @@
     "expo-contacts": "~57.0.7",
     "expo-image": "^57.0.1",
     "i18n-js": "^4.5.3",
+    "jcore-react-native": "^2.3.8",
+    "jpush-react-native": "^3.3.0",
     "lottie-react-native": "^7.3.8",
     "native-wechat": "^1.0.23",
     "react": "^19.2.3",

@@ -121,6 +121,14 @@ export namespace API {
     }) {
       return request.post<any>('/common/activation', data);
     }
+    /** 绑定极光推送 registrationId（免登录；带 token 时后端同时回填 userId，登录成功后再调一次即完成人-设备关联） */
+    export function pushBind(data: { deviceId: string; registrationId: string }) {
+      return request.post<any>('/common/push/bind', data);
+    }
+    /** 解绑推送（免登录）：退出登录/切换账号时调用，解绑后该设备不再收到该账号推送 */
+    export function pushUnbind(data: { deviceId: string }) {
+      return request.post<any>('/common/push/unbind', data);
+    }
     /** 通用富文本（userSure 用户协议 / privates 隐私政策 / cardSure 实名认证协议 / cpSure 企业认证协议） */
     export function richText(apiUrl: string) {
       return request.get<{ name: string; value: string; htmls: string }>(`/common/${apiUrl}`);

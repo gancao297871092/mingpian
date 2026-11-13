@@ -6,6 +6,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Image as ExpoImage } from 'expo-image';
 import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
+import { unbindPush } from '@/utils/push';
 import { useUserStore } from '@/store/user';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import {
@@ -75,6 +76,8 @@ export default function Settings() {
       {
         text: '确定',
         onPress: () => {
+          // 切换账号前解绑推送（设备不再收到当前账号的定向推送）
+          unbindPush();
           logout();
           navigation.reset({ index: 0, routes: [{ name: 'login' }] });
         },
@@ -89,6 +92,8 @@ export default function Settings() {
         text: '退出登录',
         style: 'destructive',
         onPress: () => {
+          // 退出登录解绑推送（后端清掉设备行 userId，registrationId 保留；重新登录自动恢复绑定）
+          unbindPush();
           logout();
           navigation.reset({ index: 0, routes: [{ name: 'login' }] });
         },

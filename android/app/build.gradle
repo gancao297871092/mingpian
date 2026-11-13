@@ -94,7 +94,12 @@ android {
         versionCode 1
         versionName "1.0.0"
         // App 渠道标识：默认 official；打渠道包时 -PAPP_CHANNEL=huawei 覆盖（见 android/build-channels.sh）
-        manifestPlaceholders = [APP_CHANNEL: (project.findProperty("APP_CHANNEL") ?: "official")]
+        // JPUSH_APPKEY/JPUSH_CHANNEL：极光推送 SDK（jpush 6.x aar 清单占位），appKey 与后端 yml 的 jpush.app-key 一致
+        manifestPlaceholders = [
+            APP_CHANNEL  : (project.findProperty("APP_CHANNEL") ?: "official"),
+            JPUSH_APPKEY : "36761347ae1f17b420e5cb49",
+            JPUSH_CHANNEL: "official",
+        ]
     }
     signingConfigs {
         debug {
@@ -125,6 +130,10 @@ android {
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
+
+    // 极光推送核心库：JCollectionAuth 隐私合规开关（MainApplication 引用）。
+    // 插件 jcore-react-native 以 implementation 方式依赖，编译期不可见，需显式声明；版本与插件保持一致
+    implementation "cn.jiguang.sdk:jcore:5.6.0"
 
     // 阿里云号码认证（一键登录）：将控制台下载的 3 个 aar（auth/logger/main 开头）放入 android/app/libs
     implementation fileTree(dir: 'libs', include: ['*.aar'])

@@ -12,7 +12,7 @@ import {
   type NativeSyntheticEvent,
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
-import { useIsFocused, useNavigation } from '@react-navigation/native';
+import { useIsFocused, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
@@ -21,7 +21,7 @@ import EmptyState from '@/components/EmptyState';
 import { useMessageUnreadStore } from '@/store/message';
 import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText, SCREEN_WIDTH } from '@/utils/screenUtils';
-import type { RootStackParamList } from '@/route/map';
+import type { MainTabParamList, RootStackParamList } from '@/route/map';
 import {
   ChevronRight,
   DIVIDER,
@@ -58,7 +58,13 @@ export default function MessagePage() {
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
 
-  const [tab, setTab] = useState<TabKey>('private');
+  // 支持推送点击跳转指定初始子 tab（如互动通知 → interaction），后续参数变化也响应
+  const route = useRoute<RouteProp<MainTabParamList, 'message'>>();
+  const [tab, setTab] = useState<TabKey>(route.params?.tab ?? 'private');
+  useEffect(() => {
+    const t = route.params?.tab;
+    if (t) setTab(t);
+  }, [route.params?.tab]);
   /** 列表上滑后头部变白底 + 底部细线 */
   const [scrolled, setScrolled] = useState(false);
   /** 推送通知横幅（可关闭，关闭后白色容器上移，figma 31 为关闭态） */

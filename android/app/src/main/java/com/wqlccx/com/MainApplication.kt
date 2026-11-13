@@ -2,6 +2,7 @@ package com.wqlccx.com
 
 import android.app.Application
 import android.content.res.Configuration
+import cn.jiguang.api.utils.JCollectionAuth
 import com.facebook.react.PackageList
 import com.wqlccx.com.appchannel.AppChannelPackage
 import com.wqlccx.com.phonelogin.PhoneLoginPackage
@@ -28,6 +29,8 @@ class MainApplication : Application(), ReactApplication {
 
   override fun onCreate() {
     super.onCreate()
+    // 隐私合规：默认关闭极光 SDK 数据采集，用户在首启隐私弹窗同意后由 JS 调 JCore.setAuth(true) 再 init
+    JCollectionAuth.setAuth(this, false)
     loadReactNative(this)
     ApplicationLifecycleDispatcher.onApplicationCreate(this)
   }

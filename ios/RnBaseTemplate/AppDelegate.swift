@@ -3,6 +3,8 @@ import React
 import React_RCTAppDelegate
 import ReactAppDependencyProvider
 import RNBootSplash
+import UserNotifications
+import JPush
 
 @main
 class AppDelegate: ExpoAppDelegate {
@@ -58,6 +60,64 @@ class AppDelegate: ExpoAppDelegate {
       restorationHandler: restorationHandler
     )
   }
+
+  // MARK: - 极光推送：APNs deviceToken 上报
+
+  override func application(
+    _ application: UIApplication,
+    didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+  ) {
+    JPUSHService.registerDeviceToken(deviceToken)
+    super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
+  }
+}
+
+// MARK: - 极光推送：通知事件桥接（JPUSHRegisterDelegate）
+// JPush RN 插件约定：App 侧把 APNs 事件以 NSNotification 形式转发，
+// RCTJPushModule 监听 J_APNS_NOTIFICATION_ARRIVED_EVENT / J_APNS_NOTIFICATION_OPENED_EVENT 后发到 JS。
+extension AppDelegate: JPUSHRegisterDelegate {
+
+  /// 前台收到通知：转 JS（notificationArrived），并照常展示横幅/角标/声音
+  func jpushNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    willPresent notification: UNNotification,
+    withCompletionHandler completionHandler: @escaping (Int) -> Void
+  ) {
+    NotificationCenter.default.post(
+      name: NSNotification.Name("J_APNS_NOTIFICATION_ARRIVED_EVENT"),
+      object: notification.request.content.userInfo
+    )
+    completionHandler(
+      Int(UNNotificationPresentationOptions.badge.rawValue
+        | UNNotificationPresentationOptions.sound.rawValue
+        | UNNotificationPresentationOptions.alert.rawValue)
+    )
+  }
+
+  /// 点击通知（含冷启动）：转 JS（notificationOpened）
+  func jpushNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    didReceive response: UNNotificationResponse,
+    withCompletionHandler completionHandler: @escaping () -> Void
+  ) {
+    NotificationCenter.default.post(
+      name: NSNotification.Name("J_APNS_NOTIFICATION_OPENED_EVENT"),
+      object: response.notification.request.content.userInfo
+    )
+    completionHandler()
+  }
+
+  /// 协议必需方法（本项目未用到，空实现）
+  func jpushNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    openSettingsFor notification: UNNotification?
+  ) {}
+
+  /// 协议必需方法（授权状态变化，本项目未用到，空实现）
+  func jpushNotificationAuthorization(
+    _ status: JPAuthorizationStatus,
+    withInfo info: [AnyHashable: Any]?
+  ) {}
 }
 
 class ReactNativeDelegate: ExpoReactNativeFactoryDelegate {
