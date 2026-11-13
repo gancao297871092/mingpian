@@ -93,6 +93,8 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0.0"
+        // App 渠道标识：默认 official；打渠道包时 -PAPP_CHANNEL=huawei 覆盖（见 android/build-channels.sh）
+        manifestPlaceholders = [APP_CHANNEL: (project.findProperty("APP_CHANNEL") ?: "official")]
     }
     signingConfigs {
         debug {

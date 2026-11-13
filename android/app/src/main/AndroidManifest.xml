@@ -110,10 +110,10 @@
       android:name="com.amap.api.v2.apikey"
       android:value="b45d63efb48c45162fcb5962a3f779f0" />
 
-    <!-- App 渠道标识（/v1/common/activation 上报）：日常构建默认 official，上架渠道包由加固工具按商店改写为 huawei/honor/xiaomi/oppo/vivo/tencent -->
+    <!-- App 渠道标识（/v1/common/activation 上报）：值由 build.gradle 的 manifestPlaceholders 注入，默认 official；打渠道包用 android/build-channels.sh（gradle -PAPP_CHANNEL=huawei 等） -->
     <meta-data
       android:name="APP_CHANNEL"
-      android:value="official" />
+      android:value="${APP_CHANNEL}" />
 
     <service android:name="com.amap.api.location.APSService" />
   </application>
