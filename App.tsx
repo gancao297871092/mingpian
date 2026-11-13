@@ -12,6 +12,7 @@ import RootNavigator from '@/route';
 import { AppAlertHost } from '@/components/AppAlert';
 import { initWechat } from '@/utils/wechat';
 import { initPhoneLogin } from '@/native/PhoneLogin';
+import { reportActivation } from '@/utils/activation';
 import { useUserStore } from '@/store/user';
 import { storageUtils } from '@/utils/storage';
 import { API } from '@/api';
@@ -48,6 +49,8 @@ function Root() {
   useEffect(() => {
     initWechat();
     initPhoneLogin();
+    // 渠道激活上报（免登录、幂等、失败静默）
+    reportActivation();
     // 对齐小程序 main.js：启动时从 storage 恢复 token 和用户信息
     const token = storageUtils.getString('token');
     const userInfoStr = storageUtils.getString('userInfo');

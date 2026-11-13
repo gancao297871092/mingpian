@@ -107,6 +107,20 @@ export namespace API {
   }
 
   export namespace common {
+    /**
+     * App 渠道激活上报（免登录，带 token 时后端自动回填 userId）。
+     * 幂等：同 deviceId 只保留一行，重复上报仅累加启动次数并刷新版本/机型；channel 以首次写入为准。
+     */
+    export function activation(data: {
+      deviceId: string;
+      channel: string;
+      appVersion?: string;
+      os?: string;
+      osVersion?: string;
+      deviceModel?: string;
+    }) {
+      return request.post<any>('/common/activation', data);
+    }
     /** 通用富文本（userSure 用户协议 / privates 隐私政策 / cardSure 实名认证协议 / cpSure 企业认证协议） */
     export function richText(apiUrl: string) {
       return request.get<{ name: string; value: string; htmls: string }>(`/common/${apiUrl}`);

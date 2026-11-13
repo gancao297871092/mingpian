@@ -5,6 +5,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
+import { getAppVersionInfo } from '@/utils/version';
 import { SettingCard, SettingDivider, SettingRow } from './components';
 import type { RootStackParamList } from '@/route/map';
 
@@ -13,6 +14,7 @@ const todo = () => Toast.show({ type: 'info', text1: '功能开发中' });
 /** 83.关于我们 */
 export default function AboutUs() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { nativeVersion, nativeBuild, jsVersion } = getAppVersionInfo();
 
   return (
     <SafeView backgroundColor="#F6F7FB">
@@ -20,7 +22,11 @@ export default function AboutUs() {
         <View style={styles.brand}>
           <Image source={require('@/assets/my/settings/app-logo.png')} style={styles.logo} />
           <Text style={styles.appName}>联诚采信</Text>
-          <Text style={styles.version}>version 1.0.1</Text>
+          {/* 原生版本号（项目版本号）：V1.0.1（2）；JS 版本为 package.json 版本，热更排查用 */}
+          <Text style={styles.version}>
+            {`V${nativeVersion}${nativeBuild ? `（${nativeBuild}）` : ''}`}
+          </Text>
+          <Text style={styles.jsVersion}>JS 版本 {jsVersion}</Text>
           <Text style={styles.record} onPress={todo}>
             {'备案号123456号-10A >'}
           </Text>
@@ -71,6 +77,10 @@ const styles = StyleSheet.create({
   version: {
     fontSize: setSpText(14),
     color: '#6C6C6C',
+  },
+  jsVersion: {
+    fontSize: setSpText(12),
+    color: '#999999',
   },
   record: {
     fontSize: setSpText(14),
