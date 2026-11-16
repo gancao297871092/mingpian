@@ -4,7 +4,7 @@ import React_RCTAppDelegate
 import ReactAppDependencyProvider
 import RNBootSplash
 import UserNotifications
-import JPush
+// JPUSHService / JPUSHRegisterDelegate 经 Bridging-Header 引入（JPush 为静态库，无 Swift module）
 
 @main
 class AppDelegate: ExpoAppDelegate {

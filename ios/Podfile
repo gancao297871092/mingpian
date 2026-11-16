@@ -8,6 +8,14 @@ require Pod::Executable.execute_command('node', ['-p',
 require_relative '../node_modules/expo/scripts/autolinking.rb'
 
 platform :ios, '16.4'
+
+# RN 0.86.0 的预编译 React.xcframework 有缺陷：部分带 debug 宏的符号
+# （Sealable 构造/析构、ShadowNode::getDebugName 等）被内部化，
+# 与源码编译的第三方 Fabric 组件混链时报 Undefined symbols（上游 0.86.3 已修复）。
+# 升级 RN >= 0.86.3 前，iOS 改为全量源码编译 React Core（仅影响 iOS 构建时长）。
+# 升级 RN 后删除本行即可恢复预编译。
+ENV['RCT_USE_PREBUILT_RNCORE'] = '0'
+
 prepare_react_native_project!
 
 linkage = ENV['USE_FRAMEWORKS']
@@ -75,5 +83,6 @@ target 'RnBaseTemplate' do
       File.write(svga_file, content)
       Pod::UI.puts 'Patched SVGAPlayer Svga.pbobjc.m (OSAtomic -> __sync)'.green
     end
+
   end
 end

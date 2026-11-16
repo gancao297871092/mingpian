@@ -332,6 +332,7 @@
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
 				PRODUCT_BUNDLE_IDENTIFIER = com.wqlccx.com;
 				PRODUCT_NAME = RnBaseTemplate;
+				SWIFT_OBJC_BRIDGING_HEADER = "RnBaseTemplate/RnBaseTemplate-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
@@ -365,6 +366,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.wqlccx.com;
 				PRODUCT_NAME = RnBaseTemplate;
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_OBJC_BRIDGING_HEADER = "RnBaseTemplate/RnBaseTemplate-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
 			};
