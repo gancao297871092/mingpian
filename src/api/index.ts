@@ -258,6 +258,26 @@ export namespace API {
     }) {
       return request.post<any>('/auth/idCard/verifyV3', data);
     }
+    /** 人脸核身 Plus：发起核身（返回 App SDK 启动参数；faceId 5 分钟有效） */
+    export function faceidPrepare(data: { name: string; idCard: string }) {
+      return request.post<{
+        appId: string;
+        orderNo: string;
+        userId: string;
+        version: string;
+        nonce: string;
+        sign: string;
+        faceId: string;
+        optimalDomain?: string;
+      }>('/auth/faceid/prepare', data);
+    }
+    /** 人脸核身 Plus：查询结果（code=0 通过，服务端自动回写实名 authRealCard=1） */
+    export function faceidResult(data: { orderNo: string }) {
+      return request.post<{ code: string; msg: string; liveRate?: number; similarity?: number }>(
+        '/auth/faceid/result',
+        data,
+      );
+    }
   }
 
   export namespace my {
@@ -767,6 +787,14 @@ export namespace API {
     /** 企业认证-提交授权委托书 */
     export function certAuthPng(data: any) {
       return request.post<any>('/company/auth/step/authPng', data);
+    }
+    /** 企业认证-法人人脸前置：企业四要素核验（点击开始验证时调用） */
+    export function certValidateFourVer(data: { id: number | null; legalPerson: string; legalPersonCertCode: string }) {
+      return request.post<any>('/company/auth/idCard/validateFourVer', data);
+    }
+    /** 企业认证-法人人脸核身结果确认（SDK 刷脸完成后调用，通过则企业标记人脸认证） */
+    export function certFaceConfirm(data: { cpId: number | null; orderNo: string }) {
+      return request.post<any>('/company/auth/face/confirm', data);
     }
     /** 企业认证-提交联系人信息 */
     export function certLink(data: any) {

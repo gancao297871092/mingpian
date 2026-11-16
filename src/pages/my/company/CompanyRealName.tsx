@@ -8,6 +8,7 @@ import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
 import AppBottomSheet from '@/components/AppBottomSheet';
 import { API } from '@/api';
+import { startFaceVerify } from '@/native/FaceVerify';
 import { useUserStore } from '@/store/user';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
@@ -177,7 +178,43 @@ export default function CompanyRealName() {
       return;
     }
     if (type === 'face') {
-      Toast.show({ type: 'info', text1: '人脸识别暂未开放，请使用手机号验证' });
+      if (!name.trim()) {
+        Toast.show({ type: 'error', text1: '请输入真实姓名' });
+        return;
+      }
+      if (!/^\d{17}[\dXx]$/.test(idCard.trim())) {
+        Toast.show({ type: 'error', text1: '请输入正确的身份证号' });
+        return;
+      }
+      setSubmitting(true);
+      try {
+        // 1. 服务端发起核身：上送身份信息换 faceId + SDK 启动签名（faceId 5 分钟有效）
+        const pre = await API.user.faceidPrepare({ name: name.trim(), idCard: idCard.trim() });
+        const sdkParam = pre.data;
+        if (!sdkParam) return;
+        // 2. 拉起 SDK 刷脸（光线活体，UI 托管；取消/失败走 reject，与接口错误分开处理）
+        try {
+          await startFaceVerify(sdkParam);
+        } catch (e: any) {
+          if (e?.code === 'CANCELLED') {
+            Toast.show({ type: 'info', text1: '已取消人脸认证' });
+          } else {
+            Toast.show({ type: 'error', text1: e?.message || '人脸认证失败，请重试' });
+          }
+          return;
+        }
+        // 3. 权威结果以服务端查询为准（通过则后端自动回写实名 authRealCard=1）
+        await API.user.faceidResult({ orderNo: sdkParam.orderNo });
+        Toast.show({ type: 'success', text1: '实名认证成功' });
+        API.user.info()
+          .then(res => res.data && setUserInfo(res.data))
+          .catch(() => {});
+        navigation.goBack();
+      } catch {
+        // faceidPrepare/faceidResult 业务失败：拦截器已提示
+      } finally {
+        setSubmitting(false);
+      }
       return;
     }
     if (!name.trim()) {
@@ -239,74 +276,72 @@ export default function CompanyRealName() {
               </View>
             </View>
           </TouchableOpacity>
+          <View style={styles.formCard}>
+            <View style={styles.formRow}>
+              <Text style={styles.formLabel}>真实姓名</Text>
+              <TextInput
+                style={styles.formInput}
+                value={name}
+                onChangeText={setName}
+                placeholder="请输入"
+                placeholderTextColor="#999999"
+                textAlign="right"
+                editable={!reviewing}
+              />
+            </View>
+            <View style={styles.formDivider} />
+            <View style={styles.formRow}>
+              <Text style={styles.formLabel}>身份证号</Text>
+              <TextInput
+                style={styles.formInput}
+                value={idCard}
+                onChangeText={setIdCard}
+                placeholder="请输入"
+                placeholderTextColor="#999999"
+                textAlign="right"
+                maxLength={18}
+                editable={!reviewing}
+              />
+            </View>
+          </View>
           {type === 'phone' && (
-            <>
-              <View style={styles.formCard}>
-                <View style={styles.formRow}>
-                  <Text style={styles.formLabel}>真实姓名</Text>
+            <View style={styles.formCard}>
+              <View style={styles.formRow}>
+                <Text style={styles.formLabel}>手机号</Text>
+                <View style={styles.phoneRight}>
+                  <Text style={styles.phonePrefix}>+86</Text>
                   <TextInput
-                    style={styles.formInput}
-                    value={name}
-                    onChangeText={setName}
+                    style={styles.phoneInput}
+                    value={phone}
+                    onChangeText={setPhone}
                     placeholder="请输入"
                     placeholderTextColor="#999999"
                     textAlign="right"
-                    editable={!reviewing}
-                  />
-                </View>
-                <View style={styles.formDivider} />
-                <View style={styles.formRow}>
-                  <Text style={styles.formLabel}>身份证号</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    value={idCard}
-                    onChangeText={setIdCard}
-                    placeholder="请输入"
-                    placeholderTextColor="#999999"
-                    textAlign="right"
-                    maxLength={18}
-                    editable={!reviewing}
+                    keyboardType="phone-pad"
+                    maxLength={11}
                   />
                 </View>
               </View>
-              <View style={styles.formCard}>
-                <View style={styles.formRow}>
-                  <Text style={styles.formLabel}>手机号</Text>
-                  <View style={styles.phoneRight}>
-                    <Text style={styles.phonePrefix}>+86</Text>
-                    <TextInput
-                      style={styles.phoneInput}
-                      value={phone}
-                      onChangeText={setPhone}
-                      placeholder="请输入"
-                      placeholderTextColor="#999999"
-                      textAlign="right"
-                      keyboardType="phone-pad"
-                      maxLength={11}
-                    />
-                  </View>
-                </View>
-                <View style={styles.formDivider} />
-                <View style={styles.formRow}>
-                  <Text style={styles.formLabel}>验证码</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    value={code}
-                    onChangeText={setCode}
-                    placeholder="请输入"
-                    placeholderTextColor="#999999"
-                    textAlign="right"
-                    keyboardType="number-pad"
-                    maxLength={6}
-                  />
-                  <TouchableOpacity activeOpacity={0.7} onPress={onGetCode} disabled={countdown > 0}>
-                    <Text style={[styles.codeBtn, countdown > 0 && styles.codeBtnDisabled]}>
-                      {countdown > 0 ? `${countdown}s` : '获取验证码'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+              <View style={styles.formDivider} />
+              <View style={styles.formRow}>
+                <Text style={styles.formLabel}>验证码</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={code}
+                  onChangeText={setCode}
+                  placeholder="请输入"
+                  placeholderTextColor="#999999"
+                  textAlign="right"
+                  keyboardType="number-pad"
+                  maxLength={6}
+                />
+                <TouchableOpacity activeOpacity={0.7} onPress={onGetCode} disabled={countdown > 0}>
+                  <Text style={[styles.codeBtn, countdown > 0 && styles.codeBtnDisabled]}>
+                    {countdown > 0 ? `${countdown}s` : '获取验证码'}
+                  </Text>
+                </TouchableOpacity>
               </View>
-            </>
+            </View>
           )}
           <AgreementRow agreed={agreed} onToggle={() => setAgreed(a => !a)} />
           <TouchableOpacity

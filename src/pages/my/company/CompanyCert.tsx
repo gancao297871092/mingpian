@@ -11,6 +11,7 @@ import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
 import AppBottomSheet from '@/components/AppBottomSheet';
 import { API } from '@/api';
+import { startFaceVerify } from '@/native/FaceVerify';
 import { uploadToOss } from '@/utils/ossUpload';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
@@ -495,7 +496,7 @@ function Step1({ onNext }: { onNext: (d: CertBase) => void }) {
   );
 }
 
-/** 第二步：对公认证（对齐小程序 stepFour.vue，成功后直接调用 certLink 完成认证；人脸识别 app 端暂未实现） */
+/** 第二步：对公认证（对齐小程序 stepFour.vue，成功后直接调用 certLink 完成认证；人脸识别走腾讯云增强版核身） */
 function Step2({ cpId, authUrl, method, onOpenSheet, onPrev }: { cpId: number | null; authUrl: string; method: VerifyMethod; onOpenSheet: () => void; onPrev: () => void }) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const formType = FORM_TYPE[method];
@@ -509,6 +510,8 @@ function Step2({ cpId, authUrl, method, onOpenSheet, onPrev }: { cpId: number | 
   const [countdown, setCountdown] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [facePassed, setFacePassed] = useState(false);
+  const [faceBusy, setFaceBusy] = useState(false);
   const [previewVisible, setPreviewVisible] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -593,6 +596,58 @@ function Step2({ cpId, authUrl, method, onOpenSheet, onPrev }: { cpId: number | 
     Linking.openURL(authUrl).catch(() => Toast.show({ type: 'error', text1: '打开失败' }));
   };
 
+  // 法人信息或验证方式变化后，已通过的刷脸状态失效（人脸与姓名+身份证绑定）
+  useEffect(() => {
+    setFacePassed(false);
+  }, [method, legalPerson, legalPersonCertCode]);
+
+  /** 法人人脸识别：四要素核验 → 腾讯增强版核身（SDK 刷脸）→ 服务端确认（结果以服务端查询为准） */
+  const onStartFace = async () => {
+    if (faceBusy || facePassed) return;
+    if (!legalPerson.trim()) {
+      Toast.show({ type: 'error', text1: '请输入法人姓名' });
+      return;
+    }
+    if (!/^\d{17}[\dXx]$/.test(legalPersonCertCode.trim())) {
+      Toast.show({ type: 'error', text1: '请输入正确的身份证号' });
+      return;
+    }
+    setFaceBusy(true);
+    try {
+      // 1. 企业四要素核验（企业+法人信息权威校验，通过才允许刷脸）
+      const four = await API.company.certValidateFourVer({
+        id: cpId,
+        legalPerson: legalPerson.trim(),
+        legalPersonCertCode: legalPersonCertCode.trim(),
+      });
+      if (four.code !== '200') return;
+      // 2. 服务端发起核身：上送法人身份信息换 faceId + SDK 启动签名（faceId 5 分钟有效）
+      const pre = await API.user.faceidPrepare({ name: legalPerson.trim(), idCard: legalPersonCertCode.trim() });
+      const sdkParam = pre.data;
+      if (!sdkParam) return;
+      // 3. 拉起 SDK 刷脸（光线活体，UI 托管；取消/失败走 reject，与接口错误分开处理）
+      try {
+        await startFaceVerify(sdkParam);
+      } catch (e: any) {
+        if (e?.code === 'CANCELLED') {
+          Toast.show({ type: 'info', text1: '已取消人脸认证' });
+        } else {
+          Toast.show({ type: 'error', text1: e?.message || '人脸认证失败，请重试' });
+        }
+        return;
+      }
+      // 4. 服务端权威确认（通过则后端标记企业为人脸认证 authType=1，link 直接通过）
+      const confirm = await API.company.certFaceConfirm({ cpId, orderNo: sdkParam.orderNo });
+      if (confirm.code !== '200') return;
+      setFacePassed(true);
+      Toast.show({ type: 'success', text1: '人脸识别通过' });
+    } catch {
+      // 四要素/prepare/confirm 业务失败：拦截器已提示
+    } finally {
+      setFaceBusy(false);
+    }
+  };
+
   const submit = async () => {
     if (submitting) return;
     if (method !== 'letter') {
@@ -605,8 +660,8 @@ function Step2({ cpId, authUrl, method, onOpenSheet, onPrev }: { cpId: number | 
         return;
       }
     }
-    if (method === 'face') {
-      Toast.show({ type: 'info', text1: '人脸认证暂未开放，请选择其他验证方式' });
+    if (method === 'face' && !facePassed) {
+      Toast.show({ type: 'error', text1: '请先完成法人人脸识别' });
       return;
     }
     if (method === 'phone') {
@@ -717,8 +772,12 @@ function Step2({ cpId, authUrl, method, onOpenSheet, onPrev }: { cpId: number | 
               )}
               {method === 'face' && (
                 <FormRow label="人脸识别" last>
-                  <TouchableOpacity activeOpacity={0.7} style={styles.faceBtn} onPress={() => Toast.show({ type: 'info', text1: '人脸认证暂未开放' })}>
-                    <Text style={styles.faceBtnText}>开始验证</Text>
+                  <TouchableOpacity activeOpacity={0.7} style={styles.faceBtn} disabled={faceBusy || facePassed} onPress={onStartFace}>
+                    {faceBusy ? (
+                      <ActivityIndicator size="small" color={PRIMARY} />
+                    ) : (
+                      <Text style={[styles.faceBtnText, facePassed && styles.faceBtnPassed]}>{facePassed ? '已通过' : '开始验证'}</Text>
+                    )}
                   </TouchableOpacity>
                 </FormRow>
               )}
@@ -1063,6 +1122,9 @@ const styles = StyleSheet.create({
     fontSize: setSpText(15),
     lineHeight: setSpText(20),
     color: PRIMARY,
+  },
+  faceBtnPassed: {
+    color: '#16A34A',
   },
   bottomBar: {
     paddingHorizontal: scaleSizeW(16),

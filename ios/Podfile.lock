@@ -87,6 +87,9 @@ PODS:
     - ExpoModulesCore
     - Protobuf (= 3.22.1)
     - SVGAPlayer
+  - FaceVerify (1.0.0):
+    - React-Core
+    - TencentCloudHuiyanSDKFace_framework
   - FBLazyVector (0.86.0)
   - hermes-engine (250829098.0.14):
     - hermes-engine/Pre-built (= 250829098.0.14)
@@ -2800,6 +2803,7 @@ PODS:
   - SVGAPlayer/ProtoFiles (2.5.7):
     - Protobuf (~> 3.4)
   - SwiftUIIntrospect (1.3.0)
+  - TencentCloudHuiyanSDKFace_framework (8.15.2)
   - TOCropViewController (2.8.0)
   - VisionCamera (4.7.3):
     - VisionCamera/Core (= 4.7.3)
@@ -2827,6 +2831,7 @@ DEPENDENCIES:
   - ExpoModulesWorklets (from `../node_modules/expo-modules-core`)
   - ExpoModulesWorkletsAdapter (from `../node_modules/expo-modules-core`)
   - "ExpoSvgaPlayer (from `../node_modules/@jayming/expo-svga-player/ios`)"
+  - FaceVerify (from `/Users/admin/Desktop/mai/mingpian-app/ios/FaceVerify`)
   - FBLazyVector (from `../node_modules/react-native/Libraries/FBLazyVector`)
   - hermes-engine (from `../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)
   - JCoreRN (from `../node_modules/jcore-react-native`)
@@ -2937,6 +2942,7 @@ DEPENDENCIES:
   - RNVectorIcons (from `../node_modules/react-native-vector-icons`)
   - RNWorklets (from `../node_modules/react-native-worklets`)
   - RTNWechat (from `../node_modules/native-wechat`)
+  - TencentCloudHuiyanSDKFace_framework (from `/Users/admin/Desktop/mai/mingpian-app/ios/TencentCloudHuiyanSDKFace_framework`)
   - VisionCamera (from `../node_modules/react-native-vision-camera`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
@@ -2993,6 +2999,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo-modules-core"
   ExpoSvgaPlayer:
     :path: "../node_modules/@jayming/expo-svga-player/ios"
+  FaceVerify:
+    :path: "/Users/admin/Desktop/mai/mingpian-app/ios/FaceVerify"
   FBLazyVector:
     :path: "../node_modules/react-native/Libraries/FBLazyVector"
   hermes-engine:
@@ -3212,6 +3220,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-worklets"
   RTNWechat:
     :path: "../node_modules/native-wechat"
+  TencentCloudHuiyanSDKFace_framework:
+    :path: "/Users/admin/Desktop/mai/mingpian-app/ios/TencentCloudHuiyanSDKFace_framework"
   VisionCamera:
     :path: "../node_modules/react-native-vision-camera"
   Yoga:
@@ -3234,6 +3244,7 @@ SPEC CHECKSUMS:
   ExpoModulesWorklets: 6b240031daa3de4df791588fc78236637ff602f6
   ExpoModulesWorkletsAdapter: a350b48bad355963e8eb9f6a284de873fc3d6762
   ExpoSvgaPlayer: 9802fe8c5668e09416b21d28280dc82b05662661
+  FaceVerify: 9cade274b0b5484a273e416dadf3e67100d1d236
   FBLazyVector: 688bade2cc6ee3de2ba9a411c85c21fd908af3bc
   hermes-engine: 8ed13a3224cc48c6bc1a2ff503e3379cd627104c
   JCore: 8917bec456f222197e2c9e7b38c5c9315cd03718
@@ -3358,11 +3369,12 @@ SPEC CHECKSUMS:
   SSZipArchive: 8a6ee5677c8e304bebc109e39cf0da91ccef22ea
   SVGAPlayer: 318b85a78b61292d6ae9dfcd651f3f0d1cdadd86
   SwiftUIIntrospect: fee9aa07293ee280373a591e1824e8ddc869ba5d
+  TencentCloudHuiyanSDKFace_framework: 491231416a4db130d5263f34829d7f92267a0159
   TOCropViewController: 797deaf39c90e6e9ddd848d88817f6b9a8a09888
   VisionCamera: 7187b3dac1ff3071234ead959ce311875748e14f
   WechatOpenSDK-XCFramework: 5df9b250e9839dcc306ad8b00f46822eead1ed47
   Yoga: 18b7c3b4ad4df70f7c1f90871213fd001e6c3528
 
-PODFILE CHECKSUM: 4de8edc10518ee74b1ae8b5a925fffa58c1fc812
+PODFILE CHECKSUM: d61923c018feebc3ecba33209c69f6a012f24728
 
 COCOAPODS: 1.16.2

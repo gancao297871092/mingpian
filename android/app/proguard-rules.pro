@@ -12,3 +12,11 @@
 # 阿里云号码认证一键登录 SDK（内置界面基于 AppCompatActivity）
 -keep class androidx.appcompat.app.AppCompatActivity
 -keep class androidx.core.content.ContextCompat { *; }
+
+# 腾讯云增强版人脸核身 SDK（WbCloudFaceLiveSdk / WbCloudNormal）
+-keep class com.tencent.cloud.huiyansdkface.** { *; }
+-dontwarn com.tencent.cloud.huiyansdkface.**
+-keep,allowobfuscation @interface com.google.gson.annotations.SerializedName
+-keepclassmembers,allowobfuscation class * {
+  @com.google.gson.annotations.SerializedName <fields>;
+}
