@@ -73,3 +73,16 @@ export function requestPushPermission(): void {
     JPush.requestPermission();
   }
 }
+
+/**
+ * 清空系统通知栏中本应用的全部通知（仅 Android）。
+ * 用途：前台收到推送时改弹应用内横幅（PushBanner），清掉 JPush 同时发到通知栏的那条，避免双份。
+ */
+export function clearTrayNotifications(): void {
+  if (Platform.OS !== 'android') return;
+  try {
+    JPush.clearAllNotifications();
+  } catch {
+    // ignore
+  }
+}

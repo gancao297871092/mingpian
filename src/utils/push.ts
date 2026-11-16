@@ -1,7 +1,10 @@
 import { API } from '@/api';
+import { AppState } from 'react-native';
 import { getAppChannelInfo } from '@/native/AppChannel';
+import { showInAppPush } from '@/components/PushBanner';
 import {
   addPushNotificationListener,
+  clearTrayNotifications,
   getRegistrationId,
   initPush,
   pushSupported,
@@ -156,19 +159,39 @@ function routeInnerMsg(p: Record<string, any>): void {
   }
 }
 
-/** 通知事件分发：只处理点击（到达由系统通知栏展示，无需处理） */
-function handleNotificationEvent(e: JPushNotificationEvent): void {
-  if (e.notificationEventType !== 'notificationOpened') return;
-  const params = extractPushParams(e.extras);
-  if (!params) {
-    navigateWhenReady(() => openMessageCenter());
-    return;
-  }
+/** 按 extras 路由到业务页（通知栏点击与应用内横幅点击共用） */
+function routeByParams(params: Record<string, any> | null): void {
   navigateWhenReady(() => {
+    if (!params) {
+      openMessageCenter();
+      return;
+    }
     if (params.channel === 'notice') routeNotice(params);
     else if (params.channel === 'innerMsg') routeInnerMsg(params);
     else openMessageCenter();
   });
+}
+
+/**
+ * 通知事件分发：
+ * - notificationArrived：仅 App 前台弹应用内横幅；后台到达交给系统通知栏（Android 后台 JS 也可能收到事件，必须用 AppState 挡掉，否则会误清通知栏）
+ * - notificationOpened：点击（含冷启动补发）路由到业务页
+ */
+function handleNotificationEvent(e: JPushNotificationEvent): void {
+  if (e.notificationEventType === 'notificationArrived') {
+    if (AppState.currentState !== 'active') return;
+    const params = extractPushParams(e.extras);
+    showInAppPush({
+      title: e.title || '联诚采信',
+      content: e.content || '',
+      onPress: () => routeByParams(params),
+    });
+    // Android：JPush 前台也发系统通知栏（已实测），清掉避免与应用内横幅双份（可能有极短闪现）
+    clearTrayNotifications();
+    return;
+  }
+  if (e.notificationEventType !== 'notificationOpened') return;
+  routeByParams(extractPushParams(e.extras));
 }
 
 /** 绑定 registrationId 到后端（rid 在 init 后异步生成，空则重试 3 次） */

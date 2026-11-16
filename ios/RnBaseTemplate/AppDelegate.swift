@@ -77,7 +77,8 @@ class AppDelegate: ExpoAppDelegate {
 // RCTJPushModule 监听 J_APNS_NOTIFICATION_ARRIVED_EVENT / J_APNS_NOTIFICATION_OPENED_EVENT 后发到 JS。
 extension AppDelegate: JPUSHRegisterDelegate {
 
-  /// 前台收到通知：转 JS（notificationArrived），并照常展示横幅/角标/声音
+  /// 前台收到通知：转 JS（notificationArrived）由 JS 弹应用内横幅（PushBanner），
+  /// 系统层只保留角标/声音、不再展示横幅（避免与 Android 侧一致的双份问题）
   func jpushNotificationCenter(
     _ center: UNUserNotificationCenter,
     willPresent notification: UNNotification,
@@ -89,8 +90,7 @@ extension AppDelegate: JPUSHRegisterDelegate {
     )
     completionHandler(
       Int(UNNotificationPresentationOptions.badge.rawValue
-        | UNNotificationPresentationOptions.sound.rawValue
-        | UNNotificationPresentationOptions.alert.rawValue)
+        | UNNotificationPresentationOptions.sound.rawValue)
     )
   }
 

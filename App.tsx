@@ -10,6 +10,7 @@ import { Text, View } from 'react-native';
 import { ThemeProvider, useTheme } from '@/theme';
 import RootNavigator from '@/route';
 import { AppAlertHost } from '@/components/AppAlert';
+import { PushBannerHost } from '@/components/PushBanner';
 import { initWechat } from '@/utils/wechat';
 import { initPhoneLogin } from '@/native/PhoneLogin';
 import { reportActivation } from '@/utils/activation';
@@ -96,6 +97,7 @@ function Root() {
       <RootNavigator />
       <AppAlertHost />
       <Toast config={toastConfig} topOffset={80} />
+      <PushBannerHost />
       {!consented && (
         <PrivacyConsentGate
           onAgree={() => {
