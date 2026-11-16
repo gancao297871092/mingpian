@@ -1,5 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Animated,
+  Image,
+  PanResponder,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
 
@@ -8,6 +16,7 @@ import { useTheme } from '@/theme';
  *
  * 架构：push.ts 的 notificationArrived 事件 → showInAppPush() → 本组件滑入展示。
  * 点击横幅走与通知栏点击相同的路由（push.ts 传入 onPress）。
+ * 消失方式：4.5s 自动 / 上滑手势（跟手，过阈值或快甩消失，否则回弹）/ 点 ×。
  */
 
 export interface InAppPushPayload {
@@ -26,6 +35,9 @@ export function showInAppPush(payload: InAppPushPayload): void {
 }
 
 const DISMISS_MS = 4500;
+/** 上滑消失阈值：位移 40dp 或甩动速度 0.6dp/ms */
+const SWIPE_DISMISS_DY = -40;
+const SWIPE_DISMISS_VY = -0.6;
 /** 隐藏时移出屏幕顶部的距离（含安全区余量，取够大即可） */
 const HIDDEN_OFFSET = -160;
 
@@ -45,12 +57,57 @@ export function PushBannerHost(): React.JSX.Element | null {
 
   const dismiss = () => {
     clearTimer();
+    translateY.stopAnimation();
     Animated.timing(translateY, {
       toValue: HIDDEN_OFFSET,
       duration: 220,
       useNativeDriver: true,
     }).start(() => setPayload(null));
   };
+
+  const armTimer = () => {
+    clearTimer();
+    timer.current = setTimeout(dismiss, DISMISS_MS);
+  };
+
+  // PanResponder 创建一次，回调经 ref 取最新 dismiss/armTimer，避免闭包过期
+  const dismissRef = useRef(dismiss);
+  dismissRef.current = dismiss;
+  const armTimerRef = useRef(armTimer);
+  armTimerRef.current = armTimer;
+  const clearTimerRef = useRef(clearTimer);
+  clearTimerRef.current = clearTimer;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      // 只接管明显上滑意图；点击/微动仍交给 Pressable。
+      // 必须配 Capture：Pressable 会在 touch start 先锁 responder，
+      // 冒泡阶段的 shouldSet 轮不到父级，捕获阶段才能在上滑时夺回手势。
+      onMoveShouldSetPanResponder: (_, g) => g.dy < -6 && Math.abs(g.dy) > Math.abs(g.dx),
+      onMoveShouldSetPanResponderCapture: (_, g) => g.dy < -6 && Math.abs(g.dy) > Math.abs(g.dx),
+      onPanResponderGrant: () => {
+        // 手指按住：暂停自动消失计时，停掉可能未完成的入场动画
+        clearTimerRef.current();
+        translateY.stopAnimation();
+      },
+      onPanResponderMove: (_, g) => {
+        translateY.setValue(Math.min(0, g.dy));
+      },
+      onPanResponderRelease: (_, g) => {
+        if (g.dy < SWIPE_DISMISS_DY || g.vy < SWIPE_DISMISS_VY) {
+          dismissRef.current();
+        } else {
+          Animated.spring(translateY, { toValue: 0, damping: 18, stiffness: 240, useNativeDriver: true }).start();
+          armTimerRef.current();
+        }
+      },
+      onPanResponderTerminate: () => {
+        // 手势被系统打断：回弹并重新计时
+        Animated.spring(translateY, { toValue: 0, damping: 18, stiffness: 240, useNativeDriver: true }).start();
+        armTimerRef.current();
+      },
+    }),
+  ).current;
 
   useEffect(() => {
     showHandler = p => {
@@ -64,7 +121,7 @@ export function PushBannerHost(): React.JSX.Element | null {
         stiffness: 240,
         useNativeDriver: true,
       }).start();
-      timer.current = setTimeout(dismiss, DISMISS_MS);
+      armTimer();
     };
     return () => {
       showHandler = null;
@@ -88,7 +145,7 @@ export function PushBannerHost(): React.JSX.Element | null {
 
   return (
     <View style={[styles.wrap, { top: insets.top + 6 }]} pointerEvents="box-none">
-      <Animated.View style={{ transform: [{ translateY }] }}>
+      <Animated.View style={{ transform: [{ translateY }] }} {...panResponder.panHandlers}>
         <Pressable style={[styles.card, cardDynamicStyle]} onPress={handlePress}>
           <Image source={require('@/assets/ming/logo.png')} style={styles.icon} />
           <View style={styles.texts}>
