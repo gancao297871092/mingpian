@@ -1,5 +1,5 @@
 import { API } from '@/api';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { getAppChannelInfo } from '@/native/AppChannel';
 import { showInAppPush } from '@/components/PushBanner';
 import {
@@ -206,7 +206,7 @@ export function bindPush(attempt = 0): void {
     try {
       const info = await getAppChannelInfo();
       // 免登录接口：有 token 时后端自动回填 userId，完成人-设备关联
-      await API.common.pushBind({ deviceId: info.deviceId, registrationId: rid });
+      await API.common.pushBind({ deviceId: info.deviceId, registrationId: rid, os: Platform.OS });
     } catch {
       // 静默失败，下次冷启动/登录重试
     }
