@@ -64,6 +64,10 @@ class FaceVerifyModule(private val reactContext: ReactApplicationContext) :
         )
         val data = Bundle().apply {
           putSerializable(WbCloudFaceContant.INPUT_DATA, inputData)
+          // 关键：不显式设置时 SDK 仅活体检测、不执行权威库比对（liveRate 有分但
+          // similarity 为空，服务端必返 66665001「请确保本人操作且正脸对框」）。
+          // 官方 demo 默认显式传 ID_CARD（文档 1007/57621 比对类型选择）。
+          putString(WbCloudFaceContant.COMPARE_TYPE, WbCloudFaceContant.ID_CARD)
           // SDK log 开关：仅 debug 包打开，release 必须关闭（官方要求）
           putBoolean(WbCloudFaceContant.IS_ENABLE_LOG, BuildConfig.DEBUG)
         }
