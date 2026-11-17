@@ -99,6 +99,16 @@ android {
             APP_CHANNEL  : (project.findProperty("APP_CHANNEL") ?: "official"),
             JPUSH_APPKEY : "36761347ae1f17b420e5cb49",
             JPUSH_CHANNEL: "official",
+            // ===== 极光厂商通道参数（各厂商开放平台注册应用后获取；填值后对应通道即生效）=====
+            // 华为无需占位：读 app/agconnect-services.json
+            HONOR_APPID   : "104603894",   // 荣耀推送 AppID
+            XIAOMI_APPID  : "",   // 小米推送 AppID（形如 2882303761520xxxxxx）
+            XIAOMI_APPKEY : "",   // 小米推送 AppKey
+            OPPO_APPID    : "38104133",   // OPPO 推送 AppID
+            OPPO_APPKEY   : "c0a9b873ce564a0290137438e09ccbd1",   // OPPO 推送 AppKey
+            OPPO_APPSECRET: "a3da3fba1c1e4bc79edac4f6d3b62e4e",   // OPPO 推送 AppSecret
+            VIVO_APPID    : "",   // vivo 推送 AppID
+            VIVO_APPKEY   : "",   // vivo 推送 AppKey
         ]
     }
     signingConfigs {
@@ -134,6 +144,14 @@ dependencies {
     // 极光推送核心库：JCollectionAuth 隐私合规开关（MainApplication 引用）。
     // 插件 jcore-react-native 以 implementation 方式依赖，编译期不可见，需显式声明；版本与插件保持一致
     implementation "cn.jiguang.sdk:jcore:5.6.0"
+
+    // 极光厂商通道插件（版本与 jpush 6.3.0 对齐）：杀进程后离线推送经厂商系统通道送达的必备件。
+    // 华为/荣耀/小米/OPPO/vivo 五家；参数见上方 manifestPlaceholders，华为另需 app/agconnect-services.json。
+    implementation "cn.jiguang.sdk.plugin:huawei:6.3.0"
+    implementation "cn.jiguang.sdk.plugin:honor:6.3.0"
+    implementation "cn.jiguang.sdk.plugin:xiaomi:6.3.0"
+    implementation "cn.jiguang.sdk.plugin:oppo:6.3.0"
+    implementation "cn.jiguang.sdk.plugin:vivo:6.3.0"
 
     // 阿里云号码认证（一键登录）：将控制台下载的 3 个 aar（auth/logger/main 开头）放入 android/app/libs
     implementation fileTree(dir: 'libs', include: ['*.aar'])

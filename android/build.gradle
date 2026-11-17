@@ -24,8 +24,22 @@ apply plugin: "com.facebook.react.rootproject"
 
 allprojects {
     repositories {
+        // 极光厂商通道插件强制走阿里云镜像：本机网络对 repo.maven.apache.org 不通，
+        // 且 gradle 解析该组时会错误地绑定 mavenCentral 导致 aar 下载失败
+        exclusiveContent {
+            forRepository {
+                maven { url 'https://maven.aliyun.com/repository/public' }
+            }
+            filter {
+                includeGroup 'cn.jiguang.sdk.plugin'
+            }
+        }
         maven { url 'https://maven.aliyun.com/repository/public' }
         maven { url 'https://maven.aliyun.com/repository/google' }
+        // 华为/荣耀推送官方仓库：极光厂商通道插件传递依赖 com.huawei.hms:push 与
+        // com.hihonor.mcs:push，二者不在 central/阿里云镜像，必须从厂商源解析
+        maven { url 'https://developer.huawei.com/repo/' }
+        maven { url 'https://developer.hihonor.com/repo' }
         google()
         mavenCentral()
     }
