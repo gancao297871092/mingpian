@@ -118,13 +118,13 @@ const StepFour = forwardRef<StepHandle, StepFourProps>(function StepFourForm({ c
     return res.code === '200';
   };
 
-  // 预览主页：保存风格后跳转预览页（纯预览）
+  // 预览主页：保存风格后统一进名片详情（/bbs/cardDetail 无发布状态过滤，草稿同样可查）
   const onPreview = async () => {
     if (!cardId || saving) return;
     setSaving(true);
     try {
       if (await saveStyle()) {
-        navigation.navigate('viewCard', { id: cardId, mode: isEdit ? 'update' : 'add' });
+        navigation.navigate('cardDetail', { id: cardId });
       }
     } catch {
       AppAlert.alert('保存失败');
