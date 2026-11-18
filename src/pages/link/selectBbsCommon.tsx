@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import Svg, { Path } from 'react-native-svg';
@@ -57,7 +57,7 @@ export function SelectBottomBar({ onConfirm }: { onConfirm: (selected: SelectedB
         {selected.map(item => (
           <View key={item.id} style={styles.thumbBox}>
             {!!item.imageUrl && (
-              <ExpoImage source={{ uri: item.imageUrl }} style={styles.thumb} contentFit="cover" transition={150} />
+              <AppImage source={{ uri: item.imageUrl }} style={styles.thumb} contentFit="cover" transition={150} />
             )}
             <RemoveBadge onPress={() => remove(item.id)} />
           </View>

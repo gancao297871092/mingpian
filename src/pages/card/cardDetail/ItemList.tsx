@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import { scaleSizeW, setSpText } from '@/utils/screenUtils';
 import EmptyState from '@/components/EmptyState';
 import LongHtmlView from '@/components/LongHtmlView';
@@ -65,7 +65,7 @@ export default function ItemList({ project }: ItemListProps) {
                 {images.length > 0 && (
                   <View style={styles.imgGrid}>
                     {images.map((url: string, ix: number) => (
-                      <ExpoImage key={ix} source={{ uri: url }} style={styles.img} contentFit="cover" transition={150} />
+                      <AppImage key={ix} source={{ uri: url }} style={styles.img} contentFit="cover" transition={150} />
                     ))}
                   </View>
                 )}

@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import ImagePicker from 'react-native-image-crop-picker';
 import Svg, { Circle, Path } from 'react-native-svg';
 import Toast from 'react-native-toast-message';
@@ -213,7 +213,7 @@ function LicenseSampleModal({ visible, onClose }: { visible: boolean; onClose: (
   return (
     <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity activeOpacity={1} style={styles.sampleMask} onPress={onClose}>
-        <ExpoImage source={{ uri: LICENSE_SAMPLE_URL }} style={styles.sampleImage} contentFit="contain" transition={150} />
+        <AppImage source={{ uri: LICENSE_SAMPLE_URL }} style={styles.sampleImage} contentFit="contain" transition={150} />
       </TouchableOpacity>
     </Modal>
   );
@@ -426,7 +426,7 @@ function Step1({ onNext }: { onNext: (d: CertBase) => void }) {
             <ActivityIndicator size="small" color={PRIMARY} style={styles.licenseRight} />
           ) : license ? (
             <View style={styles.licenseThumbWrap}>
-              <ExpoImage source={{ uri: license }} style={styles.licenseThumb} contentFit="cover" transition={150} />
+              <AppImage source={{ uri: license }} style={styles.licenseThumb} contentFit="cover" transition={150} />
               <TouchableOpacity activeOpacity={0.8} hitSlop={8} style={styles.licenseDel} onPress={clearLicense}>
                 <Text style={styles.licenseDelText}>×</Text>
               </TouchableOpacity>
@@ -788,7 +788,7 @@ function Step2({ cpId, authUrl, method, onOpenSheet, onPrev }: { cpId: number | 
       <PrevNextButtons onPrev={onPrev} nextText={formType === 2 ? '提交' : '完成'} onNext={submit} busy={submitting} />
       <Modal transparent visible={previewVisible} animationType="fade" onRequestClose={() => setPreviewVisible(false)}>
         <TouchableOpacity activeOpacity={1} style={styles.sampleMask} onPress={() => setPreviewVisible(false)}>
-          <ExpoImage source={{ uri: authRemark }} style={styles.sampleImage} contentFit="contain" transition={150} />
+          <AppImage source={{ uri: authRemark }} style={styles.sampleImage} contentFit="contain" transition={150} />
         </TouchableOpacity>
       </Modal>
     </View>

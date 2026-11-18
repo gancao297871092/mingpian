@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import LinearGradient from 'react-native-linear-gradient';
 import { numTokw } from '@/utils/format';
 import { scaleSizeW, setSpText } from '@/utils/screenUtils';
@@ -29,7 +29,7 @@ export default function CompanyCard({ data, showViews = true }: CompanyCardProps
   return (
     <View style={styles.container}>
       {data.poster ? (
-        <ExpoImage source={{ uri: data.poster }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
+        <AppImage source={{ uri: data.poster }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
       ) : (
         <View style={[StyleSheet.absoluteFill, styles.photoEmpty]} />
       )}

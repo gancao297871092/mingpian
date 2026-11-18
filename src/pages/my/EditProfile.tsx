@@ -1,6 +1,6 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import ImagePicker from 'react-native-image-crop-picker';
 import Toast from 'react-native-toast-message';
 import { useNavigation } from '@react-navigation/native';
@@ -98,7 +98,7 @@ export default function EditProfile() {
   return (
     <SafeView backgroundColor="#F6F7FB">
       <TouchableOpacity activeOpacity={0.9} style={styles.avatarBox} onPress={onPickAvatar} disabled={avatarBusy}>
-        <ExpoImage
+        <AppImage
           source={{ uri: avatarPreview || wqUser?.avatar || 'https://i.pravatar.cc/100?img=8' }}
           style={styles.avatar}
           contentFit="cover"

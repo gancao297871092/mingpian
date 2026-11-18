@@ -13,7 +13,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import { GestureViewer } from 'react-native-gesture-image-viewer';
 import Reanimated, {
   Extrapolation,
@@ -492,7 +492,7 @@ export default function WebsitePro({ cpId }: WebsiteProProps) {
             <View style={styles.headerRow} pointerEvents="none">
               <View style={styles.logoWrap}>
                 {data?.avatar ? (
-                  <ExpoImage
+                  <AppImage
                     source={{ uri: data.avatar }}
                     recyclingKey={data.avatar}
                     style={styles.logo}
@@ -503,7 +503,7 @@ export default function WebsitePro({ cpId }: WebsiteProProps) {
                   <View style={[styles.logo, styles.logoEmpty]} />
                 )}
                 {/* 认证徽章：贴在头像 62x62 右下角（figma 10 官网：18x18 蓝底徽章） */}
-                <ExpoImage
+                <AppImage
                   source={VERIFIED_BADGE}
                   style={styles.logoBadgeImg}
                   contentFit="contain"
@@ -637,7 +637,7 @@ export default function WebsitePro({ cpId }: WebsiteProProps) {
               initialIndex={preview.index}
               renderItem={(uri: string) => (
                 // recyclingKey：cell 复用时先清空旧图再加载新图，防止短暂显示上一张
-                <ExpoImage
+                <AppImage
                   source={{ uri }}
                   style={styles.previewImage}
                   contentFit="contain"

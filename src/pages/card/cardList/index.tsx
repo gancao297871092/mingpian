@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { SwipeRow } from 'react-native-swipe-list-view';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import Toast from 'react-native-toast-message';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import SafeView from '@/components/SafeView';
@@ -167,7 +167,7 @@ export default function CardList({ navigation }: Props) {
             style={styles.row}
             onPress={() => navigation.navigate('cardDetail', { id: item.cardId, userId: item.userId })}
           >
-            <ExpoImage
+            <AppImage
               source={{ uri: item.avatar }}
               style={[styles.avatar, deleted && styles.avatarDeleted]}
               contentFit="cover"
@@ -188,7 +188,11 @@ export default function CardList({ navigation }: Props) {
               activeOpacity={0.8}
               style={styles.chatBtn}
               hitSlop={6}
-              onPress={() => Toast.show({ type: 'info', text1: '功能开发中' })}
+              onPress={() => {
+                // 对齐小程序 cardList：点击进入与对方的留言会话
+                if (!item.userId) return;
+                navigation.navigate('messageDetail', { userId: item.userId });
+              }}
             >
               <ChatIcon />
             </TouchableOpacity>

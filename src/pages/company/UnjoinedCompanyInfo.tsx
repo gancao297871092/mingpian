@@ -14,7 +14,7 @@ import {
   type NativeSyntheticEvent,
 } from 'react-native';
 import { AppAlert } from '@/components/AppAlert';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import { GestureViewer } from 'react-native-gesture-image-viewer';
 import Toast from 'react-native-toast-message';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
@@ -450,7 +450,7 @@ export default function UnjoinedCompanyInfo() {
   }, [detail]);
 
   const renderPreviewItem = useCallback(
-    (uri: string) => <ExpoImage source={{ uri }} style={styles.previewImage} contentFit="contain" transition={100} />,
+    (uri: string) => <AppImage source={{ uri }} style={styles.previewImage} contentFit="contain" transition={100} />,
     [],
   );
 
@@ -493,7 +493,7 @@ export default function UnjoinedCompanyInfo() {
             {/* 企业主体（figma 1954:6251 / 1954:6252） */}
             <View style={styles.companyBlock}>
               {detail.logo ? (
-                <ExpoImage source={{ uri: detail.logo }} style={styles.logo} contentFit="cover" transition={150} />
+                <AppImage source={{ uri: detail.logo }} style={styles.logo} contentFit="cover" transition={150} />
               ) : (
                 <View style={[styles.logo, styles.logoEmpty]} />
               )}
@@ -547,7 +547,7 @@ export default function UnjoinedCompanyInfo() {
 
             {/* 来源（figma 1954:6309） */}
             <View style={styles.sourceBanner}>
-              <ExpoImage
+              <AppImage
                 source={require('@/assets/company/source_icon.png')}
                 style={styles.sourceIcon}
                 contentFit="cover"
@@ -616,7 +616,7 @@ export default function UnjoinedCompanyInfo() {
                   activeOpacity={0.9}
                   onPress={() => setPreview({ urls: posterList, index: 0 })}
                 >
-                  <ExpoImage source={{ uri: detail.poster }} style={styles.posterImage} contentFit="cover" transition={150} />
+                  <AppImage source={{ uri: detail.poster }} style={styles.posterImage} contentFit="cover" transition={150} />
                 </TouchableOpacity>
               ) : (
                 <View style={styles.posterImage} />
@@ -643,7 +643,7 @@ export default function UnjoinedCompanyInfo() {
                       activeOpacity={0.9}
                       onPress={() => setPreview({ urls: posterList, index: i + 1 })}
                     >
-                      <ExpoImage source={{ uri: url }} style={styles.posterMoreImage} contentFit="cover" transition={150} />
+                      <AppImage source={{ uri: url }} style={styles.posterMoreImage} contentFit="cover" transition={150} />
                     </TouchableOpacity>
                   ))}
                 </ScrollView>

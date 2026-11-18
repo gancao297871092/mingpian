@@ -1,7 +1,7 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import EmptyState from '@/components/EmptyState';
@@ -191,7 +191,7 @@ export default forwardRef<TabHandle, Props>(function WaterfallTab({ tab, myId, t
         item.id === DRAFT_ITEM_ID ? (
           <TouchableOpacity activeOpacity={0.9} style={tabStyles.draftCard} onPress={() => navigation.navigate('draftBox')}>
             {!!draftCover && (
-              <ExpoImage source={{ uri: draftCover }} style={tabStyles.draftCover} contentFit="cover" transition={150} />
+              <AppImage source={{ uri: draftCover }} style={tabStyles.draftCover} contentFit="cover" transition={150} />
             )}
             <View style={tabStyles.draftBadge}>
               <DraftIcon />

@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -133,7 +133,7 @@ function CustomerContent({
         <Text style={styles.cardTitle}>发送企业</Text>
         <TouchableOpacity activeOpacity={0.85} style={styles.customerRow}>
           {companyLogo ? (
-            <ExpoImage source={{ uri: companyLogo }} style={styles.companyLogo} contentFit="cover" />
+            <AppImage source={{ uri: companyLogo }} style={styles.companyLogo} contentFit="cover" />
           ) : (
             <View style={styles.companyLogo}>
               <Text style={styles.companyLogoText}>{(companyName || '企').slice(0, 1)}</Text>
@@ -172,7 +172,7 @@ function CustomerContent({
               onPress={() => navigation.navigate('bbsDetail', { id: item.id })}
             >
               {item.image ? (
-                <ExpoImage source={{ uri: item.image }} style={styles.feedCover} contentFit="cover" />
+                <AppImage source={{ uri: item.image }} style={styles.feedCover} contentFit="cover" />
               ) : (
                 <View style={styles.feedCover} />
               )}
@@ -189,7 +189,7 @@ function CustomerContent({
         <View style={styles.card}>
           <Text style={styles.cardTitle}>本次对接人</Text>
           <TouchableOpacity activeOpacity={0.85} style={styles.customerRow}>
-            <ExpoImage source={require('@/assets/link/mock-avatar.png')} style={styles.contactAvatar} contentFit="cover" />
+            <AppImage source={require('@/assets/link/mock-avatar.png')} style={styles.contactAvatar} contentFit="cover" />
             <View style={styles.customerRowInfo}>
               <Text style={styles.customerRowTitle}>{contactName}</Text>
               <Text style={styles.customerRowSub}>{contactTitle}</Text>

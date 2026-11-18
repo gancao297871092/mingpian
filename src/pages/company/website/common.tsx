@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import LinearGradient from 'react-native-linear-gradient';
 import Reanimated from 'react-native-reanimated';
 import Toast from 'react-native-toast-message';
@@ -145,7 +145,7 @@ export function GoldBadge() {
         end={{ x: 1, y: 0.5 }}
         style={styles.goldBadgeBg}
       />
-      <ExpoImage source={BADGE_CHECK_ICON} style={styles.goldBadgeIcon} contentFit="contain" />
+      <AppImage source={BADGE_CHECK_ICON} style={styles.goldBadgeIcon} contentFit="contain" />
       <Text style={styles.goldBadgeText} numberOfLines={1}>
         企核·实地核查
       </Text>
@@ -353,7 +353,7 @@ export function AlbumItem({
   return (
     <>
       <TouchableOpacity activeOpacity={0.9} onPress={video ? () => setPlayerVisible(true) : onPreview}>
-        <ExpoImage
+        <AppImage
           source={{ uri: mediaThumb(item) }}
           recyclingKey={mediaThumb(item)}
           style={[styles.albumBox, boxStyle]}

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import SafeView from '@/components/SafeView';
@@ -128,7 +128,7 @@ export default function TouchTasks() {
       >
         <View style={styles.cardHead}>
           {item.avatar ? (
-            <ExpoImage source={{ uri: item.avatar }} style={styles.avatar} contentFit="cover" transition={150} />
+            <AppImage source={{ uri: item.avatar }} style={styles.avatar} contentFit="cover" transition={150} />
           ) : (
             <View style={[styles.avatar, styles.avatarPlaceholder]} />
           )}

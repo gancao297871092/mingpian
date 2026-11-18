@@ -1,6 +1,6 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import LinearGradient from 'react-native-linear-gradient';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -256,7 +256,7 @@ export default function CooperationIntentView() {
 
   return (
     <SafeView backgroundColor="#E8EFFF">
-      <ExpoImage
+      <AppImage
         source={require('@/assets/link/hero-bg.png')}
         style={styles.headerBg}
         contentFit="cover"
@@ -319,11 +319,11 @@ export default function CooperationIntentView() {
           <View style={styles.heroBadge}>
             <Text style={styles.heroBadgeText}>发合作信号</Text>
           </View>
-          <ExpoImage source={require('@/assets/link/hero-mascot.png')} style={styles.heroMascot} contentFit="cover" />
+          <AppImage source={require('@/assets/link/hero-mascot.png')} style={styles.heroMascot} contentFit="cover" />
         </View> */}
         {/* 吉祥物 + 气泡 */}
         <View style={styles.mascotRow}>
-          <ExpoImage
+          <AppImage
             source={require('@/assets/link/intent-mascot.png')}
             style={[styles.mascot, styles.mascotLayer]}
             contentFit="cover"
@@ -351,7 +351,7 @@ export default function CooperationIntentView() {
             if (data.companyId) navigation.navigate('companyPage', { id: data.companyId });
           }}
         >
-          <ExpoImage
+          <AppImage
             source={data.companyLogo ? { uri: data.companyLogo } : require('@/assets/link/mock-avatar.png')}
             style={styles.companyAvatar}
             contentFit="cover"
@@ -405,7 +405,7 @@ export default function CooperationIntentView() {
                   style={styles.feedRow}
                   onPress={() => navigation.navigate('bbsDetail', { id: item.id })}
                 >
-                  <ExpoImage
+                  <AppImage
                     source={item.cover ? { uri: item.cover } : require('@/assets/link/mock-avatar.png')}
                     style={styles.feedAvatar}
                     contentFit="cover"
@@ -432,7 +432,7 @@ export default function CooperationIntentView() {
           >
             <Text style={styles.sectionCardTitle}>本次对接人</Text>
             <View style={styles.contactRow}>
-              <ExpoImage
+              <AppImage
                 source={require('@/assets/link/mock-avatar.png')}
                 style={styles.contactAvatar}
                 contentFit="cover"

@@ -1,6 +1,6 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import SafeView from '@/components/SafeView';
@@ -125,7 +125,7 @@ function OpportunityCard({ item }: { item: OpportunityItem }) {
   return (
     <View style={styles.card}>
       <View style={styles.companyRow}>
-        <ExpoImage
+        <AppImage
           source={item.logo ? { uri: item.logo } : require('@/assets/link/mock-avatar.png')}
           style={styles.companyAvatar}
           contentFit="cover"

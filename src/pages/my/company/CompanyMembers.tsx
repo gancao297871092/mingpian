@@ -5,7 +5,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { FlashList } from '@shopify/flash-list';
 import { SwipeRow } from 'react-native-swipe-list-view';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
 import { NavBackButton } from '@/components/NavHeader';
@@ -282,7 +282,7 @@ export default function CompanyMembers() {
           onPress={() => item.defaultCardId && navigation.navigate('cardDetail', { id: item.defaultCardId, userId: item.userId })}
         >
           <View style={styles.avatarWrap}>
-            <ExpoImage
+            <AppImage
               source={{ uri: item.avatar }}
               style={styles.avatar}
               contentFit="cover"

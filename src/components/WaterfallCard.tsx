@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { formatLikeCount } from '@/utils/format';
 import Svg, { Path } from 'react-native-svg';
@@ -64,7 +64,7 @@ export default function WaterfallCard({
       onPress={() => onPress?.(item.id)}
     >
       {!!item.imageUrl && (
-        <ExpoImage
+        <AppImage
           source={{ uri: item.imageUrl }}
           style={[
             styles.cardImage,
@@ -93,7 +93,7 @@ export default function WaterfallCard({
           </Text>
         ) : null}
         <View style={styles.cardMeta}>
-          <ExpoImage
+          <AppImage
             source={{ uri: item.avatarUrl }}
             style={styles.avatar}
             contentFit="cover"

@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import LinearGradient from 'react-native-linear-gradient';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -170,7 +170,7 @@ export default function DirectionDetail() {
           borderBottomLeftRadius: scaleSizeH(10), borderBottomRightRadius: scaleSizeH(10),
           position: 'relative',
         }}>
-          <ExpoImage style={{
+          <AppImage style={{
             width: width - scaleSizeH(32),
             height: (width - scaleSizeH(32)) * 0.181,
           }}
@@ -181,7 +181,7 @@ export default function DirectionDetail() {
             <Text style={styles.analysisTitle}>方向分析</Text>
             <Text style={styles.analysisHint}>AI智能解读，仅供参考</Text>
           </View>
-          <ExpoImage
+          <AppImage
             source={require('@/assets/link/hero-mascot.png')}
             style={styles.analysisMascot}
             contentFit="cover"
@@ -222,7 +222,7 @@ export default function DirectionDetail() {
                 if (item.companyId) navigation.navigate('companyPage', { id: item.companyId });
               }}
             >
-              <ExpoImage
+              <AppImage
                 source={item.logo ? { uri: item.logo } : require('@/assets/link/mock-avatar.png')}
                 style={styles.companyAvatar}
                 contentFit="cover"

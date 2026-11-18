@@ -2,7 +2,7 @@ import React, { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { AppAlert } from '@/components/AppAlert';
 import { FlashList } from '@shopify/flash-list';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path } from 'react-native-svg';
@@ -201,7 +201,7 @@ export default function BrowseHistorySearch() {
         <TouchableOpacity activeOpacity={0.9} style={styles.card} onPress={() => onPressCard(item)}>
           <View>
             {d.imageUrl ? (
-              <ExpoImage
+              <AppImage
                 source={{ uri: d.imageUrl }}
                 style={[styles.cardImage, { height: scaleSizeH(d.imageHeight) }]}
                 contentFit="cover"
@@ -218,7 +218,7 @@ export default function BrowseHistorySearch() {
             <Text style={styles.cardTitle} numberOfLines={2}>{d.title}</Text>
             <View style={styles.cardFoot}>
               {d.avatar ? (
-                <ExpoImage source={{ uri: d.avatar }} style={styles.footAvatar} contentFit="cover" transition={150} />
+                <AppImage source={{ uri: d.avatar }} style={styles.footAvatar} contentFit="cover" transition={150} />
               ) : (
                 <View style={[styles.footAvatar, styles.footAvatarPlaceholder]} />
               )}

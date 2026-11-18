@@ -1,6 +1,6 @@
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import LinearGradient from 'react-native-linear-gradient';
 import Toast from 'react-native-toast-message';
 import Svg, { Path } from 'react-native-svg';
@@ -132,7 +132,7 @@ export default function CompanyGallery({ main, groups, groupsLoaded, onHeight }:
             >
               {(g.images || []).map((img: any, ii: number) => (
                 <View key={img.imageId ?? ii}>
-                  <ExpoImage
+                  <AppImage
                     source={{ uri: img.imageUrl }}
                     recyclingKey={img.imageUrl}
                     style={styles.groupImg}

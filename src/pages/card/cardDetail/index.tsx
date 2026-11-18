@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import * as Contacts from 'expo-contacts/legacy';
 import Toast from 'react-native-toast-message';
 import { API } from '@/api';
@@ -191,7 +191,7 @@ export default function CardDetail({ navigation, route }: Props) {
                     }
                   >
                     {medias.map((url, ix) => (
-                      <ExpoImage
+                      <AppImage
                         key={ix}
                         source={{ uri: url }}
                         style={{ width: screenWidth, height: screenWidth }}

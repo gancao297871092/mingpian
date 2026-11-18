@@ -9,7 +9,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import LinearGradient from 'react-native-linear-gradient';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -141,7 +141,7 @@ export default function OpportunityDetail() {
 
         {/* 商机分析（对齐方向详情「方向分析」：白色横幅 + 蓝色角标 + 吉祥物） */}
         <View style={styles.analysisWrap}>
-          <ExpoImage
+          <AppImage
             style={{ width: width - scaleSizeH(32), height: (width - scaleSizeH(32)) * 0.181 }}
             source={require('@/assets/link/link.png')}
           />
@@ -150,7 +150,7 @@ export default function OpportunityDetail() {
             <Text style={styles.analysisTitle}>商机分析</Text>
             <Text style={styles.analysisHint}>AI智能解读，仅供参考</Text>
           </View>
-          <ExpoImage
+          <AppImage
             source={require('@/assets/link/hero-mascot.png')}
             style={styles.analysisMascot}
             contentFit="cover"
@@ -173,7 +173,7 @@ export default function OpportunityDetail() {
         >
           <Text style={styles.cardLabel}>发布企业</Text>
           <View style={styles.companyRow}>
-            <ExpoImage
+            <AppImage
               source={data.companyLogo ? { uri: data.companyLogo } : require('@/assets/link/mock-avatar.png')}
               style={styles.companyAvatar}
               contentFit="cover"

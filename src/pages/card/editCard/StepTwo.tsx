@@ -6,7 +6,7 @@ import {
   View,
 } from 'react-native';
 import { AppAlert } from '@/components/AppAlert';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import ImagePicker from 'react-native-image-crop-picker';
 import { API } from '@/api';
 import { scaleSizeW, setSpText } from '@/utils/screenUtils';
@@ -170,7 +170,7 @@ const StepTwo = forwardRef<StepHandle, StepTwoProps>(function StepTwoForm({ card
           const isCover = item.mdId === indexId;
           return (
             <View key={item.mdId || index} style={styles.imgBox}>
-              <ExpoImage
+              <AppImage
                 source={{ uri: item.media?.mdUrl || item.mdUrl }}
                 style={styles.img}
                 contentFit="cover"

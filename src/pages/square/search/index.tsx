@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -508,7 +508,7 @@ export default function SearchPage() {
       onPress={() => onCompanyPress(item)}
     >
       {item.logo ? (
-        <ExpoImage source={{ uri: item.logo }} style={styles.cpLogo} contentFit="cover" transition={150} />
+        <AppImage source={{ uri: item.logo }} style={styles.cpLogo} contentFit="cover" transition={150} />
       ) : (
         <View style={[styles.cpLogo, styles.logoPlaceholder]} />
       )}
@@ -555,7 +555,7 @@ export default function SearchPage() {
       onPress={() => goUserHome(Number(item.id))}
     >
       {item.avatar ? (
-        <ExpoImage source={{ uri: item.avatar }} style={styles.userAvatar} contentFit="cover" transition={150} />
+        <AppImage source={{ uri: item.avatar }} style={styles.userAvatar} contentFit="cover" transition={150} />
       ) : (
         <View style={[styles.userAvatar, styles.logoPlaceholder]} />
       )}

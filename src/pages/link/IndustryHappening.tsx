@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -76,7 +76,7 @@ export default function IndustryHappening() {
 
   return (
     <SafeView backgroundColor="#E8EFFF">
-      <ExpoImage
+      <AppImage
         source={require('@/assets/link/hero-bg.png')}
         style={styles.headerBg}
         contentFit="cover"
@@ -117,7 +117,7 @@ export default function IndustryHappening() {
         <View style={styles.titleBlock}>
           <Text style={styles.pageTitle}>产业正在发生</Text>
           <Text style={styles.pageSub}>基于产业动态与企业信息，AI识别值得关注的合作机会。</Text>
-          <ExpoImage
+          <AppImage
             source={require('@/assets/link/happening-mascot.png')}
             style={styles.mascot}
             contentFit="cover"

@@ -3,7 +3,7 @@ import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacit
 import LinearGradient from 'react-native-linear-gradient';
 import Clipboard from '@react-native-clipboard/clipboard';
 import Toast from 'react-native-toast-message';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import { useRoute, type RouteProp } from '@react-navigation/native';
 import SafeView from '@/components/SafeView';
 import LongHtmlView from '@/components/LongHtmlView';
@@ -120,7 +120,7 @@ export default function TouchTaskDetail() {
 
         <View style={styles.companyCard}>
           {detail?.avatar ? (
-            <ExpoImage source={{ uri: detail.avatar }} style={styles.avatar} contentFit="cover" transition={150} />
+            <AppImage source={{ uri: detail.avatar }} style={styles.avatar} contentFit="cover" transition={150} />
           ) : (
             <View style={[styles.avatar, styles.avatarPlaceholder]} />
           )}

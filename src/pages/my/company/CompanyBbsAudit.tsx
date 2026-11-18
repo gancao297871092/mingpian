@@ -2,7 +2,7 @@ import React, { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import Svg, { Path } from 'react-native-svg';
 import SafeView from '@/components/SafeView';
 import EmptyState from '@/components/EmptyState';
@@ -90,7 +90,7 @@ export default function CompanyBbsAudit() {
           <Text style={styles.postText} numberOfLines={2}>{item.title || item.content || ''}</Text>
           <View style={styles.authorRow}>
             {!!item.userInfoVo?.avatar && (
-              <ExpoImage
+              <AppImage
                 source={{ uri: item.userInfoVo.avatar }}
                 recyclingKey={item.userInfoVo.avatar}
                 style={styles.avatar}
@@ -103,7 +103,7 @@ export default function CompanyBbsAudit() {
         </View>
         {!!thumb && (
           <View>
-            <ExpoImage source={{ uri: thumb }} recyclingKey={thumb} style={styles.postImage} contentFit="cover" transition={150} />
+            <AppImage source={{ uri: thumb }} recyclingKey={thumb} style={styles.postImage} contentFit="cover" transition={150} />
             {isVideo && <PlayBadge />}
           </View>
         )}

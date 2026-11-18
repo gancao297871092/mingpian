@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AppAlert } from '@/components/AppAlert';
 import { FlashList } from '@shopify/flash-list';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import Toast from 'react-native-toast-message';
 import { useFocusEffect } from '@react-navigation/native';
 import SafeView from '@/components/SafeView';
@@ -124,7 +124,7 @@ export default function CompanyMemberAudit() {
     return (
       <View style={[styles.card, pending ? styles.cardPending : styles.cardDone]}>
         <View style={styles.cardMain}>
-          <ExpoImage
+          <AppImage
             source={{ uri: item.avatar }}
             style={styles.avatar}
             contentFit="cover"

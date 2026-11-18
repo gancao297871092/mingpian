@@ -13,7 +13,7 @@ import {
   type ViewProps,
 } from 'react-native';
 import { AppAlert } from '@/components/AppAlert';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import { Carousel } from 'react-native-reanimated-carousel';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -206,7 +206,7 @@ const VideoCoverPlayer = React.memo(function VideoCoverPlayerInner({
   }
   return (
     <TouchableOpacity activeOpacity={0.9} onPress={() => setPlaying(true)}>
-      <ExpoImage
+      <AppImage
         source={{ uri: poster }}
         style={{ width: SCREEN_WIDTH, height }}
         contentFit="cover"
@@ -319,7 +319,7 @@ function ReplyRow({
   return (
     <TouchableOpacity activeOpacity={1} onLongPress={onLongPress} delayLongPress={350}>
       <View style={styles.replyRow}>
-        <ExpoImage source={reply.avatar ? { uri: reply.avatar } : DEFAULT_AVATAR} style={styles.replyAvatar} contentFit="cover" transition={150} recyclingKey={reply.avatar || 'default'} />
+        <AppImage source={reply.avatar ? { uri: reply.avatar } : DEFAULT_AVATAR} style={styles.replyAvatar} contentFit="cover" transition={150} recyclingKey={reply.avatar || 'default'} />
         <View style={styles.replyBody}>
           <View style={styles.replyNameRow}>
             <Text style={styles.commentName} numberOfLines={1}>{reply.userName}</Text>
@@ -374,7 +374,7 @@ function CommentItem({
 
   return (
     <TouchableOpacity activeOpacity={1} style={styles.commentRow} onLongPress={() => onLongPress?.(item)} delayLongPress={350}>
-      <ExpoImage source={item.avatar ? { uri: item.avatar } : DEFAULT_AVATAR} style={styles.commentAvatar} contentFit="cover" transition={150} recyclingKey={item.avatar || 'default'} />
+      <AppImage source={item.avatar ? { uri: item.avatar } : DEFAULT_AVATAR} style={styles.commentAvatar} contentFit="cover" transition={150} recyclingKey={item.avatar || 'default'} />
       <View style={styles.commentBody}>
         <View style={styles.replyNameRow}>
           <Text style={styles.commentName} numberOfLines={1}>{item.userName}</Text>
@@ -1119,7 +1119,7 @@ export default function BbsDetail() {
   }, [detail]);
 
   const renderPreviewImage = useCallback(
-    (uri: string) => <ExpoImage source={{ uri }} style={styles.previewImage} contentFit="contain" transition={100} />,
+    (uri: string) => <AppImage source={{ uri }} style={styles.previewImage} contentFit="contain" transition={100} />,
     [],
   );
 
@@ -1201,7 +1201,7 @@ export default function BbsDetail() {
                 renderItem={({ item, index }) => (
                   <GestureTrigger index={index} onPress={() => setPreviewIndex(index)}>
                     <TapView>
-                      <ExpoImage
+                      <AppImage
                         source={{ uri: item }}
                         style={{ width: SCREEN_WIDTH, height: imgHeight }}
                         contentFit="cover"
@@ -1254,7 +1254,7 @@ export default function BbsDetail() {
           )}
           {!isAudit && (
             <View style={styles.commentInputRow}>
-              <ExpoImage
+              <AppImage
                 source={currentAvatar ? { uri: currentAvatar } : DEFAULT_AVATAR}
                 style={styles.commentAvatar}
                 contentFit="cover"
@@ -1309,7 +1309,7 @@ export default function BbsDetail() {
               style={styles.headerAuthor}
               onPress={() => goUserHome(detail.authorId)}
             >
-              <ExpoImage source={detail.authorAvatar ? { uri: detail.authorAvatar } : DEFAULT_AVATAR} style={styles.headerAvatar} contentFit="cover" transition={150} />
+              <AppImage source={detail.authorAvatar ? { uri: detail.authorAvatar } : DEFAULT_AVATAR} style={styles.headerAvatar} contentFit="cover" transition={150} />
               <View style={styles.headerAuthorText}>
                 <Text style={styles.headerName} numberOfLines={1}>{detail.authorName}</Text>
                 {detail.authorCompany && (

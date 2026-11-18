@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import LinearGradient from 'react-native-linear-gradient';
 
 import { scaleSizeW, setSpText } from '@/utils/screenUtils';
@@ -17,7 +17,7 @@ export default function CompanyPoster({ data, width }: CompanyPosterProps) {
   return (
     <View style={[styles.container, width ? { width } : null]}>
       {data.poster ? (
-        <ExpoImage source={{ uri: data.poster }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
+        <AppImage source={{ uri: data.poster }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
       ) : (
         <View style={[StyleSheet.absoluteFill, styles.photoEmpty]} />
       )}
@@ -40,7 +40,7 @@ export default function CompanyPoster({ data, width }: CompanyPosterProps) {
       </View>
       <View style={styles.qrBox}>
         {!!data.sunCode && (
-            <ExpoImage source={{ uri: data.sunCode }} style={{ width: scaleSizeW(62), height: scaleSizeW(62) }} contentFit="contain" />
+            <AppImage source={{ uri: data.sunCode }} style={{ width: scaleSizeW(62), height: scaleSizeW(62) }} contentFit="contain" />
           )}
       </View>
     </View>

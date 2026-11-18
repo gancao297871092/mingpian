@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import LinearGradient from 'react-native-linear-gradient';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -53,7 +53,7 @@ export default function FillGuide() {
     <SafeView backgroundColor="#FFFFFF">
       {/* 头图 + 返回 */}
       <View>
-        <ExpoImage
+        <AppImage
           source={require('@/assets/link/guide-hero.png')}
           style={{ width, height: (width * 315) / 402 }}
           contentFit="cover"
@@ -75,7 +75,7 @@ export default function FillGuide() {
           </View>
           <Text style={styles.heroTitle}>写清你想找谁，{'\n'}以及想和对方做什么</Text>
         </View>
-        <ExpoImage
+        <AppImage
           source={require('@/assets/link/guide-mascot.png')}
           style={[styles.heroMascot, { top: insets.top + scaleSizeH(39) }]}
           contentFit="cover"

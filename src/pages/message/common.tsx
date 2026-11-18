@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import Svg, { Path } from 'react-native-svg';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 
@@ -65,7 +65,7 @@ export function MsgAvatar({
   return (
     <View style={[styles.avatarBox, { width: s, height: s, borderRadius: s / 2 }]}>
       {uri ? (
-        <ExpoImage
+        <AppImage
           source={{ uri }}
           recyclingKey={uri}
           style={[StyleSheet.absoluteFill, { borderRadius: s / 2 }]}

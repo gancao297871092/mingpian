@@ -11,7 +11,7 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import Toast from 'react-native-toast-message';
 import Reanimated, {
   Extrapolation,
@@ -405,7 +405,7 @@ export default function UserHome() {
       <View style={styles.flex1} onLayout={e => setContentH(e.nativeEvent.layout.height)}>
         <View style={[StyleSheet.absoluteFill, { paddingBottom: scaleSizeH(80) }]}>
           <View style={{ height: '75%', overflow: 'hidden', width: '100%', }}>
-            <ExpoImage
+            <AppImage
               source={require('@/assets/my/my/header_bg.png')}
               style={{
                 height: scaleSizeH(800),
@@ -435,7 +435,7 @@ export default function UserHome() {
             <View onLayout={e => setHeaderH(e.nativeEvent.layout.height)}>
               <View style={[styles.headerBtns, { marginTop: headerBtnsMT }]} />
               <View style={[styles.profileRow, { marginTop: profileRowMT }]}>
-                <ExpoImage
+                <AppImage
                   source={{ uri: wqUser?.avatar || '' }}
                   style={styles.avatar}
                   contentFit="cover"

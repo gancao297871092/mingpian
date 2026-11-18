@@ -9,7 +9,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import AppBlurView from '@/components/capabilities/AppBlurView';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -87,7 +87,7 @@ export default function PlatformAssist() {
 
   return (
     <SafeView backgroundColor="#E8EFFF">
-      <ExpoImage
+      <AppImage
         source={require('@/assets/link/hero-bg.png')}
         style={styles.headerBg}
         contentFit="cover"
@@ -116,7 +116,7 @@ export default function PlatformAssist() {
       >
         {/* 标题区（figma 402:2577：猫头鹰 x5/y115 109×109，标题 x112/y149 22px） */}
         <View style={styles.titleBlock}>
-          <ExpoImage
+          <AppImage
             source={require('@/assets/link/assist-mascot-547d6d.png')}
             style={styles.mascot}
             contentFit="cover"

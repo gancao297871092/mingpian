@@ -11,7 +11,7 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import Reanimated, {
   Extrapolation,
   interpolate,
@@ -343,7 +343,7 @@ export default function My() {
       <View style={styles.flex1} onLayout={e => setContentH(e.nativeEvent.layout.height)}>
         <View style={[StyleSheet.absoluteFill, { paddingBottom: scaleSizeH(80) }]}>
           <View style={{ height: '75%', overflow: 'hidden', width: '100%', }}>
-            <ExpoImage
+            <AppImage
               source={require('@/assets/my/my/header_bg.png')}
               style={{
                 height: scaleSizeH(800),
@@ -380,7 +380,7 @@ export default function My() {
                 </TouchableOpacity>
               </View>
               <View style={styles.profileRow}>
-                <ExpoImage
+                <AppImage
                   source={{ uri: wqUser?.avatar || 'https://i.pravatar.cc/100?img=8' }}
                   style={styles.avatar}
                   contentFit="cover"

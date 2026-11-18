@@ -1,6 +1,6 @@
 import React from 'react';
 import { Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { scaleSizeW, setSpText } from '@/utils/screenUtils';
@@ -40,7 +40,7 @@ export default function BaseInfo({ userCard, userInfo }: BaseInfoProps) {
             onPress={() => navigation.navigate('companyPage', { id: userInfo.cpId, userId: wqUser?.id })}
           >
             {wqUser?.avatar ? (
-              <ExpoImage source={{ uri: wqUser.avatar }} style={styles.companyLogo} contentFit="cover" transition={150} />
+              <AppImage source={{ uri: wqUser.avatar }} style={styles.companyLogo} contentFit="cover" transition={150} />
             ) : (
               <View style={[styles.companyLogo, styles.companyLogoEmpty]} />
             )}

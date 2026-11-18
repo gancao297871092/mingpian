@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import ViewShot from 'react-native-view-shot';
 import QRCode from 'react-native-qrcode-svg';
 import Toast from 'react-native-toast-message';
@@ -134,7 +134,7 @@ export default function BbsShareImage() {
             <ViewShot ref={shotRef} options={{ format: 'png', quality: 1 }} style={styles.shot}>
               <View style={styles.card}>
                 <View style={styles.cardHeader}>
-                  <ExpoImage
+                  <AppImage
                     source={{ uri: detail.authorAvatar }}
                     style={styles.avatar}
                     contentFit="cover"
@@ -157,7 +157,7 @@ export default function BbsShareImage() {
                   </View>
                 </View>
                 {detail.images.length > 0 && (
-                  <ExpoImage
+                  <AppImage
                     source={{ uri: detail.images[0] }}
                     style={[styles.cover, { height: coverHeight }]}
                     contentFit="cover"

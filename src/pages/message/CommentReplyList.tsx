@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import SafeView from '@/components/SafeView';
@@ -110,7 +110,7 @@ export default function CommentReplyList() {
                   style={styles.actionBtn}
                   onPress={() => goBbs(item.bbsId)}
                 >
-                  <ExpoImage source={require('@/assets/message/icon_reply.png')} style={styles.actionIcon} />
+                  <AppImage source={require('@/assets/message/icon_reply.png')} style={styles.actionIcon} />
                   <Text style={styles.actionText}>回复</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -118,7 +118,7 @@ export default function CommentReplyList() {
                   style={styles.actionBtn}
                   onPress={() => onToggleLike(item)}
                 >
-                  <ExpoImage
+                  <AppImage
                     source={require('@/assets/message/icon_thumb.png')}
                     style={[styles.actionIcon, likeState.liked && styles.actionIconLiked]}
                   />
@@ -129,7 +129,7 @@ export default function CommentReplyList() {
               </View>
             </View>
             {item.bbsCover ? (
-              <ExpoImage
+              <AppImage
                 source={{ uri: item.bbsCover }}
                 recyclingKey={item.bbsCover}
                 style={styles.bbsCover}

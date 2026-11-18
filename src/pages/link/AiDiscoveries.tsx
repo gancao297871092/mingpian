@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -191,7 +191,7 @@ export default function AiDiscoveries() {
             <ChevronLeftIcon size={18} />
           </TouchableOpacity>
           <View style={styles.navTitleRow}>
-            <ExpoImage
+            <AppImage
               source={require('@/assets/link/ai-mascot-small.png')}
               style={styles.navMascot}
               contentFit="cover"

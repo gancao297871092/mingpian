@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SafeView from '@/components/SafeView';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
@@ -305,7 +305,7 @@ export default function CreateCooperationIntent() {
         {/* 展示身份 */}
         <Text style={[styles.label, styles.labelGap]}>展示身份</Text>
         <View style={styles.identityBar}>
-          <ExpoImage
+          <AppImage
             source={myAvatar ? { uri: myAvatar } : require('@/assets/link/mock-avatar.png')}
             style={styles.identityAvatar}
             contentFit="cover"
@@ -327,7 +327,7 @@ export default function CreateCooperationIntent() {
         >
           {cardConfirmed && selectedCard ? (
             <>
-              <ExpoImage
+              <AppImage
                 source={require('@/assets/link/mock-avatar.png')}
                 style={styles.contactAvatar}
                 contentFit="cover"

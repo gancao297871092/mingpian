@@ -17,6 +17,7 @@ import {
   type NativeSyntheticEvent,
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import ViewShot from 'react-native-view-shot';
 import Toast from 'react-native-toast-message';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
@@ -558,14 +559,14 @@ export default function MessageChat() {
       const card = parseCardMessage(msg.content || '');
       const avatarNode = isSelf ? (
         myAvatar ? (
-          <ExpoImage source={{ uri: myAvatar }} style={styles.avatar} contentFit="cover" transition={150} />
+          <AppImage source={{ uri: myAvatar }} style={styles.avatar} contentFit="cover" transition={150} />
         ) : (
           <View style={[styles.avatar, styles.avatarFallback]}>
             <Text style={styles.avatarFallbackText}>我</Text>
           </View>
         )
       ) : peer.avatar ? (
-        <ExpoImage source={{ uri: peer.avatar }} style={styles.avatar} contentFit="cover" transition={150} />
+        <AppImage source={{ uri: peer.avatar }} style={styles.avatar} contentFit="cover" transition={150} />
       ) : (
         <View style={[styles.avatar, styles.logoAvatar]}>
           <Text style={styles.logoAvatarText}>{(peer.name || peer.cpName || '友').slice(0, 1)}</Text>
@@ -580,7 +581,7 @@ export default function MessageChat() {
                 activeOpacity={0.85}
                 onPress={() => navigation.navigate('cardDetail', { id: card.cardId })}
               >
-                <ExpoImage
+                <AppImage
                   source={{ uri: card.url }}
                   style={[styles.cardImage, { aspectRatio: cardAspects[card.url] ?? DEFAULT_CARD_ASPECT }]}
                   contentFit="cover"

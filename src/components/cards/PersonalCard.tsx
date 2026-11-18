@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import LinearGradient from 'react-native-linear-gradient';
 import AppBlurView from '@/components/capabilities/AppBlurView';
 import { scaleSizeW, setSpText } from '@/utils/screenUtils';
@@ -48,7 +48,7 @@ function BusinessCard({ data, placeholder, squareBottom }: PersonalCardProps) {
             androidFallbackColor="rgba(255,255,255,0.5)"
           />
           <View style={[StyleSheet.absoluteFill, styles.cpLogoFrost]} pointerEvents="none" />
-          <ExpoImage source={{ uri: data.cpLogo }} style={styles.cpLogoImg} contentFit="cover" transition={150} />
+          <AppImage source={{ uri: data.cpLogo }} style={styles.cpLogoImg} contentFit="cover" transition={150} />
         </View>
       )}
       <View style={styles.businessContent}>
@@ -107,7 +107,7 @@ function FashionCard({ data, fontColor = '#000000', backColor = '#FFFFFF', place
     <View style={[styles.container, styles.fashionBox, squareBottom && styles.squareBottom]}>
       <View style={styles.fashionPhotoBox}>
         {photo ? (
-          <ExpoImage source={{ uri: photo }} style={styles.fashionPhoto} contentFit="cover" transition={150} />
+          <AppImage source={{ uri: photo }} style={styles.fashionPhoto} contentFit="cover" transition={150} />
         ) : (
           <View style={styles.fashionPhotoEmpty} />
         )}
@@ -148,7 +148,7 @@ function SimpleCard({ data, placeholder, squareBottom }: PersonalCardProps) {
   return (
     <View style={[styles.container, styles.simpleBox, squareBottom && styles.squareBottom]}>
       {photo ? (
-        <ExpoImage source={{ uri: photo }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
+        <AppImage source={{ uri: photo }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
       ) : (
         <View style={[StyleSheet.absoluteFill, styles.simplePhotoEmpty]} />
       )}

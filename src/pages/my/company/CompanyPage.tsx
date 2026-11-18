@@ -11,7 +11,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import Toast from 'react-native-toast-message';
 import Svg, { Path } from 'react-native-svg';
 import Reanimated, {
@@ -471,7 +471,7 @@ export default function CompanyPage() {
                         }
                       >
                         {medias.map((url, ix) => (
-                          <ExpoImage
+                          <AppImage
                             key={ix}
                             source={{ uri: url }}
                             recyclingKey={url}
@@ -499,7 +499,7 @@ export default function CompanyPage() {
                 <View style={styles.panel}>
                   <View style={styles.logoRow}>
                     {data?.avatar ? (
-                      <ExpoImage
+                      <AppImage
                         source={{ uri: data.avatar }}
                         recyclingKey={data.avatar}
                         style={styles.logo}

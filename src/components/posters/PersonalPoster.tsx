@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import { scaleSizeW, setSpText } from '@/utils/screenUtils';
 import PersonalCard from '@/components/cards/PersonalCard';
 import type { CardData, CardStyle } from '@/components/cards/types';
@@ -23,7 +23,7 @@ export default function PersonalPoster({ data, style, fontColor, backColor, widt
         <Text style={styles.footerText}>您好，这是我的名片，请扫码查看详情~</Text>
         <View style={styles.qrBox}>
           {!!data.sunCode && (
-            <ExpoImage source={{ uri: data.sunCode }} style={{ width: scaleSizeW(37), height: scaleSizeW(37) }} contentFit="contain" />
+            <AppImage source={{ uri: data.sunCode }} style={{ width: scaleSizeW(37), height: scaleSizeW(37) }} contentFit="contain" />
           )}
         </View>
       </View>

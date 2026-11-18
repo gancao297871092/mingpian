@@ -11,7 +11,7 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import { useIsFocused, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -246,7 +246,7 @@ export default function MessagePage() {
         <View style={styles.sysCard}>
           <View style={styles.sysHeadRow}>
             <View style={[styles.sysIconBox, { backgroundColor: bg }]}>
-              <ExpoImage source={icon} style={styles.sysIcon} contentFit="contain" />
+              <AppImage source={icon} style={styles.sysIcon} contentFit="contain" />
             </View>
             <Text style={styles.sysSender}>{item.senderName || '联诚助手'}</Text>
             {item.readStatus === 0 ? <View style={styles.sysDot} /> : null}
@@ -288,7 +288,7 @@ export default function MessagePage() {
   return (
     <SafeView backgroundColor="#F6F7FB">
       {/* 顶部渐变背景（figma 椭圆 1 拷贝 1，opacity 0.3） */}
-      <ExpoImage
+      <AppImage
         source={require('@/assets/message/msg_top_bg-60d5a1.png')}
         style={styles.topBg}
         contentFit="cover"
@@ -312,7 +312,7 @@ export default function MessagePage() {
           })}
           <View style={styles.headerFlex} />
           <TouchableOpacity activeOpacity={0.7} style={styles.readAllBtn} onPress={onReadAll}>
-            <ExpoImage source={require('@/assets/message/icon_readall.png')} style={styles.readAllIcon} />
+            <AppImage source={require('@/assets/message/icon_readall.png')} style={styles.readAllIcon} />
             <Text style={styles.readAllText}>全部已读</Text>
           </TouchableOpacity>
         </View>
@@ -321,7 +321,7 @@ export default function MessagePage() {
       {/* 推送通知横幅（可关闭，figma 29/30；31 为关闭态容器上移） */}
       {bannerVisible ? (
         <View style={styles.banner}>
-          <ExpoImage
+          <AppImage
             source={require('@/assets/message/msg_hi_mascot-693729.png')}
             style={styles.bannerMascot}
             contentFit="contain"
@@ -336,7 +336,7 @@ export default function MessagePage() {
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             onPress={() => setBannerVisible(false)}
           >
-            <ExpoImage source={require('@/assets/message/icon_close_blue.png')} style={styles.bannerClose} />
+            <AppImage source={require('@/assets/message/icon_close_blue.png')} style={styles.bannerClose} />
           </TouchableOpacity>
         </View>
       ) : null}
@@ -361,7 +361,7 @@ export default function MessagePage() {
             renderItem={({ item }) => (
               <TouchableOpacity activeOpacity={0.7} style={styles.row} onPress={item.onPress}>
                 <View style={[styles.entryIcon, { backgroundColor: item.bg }]}>
-                  <ExpoImage source={item.icon} style={styles.entryIconImg} contentFit="contain" />
+                  <AppImage source={item.icon} style={styles.entryIconImg} contentFit="contain" />
                 </View>
                 <View style={styles.rowBody}>
                   <Text style={styles.rowTitle} numberOfLines={1}>

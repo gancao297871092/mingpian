@@ -4,7 +4,7 @@ import { AppAlert } from '@/components/AppAlert';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
 import AppBottomSheet from '@/components/AppBottomSheet';
@@ -59,7 +59,7 @@ function ButlerSheet({ sheetRef, butlers }: { sheetRef: React.RefObject<BottomSh
         const phone = b.mobile || b.phone || b.tel || '';
         return (
           <View key={b.id} style={styles.butlerCard}>
-            <ExpoImage source={{ uri: b.avatar }} style={styles.butlerAvatar} contentFit="cover" transition={150} recyclingKey={b.avatar} />
+            <AppImage source={{ uri: b.avatar }} style={styles.butlerAvatar} contentFit="cover" transition={150} recyclingKey={b.avatar} />
             <View style={styles.butlerText}>
               <Text style={styles.butlerName}>{b.realName || ''}</Text>
               <Text style={styles.butlerPhone}>{phone || '未设置'}</Text>

@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import LinearGradient from 'react-native-linear-gradient';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -72,7 +72,7 @@ export default function LinkPage() {
 
   return (
     <SafeView backgroundColor="#F6F7FB">
-      <ExpoImage
+      <AppImage
         source={require('@/assets/link/hero-bg.png')}
         style={[styles.heroBg, { height: (SCREEN_WIDTH * 218) / 402 }]}
         contentFit="cover"
@@ -110,7 +110,7 @@ export default function LinkPage() {
           <View style={styles.heroBadge}>
             <Text style={styles.heroBadgeText}>发合作信号</Text>
           </View>
-          <ExpoImage source={require('@/assets/link/hero-mascot.png')} style={styles.heroMascot} contentFit="cover" />
+          <AppImage source={require('@/assets/link/hero-mascot.png')} style={styles.heroMascot} contentFit="cover" />
         </View>
 
         {/* 我的信号 / 合作中心 */}

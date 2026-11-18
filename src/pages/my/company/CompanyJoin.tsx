@@ -3,7 +3,7 @@ import { StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator 
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { FlatList } from 'react-native-gesture-handler';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import SafeView from '@/components/SafeView';
 import { NavBackButton } from '@/components/NavHeader';
 import ListFooter from '@/components/ListFooter';
@@ -132,7 +132,7 @@ export default function CompanyJoin() {
     const status = !canApply && item.checkStatus != null ? STATUS[item.checkStatus] : undefined;
     return (
       <View style={styles.row}>
-        <ExpoImage source={{ uri: item.avatar || '' }} style={styles.avatar} contentFit="cover" transition={150} recyclingKey={item.avatar} />
+        <AppImage source={{ uri: item.avatar || '' }} style={styles.avatar} contentFit="cover" transition={150} recyclingKey={item.avatar} />
         <View style={styles.rowText}>
           <Text style={styles.rowName} numberOfLines={2}>{item.name}</Text>
           <Text style={styles.rowSub} numberOfLines={1}>{addressOf(item)}</Text>

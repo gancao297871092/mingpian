@@ -1,6 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { formatLikeCount } from '@/utils/format';
 import { formatPushTime } from '@/pages/square/bbsDetail/detailTransform';
@@ -154,7 +154,7 @@ export function PostCard({ item, onPress, onToggleLike }: { item: PostCardData; 
     <TouchableOpacity activeOpacity={0.9} style={tabStyles.postCard} onPress={onPress}>
       {!!item.imageUrl && (
         <View>
-          <ExpoImage
+          <AppImage
             source={{ uri: item.imageUrl }}
             style={[tabStyles.postImage, { height: scaleSizeH(item.imageHeight) }]}
             contentFit="cover"
@@ -185,7 +185,7 @@ export function CommentCard({ item, onPress }: { item: CommentCardData; onPress:
   return (
     <TouchableOpacity activeOpacity={0.8} style={tabStyles.commentCard} onPress={onPress}>
       <View style={tabStyles.commentHead}>
-        <ExpoImage source={{ uri: item.avatar }} style={tabStyles.commentAvatar} contentFit="cover" transition={150} />
+        <AppImage source={{ uri: item.avatar }} style={tabStyles.commentAvatar} contentFit="cover" transition={150} />
         <View style={tabStyles.commentHeadText}>
           <Text style={tabStyles.commentName} numberOfLines={1}>{item.name}</Text>
           {!!item.company && <Text style={tabStyles.commentCompany} numberOfLines={1}>{item.company}</Text>}
@@ -208,7 +208,7 @@ export function LikedCommentCard({ item, onPress }: { item: LikedCommentData; on
     <TouchableOpacity activeOpacity={0.8} onPress={onPress}>
       <View style={tabStyles.likedCommentRow}>
         {item.avatar ? (
-          <ExpoImage source={{ uri: item.avatar }} style={tabStyles.likedCommentAvatar} contentFit="cover" transition={150} />
+          <AppImage source={{ uri: item.avatar }} style={tabStyles.likedCommentAvatar} contentFit="cover" transition={150} />
         ) : (
           <View style={[tabStyles.likedCommentAvatar, tabStyles.likedCommentAvatarPlaceholder]} />
         )}

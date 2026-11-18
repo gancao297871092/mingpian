@@ -3,7 +3,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOp
 import { AppAlert } from '@/components/AppAlert';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Image as ExpoImage } from 'expo-image';
+import AppImage from '@/components/AppImage';
 import ImagePicker from 'react-native-image-crop-picker';
 import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
@@ -105,7 +105,7 @@ function InfoTab({
           <Text style={styles.infoCardLabel}>企业LOGO</Text>
           <TouchableOpacity activeOpacity={0.8} style={styles.logoWrap} onPress={() => onPick('avatar')}>
             {form.avatar ? (
-              <ExpoImage source={{ uri: form.avatar }} recyclingKey={form.avatar} style={styles.logo} contentFit="cover" transition={150} />
+              <AppImage source={{ uri: form.avatar }} recyclingKey={form.avatar} style={styles.logo} contentFit="cover" transition={150} />
             ) : (
               <View style={styles.logo} />
             )}
@@ -120,7 +120,7 @@ function InfoTab({
         </View>
         <TouchableOpacity activeOpacity={0.9} style={styles.posterCard} onPress={() => onPick('cardPoster')}>
           {form.cardPoster ? (
-            <ExpoImage source={{ uri: form.cardPoster }} recyclingKey={form.cardPoster} style={styles.poster} contentFit="cover" transition={150} />
+            <AppImage source={{ uri: form.cardPoster }} recyclingKey={form.cardPoster} style={styles.poster} contentFit="cover" transition={150} />
           ) : (
             <View style={styles.poster} />
           )}
