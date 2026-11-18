@@ -89,6 +89,9 @@ export interface UserInfo {
   isManager?: number;
   /** 是否企业超级管理员（1是 0否） */
   isMaster?: number;
+  /** 是否业务员：0否 1一级业务员 2二级业务员（万企分公司员工，/user/base/info 返回；
+   *  业务员工作台入口按此显隐，对齐小程序 moreSets 的展客管理判断） */
+  isYwy?: number;
   /** 企业内职位名称 */
   position?: string;
   /** 企业名片公开开关（1公开 0关闭） */

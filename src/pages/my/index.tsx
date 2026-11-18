@@ -153,11 +153,18 @@ export default function My() {
       setDraftCover(latest ? latest.videoCover || latest.cover || latest.images[0] || '' : '');
       if (token) {
         API.user.info()
-          .then(res => res.data && setUserInfo(res.data))
-          .catch(() => { });
-        // 工作台待触达角标
-        API.salesTask.count()
-          .then(res => setWorkbenchTodo(res.data?.pending ?? 0))
+          .then(res => {
+            if (!res.data) return;
+            setUserInfo(res.data);
+            // 工作台待触达角标：仅业务员拉取（非业务员无意义也省一次请求），身份变化时清零
+            if (res.data.isYwy) {
+              API.salesTask.count()
+                .then(r => setWorkbenchTodo(r.data?.pending ?? 0))
+                .catch(() => { });
+            } else {
+              setWorkbenchTodo(0);
+            }
+          })
           .catch(() => { });
       }
     }, [token, setUserInfo]),
@@ -229,9 +236,12 @@ export default function My() {
     { num: userInfo?.fansCount ?? 0, label: '粉丝', tab: 'fans' },
   ];
 
+  // 业务员工作台仅万企业务员可见（isYwy 1/2，对齐小程序 moreSets 展客管理 v-if="userInfo.isYwy"）
   const entries: { label: string; icon: React.ReactNode; badge?: number; onPress: () => void }[] = [
     { label: '企业管理', icon: <EntryCompanyIcon />, onPress: () => navigation.navigate('companyManage') },
-    { label: '业务员工作台', icon: <EntryWorkbenchIcon />, badge: workbenchTodo, onPress: () => navigation.navigate('workbench') },
+    ...(userInfo?.isYwy 
+      ? [{ label: '业务员工作台', icon: <EntryWorkbenchIcon />, badge: workbenchTodo, onPress: () => navigation.navigate('workbench') }]
+      : []),
     { label: '认证中心', icon: <EntryCertIcon />, onPress: () => navigation.navigate('certificationCenter') },
     { label: '浏览记录', icon: <EntryHistoryIcon />, onPress: () => navigation.navigate('browseHistory') },
   ];
@@ -717,11 +727,11 @@ const styles = StyleSheet.create({
   },
   entriesRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: scaleSizeW(44),
     marginTop: scaleSizeH(20),
   },
+  // 等宽分布：任意数量入口（业务员工作台显隐导致 3/4 个）都能均分撑满整行
   entryItem: {
+    flex: 1,
     alignItems: 'center',
     gap: scaleSizeH(2),
   },

@@ -91,6 +91,8 @@ export default function CompanyManage() {
   const role: 'admin' | 'member' | 'none' = !userInfo?.cpId ? 'none' : userInfo?.isManager === 1 ? 'admin' : 'member';
   const butlerRef = useRef<BottomSheetModal>(null);
   const [butlers, setButlers] = useState<Butler[]>([]);
+  /** 加入企业申请待审核标识（/company/manager/tips 的 userAuth，对齐小程序 moreSets「待审核」角标） */
+  const [joinAuthPending, setJoinAuthPending] = useState(false);
 
   // 每次进入刷新用户信息（移交超管/退出企业等操作后角色需同步）与审核角标（对齐小程序 getTips）
   useFocusEffect(
@@ -106,6 +108,7 @@ export default function CompanyManage() {
             useCompanyStore.getState().setMemberAuditCount(r.data.companyUserAuthCount ?? 0);
             useCompanyStore.getState().setBbsAuditCount(r.data.bbsCount ?? 0);
             useCompanyStore.getState().setPoolCount(r.data.companyWorkCount ?? 0);
+            setJoinAuthPending(!!r.data.userAuth);
           }
         })
         .catch(() => {});
@@ -123,6 +126,19 @@ export default function CompanyManage() {
     } catch {
       // ignore
     }
+  };
+
+  /**
+   * 创建/加入企业前置校验：未实名（authStatus≠1）弹窗引导去认证，返回 true 表示已拦截。
+   * 对齐设计稿批注②文案（小程序 onTipsAuthRealCard 同款交互，文案后续由小程序对齐）
+   */
+  const blockIfNotRealAuthed = () => {
+    if (userInfo?.wqUser?.authStatus === 1) return false;
+    AppAlert.alert('提示', '创建或加入企业前请先完成实名认证', [
+      { text: '取消', style: 'cancel' },
+      { text: '去认证', onPress: () => navigation.navigate('companyRealName') },
+    ]);
+    return true;
   };
 
   /** 退出企业（对齐小程序 exitCp）：超管需先移交，普通成员确认后调 /company/user/liveOut */
@@ -226,8 +242,23 @@ export default function CompanyManage() {
             {
               title: '企业认证',
               rows: [
-                { label: '创建企业', icon: <CompanyInfoIcon />, onPress: () => navigation.navigate('companyCert') },
-                { label: '加入企业', icon: <CompanyManagerIcon />, tag: '待审核', onPress: () => navigation.navigate('companyJoin') },
+                {
+                  label: '创建企业',
+                  icon: <CompanyInfoIcon />,
+                  onPress: () => {
+                    if (blockIfNotRealAuthed()) return;
+                    navigation.navigate('companyCert');
+                  },
+                },
+                {
+                  label: '加入企业',
+                  icon: <CompanyManagerIcon />,
+                  tag: joinAuthPending ? '待审核' : undefined,
+                  onPress: () => {
+                    if (blockIfNotRealAuthed()) return;
+                    navigation.navigate('companyJoin');
+                  },
+                },
               ],
             },
           ];

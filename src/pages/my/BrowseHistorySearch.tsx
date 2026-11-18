@@ -293,7 +293,7 @@ export default function BrowseHistorySearch() {
                 style={styles.chip}
                 onPress={() => (editing ? saveChips(chips.filter(x => x !== c)) : doSearch(c))}
               >
-                <Text style={styles.chipText}>{c}</Text>
+                <Text style={styles.chipText} numberOfLines={1}>{c}</Text>
                 {editing && (
                   <View style={styles.chipClose}>
                     <CloseXIcon size={7} />
@@ -417,11 +417,15 @@ const styles = StyleSheet.create({
     borderRadius: scaleSizeW(90),
     paddingHorizontal: scaleSizeW(10),
     paddingVertical: scaleSizeH(5),
+    // 超长搜索词不撑爆布局：限制 chip 最大宽度，配合 chipText 单行截断
+    maxWidth: '100%',
   },
   chipText: {
     fontSize: setSpText(12),
     lineHeight: setSpText(16),
     color: GRAY,
+    // 编辑态右侧有关闭钮，文本需可收缩让位
+    flexShrink: 1,
   },
   chipClose: {
     width: scaleSizeW(14),

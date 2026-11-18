@@ -69,7 +69,7 @@ export default function Workbench() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.card}>
+        {/* <View style={styles.card}>
           <View style={styles.cardHead}>
             <SignalTaskIcon />
             <Text style={styles.cardTitle}>企业查询</Text>
@@ -83,7 +83,7 @@ export default function Workbench() {
           >
             <Text style={styles.actionBtnText}>去查询</Text>
           </TouchableOpacity>
-        </View>
+        </View> */}
       </ScrollView>
     </SafeView>
   );
