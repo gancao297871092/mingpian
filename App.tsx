@@ -90,10 +90,7 @@ function Root() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <StatusBar
-        barStyle={Platform.OS === 'android' || theme.dark ? 'light-content' : 'dark-content'}
-        {...(Platform.OS === 'android' ? { backgroundColor: '#000000' } : {})}
-      />
+      <StatusBar barStyle={theme.dark ? 'light-content' : 'dark-content'} />
       <RootNavigator />
       <AppAlertHost />
       <Toast config={toastConfig} topOffset={80} />
@@ -112,6 +109,7 @@ function Root() {
           onLayout={() => {
             if (launchStarted.current) return;
             launchStarted.current = true;
+            // 纯透明度淡出（小红书同款）：overlay 与原生 splash 像素级一致，无位移动画、无缩放
             BootSplash.hide({ fade: false }).then(() => {
               Animated.timing(launchOpacity, {
                 toValue: 0,
@@ -121,7 +119,7 @@ function Root() {
             });
           }}
         >
-          <Image source={require('./launch/launch-wordmark.png')} style={styles.wordmark} />
+          <Image source={{ uri: 'bootsplash_logo' }} style={styles.wordmark} />
         </Animated.View>
       )}
     </QueryClientProvider>
@@ -142,6 +140,19 @@ function App() {
   );
 }
 
+/**
+ * 与原生启动屏（BootTheme → drawable/bootsplash_logo）同一张图、同一几何：
+ * bootsplash 各密度桶 logo 固有尺寸均为 288dp、屏幕居中，这里直接按名引用同一 drawable、
+ * 以 288dp 居中渲染，BootSplash.hide(fade:false) 瞬间零跳变。
+ *（此前用 58.46% 屏宽的独立词标图，与原生方形 logo 构图不一致，切换瞬间「突然放大」。）
+ *
+ * 垂直居中补偿：原生 splash 以整块屏幕（含状态栏区）居中。
+ * - Android 15+（targetSdk ≥ 35 强制 edge-to-edge）：overlay 也覆盖整块屏幕，同坐标系，无需补偿；
+ * - Android 14 及以下：overlay 布局在状态栏之下，中心比整屏中心低状态栏半高，需上移补偿。
+ */
+const launchStatusBarOffset =
+  Platform.OS === 'android' && Number(Platform.Version) < 35 ? (StatusBar.currentHeight ?? 0) / 2 : 0;
+
 const styles = StyleSheet.create({
   root: {
     flex: 1,
@@ -157,9 +168,12 @@ const styles = StyleSheet.create({
   },
   wordmark: {
     position: 'absolute',
-    top: '29.1762%',
-    width: '58.4577%',
-    aspectRatio: 235 / 96,
+    top: '50%',
+    left: '50%',
+    width: 288,
+    height: 288,
+    marginTop: -144 - launchStatusBarOffset,
+    marginLeft: -144,
     resizeMode: 'contain',
   },
 });

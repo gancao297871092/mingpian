@@ -2,6 +2,9 @@
     <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
         <!-- Customize your theme here. -->
         <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
+        <!-- 状态栏白底：配合全局 dark-content 深色图标（各页面默认深图标、深色页自行切白并恢复）。
+             Android 15+ 强制 edge-to-edge 时该值被忽略，状态栏透明由页面白色背景透出，效果一致。 -->
+        <item name="android:statusBarColor">@android:color/white</item>
     </style>
 
     <style name="BootTheme" parent="Theme.BootSplash">
