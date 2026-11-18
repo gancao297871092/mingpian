@@ -26,7 +26,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SafeView from '@/components/SafeView';
 import AppBottomSheet from '@/components/AppBottomSheet';
 import PersonalPoster from '@/components/posters/PersonalPoster';
-import { normalizeCardStyle } from '@/components/cards/types';
+import { getCardPhoto, normalizeCardStyle } from '@/components/cards/types';
 import { API } from '@/api';
 import { useUserStore } from '@/store/user';
 import { scaleSizeH, scaleSizeW, setSpText, SCREEN_WIDTH } from '@/utils/screenUtils';
@@ -493,7 +493,19 @@ export default function MessageChat() {
         const res = await API.card.aggregate({ cardId: card.id });
         const userCard = res.data?.userCard;
         if (!userCard) throw new Error('card detail failed');
-        const fullCard = { ...userCard, id: userCard.id ?? card.id };
+        // 太阳码二维码：/bbs/cardDetail 直读库不含该字段（太阳码只在 /card/list 流程内存生成不落库），
+        // 与名片夹预览同源——发送名片弹层已加载 /card/list，card.sunCode 必有值
+        const fullCard = { ...userCard, sunCode: userCard.sunCode || card.sunCode, id: userCard.id ?? card.id };
+        // 预载海报内全部网络图（太阳码/形象照/企业logo）：onLayout 仅代表布局完成，
+        // 不预载会在图片未加载完成时截图，海报缺太阳码/缺照片
+        const prefetchUrls = [fullCard.sunCode, fullCard.cpLogo, getCardPhoto(fullCard)].filter(
+          (u): u is string => !!u,
+        );
+        try {
+          await ExpoImage.prefetch(prefetchUrls);
+        } catch {
+          // 预载失败不阻塞发送，按原流程截图
+        }
         // 2. 离屏渲染分享海报（与「我的名片-分享名片」同一组件 PersonalPoster，带企业 logo + 扫码条），
         //    等 onLayout 确认挂载布局完成后再截图
         setPosterCard(fullCard);
@@ -503,6 +515,8 @@ export default function MessageChat() {
           setTimeout(resolve, 1500);
         });
         posterReadyRef.current = null;
+        // 再等两帧：预载命中内存缓存后图片解码/上屏是异步的，给几帧缓冲确保截到完整海报
+        await new Promise<void>(resolve => setTimeout(resolve, 200));
         const uri = await shotRef.current?.capture?.();
         if (!uri) throw new Error('capture failed');
         // 3. 上传海报（png，与分享名片一致）
