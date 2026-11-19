@@ -29,6 +29,7 @@ import { API } from '@/api';
 import { useUserStore } from '@/store/user';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { listDrafts } from '@/utils/draftStore';
+import { syncIpCity } from '@/utils/ipCity';
 import {
   CardBoxIcon,
   CompanyIcon,
@@ -166,6 +167,8 @@ export default function My() {
             }
           })
           .catch(() => { });
+        // IP 属地同步（24h 节流，城市变化时更新服务端并本地补丁）
+        syncIpCity();
       }
     }, [token, setUserInfo]),
   );
@@ -454,11 +457,10 @@ export default function My() {
                       <Text style={styles.chipText}>{regionText}</Text>
                     </View>
                   )}
-                  {wqUser?.authRealCard && (
-                    <View style={styles.chip}>
-                      <Text style={styles.chipText}>已实名</Text>
-                    </View>
-                  )}
+                  {/* 实名标识常显：已实名/未实名（与 IP chip 同排，沿用同款灰色样式） */}
+                  <View style={styles.chip}>
+                    <Text style={styles.chipText}>{wqUser?.authRealCard ? '已实名' : '未实名'}</Text>
+                  </View>
                 </View>
                 <View style={styles.entriesRow}>
                   {entries.map(e => (
