@@ -20,6 +20,7 @@ import {
   CompanyBbsAuditIcon,
   CompanyButlerIcon,
   CompanyCapIcon,
+  CompanyDissolveIcon,
   CompanyExitIcon,
   CompanyInfoIcon,
   CompanyJobIcon,
@@ -89,6 +90,10 @@ export default function CompanyManage() {
   const userInfo = useUserStore(s => s.userInfo);
   // 真实角色（对齐小程序 moreSets）：isManager=管理端；cpId 且非管理员=普通成员；无 cpId=未加入企业
   const role: 'admin' | 'member' | 'none' = !userInfo?.cpId ? 'none' : userInfo?.isManager === 1 ? 'admin' : 'member';
+  /** 企业超管（解散企业/移交权限等超管专属操作入口） */
+  const isSuper = userInfo?.isMaster === 1;
+  /** 解散状态（0正常 1冷静期 2已解散；/company/dissolve/status，进入页面时拉取） */
+  const [dissolveStatus, setDissolveStatus] = useState(0);
   const butlerRef = useRef<BottomSheetModal>(null);
   const [butlers, setButlers] = useState<Butler[]>([]);
   /** 加入企业申请待审核标识（/company/manager/tips 的 userAuth，对齐小程序 moreSets「待审核」角标） */
@@ -109,6 +114,15 @@ export default function CompanyManage() {
             useCompanyStore.getState().setBbsAuditCount(r.data.bbsCount ?? 0);
             useCompanyStore.getState().setPoolCount(r.data.companyWorkCount ?? 0);
             setJoinAuthPending(!!r.data.userAuth);
+          }
+        })
+        .catch(() => {});
+      // 解散状态（冷静期态数据源；接口内会惰性处理冷静期到期）
+      API.company
+        .dissolveStatus()
+        .then((r) => {
+          if (r.code === '200' && r.data) {
+            setDissolveStatus(r.data.dissolveStatus ?? 0);
           }
         })
         .catch(() => {});
@@ -170,6 +184,44 @@ export default function CompanyManage() {
           }
         },
       },
+    ]);
+  };
+
+  /** 撤销解散申请（/company/dissolve/revoke：冷静期内清空冷静期标记） */
+  const onRevokeDissolve = async () => {
+    try {
+      const res = await API.company.dissolveRevoke();
+      if (res.code !== '200') return;
+      setDissolveStatus(0);
+      Toast.show({ type: 'success', text1: '已撤销解散申请' });
+    } catch {
+      // 非 200（不在解散流程等）由 request 拦截器统一弹错
+    }
+  };
+
+  /** 强制直接解散（/company/dissolve/force：跳过冷静期立即生效，成功后刷新用户身份并返回） */
+  const onForceDissolve = () => {
+    AppAlert.alert('提示', '确认现在就解散吗？', [
+      {
+        text: '确认解散',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const res = await API.company.dissolveForce();
+            if (res.code !== '200') return;
+            Toast.show({ type: 'success', text1: '企业已解散' });
+            // 解散生效：cpId/isMaster 等失效，刷新用户信息后返回「我的」
+            API.user
+              .info()
+              .then((r) => r.data && useUserStore.getState().setUserInfo(r.data))
+              .catch(() => {});
+            navigation.goBack();
+          } catch {
+            // 非 200 由 request 拦截器统一弹错
+          }
+        },
+      },
+      { text: '取消', style: 'cancel' },
     ]);
   };
 
@@ -306,9 +358,35 @@ export default function CompanyManage() {
           <View style={[styles.card, styles.standaloneCard]}>{extraRows.map(renderRow)}</View>
         )}
         {role !== 'none' && (
-          <View style={[styles.card, styles.standaloneCard]}>
-            {renderRow({ label: '退出企业', icon: <CompanyExitIcon color={DANGER} />, danger: true, onPress: onExit })}
-          </View>
+          isSuper && dissolveStatus === 1 ? (
+            <>
+              {/* 解散冷静期（figma 分组11 3454:7621）：退出企业 / 撤销解散 + 强制直接解散 */}
+              <View style={[styles.card, styles.standaloneCard]}>
+                {renderRow({ label: '退出企业', icon: <CompanyExitIcon color={DANGER} />, danger: true, onPress: onExit })}
+              </View>
+              <View style={[styles.card, styles.standaloneCard]}>
+                {renderRow({ label: '撤销解散', icon: <CompanyDissolveIcon />, danger: true, onPress: onRevokeDissolve })}
+                <View style={styles.divider} />
+                {renderRow({ label: '强制直接解散', icon: <CompanyDissolveIcon />, danger: true, onPress: onForceDissolve })}
+              </View>
+            </>
+          ) : isSuper ? (
+            /* 超管常态（figma 分组11 3454:7406）：退出企业 + 解散企业 */
+            <View style={[styles.card, styles.standaloneCard]}>
+              {renderRow({ label: '退出企业', icon: <CompanyExitIcon color={DANGER} />, danger: true, onPress: onExit })}
+              <View style={styles.divider} />
+              {renderRow({
+                label: '解散企业',
+                icon: <CompanyDissolveIcon />,
+                danger: true,
+                onPress: () => navigation.navigate('enterpriseCancelWarning'),
+              })}
+            </View>
+          ) : (
+            <View style={[styles.card, styles.standaloneCard]}>
+              {renderRow({ label: '退出企业', icon: <CompanyExitIcon color={DANGER} />, danger: true, onPress: onExit })}
+            </View>
+          )
         )}
       </ScrollView>
       <ButlerSheet sheetRef={butlerRef} butlers={butlers} />

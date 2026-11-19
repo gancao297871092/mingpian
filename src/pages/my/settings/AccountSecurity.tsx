@@ -23,32 +23,16 @@ export default function AccountSecurity() {
   const [phoneTipVisible, setPhoneTipVisible] = useState(false);
 
   const load = useCallback(() => {
-    API.setting
-      .accountSecurity()
-      .then(
-        res =>
-          res.data &&
-          // 接口未返回的字段用本地用户信息兜底（手机号 wqUser.mobile；微信绑定态按 xcxOpenid 非空判断，openid 不适合展示，只显示已绑定/未绑定）
-          setInfo({
-            authReal: userInfo?.wqUser?.authRealCard,
-            authPosition: userInfo?.wqUser?.authPosition,
-            authCompany: userInfo?.wqUser?.authCompany,
-            ...res.data,
-            phone: res.data.phone || userInfo?.wqUser?.mobile,
-            wechatBound: res.data.wechatBound ?? !!userInfo?.wqUser?.xcxOpenid,
-          }),
-      )
-      .catch(() => {
-        // TODO 联调后处理失败兜底
-        setInfo({
-          phone: userInfo?.wqUser?.mobile,
-          hasPassword: false,
-          wechatBound: !!userInfo?.wqUser?.xcxOpenid,
-          authReal: userInfo?.wqUser?.authRealCard,
-          authPosition: userInfo?.wqUser?.authPosition,
-          authCompany: userInfo?.wqUser?.authCompany,
-        });
-      });
+    // 后端无独立"账号安全"接口，全部字段由本地登录用户信息派生
+    //（手机号 wqUser.mobile；微信绑定态按 xcxOpenid 非空判断，openid 不适合展示，只显示已绑定/未绑定）
+    setInfo({
+      phone: userInfo?.wqUser?.mobile,
+      hasPassword: false,
+      wechatBound: !!userInfo?.wqUser?.xcxOpenid,
+      authReal: userInfo?.wqUser?.authRealCard,
+      authPosition: userInfo?.wqUser?.authPosition,
+      authCompany: userInfo?.wqUser?.authCompany,
+    });
   }, [userInfo]);
 
   useEffect(() => {
@@ -98,6 +82,16 @@ export default function AccountSecurity() {
             label="认证中心"
             icon={<CertBadgeIcon />}
             onPress={() => navigation.navigate('certificationCenter')}
+          />
+        </SettingCard>
+        <View style={styles.gap} />
+        <SettingCard>
+          {/* 注销账号：红 badge 为未通过项数，静态写死 3（对应注销条件检测页），联调后由接口返回 */}
+          <SettingRow
+            label="注销账号"
+            icon={<WechatIcon />}
+            badge={3}
+            onPress={() => navigation.navigate('accountCancelWarning')}
           />
         </SettingCard>
       </ScrollView>

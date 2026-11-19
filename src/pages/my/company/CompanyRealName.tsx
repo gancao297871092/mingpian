@@ -239,7 +239,7 @@ export default function CompanyRealName() {
     }
     setSubmitting(true);
     try {
-      await API.common.msgValidate({ authCode, code: code.trim() });
+      // 后端 /auth/idCard/verifyV3 内部已校验验证码（authCode+"_Phone" 键 + 三要素），无需单独校验
       await API.user.idCardVerify({
         id: authId,
         realCard: idCard.trim(),

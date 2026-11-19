@@ -497,6 +497,29 @@ export function CompanyBbsAuditIcon({ size = 20, color = '#000000' }: IconProps)
   );
 }
 
+/** 100.企业管理：解散企业（红底建筑 + 红圈白×，原型 icon-dissolve-enterprise） */
+export function CompanyDissolveIcon({ size = 20 }: IconProps) {
+  const s = scaleSizeW(size);
+  return (
+    <Svg width={s} height={s} viewBox="0 0 20 20" fill="none">
+      <Path d="M3.2 2.4h8.2c.66 0 1.2.54 1.2 1.2v13H3.2V2.4Z" fill="#E5484D" />
+      <Path d="M12.6 8.2h4c.55 0 1 .45 1 1V16.6h-5V8.2Z" fill="#E5484D" />
+      <Rect x={5} y={4.4} width={1.7} height={1.7} rx={0.25} fill="#FFFFFF" />
+      <Rect x={7.9} y={4.4} width={1.7} height={1.7} rx={0.25} fill="#FFFFFF" />
+      <Rect x={5} y={7.2} width={1.7} height={1.7} rx={0.25} fill="#FFFFFF" />
+      <Rect x={7.9} y={7.2} width={1.7} height={1.7} rx={0.25} fill="#FFFFFF" />
+      <Circle cx={14.35} cy={14.35} r={4.15} fill="#E5484D" />
+      <Circle cx={14.35} cy={14.35} r={3.55} fill="#FFFFFF" />
+      <Path
+        d="M12.55 12.55l3.6 3.6M16.15 12.55l-3.6 3.6"
+        stroke="#E5484D"
+        strokeWidth={1.55}
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
 /** 100.企业管理：退出企业 */
 export function CompanyExitIcon({ size = 20, color = '#000000' }: IconProps) {
   const s = scaleSizeW(size);

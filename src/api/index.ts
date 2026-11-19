@@ -137,10 +137,6 @@ export namespace API {
     export function msgSend(data: { phone: string; id?: number | null }) {
       return request.post<string>('/common/msg/send', data);
     }
-    /** 校验短信验证码 */
-    export function msgValidate(data: { authCode: string; code: string }) {
-      return request.post<any>('/common/msg/validate', data);
-    }
     /** 查任意用户基础信息（用户名/头像/企业等，对齐小程序 /common/user/base/info） */
     export function userBaseInfo(params: { userId: number | string }) {
       return request.get<any>('/common/user/base/info', { params });
@@ -277,6 +273,21 @@ export namespace API {
         '/auth/faceid/result',
         data,
       );
+    }
+
+    /** 注销账号条件检测（/user/cancel/check：三项 passed=1 通过 0 未通过，allPassed=1 全部通过） */
+    export interface CancelCheckResult {
+      punishPassed?: number;
+      superAdminPassed?: number;
+      onlyMemberPassed?: number;
+      allPassed?: number;
+    }
+    export function cancelCheck() {
+      return request.post<CancelCheckResult>('/user/cancel/check');
+    }
+    /** 注销账号提交（/user/cancel/submit：短信一次性校验→复检三项→清理→踢下线） */
+    export function cancelSubmit(data: { authCode: string; code: string; phone: string }) {
+      return request.post<any>('/user/cancel/submit', data);
     }
   }
 
@@ -604,13 +615,10 @@ export namespace API {
       /** 企业认证状态 */
       authCompany?: boolean;
     }
-    export function accountSecurity() {
-      return request.get<AccountSecurityInfo>('/setting/account/security');
-    }
 
-    /** 发送短信验证码（scene: changePhoneOld/changePhoneNew/bindPhone 等） */
+    /** 发送短信验证码（scene 仅作记录，后端统一走 /auth/sms/send 无 scene 白名单） */
     export function smsSend(data: { phone: string; scene: string }) {
-      return request.post<{ authCode: string }>('/setting/sms/send', data);
+      return request.post<{ authCode: string }>('/auth/sms/send', data);
     }
 
     /** 原手机号验证，成功后返回换绑票据 ticket */
@@ -891,6 +899,27 @@ export namespace API {
     /** 企业员工动态列表（企业主页-最新动态瀑布流；search 按标题/正文/标签搜索） */
     export function bbsMain(data: { cpId: number | string; pageNum?: number; pageSize?: number; search?: string }) {
       return request.post<any>('/company/bbs/main', data);
+    }
+
+    /** 企业解散状态（/company/dissolve/status：dissolveStatus 0正常 1冷静期 2已解散；到期惰性生效） */
+    export interface DissolveStatusResult {
+      dissolveStatus?: number;
+      dissolveTime?: string | null;
+    }
+    export function dissolveStatus() {
+      return request.get<DissolveStatusResult>('/company/dissolve/status');
+    }
+    /** 解散申请（/company/dissolve/apply：超管 + 短信校验 → 进入 3 天冷静期） */
+    export function dissolveApply(data: { authCode: string; code: string; phone: string }) {
+      return request.post<any>('/company/dissolve/apply', data);
+    }
+    /** 撤销解散（/company/dissolve/revoke：冷静期内清空冷静期标记） */
+    export function dissolveRevoke() {
+      return request.post<any>('/company/dissolve/revoke');
+    }
+    /** 强制直接解散（/company/dissolve/force：冷静期内跳过冷静期立即生效） */
+    export function dissolveForce() {
+      return request.post<any>('/company/dissolve/force');
     }
   }
 

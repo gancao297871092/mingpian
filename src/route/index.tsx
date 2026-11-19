@@ -40,6 +40,9 @@ import EditProfile from '@/pages/my/EditProfile';
 import UserHome from '@/pages/my/UserHome';
 import Settings from '@/pages/my/settings';
 import AccountSecurity from '@/pages/my/settings/AccountSecurity';
+import AccountCancelWarning from '@/pages/my/settings/AccountCancelWarning';
+import AccountCancelCheck from '@/pages/my/settings/AccountCancelCheck';
+import AccountCancelVerify from '@/pages/my/settings/AccountCancelVerify';
 import VerifyIdentity from '@/pages/my/settings/VerifyIdentity';
 import ChangePhoneVerify from '@/pages/my/settings/ChangePhoneVerify';
 import BindPhone from '@/pages/my/settings/BindPhone';
@@ -62,6 +65,8 @@ import TouchTaskDetail from '@/pages/my/TouchTaskDetail';
 import BrowseHistory from '@/pages/my/BrowseHistory';
 import BrowseHistorySearch from '@/pages/my/BrowseHistorySearch';
 import CompanyManage from '@/pages/my/CompanyManage';
+import EnterpriseCancelWarning from '@/pages/my/EnterpriseCancelWarning';
+import EnterpriseCancelVerify from '@/pages/my/EnterpriseCancelVerify';
 import CompanyInfo from '@/pages/my/company/CompanyInfo';
 import CompanyPage from '@/pages/my/company/CompanyPage';
 import CompanyWebsite from '@/pages/company/website/CompanyWebsite';
@@ -383,6 +388,35 @@ export default function RootNavigator() {
           }}
         />
         <Stack.Screen
+          name="accountCancelWarning"
+          component={AccountCancelWarning}
+          options={{
+            title: '注销账号',
+            headerStyle: { backgroundColor: '#FFFFFF' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="accountCancelCheck"
+          component={AccountCancelCheck}
+          options={{
+            title: '注销条件检测',
+            headerStyle: { backgroundColor: '#FFFFFF' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="accountCancelVerify"
+          component={AccountCancelVerify}
+          options={{
+            headerTitle: '',
+            headerStyle: { backgroundColor: '#FFFFFF' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
           name="verifyIdentity"
           component={VerifyIdentity}
           options={{
@@ -596,6 +630,25 @@ export default function RootNavigator() {
             title: '企业管理',
             headerStyle: { backgroundColor: '#F6F7FB' },
             headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="enterpriseCancelWarning"
+          component={EnterpriseCancelWarning}
+          options={{
+            title: '解散企业',
+            headerStyle: { backgroundColor: '#FFFFFF' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="enterpriseCancelVerify"
+          component={EnterpriseCancelVerify}
+          options={{
+            headerTitle: '',
+            headerStyle: { backgroundColor: '#FFFFFF' },
             headerShadowVisible: false,
           }}
         />

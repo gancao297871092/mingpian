@@ -29,6 +29,10 @@ export type RootStackParamList = {
   userHome: { userId?: number; preview?: boolean } | undefined;
   settings: undefined;
   accountSecurity: undefined;
+  accountCancelWarning: undefined;
+  /** 注销账号-条件检测（入参为 cancel/check 返回的各 passed 项，0=未通过，仅展示未通过卡） */
+  accountCancelCheck: { punishPassed?: number; superAdminPassed?: number; onlyMemberPassed?: number } | undefined;
+  accountCancelVerify: undefined;
   verifyIdentity: { scene?: 'changePhone' | 'resetPassword' } | undefined;
   changePhoneVerify: { scene?: 'changePhone' | 'resetPassword' } | undefined;
   bindPhone: { ticket?: string } | undefined;
@@ -56,6 +60,10 @@ export type RootStackParamList = {
   browseHistory: undefined;
   browseHistorySearch: undefined;
   companyManage: undefined;
+  /** 解散企业-重要提醒（超管） */
+  enterpriseCancelWarning: undefined;
+  /** 解散企业-身份验证（超管） */
+  enterpriseCancelVerify: undefined;
   companyInfo: undefined;
   /** 模块编辑：id 为模块 mdId（新增时先调 moduleAdd 拿到 id 再进入） */
   companyModuleEdit: { id?: number | string } | undefined;

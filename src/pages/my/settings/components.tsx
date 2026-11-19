@@ -23,9 +23,11 @@ interface SettingRowProps {
   onSwitchChange?: (v: boolean) => void;
   /** 隐藏右侧箭头（如开关行） */
   hideArrow?: boolean;
+  /** 右侧红色数字角标（figma 分组11 注销账号行未通过项数） */
+  badge?: string | number;
 }
 
-export function SettingRow({ label, icon, value, onPress, switchValue, onSwitchChange, hideArrow }: SettingRowProps) {
+export function SettingRow({ label, icon, value, onPress, switchValue, onSwitchChange, hideArrow, badge }: SettingRowProps) {
   const isSwitch = switchValue !== undefined;
   return (
     <TouchableOpacity
@@ -46,6 +48,11 @@ export function SettingRow({ label, icon, value, onPress, switchValue, onSwitchC
           />
         ) : (
           <>
+            {!!badge && (
+              <View style={styles.rowBadge}>
+                <Text style={styles.rowBadgeText}>{badge}</Text>
+              </View>
+            )}
             {!!value && <Text style={styles.rowValue}>{value}</Text>}
             {!hideArrow && <SettingArrowIcon />}
           </>
@@ -110,6 +117,21 @@ const styles = StyleSheet.create({
     fontSize: setSpText(14),
     color: '#6C6C6C',
     lineHeight: scaleSizeH(14),
+  },
+  rowBadge: {
+    height: scaleSizeH(14),
+    minWidth: scaleSizeW(14),
+    paddingHorizontal: scaleSizeW(4),
+    borderRadius: scaleSizeW(90),
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rowBadgeText: {
+    fontSize: setSpText(10),
+    fontWeight: '500',
+    color: '#FFFFFF',
+    lineHeight: scaleSizeH(12),
   },
   sectionTitleRow: {
     flexDirection: 'row',
