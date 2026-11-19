@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useHeaderHeight } from '@react-navigation/elements';
 import {
   ActivityIndicator,
   Image,
@@ -316,23 +317,60 @@ export default function Publish() {
   const commentRef = useRef<BottomSheetModal>(null);
   const [entryDialog, setEntryDialog] = useState<'ask' | 'onConfirm' | 'offConfirm' | null>(null);
   const syncRowRef = useRef<View>(null);
+  const overlayRef = useRef<View>(null);
+  const probeRef = useRef<View>(null);
+  const headerHeight = useHeaderHeight();
   const [syncHole, setSyncHole] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+
+  /**
+   * 镂空区 = 同步行窗口坐标 + 坐标系偏移 - 遮罩窗口原点。
+   * Fabric 新架构下页面元素的 measureInWindow 是相对 React 根视图（缺导航头高度），
+   * 用页面顶部探针自动标定：探针真实窗口 y = headerHeight，实测 py 与之差即偏移（双端自适应）。
+   */
+  const measureSyncHole = React.useCallback((onDone: (hole: { x: number; y: number; width: number; height: number } | null) => void) => {
+    const row = syncRowRef.current;
+    const box = overlayRef.current;
+    const probe = probeRef.current;
+    if (!row || !box || !probe) {
+      onDone(null);
+      return;
+    }
+    probe.measureInWindow((px, py) => {
+      row.measureInWindow((rx, ry, rw, rh) => {
+        box.measureInWindow((bx, by) => {
+          const offsetY = headerHeight - py;
+          onDone({
+            x: rx - bx - scaleSizeW(7),
+            y: ry + offsetY - by - scaleSizeH(8),
+            width: rw + scaleSizeW(14),
+            height: rh + scaleSizeH(16),
+          });
+        });
+      });
+    });
+  }, [headerHeight]);
 
   useEffect(() => {
     if (storageUtils.getString(GUIDE_SHOWN_KEY)) return;
     const timer = setTimeout(() => {
-      const node = syncRowRef.current;
-      if (!node) {
-        setEntryDialog('ask');
-        return;
-      }
-      node.measureInWindow((x, y, width, height) => {
-        setSyncHole({ x: x - scaleSizeW(7), y: y - scaleSizeH(8), width: width + scaleSizeW(14), height: height + scaleSizeH(16) });
+      measureSyncHole(hole => {
+        if (hole) setSyncHole(hole);
         setEntryDialog('ask');
       });
     }, 350);
     return () => clearTimeout(timer);
-  }, []);
+  }, [measureSyncHole]);
+
+  // 弹窗展示期间同步行位置若因字体/图片异步加载而变化，实时校正镂空
+  useEffect(() => {
+    if (!entryDialog) return;
+    const raf = requestAnimationFrame(() => {
+      measureSyncHole(hole => {
+        if (hole) setSyncHole(hole);
+      });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [entryDialog, measureSyncHole]);
 
   const chooseSyncDefault = (enabled: boolean) => {
     storageUtils.set(GUIDE_SHOWN_KEY, '1');
@@ -1134,7 +1172,7 @@ export default function Publish() {
 
   const renderEntryDialog = () => (
     <Modal visible={entryDialog !== null} transparent animationType="fade">
-      <View style={styles.entryOverlay}>
+      <View ref={overlayRef} style={styles.entryOverlay} collapsable={false}>
         {syncHole ? (
           <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
             <Path
@@ -1153,6 +1191,14 @@ export default function Publish() {
         ) : (
           <View style={[styles.entryDim, StyleSheet.absoluteFill]} />
         )}
+        {/* 卡片锚定在镂空正上方（对齐原型：底部尖角指向镂空区），无镂空时居中兜底 */}
+        <View
+          style={[
+            styles.entryCardAnchor,
+            syncHole ? { height: Math.max(syncHole.y - scaleSizeH(10), 0) } : styles.entryCardAnchorCenter,
+          ]}
+          pointerEvents="box-none"
+        >
         {entryDialog === 'ask' && (
           <View style={styles.entryCard}>
             <Text style={styles.entryTitle}>是否默认同步到「正在发生」?</Text>
@@ -1178,6 +1224,8 @@ export default function Publish() {
               <Text style={styles.entryBtnText}>保持关闭</Text>
             </TouchableOpacity>
             <Text style={styles.entryFoot}>保存为我的发布默认值，以后可在设置中修改</Text>
+            {/* 底部尖角（原型：指向下方「同步到正在发生」镂空区） */}
+            <View style={styles.entryCardTail} pointerEvents="none" />
           </View>
         )}
         {entryDialog === 'onConfirm' && (
@@ -1217,12 +1265,15 @@ export default function Publish() {
             </TouchableOpacity>
           </View>
         )}
+        </View>
       </View>
     </Modal>
   );
 
   return (
     <SafeView backgroundColor="#fff">
+      {/* measureInWindow 坐标系标定探针（不可见，勿删，同步引导镂空用） */}
+      <View ref={probeRef} style={styles.measureProbe} collapsable={false} pointerEvents="none" />
       <KeyboardAvoidingView style={styles.flex1} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView style={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {!bodyEditing && (
@@ -1297,7 +1348,18 @@ export default function Publish() {
                 openSheet(commentRef),
               )}
 
-              <View style={styles.syncRow} ref={syncRowRef} collapsable={false}>
+              <View
+                style={styles.syncRow}
+                ref={syncRowRef}
+                collapsable={false}
+                onLayout={() => {
+                  if (entryDialog) {
+                    measureSyncHole(hole => {
+                      if (hole) setSyncHole(hole);
+                    });
+                  }
+                }}
+              >
                 <Image source={ICONS.sync} style={styles.iconSync} />
                 <View style={styles.syncCopy}>
                   <View style={styles.syncTitleRow}>
@@ -1874,8 +1936,37 @@ const styles = StyleSheet.create({
   },
   entryOverlay: {
     flex: 1,
-    justifyContent: 'center',
+  },
+  measureProbe: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 1,
+    height: 1,
+    opacity: 0,
+  },
+  entryCardAnchor: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  entryCardAnchorCenter: {
+    bottom: 0,
+    justifyContent: 'center',
+  },
+  entryCardTail: {
+    position: 'absolute',
+    bottom: -scaleSizeW(6),
+    left: '50%',
+    marginLeft: -scaleSizeW(6),
+    width: scaleSizeW(12),
+    height: scaleSizeW(12),
+    borderRadius: scaleSizeW(2),
+    backgroundColor: '#FFFFFF',
+    transform: [{ rotate: '45deg' }],
   },
   entryDim: {
     position: 'absolute',
