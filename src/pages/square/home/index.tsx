@@ -15,6 +15,7 @@ import WaterfallCard, { WaterfallItem } from '@/components/WaterfallCard';
 import WaterfallSkeleton from './WaterfallSkeleton';
 import EmptyState from '@/components/EmptyState';
 import { API } from '@/api';
+import { isLongFormBbs } from '@/utils/bbsContent';
 import { useBbsInteractionStore } from '@/store/bbsInteraction';
 import { useUserStore } from '@/store/user';
 import { setDetailCache } from '@/utils/detailCache';
@@ -37,18 +38,27 @@ function ossVideoSnapshot(videoUrl: string): string {
 function transformBbsToItem(bbs: any): WaterfallItem {
   const media = bbs.mediaLinkList?.[0]?.media;
   const isVideo = media?.fileType === 'video';
-  const imageUrl = isVideo
-    ? (bbs.posterUrl || bbs.coverUrl || ossVideoSnapshot(media?.mdUrl || ''))
-    : (media?.mdUrl || bbs.posterUrl || bbs.coverUrl || '');
-  const originalWidth = media?.width ? parseInt(media.width, 10) : 194;
-  const originalHeight = media?.height ? parseInt(media.height, 10) : 200;
+  const useLongCover = isLongFormBbs(bbs) && !!bbs.coverUrl;
+  const imageUrl = useLongCover
+    ? bbs.coverUrl
+    : isVideo
+      ? (bbs.posterUrl || bbs.coverUrl || ossVideoSnapshot(media?.mdUrl || ''))
+      : (media?.mdUrl || bbs.posterUrl || bbs.coverUrl || '');
+  // 独立封面没有宽高信息，不使用正文首图的尺寸。
+  const originalWidth = !useLongCover && media?.width ? parseInt(media.width, 10) : 194;
+  const originalHeight = !useLongCover && media?.height ? parseInt(media.height, 10) : 200;
   const imageHeight = Math.min(Math.round((194 * originalHeight) / originalWidth), 320);
 
   return {
     id: String(bbs.id),
     imageUrl,
     imageHeight,
-    title: bbs.title || '',
+    title: bbs.title?.trim() || (bbs.content || '')
+      .replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 50),
     avatarUrl: bbs.userInfoVo?.avatar || '',
     userName: bbs.userInfoVo?.nickname || bbs.userInfoVo?.username || '',
     companyName: bbs.userInfoVo?.cpName || '',

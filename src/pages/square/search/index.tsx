@@ -24,6 +24,7 @@ import PermissionButton from '@/components/PermissionButton';
 import WaterfallCard, { type WaterfallItem } from '@/components/WaterfallCard';
 import { NavBackButton } from '@/components/NavHeader';
 import { API } from '@/api';
+import { isLongFormBbs } from '@/utils/bbsContent';
 import { setFollow } from '@/store/follow';
 import { useBbsInteractionStore } from '@/store/bbsInteraction';
 import { useUserStore } from '@/store/user';
@@ -201,11 +202,15 @@ function mapUser(u: any): UserItem {
 function mapBbs(bbs: any): WaterfallItem {
   const media = bbs.mediaLinkList?.[0]?.media;
   const isVideo = media?.fileType === 'video';
-  const imageUrl = isVideo
-    ? (bbs.posterUrl || bbs.poster || bbs.coverUrl || ossVideoSnapshot(media?.mdUrl || ''))
-    : (media?.mdUrl || bbs.posterUrl || bbs.poster || bbs.coverUrl || '');
-  const w = media?.width ? parseInt(media.width, 10) : 194;
-  const h = media?.height ? parseInt(media.height, 10) : 237;
+  const useLongCover = isLongFormBbs(bbs) && !!bbs.coverUrl;
+  const imageUrl = useLongCover
+    ? bbs.coverUrl
+    : isVideo
+      ? (bbs.posterUrl || bbs.poster || bbs.coverUrl || ossVideoSnapshot(media?.mdUrl || ''))
+      : (media?.mdUrl || bbs.posterUrl || bbs.poster || bbs.coverUrl || '');
+  // 独立封面没有宽高信息，不使用正文首图的尺寸。
+  const w = !useLongCover && media?.width ? parseInt(media.width, 10) : 194;
+  const h = !useLongCover && media?.height ? parseInt(media.height, 10) : 237;
   return {
     id: String(bbs.bbsId ?? bbs.id ?? Math.random()),
     imageUrl,

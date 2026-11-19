@@ -26,6 +26,7 @@ import Svg, { Path } from 'react-native-svg';
 import LongHtmlView from '@/components/LongHtmlView';
 import ImagePicker from 'react-native-image-crop-picker';
 import { API } from '@/api';
+import { isLongFormBbs } from '@/utils/bbsContent';
 import SafeView from '@/components/SafeView';
 import AppBottomSheet from '@/components/AppBottomSheet';
 import ImageUploader from '@/components/ImageUploader';
@@ -255,8 +256,8 @@ export default function Publish() {
         const imageList: string[] = (d.imageList ?? []).map(toUrl).filter(Boolean);
         const videoList: string[] = (d.videoList ?? []).map(toUrl).filter(Boolean);
         const coverUrl = bbs.coverUrl || bbs.posterUrl || null;
-        if (bbs.draftType === 2 || /<\/?(p|img|video|strong|em|u|span|h[1-6])[ >]/i.test(bbs.content || '')) {
-          // 动态表无 draftType 字段，长文按正文是否含 HTML 标签识别
+        const draftType = bbs.draftType == null ? null : Number(bbs.draftType);
+        if (isLongFormBbs(bbs)) {
           setActiveTab('long');
           setLongTitle(bbs.title || '');
           setLongHtml(bbs.content || '');
@@ -264,9 +265,9 @@ export default function Publish() {
           return;
         }
         setImages(imageList);
-        if (videoList.length > 0) {
+        if (draftType === 1 || (draftType == null && videoList.length > 0)) {
           setActiveTab('video');
-          setVideoUrl(videoList[0]);
+          setVideoUrl(videoList[0] || null);
           setVideoCover(coverUrl);
         }
       })
@@ -727,7 +728,7 @@ export default function Publish() {
           { text: '知道了', onPress: () => setAllowLeave(true) },
         ]);
       } else {
-        // 新发布：/publish/submit（draftType: 0图文/1视频）
+        // 新发布：/publish/submit（draftType: 0图文/1视频/2长文）
         const res = await API.bbs.push({
           draftType: activeTab === 'video' ? 1 : activeTab === 'long' ? 2 : 0,
           title: activeTitle.trim(),

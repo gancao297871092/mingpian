@@ -32,6 +32,7 @@ import PermissionButton from '@/components/PermissionButton';
 import RichText from '@/components/RichText';
 import LongHtmlView from '@/components/LongHtmlView';
 import { API } from '@/api';
+import { isLongFormBbs } from '@/utils/bbsContent';
 import { scaleSizeH, scaleSizeW, setSpText, SCREEN_WIDTH } from '@/utils/screenUtils';
 import { formatLikeCount } from '@/utils/format';
 import { useUserStore } from '@/store/user';
@@ -1178,8 +1179,7 @@ export default function BbsDetail() {
 
   const renderHeader = () => {
     if (!detail) return null;
-    // 长文按正文是否含 HTML 标签识别（动态表无 draftType 字段）
-    const isLongForm = /<\/?(p|img|video|strong|em|u|span|h[1-6])[ >]/i.test(detail.content || '');
+    const isLongForm = isLongFormBbs(detail);
     return (
       <View>
         {detail.images.length > 0 && !isLongForm && !mediaReady && (

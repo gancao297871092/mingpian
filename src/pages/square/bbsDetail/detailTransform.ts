@@ -5,6 +5,8 @@ export interface DetailData {
   id: string;
   title: string;
   content: string;
+  /** 发布类型：0图文、1视频、2长文；历史动态可能未记录 */
+  draftType: number | null;
   tags: string[];
   timeText: string;
   location: string;
@@ -74,6 +76,7 @@ export function transformDetail(bbs: any): DetailData {
     id: String(bbs.id),
     title: bbs.title || '',
     content: bbs.content || '',
+    draftType: bbs.draftType == null ? null : Number(bbs.draftType),
     tags: parseTags(bbs.tags),
     timeText: formatPushTime(bbs.pushTime),
     location: joinRegion(bbs.province, bbs.city) || bbs.ipLocation || '',
