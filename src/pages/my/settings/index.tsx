@@ -127,7 +127,7 @@ export default function Settings() {
         />
         <Section
           rows={[
-            { label: '切换账号', icon: <SettingSwitchIcon />, onPress: onSwitchAccount },
+            // { label: '切换账号', icon: <SettingSwitchIcon />, onPress: onSwitchAccount },
             { label: '退出登录', icon: <SettingLogoutIcon />, onPress: onLogout },
           ]}
         />

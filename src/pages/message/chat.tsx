@@ -282,7 +282,7 @@ export default function MessageChat() {
   useLayoutEffect(() => {
     navigation.setOptions({
       headerTitle: ChatHeaderTitle,
-      headerRight: () => <ChatHeaderRight onPress={onPressMore} />,
+      // headerRight: () => <ChatHeaderRight onPress={onPressMore} />,
     });
   }, [navigation, onPressMore]);
 
