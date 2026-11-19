@@ -89,7 +89,7 @@ export default function AccountSecurity() {
           {/* 注销账号：红 badge 为未通过项数，静态写死 3（对应注销条件检测页），联调后由接口返回 */}
           <SettingRow
             label="注销账号"
-            icon={<WechatIcon />}
+            // icon={<WechatIcon />}
             badge={3}
             onPress={() => navigation.navigate('accountCancelWarning')}
           />
