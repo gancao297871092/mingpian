@@ -39,7 +39,8 @@ import type { RootStackParamList } from '@/route/map';
 
 const BLUE = '#075CFF';
 const INK = '#17243A';
-const PAPER = '#F6F6F7';
+// 页面底色：设计稿 32.消息详情 整页纯白（对方气泡用 #F5F5F5 区分）
+const PAPER = '#FFFFFF';
 const MUTED = '#98A1B0';
 
 /** 留言实体（wq_user_message，后端 JSON camelCase） */
@@ -619,8 +620,10 @@ export default function MessageChat() {
 
   return (
     <SafeView backgroundColor={PAPER}>
-      {/* 头部（figma 32.消息详情）：返回 + 对方头像/昵称/企业名 + 关注 + 聊天设置 */}
-      <NavHeader
+      {/* 头部（figma 32.消息详情）：返回 + 对方头像/昵称/企业名 + 关注 + 聊天设置。
+          键盘上顶时列表内容会滑入头部区域，头部需白底 + zIndex 盖在列表之上（替代原原生导航栏的遮挡作用） */}
+      <View style={styles.headerBar}>
+        <NavHeader
         center={
           <TouchableOpacity
             activeOpacity={0.7}
@@ -666,7 +669,8 @@ export default function MessageChat() {
             {/* 聊天设置入口（33.聊天设置）暂时隐藏，页面建成后再放开 */}
           </View>
         }
-      />
+        />
+      </View>
       <View style={styles.container} onTouchStart={hideTools}>
         {/* 留言列表：顶部锚定；加载历史保持当前位置；随键盘按溢出量上顶 */}
         <Animated.View
@@ -740,7 +744,7 @@ export default function MessageChat() {
           onTouchStart={onComposeTouchStart}
           style={[
             styles.compose,
-            { paddingBottom: (Platform.OS === 'android' && layoutHeight.current.keyboard > 0 ? 0 : insets.bottom) + scaleSizeH(8) },
+            { paddingBottom: (Platform.OS === 'android' && layoutHeight.current.keyboard > 0 ? 0 : insets.bottom) + (Platform.OS === 'android' ? scaleSizeH(10) : scaleSizeH(-10)) },
             {
               transform: [
                 {
@@ -831,6 +835,12 @@ const styles = StyleSheet.create({
     backgroundColor: PAPER,
   },
   // 头部（figma 32.消息详情：返回与头像间距12、头像与文字间距10、头像37、昵称12/企业名10、关注胶囊64x28）
+  headerBar: {
+    backgroundColor: '#FFFFFF',
+    // 键盘上顶时列表会滑过头部原区域，头部必须压在最上层（对齐原原生导航栏的遮挡效果）
+    zIndex: 10,
+    elevation: 10,
+  },
   headerPeer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -964,7 +974,8 @@ const styles = StyleSheet.create({
     paddingVertical: scaleSizeH(10),
   },
   bubblePeer: {
-    backgroundColor: '#FFFFFF',
+    // 设计稿：对方气泡灰底（页面为纯白）
+    backgroundColor: '#F5F5F5',
     borderTopLeftRadius: scaleSizeW(4),
   },
   bubbleMine: {
@@ -1012,19 +1023,17 @@ const styles = StyleSheet.create({
     paddingTop: scaleSizeH(10),
   },
   chip: {
-    height: scaleSizeH(30),
+    // 设计稿：淡蓝胶囊 + 主色蓝字
     paddingHorizontal: scaleSizeW(12),
-    borderRadius: scaleSizeW(8),
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#E3E6EB',
-    backgroundColor: '#F7F8FA',
+    paddingVertical: scaleSizeH(5),
+    borderRadius: 90,
+    backgroundColor: '#F2F6FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
   chipText: {
     fontSize: setSpText(12),
-    fontWeight: '600',
-    color: '#1C2433',
+    color: '#2962D4',
   },
   composeRow: {
     flexDirection: 'row',
