@@ -131,7 +131,12 @@ export default function CompanyJoin() {
     const canApply = item.checkStatus === undefined || item.checkStatus === null || item.checkStatus === -1;
     const status = !canApply && item.checkStatus != null ? STATUS[item.checkStatus] : undefined;
     return (
-      <View style={styles.row}>
+      // 整行点击进企业主页；右侧「申请」按钮独立响应进入申请页
+      <TouchableOpacity
+        activeOpacity={0.7}
+        style={styles.row}
+        onPress={() => navigation.navigate('companyPage', { id: item.id })}
+      >
         <AppImage source={{ uri: item.avatar || '' }} style={styles.avatar} contentFit="cover" transition={150} recyclingKey={item.avatar} />
         <View style={styles.rowText}>
           <Text style={styles.rowName} numberOfLines={2}>{item.name}</Text>
@@ -150,7 +155,7 @@ export default function CompanyJoin() {
             <Text style={styles.statusText}>{status?.label ?? ''}</Text>
           </View>
         )}
-      </View>
+      </TouchableOpacity>
     );
   };
 

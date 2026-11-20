@@ -38,6 +38,10 @@ interface RowItem {
   danger?: boolean;
   badge?: number;
   tag?: string;
+  /** tag 色调：orange=待审核类（默认），gray=已完成类（如已认证） */
+  tagTone?: 'orange' | 'gray';
+  /** 禁用点击并隐藏右侧箭头（如已完成实名认证） */
+  disabled?: boolean;
   onPress: () => void;
 }
 
@@ -323,8 +327,11 @@ export default function CompanyManage() {
           {
             label: '实名认证',
             icon: <CompanyAuditIcon />,
+            // 已实名：展示「已认证」标识，隐藏箭头且不可再进入认证页
+            tag: realAuthed ? '已认证' : undefined,
+            tagTone: 'gray',
+            disabled: realAuthed,
             onPress: () => {
-              // 已实名不可再进入认证页
               if (realAuthed) return;
               navigation.navigate('companyRealName');
             },
@@ -333,7 +340,7 @@ export default function CompanyManage() {
       : [];
 
   const renderRow = (row: RowItem) => (
-    <TouchableOpacity activeOpacity={0.7} style={styles.row} onPress={row.onPress}>
+    <TouchableOpacity activeOpacity={0.7} style={styles.row} onPress={row.onPress} disabled={row.disabled}>
       {row.icon}
       <Text style={[styles.rowLabel, row.danger && styles.rowLabelDanger]}>{row.label}</Text>
       <View style={styles.rowRight}>
@@ -343,11 +350,11 @@ export default function CompanyManage() {
           </View>
         )}
         {!!row.tag && (
-          <View style={styles.tag}>
-            <Text style={styles.tagText}>{row.tag}</Text>
+          <View style={[styles.tag, row.tagTone === 'gray' && styles.tagGray]}>
+            <Text style={[styles.tagText, row.tagTone === 'gray' && styles.tagGrayText]}>{row.tag}</Text>
           </View>
         )}
-        <SettingArrowIcon />
+        {!row.disabled && <SettingArrowIcon />}
       </View>
     </TouchableOpacity>
   );
@@ -471,6 +478,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: setSpText(14),
     color: '#FFFFFF',
+  },
+  // 已完成类标识（如已认证）：灰底灰字
+  tagGray: {
+    backgroundColor: '#F5F5F5',
+  },
+  tagGrayText: {
+    color: '#999999',
   },
   rowRight: {
     marginLeft: 'auto',

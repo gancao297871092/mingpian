@@ -59,6 +59,14 @@ const CUSTOM_CARD_TAG = '<custom-card>';
 /** 名片消息图片默认宽高比（商务/时尚海报 370:268 ≈ 1.38，onLoad 后替换为真实比例） */
 const DEFAULT_CARD_ASPECT = 1.38;
 
+/**
+ * 需要按键盘高度手动位移的平台：iOS 全量；Android 15+（API 35）。
+ * Android 15 起强制 edge-to-edge（本应用 targetSdk 36），adjustResize 不再缩小窗口、
+ * 键盘直接盖在页面上，必须与 iOS 一样按键盘高度上移输入区/列表；
+ * Android 15 以下仍由 adjustResize 缩小页面，不做手动位移（避免重复上移）。
+ */
+const MANUAL_KEYBOARD = Platform.OS === 'ios' || (Platform.OS === 'android' && Platform.Version >= 35);
+
 /** 时间分割线分组间隔：相邻留言超过 5 分钟则再显示一条时间（微信式，对齐 figma 32.消息详情） */
 const DIVIDER_GAP_MS = 5 * 60 * 1000;
 
@@ -151,7 +159,8 @@ function ChatHeaderTitle() {
   );
 }
 
-/** 路由头部右侧「···」（聊天设置） */
+/** 路由头部右侧「···」（聊天设置；功能建设中，暂未挂到 headerRight） */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function ChatHeaderRight({ onPress }: { onPress: () => void }) {
   return (
     <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} onPress={onPress}>
@@ -199,7 +208,7 @@ export default function MessageChat() {
   /** 名片消息图片的宽高比（按 url 记忆，onLoad 后按真实比例展示） */
   const [cardAspects, setCardAspects] = useState<Record<string, number>>({});
 
-  // ===== 键盘升降：iOS 手动位移；Android 由 adjustResize 缩小页面 =====
+  // ===== 键盘升降：iOS/Android15+ 手动位移；Android15 以下由 adjustResize 缩小页面 =====
   // translateY 直接承载键盘高度（0~endCoordinates.height）；
   // 输入区与键盘 1:1 上移（插值 [0,500]→[0,-500]）；
   // 列表仅当内容真的被遮住时才上顶，内容底对齐输入区上沿（1:1 插值，见 listShift 注释）
@@ -221,7 +230,7 @@ export default function MessageChat() {
    * 列表上顶量：内容底对齐到「输入区上沿」（不是键盘上沿——输入区浮在键盘上还占一段高度）
    * = min(内容溢出量, 键盘高) − 提示行高；≤0 表示键盘没遮到内容，不顶
    */
-  const kbd = Platform.OS === 'ios' ? layoutHeight.current.keyboard : 0;
+  const kbd = MANUAL_KEYBOARD ? layoutHeight.current.keyboard : 0;
   const over = layoutHeight.current.contentHieght - (layoutHeight.current.maxContentHieght - kbd);
   const listShift = Math.max(0, Math.min(Math.min(over, kbd) - layoutHeight.current.hint, 500));
 
@@ -253,7 +262,7 @@ export default function MessageChat() {
     const onShow = (e: any) => {
       if (!isFocused) return;
       layoutHeight.current.keyboard = e?.endCoordinates?.height ?? 0;
-      animateRun(Platform.OS === 'ios' ? layoutHeight.current.keyboard : 0);
+      animateRun(MANUAL_KEYBOARD ? layoutHeight.current.keyboard : 0);
       forceRender(n => n + 1);
     };
     const onHide = () => {
