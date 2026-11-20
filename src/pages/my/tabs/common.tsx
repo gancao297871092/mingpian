@@ -78,6 +78,7 @@ export interface LikedCommentData {
   bbsId: number;
   avatar: string;
   name: string;
+  commenterUsername?: string;
   content: string;
   bbsTitle: string;
   likeCount: number;
@@ -93,6 +94,7 @@ export function mapLikedComment(c: any): LikedCommentData {
     bbsId: Number(c?.bbsId ?? 0),
     avatar: c?.commenterAvatar || '',
     name: c?.commenterNickname || '',
+    commenterUsername: c?.commenterUsername,
     content: c?.content || (c?.commentStatus === 0 ? '该评论已删除' : ''),
     bbsTitle: c?.bbsTitle || '',
     likeCount: Number(c?.likeCount ?? 0),
@@ -244,7 +246,7 @@ export function LikedCommentCard({ item, onPress }: { item: LikedCommentData; on
           <View style={[tabStyles.likedCommentAvatar, tabStyles.likedCommentAvatarPlaceholder]} />
         )}
         <View style={tabStyles.likedCommentBody}>
-          <Text style={tabStyles.likedCommentName} numberOfLines={1}>{item.name}</Text>
+          <Text style={tabStyles.likedCommentName} numberOfLines={1}>{item.name || item.commenterUsername}</Text>
           <Text style={tabStyles.likedCommentContent} numberOfLines={2}>{item.content}</Text>
           {!!item.bbsTitle && (
             <Text style={tabStyles.likedCommentOrigin} numberOfLines={1}>来自动态·{item.bbsTitle}</Text>

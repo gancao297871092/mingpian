@@ -74,6 +74,7 @@ export default function My() {
   console.log('userInfo', userInfo);
   const wqUser = userInfo?.wqUser;
   const cpName = userInfo?.cpName || wqUser?.cpName;
+  const cpId = userInfo?.cpId ?? wqUser?.cpId;
   const myId = wqUser?.id ?? 0;
 
   /** 锁图标：tab 始终显示，仅锁样式受隐私字段控制（0-私密显示锁 1-公开不显示） */
@@ -402,10 +403,17 @@ export default function My() {
                 <View style={styles.profileText}>
                   <Text style={styles.nickname}>{wqUser?.username || wqUser?.nickname || '未登录'}</Text>
                   {!!cpName && (
-                    <View style={styles.companyRow}>
-                      <Text style={styles.companyText} numberOfLines={1}>{cpName}</Text>
-                      <CompanyIcon />
-                    </View>
+                    // 点击公司名跳转企业主页（对齐 UserHome 的交互）
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      disabled={!cpId}
+                      onPress={() => navigation.navigate('companyPage', { id: cpId!, userId: myId })}
+                    >
+                      <View style={styles.companyRow}>
+                        <Text style={styles.companyText} numberOfLines={1}>{cpName}</Text>
+                        <CompanyIcon />
+                      </View>
+                    </TouchableOpacity>
                   )}
                 </View>
               </View>
