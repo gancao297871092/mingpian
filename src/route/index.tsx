@@ -941,13 +941,8 @@ export default function RootNavigator() {
         <Stack.Screen
           name="messageDetail"
           component={MessageChat}
-          options={{
-            headerStyle: { backgroundColor: '#FFFFFF' },
-            headerTitleStyle: { color: '#000000' },
-            headerShadowVisible: false,
-            // iOS 26：去掉列表顶部在导航栏下的渐进模糊层（UIScrollEdgeEffect，默认 automatic）
-            scrollEdgeEffects: { top: 'hidden' },
-          }}
+          // 自定义头部（figma 32.消息详情：头像/昵称/企业名/关注/···），由页面内 NavHeader 渲染
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="interactionComment"

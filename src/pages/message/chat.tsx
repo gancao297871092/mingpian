@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -25,11 +25,14 @@ import { useIsFocused, useNavigation, useRoute, type RouteProp } from '@react-na
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SafeView from '@/components/SafeView';
+import NavHeader from '@/components/NavHeader';
+import { CardVerifiedIcon } from '@/components/cards/cardIcons';
 import AppBottomSheet from '@/components/AppBottomSheet';
 import PersonalPoster from '@/components/posters/PersonalPoster';
 import { getCardPhoto, normalizeCardStyle } from '@/components/cards/types';
 import { API } from '@/api';
 import { useUserStore } from '@/store/user';
+import { setFollow, toggleFollow, useFollowStore } from '@/store/follow';
 import { scaleSizeH, scaleSizeW, setSpText, SCREEN_WIDTH } from '@/utils/screenUtils';
 import { storageUtils } from '@/utils/storage';
 import type { RootStackParamList } from '@/route/map';
@@ -134,42 +137,6 @@ function formatHHmm(msgTime: string): string {
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-/**
- * 路由头部数据载体：native-stack 对 headerTitle 闭包只在首次渲染生效，
- * 组件身份必须稳定，因此头部组件从模块级 ref 读数，由 title 字符串变化驱动重渲染。
- */
-const chatHeaderPeer: { current: { name: string; cpName: string; userType?: number } } = {
-  current: { name: '', cpName: '' },
-};
-
-/** 路由头部：昵称 + 蓝色企业名两行标题（figma 32.消息详情） */
-function ChatHeaderTitle() {
-  const p = chatHeaderPeer.current;
-  return (
-    <View style={styles.headerTitle}>
-      <Text style={styles.headerName} numberOfLines={1}>
-        {p.name}
-        {p.userType === 1 ? '（官方账号）' : ''}
-      </Text>
-      {!!p.cpName && (
-        <Text style={styles.headerCp} numberOfLines={1}>
-          {p.cpName}
-        </Text>
-      )}
-    </View>
-  );
-}
-
-/** 路由头部右侧「···」（聊天设置；功能建设中，暂未挂到 headerRight） */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function ChatHeaderRight({ onPress }: { onPress: () => void }) {
-  return (
-    <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} onPress={onPress}>
-      <Text style={styles.headerMore}>···</Text>
-    </TouchableOpacity>
-  );
-}
-
 /** 32.消息详情：留言模式会话（无 IM；键盘交互对齐 coingetApp chatSession/index.ios.tsx） */
 export default function MessageChat() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -183,10 +150,18 @@ export default function MessageChat() {
   const myId = myUser?.id;
   const myAvatar = myUser?.avatar || '';
 
-  /** 对方信息（/common/user/base/info） */
-  const [peer, setPeer] = useState<{ name: string; avatar: string; cpName: string; cpId?: number; userType?: number }>({
-    name: '',
-    avatar: '',
+  /** 对方信息（/common/user/base/info；先用路由参数里的昵称/头像占位，接口返回后覆盖） */
+  const [peer, setPeer] = useState<{
+    name: string;
+    avatar: string;
+    cpName: string;
+    cpId?: number;
+    userType?: number;
+    /** 企业认证状态（1已认证，头部公司名后展示认证标识） */
+    cpCheckStatus?: number;
+  }>({
+    name: route.params?.name || '',
+    avatar: route.params?.avatar || '',
     cpName: '',
   });
 
@@ -301,20 +276,6 @@ export default function MessageChat() {
     e.stopPropagation();
   }, []);
 
-  // ===== 头部：稳定组件类型 + title 字符串驱动刷新（native-stack 不认后续闭包）=====
-  const onPressMore = useCallback(() => Toast.show({ type: 'info', text1: '聊天设置建设中' }), []);
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerTitle: ChatHeaderTitle,
-      // headerRight: () => <ChatHeaderRight onPress={onPressMore} />,
-    });
-  }, [navigation, onPressMore]);
-
-  useEffect(() => {
-    chatHeaderPeer.current = { name: peer.name, cpName: peer.cpName, userType: peer.userType };
-    navigation.setOptions({ title: peer.name });
-  }, [navigation, peer]);
-
   // ===== 参数守卫：缺 userId 会话不可用，提示后返回 =====
   useEffect(() => {
     if (!peerUserId) {
@@ -323,7 +284,7 @@ export default function MessageChat() {
     }
   }, [peerUserId, navigation]);
 
-  // ===== 加载对方信息 =====
+  // ===== 加载对方信息（顺带回灌全局关注状态，头部关注按钮直接订阅 follow store）=====
   useEffect(() => {
     if (!peerUserId) return;
     (async () => {
@@ -331,17 +292,29 @@ export default function MessageChat() {
         const res = await API.common.userBaseInfo({ userId: peerUserId });
         const d = res.data ?? {};
         setPeer({
-          name: d.wqUser?.username || '',
-          avatar: d.wqUser?.avatar || '',
+          // 接口字段为空时保留路由参数占位值，避免头部返空
+          name: d.wqUser?.username || route.params?.name || '',
+          avatar: d.wqUser?.avatar || route.params?.avatar || '',
           cpName: d.cpName || '',
           cpId: d.cpId,
           userType: d.wqUser?.userType,
+          cpCheckStatus: d.cpCheckStatus,
         });
+        setFollow(peerUserId, !!(d.isFollowed ?? d.wqUser?.currentUserIsFollow));
       } catch {
         // 拦截器已提示错误
       }
     })();
-  }, [peerUserId]);
+  }, [peerUserId, route.params?.name, route.params?.avatar]);
+
+  // ===== 头部关注按钮：状态走全局 follow store（与他人主页/关注列表同步）=====
+  const followed = useFollowStore(s => (peerUserId != null ? s.map[String(peerUserId)] : undefined)) ?? false;
+  const [followBusy, setFollowBusy] = useState(false);
+  const onToggleFollow = useCallback(() => {
+    if (!peerUserId || followBusy) return;
+    setFollowBusy(true);
+    toggleFollow(peerUserId, followed).finally(() => setFollowBusy(false));
+  }, [peerUserId, followed, followBusy]);
 
   // ===== 留言加载 =====
   const fetchMessages = useCallback(
@@ -646,6 +619,54 @@ export default function MessageChat() {
 
   return (
     <SafeView backgroundColor={PAPER}>
+      {/* 头部（figma 32.消息详情）：返回 + 对方头像/昵称/企业名 + 关注 + 聊天设置 */}
+      <NavHeader
+        center={
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={styles.headerPeer}
+            disabled={!peerUserId}
+            onPress={() => peerUserId && navigation.navigate('userHome', { userId: peerUserId })}
+          >
+            {peer.avatar ? (
+              <AppImage source={{ uri: peer.avatar }} style={styles.headerAvatar} contentFit="cover" transition={150} />
+            ) : (
+              <View style={[styles.headerAvatar, styles.logoAvatar]}>
+                <Text style={styles.logoAvatarText}>{(peer.name || peer.cpName || '').slice(0, 1)}</Text>
+              </View>
+            )}
+            <View style={styles.headerPeerText}>
+              <Text style={styles.headerName} numberOfLines={1}>
+                {peer.name}
+                {peer.userType === 1 ? '（官方账号）' : ''}
+              </Text>
+              {!!peer.cpName && (
+                <View style={styles.headerCpRow}>
+                  <Text style={styles.headerCp} numberOfLines={1}>{peer.cpName}</Text>
+                  {peer.cpCheckStatus === 1 && <CardVerifiedIcon size={10} />}
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
+        }
+        right={
+          <View style={styles.headerRight}>
+            {peerUserId != null && Number(peerUserId) !== Number(myId) && (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                style={[styles.followPill, followed && styles.followPillDone]}
+                disabled={followBusy}
+                onPress={onToggleFollow}
+              >
+                <Text style={[styles.followPillText, followed && styles.followPillTextDone]}>
+                  {followed ? '已关注' : '关注'}
+                </Text>
+              </TouchableOpacity>
+            )}
+            {/* 聊天设置入口（33.聊天设置）暂时隐藏，页面建成后再放开 */}
+          </View>
+        }
+      />
       <View style={styles.container} onTouchStart={hideTools}>
         {/* 留言列表：顶部锚定；加载历史保持当前位置；随键盘按溢出量上顶 */}
         <Animated.View
@@ -809,32 +830,67 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: PAPER,
   },
-  // 头部
-  headerTitle: {
+  // 头部（figma 32.消息详情：返回与头像间距12、头像与文字间距10、头像37、昵称12/企业名10、关注胶囊64x28）
+  headerPeer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSizeW(10),
+    marginLeft: scaleSizeW(12),
+    flexShrink: 1,
+  },
+  headerAvatar: {
+    width: scaleSizeW(37),
+    height: scaleSizeW(37),
+    borderRadius: scaleSizeW(37) / 2,
+    overflow: 'hidden',
+    backgroundColor: '#F2F3F5',
+  },
+  headerPeerText: {
+    gap: scaleSizeH(2),
+    flexShrink: 1,
+  },
+  headerName: {
+    fontSize: setSpText(12),
+    fontWeight: '500',
+    lineHeight: setSpText(12),
+    color: '#333333',
+  },
+  headerCpRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSizeW(3),
+  },
+  headerCp: {
+    fontSize: setSpText(10),
+    lineHeight: setSpText(12),
+    color: '#6C6C6C',
+    flexShrink: 1,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSizeW(10),
+  },
+  followPill: {
+    height: scaleSizeH(28),
+    minWidth: scaleSizeW(64),
+    paddingHorizontal: scaleSizeW(14),
+    borderRadius: 90,
+    borderWidth: 1,
+    borderColor: '#2962D4',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerName: {
-    fontSize: setSpText(15),
-    fontWeight: '600',
-    lineHeight: setSpText(19),
-    color: '#17243A',
-    maxWidth: scaleSizeW(220),
+  followPillDone: {
+    borderColor: '#D9D9D9',
   },
-  headerCp: {
-    marginTop: scaleSizeH(3),
-    fontSize: setSpText(11),
-    lineHeight: setSpText(14),
-    fontWeight: '400',
-    color: BLUE,
-    maxWidth: scaleSizeW(220),
+  followPillText: {
+    fontSize: setSpText(12),
+    lineHeight: setSpText(12),
+    color: '#2962D4',
   },
-  headerMore: {
-    fontSize: setSpText(18),
-    fontWeight: '700',
-    color: '#151D2A',
-    marginRight: scaleSizeW(4),
-    letterSpacing: 1,
+  followPillTextDone: {
+    color: '#999999',
   },
   // 列表
   listWrap: {

@@ -130,7 +130,7 @@ export type RootStackParamList = {
   /** 填写说明（figma 55.填写说明 329:2395） */
   fillGuide: undefined;
   /** 32.消息详情（留言模式会话；userId=对方用户ID，msgNumber=已有会话号可选） */
-  messageDetail: { userId: number; msgNumber?: number } | undefined;
+  messageDetail: { userId: number; msgNumber?: number; name?: string; avatar?: string } | undefined;
   /** 38.评论与回复（互动消息详情，figma 234:1448） */
   interactionComment: undefined;
   /** 39.点赞与关注（互动消息详情，figma 251:1790） */

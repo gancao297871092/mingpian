@@ -189,7 +189,13 @@ export default function MessagePage() {
           activeOpacity={0.7}
           style={styles.row}
           onPress={() =>
-            navigation.navigate('messageDetail', { userId: item.jsUserId, msgNumber: item.msgNumber })
+            // 顺带传入列表已有的昵称/头像，聊天页头部首帧即可展示（接口返回后覆盖）
+            navigation.navigate('messageDetail', {
+              userId: item.jsUserId,
+              msgNumber: item.msgNumber,
+              name,
+              avatar: item.sendUserAvatar,
+            })
           }
         >
           <MsgAvatar uri={item.sendUserAvatar} name={name} />
