@@ -4,6 +4,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
@@ -35,7 +36,7 @@ function ossVideoSnapshot(videoUrl: string): string {
   return `${videoUrl}?x-oss-process=video/snapshot,t_0,f_jpg,w_388,h_640,m_fast`;
 }
 
-function transformBbsToItem(bbs: any): WaterfallItem {
+function transformBbsToItem(bbs: any, cardWidth: number): WaterfallItem {
   const media = bbs.mediaLinkList?.[0]?.media;
   const isVideo = media?.fileType === 'video';
   const useLongCover = isLongFormBbs(bbs) && !!bbs.coverUrl;
@@ -47,7 +48,8 @@ function transformBbsToItem(bbs: any): WaterfallItem {
   // 独立封面没有宽高信息，不使用正文首图的尺寸。
   const originalWidth = !useLongCover && media?.width ? parseInt(media.width, 10) : 194;
   const originalHeight = !useLongCover && media?.height ? parseInt(media.height, 10) : 200;
-  const imageHeight = Math.min(Math.round((194 * originalHeight) / originalWidth), 320);
+  // 高度按原始宽高比折算到实际列宽（设备 px），最大高度对齐原 320 逻辑值
+  const imageHeight = Math.min(Math.round((cardWidth * originalHeight) / originalWidth), scaleSizeW(320));
 
   return {
     id: String(bbs.id),
@@ -77,6 +79,9 @@ type HomeTab = 'recommend' | 'follow';
 export default function Home() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const token = useUserStore(s => s.token);
+  const { width: windowWidth } = useWindowDimensions();
+  /** 瀑布流卡片定宽：列表左右留白 5、卡片左右外边距 2（对齐 402 设计稿列宽 192），防止 masonry 下卡片宽度未强制导致撑满/收缩 */
+  const cardWidth = (windowWidth - scaleSizeW(10)) / 2 - scaleSizeW(4);
   const [activeTab, setActiveTab] = useState<HomeTab>('recommend');
   const [followUnread, setFollowUnread] = useState(0);
   const params = useMemo(() => ({ tab: activeTab }), [activeTab]);
@@ -92,14 +97,14 @@ export default function Home() {
         code: res.code,
         msg: res.msg,
         data: {
-          list: data.list.map(transformBbsToItem),
+          list: data.list.map((bbs: any) => transformBbsToItem(bbs, cardWidth)),
           total: data.total,
           pageNum: data.pageNum,
           pages: data.pages,
         },
       };
     });
-  }, []);
+  }, [cardWidth]);
 
   /** 关注 tab 需要登录：未登录直接进入登录页，不切换 */
   const onPressFollowTab = useCallback(() => {
@@ -245,7 +250,14 @@ export default function Home() {
           masonry
           numColumns={2}
           renderItem={({ item }: { item: WaterfallItem }) => (
-            <WaterfallCard item={item} onToggleLike={onToggleLike} onPress={(id) => { setDetailCache(id, item.raw); navigation.navigate('bbsDetail', { id, isFollowed: item.isFollowed }); }} />
+            <WaterfallCard
+              item={item}
+              cardWidth={cardWidth}
+              imageWidthPx={cardWidth}
+              imageHeightPx={item.imageHeight}
+              onToggleLike={onToggleLike}
+              onPress={(id) => { setDetailCache(id, item.raw); navigation.navigate('bbsDetail', { id, isFollowed: item.isFollowed }); }}
+            />
           )}
           showsVerticalScrollIndicator={false}
           refreshing={fetching && list.length > 0}
@@ -339,6 +351,8 @@ const styles = StyleSheet.create({
     paddingTop: 5,
   },
   listContent: {
+    // flexGrow 让内容不足一屏时背景仍铺满，避免露出页面底层（部分 Android 机型为黑色）
+    flexGrow: 1,
     paddingHorizontal: scaleSizeW(5),
     paddingTop: scaleSizeH(5),
     paddingBottom: scaleSizeH(100),
