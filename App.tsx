@@ -30,6 +30,12 @@ const queryClient = new QueryClient({
   },
 });
 
+/** 启动画面最短展示时长（小红书约 0.4s，先按产品要求试 0.8s；从 JS 包加载完成起计，不足补齐、超出立即隐藏） */
+const LAUNCH_MIN_MS = 800;
+const appStartedAt = Date.now();
+/** 距离最短展示时长还剩多少毫秒 */
+const launchRemaining = () => Math.max(0, LAUNCH_MIN_MS - (Date.now() - appStartedAt));
+
 /** 全站统一暗色胶囊提示（对齐原型「验证码已发送」样式），success/error/info 视觉一致 */
 const AppToast = (props: ToastShowParams) => (
   <View style={toastStyles.wrap}>
@@ -85,7 +91,14 @@ function Root() {
         // ignore
       });
     }
-    if (Platform.OS !== 'android') BootSplash.hide({ fade: true });
+    // iOS：启动图至少展示 LAUNCH_MIN_MS 再淡出（Android 走下方 overlay 分支）
+    let hideTimer: ReturnType<typeof setTimeout> | undefined;
+    if (Platform.OS !== 'android') {
+      hideTimer = setTimeout(() => BootSplash.hide({ fade: true }), launchRemaining());
+    }
+    return () => {
+      if (hideTimer) clearTimeout(hideTimer);
+    };
   }, [consented, setToken, setUserInfo]);
 
   return (
@@ -109,14 +122,17 @@ function Root() {
           onLayout={() => {
             if (launchStarted.current) return;
             launchStarted.current = true;
-            // 纯透明度淡出（小红书同款）：overlay 与原生 splash 像素级一致，无位移动画、无缩放
-            BootSplash.hide({ fade: false }).then(() => {
-              Animated.timing(launchOpacity, {
-                toValue: 0,
-                duration: 300,
-                useNativeDriver: true,
-              }).start(() => setShowLaunch(false));
-            });
+            // 纯透明度淡出（小红书同款）：overlay 与原生 splash 像素级一致，无位移动画、无缩放；
+            // 启动画面至少展示 LAUNCH_MIN_MS 再淡出
+            setTimeout(() => {
+              BootSplash.hide({ fade: false }).then(() => {
+                Animated.timing(launchOpacity, {
+                  toValue: 0,
+                  duration: 300,
+                  useNativeDriver: true,
+                }).start(() => setShowLaunch(false));
+              });
+            }, launchRemaining());
           }}
         >
           <Image source={{ uri: 'bootsplash_logo' }} style={styles.wordmark} />

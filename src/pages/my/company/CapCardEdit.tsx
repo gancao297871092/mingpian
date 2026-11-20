@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useLayoutEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import Toast from 'react-native-toast-message';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import SafeView from '@/components/SafeView';
+import { KAV_BEHAVIOR } from '@/utils/keyboard';
 import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { useUserStore } from '@/store/user';
@@ -115,7 +116,7 @@ export default function CapCardEdit({ navigation, route }: Props) {
 
   return (
     <SafeView backgroundColor="#F6F7FB">
-      <KeyboardAvoidingView style={styles.flex1} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={styles.flex1} behavior={KAV_BEHAVIOR}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           {/* 能力卡名称 */}
           <View style={styles.labelRow}>

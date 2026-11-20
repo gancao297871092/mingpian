@@ -3,7 +3,6 @@ import {
   Image,
   KeyboardAvoidingView,
   Modal,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -20,6 +19,7 @@ import { API } from '@/api';
 import { getEditorResult } from '@/utils/editorBridge';
 import { scaleSizeW, setSpText } from '@/utils/screenUtils';
 import SafeView from '@/components/SafeView';
+import { KAV_BEHAVIOR } from '@/utils/keyboard';
 import LongHtmlView from '@/components/LongHtmlView';
 import type { RootStackParamList } from '@/route/map';
 import { CameraGrayIcon, DelCircleIcon, ExpandIcon } from './stepIcons';
@@ -197,7 +197,7 @@ export default function AddItem({ route, navigation }: Props) {
     <SafeView backgroundColor="#fff" disableTop>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={KAV_BEHAVIOR}
         keyboardVerticalOffset={0}
       >
         <ScrollView

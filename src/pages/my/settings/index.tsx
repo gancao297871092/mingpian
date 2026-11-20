@@ -18,7 +18,7 @@ import {
   SettingHelpIcon,
   SettingLogoutIcon,
   SettingPrivacyIcon,
-  SettingSwitchIcon,
+  // SettingSwitchIcon（切换账号行已下线，恢复时一并解开）
 } from './settingsIcons';
 import type { RootStackParamList } from '@/route/map';
 
@@ -70,20 +70,21 @@ export default function Settings() {
     ]);
   };
 
-  const onSwitchAccount = () => {
-    AppAlert.alert('切换账号', '确定要切换账号吗？', [
-      { text: '取消', style: 'cancel' },
-      {
-        text: '确定',
-        onPress: () => {
-          // 切换账号前解绑推送（设备不再收到当前账号的定向推送）
-          unbindPush();
-          logout();
-          navigation.reset({ index: 0, routes: [{ name: 'login' }] });
-        },
-      },
-    ]);
-  };
+  // 切换账号入口已随设置行一起下线；恢复时连同下方被注释的「切换账号」行一起解开
+  // const onSwitchAccount = () => {
+  //   AppAlert.alert('切换账号', '确定要切换账号吗？', [
+  //     { text: '取消', style: 'cancel' },
+  //     {
+  //       text: '确定',
+  //       onPress: () => {
+  //         // 切换账号前解绑推送（设备不再收到当前账号的定向推送）
+  //         unbindPush();
+  //         logout();
+  //         navigation.reset({ index: 0, routes: [{ name: 'login' }] });
+  //       },
+  //     },
+  //   ]);
+  // };
 
   const onLogout = () => {
     AppAlert.alert('退出登录', '确定要退出当前账号吗？', [
@@ -95,7 +96,11 @@ export default function Settings() {
           // 退出登录解绑推送（后端清掉设备行 userId，registrationId 保留；重新登录自动恢复绑定）
           unbindPush();
           logout();
-          navigation.reset({ index: 0, routes: [{ name: 'login' }] });
+          // 退出后回广场首页（游客可浏览）；嵌套 state 锁定 home tab，不受默认首页设置影响
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'MainTabs', state: { index: 0, routes: [{ name: 'home' }] } }],
+          });
         },
       },
     ]);

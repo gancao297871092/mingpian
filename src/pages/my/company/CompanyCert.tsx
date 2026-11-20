@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Linking, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Linking, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import ImagePicker from 'react-native-image-crop-picker';
 import Svg, { Circle, Path } from 'react-native-svg';
 import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
+import { KAV_BEHAVIOR } from '@/utils/keyboard';
 import AppBottomSheet from '@/components/AppBottomSheet';
 import { API } from '@/api';
 import { startFaceVerify } from '@/native/FaceVerify';
@@ -806,7 +807,7 @@ export default function CompanyCert() {
 
   return (
     <SafeView backgroundColor="#F6F7FB">
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={styles.flex} behavior={KAV_BEHAVIOR}>
         <View style={[styles.flex, step !== 1 && styles.hidden]}>
           <Step1 onNext={d => { setCert(d); setStep(2); }} />
         </View>

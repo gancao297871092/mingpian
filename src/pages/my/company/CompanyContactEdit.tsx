@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
+import { KAV_BEHAVIOR } from '@/utils/keyboard';
 import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
@@ -70,7 +71,7 @@ export default function CompanyContactEdit() {
 
   return (
     <SafeView backgroundColor="#F6F7FB">
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={styles.flex} behavior={KAV_BEHAVIOR}>
         <View style={styles.card}>
           {rows.map((row, i) => (
             <React.Fragment key={row.label}>

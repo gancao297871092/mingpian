@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import Svg, { Path } from 'react-native-svg';
 import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
+import { KAV_BEHAVIOR } from '@/utils/keyboard';
 import AppBottomSheet from '@/components/AppBottomSheet';
 import { API } from '@/api';
 import { startFaceVerify } from '@/native/FaceVerify';
@@ -262,7 +263,7 @@ export default function CompanyRealName() {
 
   return (
     <SafeView backgroundColor="#F6F7FB">
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={styles.flex} behavior={KAV_BEHAVIOR}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           {authStatus === 3 && !!authRemark && (
             <Text style={styles.rejectText}>*拒绝理由: {authRemark}</Text>

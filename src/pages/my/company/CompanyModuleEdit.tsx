@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
+import { KAV_BEHAVIOR } from '@/utils/keyboard';
 import LongHtmlView from '@/components/LongHtmlView';
 import { API } from '@/api';
 import { getEditorResult } from '@/utils/editorBridge';
@@ -109,7 +110,7 @@ export default function CompanyModuleEdit() {
 
   return (
     <SafeView backgroundColor="#F6F7FB">
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={styles.flex} behavior={KAV_BEHAVIOR}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Text style={styles.label}>模块名称</Text>
           <View style={styles.nameCard}>

@@ -19,6 +19,7 @@ import Svg, { Path } from 'react-native-svg';
 import QuillEditor from 'react-native-cn-quill';
 import ImagePicker from 'react-native-image-crop-picker';
 import SafeView from '@/components/SafeView';
+import { NEED_MANUAL_KEYBOARD } from '@/utils/keyboard';
 import { setEditorResult } from '@/utils/editorBridge';
 import { uploadToOss } from '@/utils/ossUpload';
 import { scaleSizeH, scaleSizeW } from '@/utils/screenUtils';
@@ -292,8 +293,10 @@ export default function LongTextEdit({ route, navigation }: Props) {
   const kbAnim = useRef(new Animated.Value(Platform.OS === 'ios' ? insets.bottom : 0)).current;
 
   useEffect(() => {
-    // Android 为 adjustResize，无需手动避让
-    if (Platform.OS !== 'ios') return;
+    // iOS 全版本手动避让；Android 15+（edge-to-edge 后 adjustResize 失效）手动；Android 14- 由 adjustResize 处理
+    if (!NEED_MANUAL_KEYBOARD) return;
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
     const onShow = (e: KeyboardEvent) => {
       Animated.timing(kbAnim, {
         toValue: e.endCoordinates.height,
@@ -304,14 +307,14 @@ export default function LongTextEdit({ route, navigation }: Props) {
     };
     const onHide = (e: KeyboardEvent) => {
       Animated.timing(kbAnim, {
-        toValue: insets.bottom,
+        toValue: Platform.OS === 'ios' ? insets.bottom : 0,
         duration: e.duration || 250,
         easing: Easing.out(Easing.ease),
         useNativeDriver: false,
       }).start();
     };
-    const showSub = Keyboard.addListener('keyboardWillShow', onShow);
-    const hideSub = Keyboard.addListener('keyboardWillHide', onHide);
+    const showSub = Keyboard.addListener(showEvt, onShow);
+    const hideSub = Keyboard.addListener(hideEvt, onHide);
     return () => {
       showSub.remove();
       hideSub.remove();
@@ -332,8 +335,16 @@ export default function LongTextEdit({ route, navigation }: Props) {
     navigation.setOptions({
       title,
       headerBackVisible: false,
-      headerLeft: undefined,
-      headerRight: undefined,
+      // header items 仅 iOS 生效；安卓回退到系统 headerLeft/headerRight，
+      // 否则头部左右为空、没有任何返回入口（企业管理-创建能力卡-编辑内容页安卓 bug）
+      headerLeft:
+        Platform.OS === 'android'
+          ? () => <HeaderCancel onPress={() => navigation.goBack()} />
+          : undefined,
+      headerRight:
+        Platform.OS === 'android'
+          ? () => <HeaderDone onPress={onDone} />
+          : undefined,
       unstable_headerLeftItems: () => [
         {
           type: 'custom',

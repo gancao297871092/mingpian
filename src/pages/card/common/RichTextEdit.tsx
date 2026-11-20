@@ -14,6 +14,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import QuillEditor from 'react-native-cn-quill';
 import ImagePicker from 'react-native-image-crop-picker';
 import SafeView from '@/components/SafeView';
+import { KAV_BEHAVIOR } from '@/utils/keyboard';
 import { setEditorResult } from '@/utils/editorBridge';
 import { API } from '@/api';
 import { scaleSizeW } from '@/utils/screenUtils';
@@ -121,7 +122,7 @@ export default function RichTextEdit({ route, navigation }: Props) {
     <SafeView backgroundColor="#fff">
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={KAV_BEHAVIOR}
         keyboardVerticalOffset={0}
       >
         {/* 顶部工具栏 — 对齐小程序 editor.vue */}

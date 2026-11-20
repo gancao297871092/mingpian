@@ -28,6 +28,7 @@ import ImagePicker from 'react-native-image-crop-picker';
 import { API } from '@/api';
 import { isLongFormBbs } from '@/utils/bbsContent';
 import SafeView from '@/components/SafeView';
+import { KAV_BEHAVIOR } from '@/utils/keyboard';
 import AppBottomSheet from '@/components/AppBottomSheet';
 import ImageUploader from '@/components/ImageUploader';
 import VideoUploader from '@/components/VideoUploader';
@@ -1325,7 +1326,7 @@ export default function Publish() {
       <View ref={probeRef} style={styles.measureProbe} collapsable={false} pointerEvents="none" />
       <KeyboardAvoidingView
         style={styles.flex1}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={KAV_BEHAVIOR}
         keyboardVerticalOffset={headerHeight}
       >
         <ScrollView

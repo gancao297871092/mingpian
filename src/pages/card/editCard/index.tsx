@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,6 +8,7 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import SafeView from '@/components/SafeView';
+import { KAV_BEHAVIOR } from '@/utils/keyboard';
 import { API } from '@/api';
 import { scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
@@ -140,7 +140,7 @@ export default function EditCard({ navigation, route }: Props) {
     <SafeView backgroundColor="#F6F7FB" disableTop>
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={KAV_BEHAVIOR}
         keyboardVerticalOffset={0}
       >
         <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
