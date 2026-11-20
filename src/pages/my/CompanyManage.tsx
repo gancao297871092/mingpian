@@ -92,6 +92,8 @@ export default function CompanyManage() {
   const role: 'admin' | 'member' | 'none' = !userInfo?.cpId ? 'none' : userInfo?.isManager === 1 ? 'admin' : 'member';
   /** 企业超管（解散企业/移交权限等超管专属操作入口） */
   const isSuper = userInfo?.isMaster === 1;
+  /** 已完成实名认证（authStatus=1，对齐小程序 moreSets） */
+  const realAuthed = userInfo?.wqUser?.authStatus === 1;
   /** 解散状态（0正常 1冷静期 2已解散；/company/dissolve/status，进入页面时拉取） */
   const [dissolveStatus, setDissolveStatus] = useState(0);
   const butlerRef = useRef<BottomSheetModal>(null);
@@ -147,7 +149,7 @@ export default function CompanyManage() {
    * 对齐设计稿批注②文案（小程序 onTipsAuthRealCard 同款交互，文案后续由小程序对齐）
    */
   const blockIfNotRealAuthed = () => {
-    if (userInfo?.wqUser?.authStatus === 1) return false;
+    if (realAuthed) return false;
     AppAlert.alert('提示', '创建或加入企业前请先完成实名认证', [
       { text: '取消', style: 'cancel' },
       { text: '去认证', onPress: () => navigation.navigate('companyRealName') },
@@ -316,7 +318,19 @@ export default function CompanyManage() {
           ];
 
   const extraRows: RowItem[] =
-    role === 'none' ? [{ label: '实名认证', icon: <CompanyAuditIcon />, onPress: () => navigation.navigate('companyRealName') }] : [];
+    role === 'none'
+      ? [
+          {
+            label: '实名认证',
+            icon: <CompanyAuditIcon />,
+            onPress: () => {
+              // 已实名不可再进入认证页
+              if (realAuthed) return;
+              navigation.navigate('companyRealName');
+            },
+          },
+        ]
+      : [];
 
   const renderRow = (row: RowItem) => (
     <TouchableOpacity activeOpacity={0.7} style={styles.row} onPress={row.onPress}>
