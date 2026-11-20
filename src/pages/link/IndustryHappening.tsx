@@ -10,6 +10,7 @@ import type { LinkOpportunityItem } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
 import { formatBasis } from './linkFormat';
+import { useOpenOpportunityDetail } from './useOpportunityDetail';
 import { ChevronLeftIcon, ChevronRightIcon, DiamondIcon, HiBubbleIcon, SearchIcon } from './icons';
 
 const PURPLE = '#7B5BD6';
@@ -42,6 +43,7 @@ function toHappeningItem(item: LinkOpportunityItem): HappeningItem {
 export default function IndustryHappening() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const openOpportunityDetail = useOpenOpportunityDetail();
   const [list, setList] = useState<HappeningItem[]>([]);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
@@ -129,7 +131,13 @@ export default function IndustryHappening() {
         </View>
 
         {list.map(item => (
-          <View key={item.id} style={styles.card}>
+          // 整块卡片可点进详情（内部先做实名拦截）；「查看详情」为纯展示行
+          <TouchableOpacity
+            key={item.id}
+            activeOpacity={0.85}
+            style={styles.card}
+            onPress={() => openOpportunityDetail(item.opportunityId)}
+          >
             <View style={styles.cardTitleRow}>
               <DiamondIcon size={11.5} />
               <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
@@ -144,15 +152,11 @@ export default function IndustryHappening() {
               </View>
             </View>
             <View style={styles.divider} />
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={styles.detailRow}
-              onPress={() => navigation.navigate('opportunityDetail', { opportunityId: item.opportunityId })}
-            >
+            <View style={styles.detailRow}>
               <Text style={styles.detailText}>查看详情</Text>
               <ChevronRightIcon size={10} />
-            </TouchableOpacity>
-          </View>
+            </View>
+          </TouchableOpacity>
         ))}
       </ScrollView>
     </SafeView>

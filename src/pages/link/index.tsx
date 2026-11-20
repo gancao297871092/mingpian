@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AppImage from '@/components/AppImage';
 import LinearGradient from 'react-native-linear-gradient';
+import Toast from 'react-native-toast-message';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +11,7 @@ import { API } from '@/api';
 import type { LinkHomeSummary } from '@/api';
 import { SCREEN_WIDTH, scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
+import { useOpenOpportunityDetail } from './useOpportunityDetail';
 import {
   ArrowCtaIcon,
   BuildingIcon,
@@ -38,6 +40,7 @@ interface Opportunity {
 export default function LinkPage() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const openOpportunityDetail = useOpenOpportunityDetail();
   const [summary, setSummary] = useState<LinkHomeSummary | null>(null);
 
   useFocusEffect(
@@ -168,7 +171,7 @@ export default function LinkPage() {
             key={item.id}
             activeOpacity={0.85}
             style={styles.oppCard}
-            onPress={() => navigation.navigate('opportunityDetail', { opportunityId: item.opportunityId })}
+            onPress={() => openOpportunityDetail(item.opportunityId)}
           >
             <View style={styles.oppMain}>
               <View style={styles.oppTitleRow}>
@@ -223,7 +226,12 @@ export default function LinkPage() {
                 <ChevronRightIcon size={14} />
               </View>
             </TouchableOpacity>
-            <View style={styles.discoverItem}>
+            {/* 企业库：即将上线，点击提示开发中 */}
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={styles.discoverItem}
+              onPress={() => Toast.show({ type: 'info', text1: '企业库开发中，敬请期待' })}
+            >
               <View style={styles.entryTitleRow}>
                 <BuildingIcon />
                 <Text style={styles.entryTitle}>企业库</Text>
@@ -234,7 +242,7 @@ export default function LinkPage() {
                   <Text style={[styles.entryPillText, styles.pillSoonText]}>即将上线</Text>
                 </View>
               </View>
-            </View>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
