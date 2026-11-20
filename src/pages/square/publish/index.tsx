@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -324,6 +324,17 @@ export default function Publish() {
   const probeRef = useRef<View>(null);
   const headerHeight = useHeaderHeight();
   const [syncHole, setSyncHole] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  /**
+   * 展开编辑输入区高度：实测 ScrollView 视口（键盘弹出后由 adjustResize/KAV 触发 onLayout 更新）
+   * 减去实测的「字数行+工具栏」高度与底部留白，逐机型精准填满剩余空间，不遮挡也不留白。
+   */
+  const [editViewportH, setEditViewportH] = useState(0);
+  const [editChromeH, setEditChromeH] = useState(scaleSizeH(76));
+  const editingInputHeight = Math.max(
+    scaleSizeH(120),
+    (editViewportH || scaleSizeH(300)) - editChromeH - insets.bottom - scaleSizeH(12),
+  );
+  const editingInputHeightStyle = useMemo(() => ({ height: editingInputHeight }), [editingInputHeight]);
 
   /**
    * 镂空区 = 同步行窗口坐标 + 坐标系偏移 - 遮罩窗口原点。
@@ -803,6 +814,28 @@ export default function Publish() {
     bodyValue: string,
     onBodyChange: (v: string) => void,
   ) => {
+    const toolbar = (
+      <View style={styles.bodyToolbar}>
+        <TouchableOpacity
+          style={styles.toolBtn}
+          activeOpacity={0.8}
+          onPress={() => {
+            insertActiveBody('#');
+            bodyInputRef.current?.focus();
+          }}
+        >
+          <Text style={styles.toolBtnStrong}>#</Text>
+          <Text style={styles.toolBtnText}>话题</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.expandBtn}
+          activeOpacity={0.8}
+          onPress={() => bodyEditing ? exitBodyEditing() : enterBodyEditing()}
+        >
+          <ExpandIcon collapse={bodyEditing} />
+        </TouchableOpacity>
+      </View>
+    );
     return (
       <>
         {!bodyEditing ?
@@ -831,7 +864,7 @@ export default function Publish() {
           : null}
         <TextInput
           ref={bodyInputRef}
-          style={[styles.bodyInput, bodyEditing && styles.bodyEditingInput]}
+          style={[bodyEditing ? styles.bodyEditingInput : styles.bodyInput, bodyEditing && editingInputHeightStyle]}
           placeholder="添加正文..."
           placeholderTextColor={TEXT_SUB}
           multiline
@@ -840,31 +873,17 @@ export default function Publish() {
           value={bodyValue}
           onChangeText={onBodyChange}
         />
-        {bodyEditing && (
-          <Text style={[styles.editCounter, [...bodyValue].length > BODY_LIMIT && styles.titleCountOver]}>
-            {[...bodyValue].length}/{BODY_LIMIT}
-          </Text>
+        {bodyEditing ? (
+          // 实测底部占位（字数行+工具栏），用于精准计算输入区高度
+          <View onLayout={e => setEditChromeH(e.nativeEvent.layout.height)}>
+            <Text style={[styles.editCounter, [...bodyValue].length > BODY_LIMIT && styles.titleCountOver]}>
+              {[...bodyValue].length}/{BODY_LIMIT}
+            </Text>
+            {toolbar}
+          </View>
+        ) : (
+          toolbar
         )}
-        <View style={styles.bodyToolbar}>
-          <TouchableOpacity
-            style={styles.toolBtn}
-            activeOpacity={0.8}
-            onPress={() => {
-              insertActiveBody('#');
-              bodyInputRef.current?.focus();
-            }}
-          >
-            <Text style={styles.toolBtnStrong}>#</Text>
-            <Text style={styles.toolBtnText}>话题</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.expandBtn}
-            activeOpacity={0.8}
-            onPress={() => bodyEditing ? exitBodyEditing() : enterBodyEditing()}
-          >
-            <ExpandIcon collapse={bodyEditing} />
-          </TouchableOpacity>
-        </View>
       </>
     );
   };
@@ -1306,6 +1325,7 @@ export default function Publish() {
           scrollEnabled={!bodyEditing}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          onLayout={e => setEditViewportH(e.nativeEvent.layout.height)}
         >
           {!bodyEditing && (
             <Animated.View
@@ -1446,6 +1466,16 @@ export default function Publish() {
   );
 }
 
+/** 正文输入框的共用文字样式（普通/展开编辑两种高度策略共用） */
+const BODY_TEXT_STYLE = {
+  padding: 0,
+  marginTop: scaleSizeH(10),
+  fontSize: scaleSizeW(14),
+  lineHeight: scaleSizeH(24),
+  color: TEXT_MAIN,
+  textAlignVertical: 'top',
+} as const;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -1510,14 +1540,9 @@ const styles = StyleSheet.create({
     marginTop: scaleSizeH(10),
   },
   bodyInput: {
-    padding: 0,
-    marginTop: scaleSizeH(10),
+    ...BODY_TEXT_STYLE,
     minHeight: scaleSizeH(96),
     maxHeight: scaleSizeH(192),
-    fontSize: scaleSizeW(14),
-    lineHeight: scaleSizeH(24),
-    color: TEXT_MAIN,
-    textAlignVertical: 'top',
   },
   flex1: {
     flex: 1,
@@ -1527,10 +1552,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   bodyEditingInput: {
-    // 父容器受视口约束，先为计数和工具栏留空间，正文只在内部滚动。
-    flex: 1,
-    minHeight: 0,
-    maxHeight: scaleSizeH(338),
+    // 不复用 bodyInput 的 min/max 高度；高度由 editingInputHeightStyle 按实测视口/底部区域给定，超出后内部滚动。
+    ...BODY_TEXT_STYLE,
+    flexShrink: 0,
   },
   bodyToolbar: {
     flexShrink: 0,
