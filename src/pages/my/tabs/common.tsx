@@ -54,6 +54,10 @@ export interface PostCardData {
   isLiked?: boolean;
   /** 1已发布 3待审核 4未通过（沿用老项目 pageItem 语义；2草稿已改本地存储，不会出现） */
   status?: number;
+  /** 作者头像/昵称/企业名（收藏、点赞 tab 展示他人动态时用，与广场卡片一致） */
+  avatar?: string;
+  userName?: string;
+  companyName?: string;
   raw?: any;
 }
 
@@ -120,6 +124,9 @@ export function mapPost(bbs: any): PostCardData {
     likeCount: bbs.countLike || 0,
     isLiked: bbs.userIsZan === 1,
     status: bbs.status,
+    avatar: bbs.userInfoVo?.avatar || '',
+    userName: bbs.userInfoVo?.nickname || bbs.userInfoVo?.username || '',
+    companyName: bbs.userInfoVo?.cpName || '',
     raw: bbs,
   };
 }
@@ -149,7 +156,15 @@ function StatusBadge({ status }: { status?: number }) {
   );
 }
 
-export function PostCard({ item, onPress, onToggleLike }: { item: PostCardData; onPress: () => void; onToggleLike?: () => void }) {
+const DEFAULT_AVATAR = require('@/assets/ming/default-avatar.png');
+
+export function PostCard({ item, onPress, onToggleLike, showAuthor }: { item: PostCardData; onPress: () => void; onToggleLike?: () => void; showAuthor?: boolean }) {
+  const likeBtn = (
+    <TouchableOpacity activeOpacity={0.7} style={tabStyles.postLike} hitSlop={8} onPress={onToggleLike}>
+      <CardLikeIcon color={item.isLiked ? '#FE2B55' : '#666666'} />
+      <Text style={[tabStyles.postDate, item.isLiked && tabStyles.postDateLiked]}>{formatLikeCount(item.likeCount)}</Text>
+    </TouchableOpacity>
+  );
   return (
     <TouchableOpacity activeOpacity={0.9} style={tabStyles.postCard} onPress={onPress}>
       {!!item.imageUrl && (
@@ -169,13 +184,29 @@ export function PostCard({ item, onPress, onToggleLike }: { item: PostCardData; 
         <Text style={tabStyles.postTitle} numberOfLines={2}>
           {item.title}
         </Text>
-        <View style={tabStyles.postMeta}>
-          <Text style={tabStyles.postDate}>{item.date}</Text>
-          <TouchableOpacity activeOpacity={0.7} style={tabStyles.postLike} hitSlop={8} onPress={onToggleLike}>
-            <CardLikeIcon color={item.isLiked ? '#FE2B55' : '#666666'} />
-            <Text style={[tabStyles.postDate, item.isLiked && tabStyles.postDateLiked]}>{formatLikeCount(item.likeCount)}</Text>
-          </TouchableOpacity>
-        </View>
+        {showAuthor ? (
+          // 他人动态（收藏/点赞）：与广场卡片一致的作者行
+          <View style={tabStyles.authorMeta}>
+            <AppImage
+              source={item.avatar ? { uri: item.avatar } : DEFAULT_AVATAR}
+              style={tabStyles.authorAvatar}
+              contentFit="cover"
+              transition={150}
+              cachePolicy="memory-disk"
+              recyclingKey={item.avatar}
+            />
+            <View style={tabStyles.authorText}>
+              <Text style={tabStyles.authorName} numberOfLines={1}>{item.userName}</Text>
+              {!!item.companyName && <Text style={tabStyles.authorCompany} numberOfLines={1}>{item.companyName}</Text>}
+            </View>
+            {likeBtn}
+          </View>
+        ) : (
+          <View style={tabStyles.postMeta}>
+            <Text style={tabStyles.postDate}>{item.date}</Text>
+            {likeBtn}
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -293,6 +324,35 @@ export const tabStyles = StyleSheet.create({
   postDate: {
     fontSize: setSpText(12),
     color: '#616161',
+  },
+  // 他人动态作者行：对齐广场 WaterfallCard 的头像+昵称+企业名块
+  authorMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: scaleSizeH(8),
+  },
+  authorAvatar: {
+    width: scaleSizeW(27),
+    height: scaleSizeW(27),
+    borderRadius: scaleSizeW(14),
+    backgroundColor: '#F5F5F5',
+  },
+  authorText: {
+    flex: 1,
+    minWidth: 0,
+    marginLeft: scaleSizeW(5),
+    justifyContent: 'center',
+  },
+  authorName: {
+    fontSize: setSpText(12),
+    color: '#333333',
+    lineHeight: scaleSizeH(17),
+  },
+  authorCompany: {
+    fontSize: setSpText(10),
+    color: '#6C6C6C',
+    lineHeight: scaleSizeH(12),
+    marginTop: scaleSizeH(3),
   },
   postDateLiked: {
     color: '#FE2B55',

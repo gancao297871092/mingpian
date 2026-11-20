@@ -199,7 +199,8 @@ export default forwardRef<TabHandle, Props>(function WaterfallTab({ tab, myId, t
             </View>
           </TouchableOpacity>
         ) : (
-          <PostCard item={item} onPress={() => openDetail(item)} onToggleLike={() => onToggleLike(item.id)} />
+          // 发布 tab 是自己的动态，保持现状不展示作者行；收藏/点赞是他人动态，展示广场同款作者行
+          <PostCard item={item} showAuthor={tab !== 'post'} onPress={() => openDetail(item)} onToggleLike={() => onToggleLike(item.id)} />
         )
       }
       showsVerticalScrollIndicator={false}

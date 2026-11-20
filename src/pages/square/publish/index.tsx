@@ -656,13 +656,25 @@ export default function Publish() {
   const onPublish = async () => {
     const activeTitle = activeTab === 'video' ? videoTitle : activeTab === 'long' ? longTitle : title;
     const activeContent = activeTab === 'video' ? videoBody : activeTab === 'long' ? longHtml : body;
-    if (activeTab === 'short' && !activeTitle.trim() && !activeContent.trim() && images.length === 0) {
-      AppAlert.alert('提示', '请先填写内容');
-      return;
+    if (activeTab === 'short') {
+      if (images.length === 0) {
+        AppAlert.alert('提示', '请添加图片');
+        return;
+      }
+      if (!activeContent.trim()) {
+        AppAlert.alert('提示', '请填写正文');
+        return;
+      }
     }
-    if (activeTab === 'video' && !videoUrl) {
-      AppAlert.alert('提示', '请先上传视频');
-      return;
+    if (activeTab === 'video') {
+      if (!videoUrl) {
+        AppAlert.alert('提示', '请先上传视频');
+        return;
+      }
+      if (!activeContent.trim()) {
+        AppAlert.alert('提示', '请填写正文');
+        return;
+      }
     }
     if (activeTab === 'long') {
       if (!longCover) {
