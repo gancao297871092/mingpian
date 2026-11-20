@@ -31,6 +31,7 @@ import { getCardPhoto, normalizeCardStyle } from '@/components/cards/types';
 import { API } from '@/api';
 import { useUserStore } from '@/store/user';
 import { scaleSizeH, scaleSizeW, setSpText, SCREEN_WIDTH } from '@/utils/screenUtils';
+import { storageUtils } from '@/utils/storage';
 import type { RootStackParamList } from '@/route/map';
 
 const BLUE = '#075CFF';
@@ -193,7 +194,21 @@ export default function MessageChat() {
   const [initialLoaded, setInitialLoaded] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [input, setInput] = useState('');
+  // 未发送草稿按会话存本地（MMKV），下次进入自动填入；发送成功即清空
+  const draftKey = peerUserId ? `chat_draft_${peerUserId}` : '';
+  const [input, setInput] = useState(() => (draftKey ? storageUtils.getString(draftKey) || '' : ''));
+  const updateInput = useCallback(
+    (text: string) => {
+      setInput(text);
+      if (!draftKey) return;
+      if (text) {
+        storageUtils.set(draftKey, text);
+      } else {
+        storageUtils.remove(draftKey);
+      }
+    },
+    [draftKey],
+  );
   const [sending, setSending] = useState(false);
 
   /** 发送名片 */
@@ -460,12 +475,12 @@ export default function MessageChat() {
       Toast.show({ type: 'info', text1: '不能发送空白消息' });
       return;
     }
-    setInput('');
+    updateInput('');
     doSend(text).then(ok => {
       // 发送失败恢复草稿，避免已输入内容丢失
-      if (!ok) setInput(text);
+      if (!ok) updateInput(text);
     });
-  }, [input, doSend]);
+  }, [input, doSend, updateInput]);
 
   // ===== 发送名片（生成海报 → 上传 → 以 `<custom-card>cardId&url` 留言发送，对齐小程序）=====
   /** 名片列表懒加载：点「发送名片」时才拉取，失败允许重试 */
@@ -574,12 +589,21 @@ export default function MessageChat() {
             <Text style={styles.avatarFallbackText}>我</Text>
           </View>
         )
-      ) : peer.avatar ? (
-        <AppImage source={{ uri: peer.avatar }} style={styles.avatar} contentFit="cover" transition={150} />
       ) : (
-        <View style={[styles.avatar, styles.logoAvatar]}>
-          <Text style={styles.logoAvatarText}>{(peer.name || peer.cpName || '友').slice(0, 1)}</Text>
-        </View>
+        // 点击对方头像跳其个人主页
+        <TouchableOpacity
+          activeOpacity={0.7}
+          disabled={!peerUserId}
+          onPress={() => peerUserId && navigation.navigate('userHome', { userId: peerUserId })}
+        >
+          {peer.avatar ? (
+            <AppImage source={{ uri: peer.avatar }} style={styles.avatar} contentFit="cover" transition={150} />
+          ) : (
+            <View style={[styles.avatar, styles.logoAvatar]}>
+              <Text style={styles.logoAvatarText}>{(peer.name || peer.cpName || '友').slice(0, 1)}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
       );
       return (
         <View style={[styles.msgRow, isSelf ? styles.msgRowMine : styles.msgRowPeer]}>
@@ -617,7 +641,7 @@ export default function MessageChat() {
         </View>
       );
     },
-    [myId, myAvatar, peer.avatar, peer.name, peer.cpName, navigation, cardAspects],
+    [myId, myAvatar, peer.avatar, peer.name, peer.cpName, peerUserId, navigation, cardAspects],
   );
 
   return (
@@ -718,7 +742,7 @@ export default function MessageChat() {
             <TextInput
               style={styles.input}
               value={input}
-              onChangeText={setInput}
+              onChangeText={updateInput}
               placeholder="请输入留言..."
               placeholderTextColor="#9AA3B3"
               maxLength={500}
