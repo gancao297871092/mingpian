@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useHeaderHeight } from '@react-navigation/elements';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ActivityIndicator,
   Image,
@@ -52,6 +51,8 @@ const INFO_BG = '#E3EDFF';
 const MAX_IMAGES = 18;
 const TITLE_LIMIT = 20;
 const BODY_LIMIT = 1000;
+/** 展开编辑时工具栏与键盘/屏边的间距（键盘弹出会盖住系统导航区，无需再留安全区） */
+const EDIT_BOTTOM_GAP = scaleSizeH(26);
 const LONG_BODY_LIMIT = 10000;
 const GUIDE_SHOWN_KEY = 'publishGuideShown';
 const SYNC_ON_KEY = 'publishSyncOn';
@@ -190,7 +191,6 @@ function ExpandIcon({ size = 32, collapse = false }: { size?: number; collapse?:
 
 export default function Publish() {
   const navigation = useNavigation();
-  const insets = useSafeAreaInsets();
   const { width: SCREEN_W, height: SCREEN_H } = useWindowDimensions();
   const route = useRoute<RouteProp<RootStackParamList, 'publish'>>();
   const draftParam = route.params?.draft;
@@ -332,7 +332,7 @@ export default function Publish() {
   const [editChromeH, setEditChromeH] = useState(scaleSizeH(76));
   const editingInputHeight = Math.max(
     scaleSizeH(120),
-    (editViewportH || scaleSizeH(300)) - editChromeH - insets.bottom - scaleSizeH(12),
+    (editViewportH || scaleSizeH(300)) - editChromeH - EDIT_BOTTOM_GAP,
   );
   const editingInputHeightStyle = useMemo(() => ({ height: editingInputHeight }), [editingInputHeight]);
 
@@ -1320,7 +1320,7 @@ export default function Publish() {
           style={styles.container}
           contentContainerStyle={bodyEditing ? [
             styles.bodyEditingContent,
-            { paddingBottom: insets.bottom + scaleSizeH(12) },
+            { paddingBottom: EDIT_BOTTOM_GAP },
           ] : undefined}
           scrollEnabled={!bodyEditing}
           showsVerticalScrollIndicator={false}
