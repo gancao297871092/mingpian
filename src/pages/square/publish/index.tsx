@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useHeaderHeight } from '@react-navigation/elements';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ActivityIndicator,
   Image,
@@ -189,6 +190,7 @@ function ExpandIcon({ size = 32, collapse = false }: { size?: number; collapse?:
 
 export default function Publish() {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const { width: SCREEN_W, height: SCREEN_H } = useWindowDimensions();
   const route = useRoute<RouteProp<RootStackParamList, 'publish'>>();
   const draftParam = route.params?.draft;
@@ -448,6 +450,7 @@ export default function Publish() {
 
   const setActiveBody = activeTab === 'video' ? setVideoBody : setBody;
   const bodyInputRef = useRef<TextInput>(null);
+  const publishActionRef = useRef<() => void>(() => {});
 
   const openLongEditor = (insertOnMount?: string) => {
     Keyboard.dismiss();
@@ -482,7 +485,9 @@ export default function Publish() {
   };
 
   const insertActiveBody = (insert: string) => {
-    setActiveBody(prev => (prev.length >= BODY_LIMIT ? prev : prev + insert));
+    setActiveBody(prev => (
+      prev.length >= BODY_LIMIT ? prev : prev + insert.slice(0, BODY_LIMIT - prev.length)
+    ));
   };
 
   const enterBodyEditing = (insert?: string) => {
@@ -524,8 +529,17 @@ export default function Publish() {
     navigation.setOptions({
       title: '',
       headerBackVisible: false,
-      headerLeft: undefined,
-      headerRight: undefined,
+      // header items 仅支持 iOS；安卓使用系统导航头的左右按钮。
+      headerLeft: Platform.OS === 'android' ? () => (
+        <TouchableOpacity hitSlop={8} onPress={exitBodyEditing}>
+          <Text style={styles.headerActionText}>取消</Text>
+        </TouchableOpacity>
+      ) : undefined,
+      headerRight: Platform.OS === 'android' ? () => (
+        <TouchableOpacity hitSlop={8} onPress={() => publishActionRef.current()}>
+          <Text style={[styles.headerActionText, styles.headerDoneText]}>发布</Text>
+        </TouchableOpacity>
+      ) : undefined,
       unstable_headerLeftItems: () => [
         {
           type: 'custom',
@@ -541,7 +555,7 @@ export default function Publish() {
         {
           type: 'custom',
           element: (
-            <TouchableOpacity hitSlop={8} onPress={onPublish}>
+            <TouchableOpacity hitSlop={8} onPress={() => publishActionRef.current()}>
               <Text style={[styles.headerActionText, styles.headerDoneText]}>发布</Text>
             </TouchableOpacity>
           ),
@@ -549,7 +563,6 @@ export default function Publish() {
         },
       ],
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bodyEditing, navigation]);
 
   useEffect(() => {
@@ -762,6 +775,10 @@ export default function Publish() {
     }
   };
 
+  useEffect(() => {
+    publishActionRef.current = onPublish;
+  });
+
   const renderSegment = () => (
     <View style={styles.segment}>
       {TABS.map(tab => {
@@ -801,6 +818,9 @@ export default function Publish() {
                 placeholderTextColor={TEXT_SUB}
                 value={value}
                 onChangeText={onChange}
+                maxLength={TITLE_LIMIT}
+                multiline={false}
+                numberOfLines={1}
               />
               <Text style={[styles.titleCount, [...value].length > TITLE_LIMIT && styles.titleCountOver]}>
                 {[...value].length}/{TITLE_LIMIT}
@@ -811,18 +831,12 @@ export default function Publish() {
           : null}
         <TextInput
           ref={bodyInputRef}
-          style={bodyEditing ? {
-            padding: 0,
-            marginTop: scaleSizeH(10),
-            minHeight: scaleSizeH(226),
-            fontSize: scaleSizeW(14),
-            lineHeight: scaleSizeH(24),
-            color: TEXT_MAIN,
-            textAlignVertical: 'top',
-          } : styles.bodyInput}
+          style={[styles.bodyInput, bodyEditing && styles.bodyEditingInput]}
           placeholder="添加正文..."
           placeholderTextColor={TEXT_SUB}
           multiline
+          scrollEnabled
+          maxLength={BODY_LIMIT}
           value={bodyValue}
           onChangeText={onBodyChange}
         />
@@ -898,6 +912,9 @@ export default function Publish() {
               placeholderTextColor={TEXT_SUB}
               value={longTitle}
               onChangeText={setLongTitle}
+              maxLength={TITLE_LIMIT}
+              multiline={false}
+              numberOfLines={1}
             />
             <Text style={[styles.titleCount, [...longTitle].length > TITLE_LIMIT && styles.titleCountOver]}>
               {[...longTitle].length}/{TITLE_LIMIT}
@@ -1275,8 +1292,21 @@ export default function Publish() {
     <SafeView backgroundColor="#fff">
       {/* measureInWindow 坐标系标定探针（不可见，勿删，同步引导镂空用） */}
       <View ref={probeRef} style={styles.measureProbe} collapsable={false} pointerEvents="none" />
-      <KeyboardAvoidingView style={styles.flex1} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView style={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView
+        style={styles.flex1}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={headerHeight}
+      >
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={bodyEditing ? [
+            styles.bodyEditingContent,
+            { paddingBottom: insets.bottom + scaleSizeH(12) },
+          ] : undefined}
+          scrollEnabled={!bodyEditing}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           {!bodyEditing && (
             <Animated.View
               key="top-media-section"
@@ -1457,12 +1487,16 @@ const styles = StyleSheet.create({
   },
   titleInput: {
     flex: 1,
+    minWidth: 0,
+    height: scaleSizeH(36),
     padding: 0,
+    textAlignVertical: 'center',
     fontSize: scaleSizeW(16),
     fontWeight: '500',
     color: TEXT_MAIN,
   },
   titleCount: {
+    flexShrink: 0,
     fontSize: scaleSizeW(12),
     color: '#999999',
     marginLeft: scaleSizeW(8),
@@ -1479,6 +1513,7 @@ const styles = StyleSheet.create({
     padding: 0,
     marginTop: scaleSizeH(10),
     minHeight: scaleSizeH(96),
+    maxHeight: scaleSizeH(192),
     fontSize: scaleSizeW(14),
     lineHeight: scaleSizeH(24),
     color: TEXT_MAIN,
@@ -1487,16 +1522,18 @@ const styles = StyleSheet.create({
   flex1: {
     flex: 1,
   },
+  bodyEditingContent: {
+    flex: 1,
+    overflow: 'hidden',
+  },
   bodyEditingInput: {
-    marginTop: scaleSizeH(10),
-    minHeight: scaleSizeH(240),
-    fontSize: scaleSizeW(14),
-    lineHeight: scaleSizeH(24),
-    color: TEXT_MAIN,
-    textAlignVertical: 'top',
-    backgroundColor: 'red',
+    // 父容器受视口约束，先为计数和工具栏留空间，正文只在内部滚动。
+    flex: 1,
+    minHeight: 0,
+    maxHeight: scaleSizeH(338),
   },
   bodyToolbar: {
+    flexShrink: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1537,6 +1574,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   editCounter: {
+    flexShrink: 0,
     marginTop: scaleSizeH(6),
     fontSize: scaleSizeW(12),
     color: '#999999',

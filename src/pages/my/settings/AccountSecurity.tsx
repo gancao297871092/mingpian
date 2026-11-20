@@ -90,7 +90,7 @@ export default function AccountSecurity() {
           <SettingRow
             label="注销账号"
             // icon={<WechatIcon />}
-            badge={3}
+            // badge={3}
             onPress={() => navigation.navigate('accountCancelWarning')}
           />
         </SettingCard>
