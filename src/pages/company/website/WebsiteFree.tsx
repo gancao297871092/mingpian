@@ -457,7 +457,13 @@ export default function WebsiteFree({ cpId }: WebsiteFreeProps) {
               {medias.length > 0 && (
                 <>
                   <Text style={[styles.infoTitle, styles.albumTitle]}>企业相册</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.albumScroll}>
+                  {/* Android：给内层横滑开嵌套滚动，外层 pager 才会在 ACTION_DOWN 时让出手势（RN 源码特判） */}
+                  <ScrollView
+                    horizontal
+                    nestedScrollEnabled
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.albumScroll}
+                  >
                     <View style={styles.albumRow}>
                       {medias.map((item, ix) => (
                         <AlbumItem

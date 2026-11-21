@@ -577,8 +577,10 @@ export default function WebsitePro({ cpId }: WebsiteProProps) {
             {medias.length > 0 && (
               <View style={[websiteCard.card, styles.albumCard]}>
                 <SectionLabel title="企业相册" />
+                {/* Android：给内层横滑开嵌套滚动，外层 pager 才会在 ACTION_DOWN 时让出手势（RN 源码特判） */}
                 <ScrollView
                   horizontal
+                  nestedScrollEnabled
                   showsHorizontalScrollIndicator={false}
                   style={styles.albumScroll}
                   contentContainerStyle={styles.albumRow}
