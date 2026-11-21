@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AppState,
   Image,
   StyleSheet,
   Text,
@@ -136,6 +137,32 @@ export default function Home() {
   const likeMap = useBbsInteractionStore(s => s.likeMap);
   const favMap = useBbsInteractionStore(s => s.favMap);
   const deletedMap = useBbsInteractionStore(s => s.deletedMap);
+
+  // 首次系统授权弹窗（网络权限等）会让 App 短暂切到后台，授权完成回前台后列表为空则重拉
+  const needRefreshRef = useRef(false);
+  const appStateRef = useRef(AppState.currentState);
+  const listEmptyRef = useRef(list.length === 0);
+  listEmptyRef.current = list.length === 0;
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', nextState => {
+      const prev = appStateRef.current;
+      appStateRef.current = nextState;
+      console.log('SQ_REFRESH appstate', prev, '->', nextState, 'empty=', listEmptyRef.current);
+      if (nextState === 'active' && prev !== 'active' && listEmptyRef.current) {
+        needRefreshRef.current = true;
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
+  // 请求空闲时统一消费待刷新标记（fetching 中直接 refresh 会被 usePageList 丢弃）
+  useEffect(() => {
+    if (needRefreshRef.current && !fetching) {
+      console.log('SQ_REFRESH trigger refresh');
+      needRefreshRef.current = false;
+      refresh();
+    }
+  }, [fetching, refresh]);
 
   // 详情页删除动态后，推荐/关注流同步移除
   useEffect(() => {
