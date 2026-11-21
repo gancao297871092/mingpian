@@ -270,6 +270,9 @@ export default function Publish() {
         setImages(imageList);
         if (draftType === 1 || (draftType == null && videoList.length > 0)) {
           setActiveTab('video');
+          // 视频动态读到的是 videoTitle/videoBody，需单独回显（顶部 setTitle/setBody 只作用于短图文 tab）
+          setVideoTitle(bbs.title || '');
+          setVideoBody(bbs.content || '');
           setVideoUrl(videoList[0] || null);
           setVideoCover(coverUrl);
         }
