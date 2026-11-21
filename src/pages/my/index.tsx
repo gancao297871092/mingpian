@@ -115,9 +115,8 @@ export default function My() {
   /** JS 侧副本，驱动标签颜色/图标跟手渐变（原生驱动只用于下指示器位移） */
   const scrollXJS = useRef(new Animated.Value(0)).current;
   const swiperRef = useRef<any>(null);
-  /** 业务员工作台待触达数（/sales/task/count 的 pending，入口角标） */
-  const [workbenchTodo, setWorkbenchTodo] = useState(0);
-  /** 动态审核待审数（企业管理入口角标，与企业管理页同源 useCompanyStore） */
+  /** 入口角标：业务员工作台待触达 + 动态审核待审数（底部「我的」tab 红点同源 useCompanyStore） */
+  const workbenchTodo = useCompanyStore(s => s.workbenchTodo);
   const bbsAuditCount = useCompanyStore(s => s.bbsAuditCount);
   const barDarkRef = useRef(false);
   const pageIndexRef = useRef(pageIndex);
@@ -161,29 +160,8 @@ export default function My() {
           .then(res => {
             if (!res.data) return;
             setUserInfo(res.data);
-            // 工作台待触达角标：仅业务员拉取（非业务员无意义也省一次请求），身份变化时清零
-            if (res.data.isYwy) {
-              API.salesTask.count()
-                .then(r => setWorkbenchTodo(r.data?.pending ?? 0))
-                .catch(() => { });
-            } else {
-              setWorkbenchTodo(0);
-            }
-            // 企业管理入口角标：有企业才拉审核数（对齐企业管理页 managerTips），无企业清零
-            if (res.data.cpId) {
-              API.company
-                .managerTips()
-                .then(r => {
-                  if (r.code === '200' && r.data) {
-                    useCompanyStore.getState().setMemberAuditCount(r.data.companyUserAuthCount ?? 0);
-                    useCompanyStore.getState().setBbsAuditCount(r.data.bbsCount ?? 0);
-                    useCompanyStore.getState().setPoolCount(r.data.companyWorkCount ?? 0);
-                  }
-                })
-                .catch(() => { });
-            } else {
-              useCompanyStore.getState().setBbsAuditCount(0);
-            }
+            // 入口角标（企业管理审核数 + 工作台待触达）：与底部「我的」tab 红点同源统一拉取
+            useCompanyStore.getState().fetchMineBadges();
           })
           .catch(() => { });
         // IP 属地同步（24h 节流，城市变化时更新服务端并本地补丁）
