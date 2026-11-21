@@ -135,6 +135,12 @@ export default function Home() {
 
   const likeMap = useBbsInteractionStore(s => s.likeMap);
   const favMap = useBbsInteractionStore(s => s.favMap);
+  const deletedMap = useBbsInteractionStore(s => s.deletedMap);
+
+  // 详情页删除动态后，推荐/关注流同步移除
+  useEffect(() => {
+    setList(prev => prev.filter(item => !deletedMap[item.id]));
+  }, [deletedMap, setList]);
 
   useEffect(() => {
     setList(prev =>

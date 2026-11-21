@@ -116,6 +116,16 @@ export default forwardRef<TabHandle, Props>(function WaterfallTab({ tab, myId, t
     [fetchPage],
   );
 
+  // 详情页删除动态后，列表同步移除（详情页删除时走 markDeleted 通知）
+  const deletedMap = useBbsInteractionStore(s => s.deletedMap);
+  useEffect(() => {
+    setState(prev => {
+      if (!prev.list.length) return prev;
+      const list = prev.list.filter(item => !deletedMap[item.id]);
+      return list.length === prev.list.length ? prev : { ...prev, list };
+    });
+  }, [deletedMap]);
+
   // 广场/详情页点赞后，用户主页列表同步最新状态
   useEffect(() => {
     setState(prev => {

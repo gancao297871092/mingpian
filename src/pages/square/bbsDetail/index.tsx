@@ -855,6 +855,8 @@ export default function BbsDetail() {
                   if (String(res.code) !== '200') return;
                   Toast.show({ type: 'success', text1: '动态已删除' });
                   removeDetailCache(route.params.id);
+                  // 通知所有列表页（我的发布/广场/关注/他人主页）移除该动态
+                  useBbsInteractionStore.getState().markDeleted(String(route.params.id));
                   navigation.goBack();
                 }).catch(() => { });
               }
