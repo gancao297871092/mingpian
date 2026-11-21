@@ -32,7 +32,7 @@ import PermissionButton from '@/components/PermissionButton';
 import RichText from '@/components/RichText';
 import LongHtmlView from '@/components/LongHtmlView';
 import { API } from '@/api';
-import { isLongFormBbs } from '@/utils/bbsContent';
+import { extractMediaSrcs, isLongFormBbs } from '@/utils/bbsContent';
 import { scaleSizeH, scaleSizeW, setSpText, SCREEN_WIDTH } from '@/utils/screenUtils';
 import { formatLikeCount } from '@/utils/format';
 import { useUserStore } from '@/store/user';
@@ -45,7 +45,16 @@ import CommentInputSheet from './CommentInputSheet';
 import CommentActionSheet, { type CommentAction } from './CommentActionSheet';
 import CommentReportSheet from './CommentReportSheet';
 import MoreActionSheet, { type MoreAction } from './MoreActionSheet';
-import VisibilitySheet, { type VisibilityKey } from './VisibilitySheet';
+import PermissionSheet, {
+  COMMENT_FROM_VALUE,
+  COMMENT_LABEL,
+  COMMENT_MAP,
+  VISIBILITY_FROM_VALUE,
+  VISIBILITY_LABEL,
+  VISIBILITY_MAP,
+  type CommentKey,
+  type VisibilityKey,
+} from './PermissionSheet';
 import {
   VERIFIED_PATH,
   formatPushTime,
@@ -581,6 +590,7 @@ export default function BbsDetail() {
   const [previewIndex, setPreviewIndex] = useState(-1);
   const [previewImages, setPreviewImages] = useState<string[] | null>(null);
   const [visibility, setVisibility] = useState<VisibilityKey>('public');
+  const [commentWho, setCommentWho] = useState<CommentKey>('everyone');
   const [redirectCountdown, setRedirectCountdown] = useState(3);
   /** 关注状态走全局 follow store（key=作者 userId），他人主页变更后返回自动同步 */
   const authorId = detail?.authorId;
@@ -838,8 +848,8 @@ export default function BbsDetail() {
         if (action === 'edit') {
           navigation.navigate('publish', { editBbsId: bbsId });
         } else if (action === 'permission') {
-          Toast.show({ type: 'info', text1: '请在编辑页面设置可见范围并保存' });
-          navigation.navigate('publish', { editBbsId: bbsId });
+          // 弹出权限设置层（可见范围 + 谁可以评论），等操作层关闭后再弹，避免两个 BottomSheet 冲突
+          pendingActionRef.current = 'visibility';
         } else if (action === 'pin') {
           API.bbs.top({ bbsId }).then(res => {
             if (String(res.code) !== '200') return;
@@ -896,6 +906,104 @@ export default function BbsDetail() {
     }
     pendingActionRef.current = null;
   }, []);
+
+  /** 保存失败时回退勾选态用的最新详情值 */
+  const detailRef = useRef<DetailData | null>(null);
+  useEffect(() => {
+    detailRef.current = detail;
+  }, [detail]);
+
+  const permSavingRef = useRef(false);
+  const permQueueRef = useRef<{ vis: VisibilityKey; comment: CommentKey; successText: string } | null>(null);
+  /**
+   * 权限设置保存：/publish/update 的媒体是全量覆盖语义（不传会清空），
+   * 所以先拉详情把原标题/正文/媒体原样带回，仅改 visibility/commentScope。
+   * 连续点选时只保留最新一组值，串行执行；成功后 Toast 提示选中的项。
+   */
+  const savePermission = useCallback(
+    (vis: VisibilityKey, comment: CommentKey, successText: string) => {
+      permQueueRef.current = { vis, comment, successText };
+      if (permSavingRef.current) return;
+      permSavingRef.current = true;
+      const bbsId = Number(route.params.id);
+      const run = async (): Promise<void> => {
+        const target = permQueueRef.current;
+        permQueueRef.current = null;
+        if (!target) return;
+        try {
+          const res = await API.bbs.bbsDetail({ bbsId });
+          const d: any = res.data ?? {};
+          const bbs = d.bbs ?? {};
+          const toUrl = (o: any) => (typeof o === 'string' ? o : (o?.mdUrl ?? o?.url ?? ''));
+          const imageList: string[] = (d.imageList ?? []).map(toUrl).filter(Boolean);
+          const videoList: string[] = (d.videoList ?? []).map(toUrl).filter(Boolean);
+          const coverUrl = bbs.coverUrl || bbs.posterUrl || undefined;
+          const draftType = bbs.draftType == null ? null : Number(bbs.draftType);
+          let media: {
+            draftType: 0 | 1 | 2;
+            images?: string[];
+            videos?: string[];
+            videoUrl?: string;
+            videoCover?: string;
+          };
+          if (isLongFormBbs(bbs)) {
+            const html: string = bbs.content || '';
+            media = {
+              draftType: 2,
+              images: extractMediaSrcs(html, 'img'),
+              videos: extractMediaSrcs(html, 'video'),
+              videoCover: coverUrl,
+            };
+          } else if (draftType === 1 || (draftType == null && videoList.length > 0)) {
+            media = { draftType: 1, videoUrl: videoList[0], videoCover: coverUrl };
+          } else {
+            media = { draftType: 0, images: imageList };
+          }
+          const ures = await API.bbs.update({
+            bbsId,
+            title: bbs.title || '',
+            content: bbs.content || '',
+            ...media,
+            visibility: VISIBILITY_MAP[target.vis],
+            commentScope: COMMENT_MAP[target.comment],
+          });
+          if (String(ures.code) !== '200') throw new Error(ures.msg || '设置失败，请稍后重试');
+          setDetail(prev =>
+            prev
+              ? { ...prev, visibility: VISIBILITY_MAP[target.vis], commentScope: COMMENT_MAP[target.comment] }
+              : prev,
+          );
+          Toast.show({ type: 'success', text1: target.successText });
+        } catch (e: any) {
+          Toast.show({ type: 'error', text1: e?.msg || '设置失败，请稍后重试' });
+          // 失败：回退勾选态到详情中的当前值，并丢弃排队，避免回退后又触发保存
+          permQueueRef.current = null;
+          setVisibility(VISIBILITY_FROM_VALUE[detailRef.current?.visibility ?? 0] ?? 'public');
+          setCommentWho(COMMENT_FROM_VALUE[detailRef.current?.commentScope ?? 0] ?? 'everyone');
+          return;
+        }
+        return run();
+      };
+      run().finally(() => {
+        permSavingRef.current = false;
+      });
+    },
+    [route.params.id],
+  );
+
+  const onSelectVisibility = (key: VisibilityKey) => {
+    visibilitySheetRef.current?.dismiss();
+    if (key === visibility) return;
+    setVisibility(key);
+    savePermission(key, commentWho, `可见范围已设为：${VISIBILITY_LABEL[key]}`);
+  };
+
+  const onSelectComment = (key: CommentKey) => {
+    visibilitySheetRef.current?.dismiss();
+    if (key === commentWho) return;
+    setCommentWho(key);
+    savePermission(visibility, key, `谁可以评论已设为：${COMMENT_LABEL[key]}`);
+  };
 
   const onReportComment = useCallback(
     (reportType: number) => {
@@ -978,7 +1086,8 @@ export default function BbsDetail() {
       setLiked(d.isLiked);
       setFaved(d.isFaved);
       setFollow(d.authorId, d.isFollowed || route.params.isFollowed === true);
-      setVisibility(d.visibility === 2 ? 'private' : d.visibility === 1 ? 'mutual' : 'public');
+      setVisibility(VISIBILITY_FROM_VALUE[d.visibility] ?? 'public');
+      setCommentWho(COMMENT_FROM_VALUE[d.commentScope] ?? 'everyone');
       setLikeCount(d.likeCount);
       setFavCount(d.favCount);
       setLoading(false);
@@ -991,7 +1100,6 @@ export default function BbsDetail() {
         : API.square.bbsDetail({ bbsId: route.params.id });
     detailReq
       .then(res => {
-        console.log(res.data, '1111');
         if (!mounted) return;
         // 审核详情接口的作者信息在 res.data.userInfo（wqUser 嵌套头像/昵称，cpName 同级），映射为 userInfoVo 供 transformDetail 使用
         const rawBbs = res.data?.bbs ?? res.data ?? {};
@@ -1020,7 +1128,8 @@ export default function BbsDetail() {
         setLiked(d.isLiked);
         setFaved(d.isFaved);
         setFollow(d.authorId, (fromMy ? d.isFollowed : res.data.isFollowed === 1) || route.params.isFollowed === true);
-        setVisibility(d.visibility === 2 ? 'private' : d.visibility === 1 ? 'mutual' : 'public');
+        setVisibility(VISIBILITY_FROM_VALUE[d.visibility] ?? 'public');
+        setCommentWho(COMMENT_FROM_VALUE[d.commentScope] ?? 'everyone');
         setLikeCount(d.likeCount);
         setFavCount(d.favCount);
       })
@@ -1507,13 +1616,12 @@ export default function BbsDetail() {
       />
       <CommentReportSheet ref={reportSheetRef} onSubmit={onReportComment} />
       <MoreActionSheet ref={moreSheetRef} onAction={onMoreAction} />
-      <VisibilitySheet
+      <PermissionSheet
         ref={visibilitySheetRef}
-        value={visibility}
-        onSelect={key => {
-          setVisibility(key);
-          visibilitySheetRef.current?.dismiss();
-        }}
+        visibility={visibility}
+        commentScope={commentWho}
+        onSelectVisibility={onSelectVisibility}
+        onSelectComment={onSelectComment}
       />
       <Modal transparent visible={previewIndex >= 0} onRequestClose={closePreview}>
         {detail && previewIndex >= 0 && (
