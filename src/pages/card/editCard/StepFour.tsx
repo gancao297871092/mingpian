@@ -96,6 +96,8 @@ const StepFour = forwardRef<StepHandle, StepFourProps>(function StepFourForm({ c
         .map((o: any) => o.name)
         .join(','),
     cpName: data.cpName || '',
+    cpId: data.cpId ?? data.companyId,
+    cpLogo: data.cpLogo || '',
     phone: data.phone || '',
     email: data.email || '',
     province: data.province || '',
