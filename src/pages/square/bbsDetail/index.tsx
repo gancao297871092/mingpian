@@ -1595,10 +1595,11 @@ export default function BbsDetail() {
           </View>
         )}
       </View>
-      {/* 审核模式：拒绝理由输入（复用评论输入弹层） */}
+      {/* 审核模式：拒绝理由输入（复用评论输入弹层，限 50 字） */}
       <CommentInputSheet
         ref={rejectSheetRef}
         placeholder="请输入拒绝理由"
+        maxLength={50}
         onSend={onSendRejectReason}
       />
       <CommentInputSheet
