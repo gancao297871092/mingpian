@@ -38,7 +38,7 @@ GET  /ai/company/profile
 | 方向推荐 `AiDiscoveries` | `/ai/discovery/list` | 搜索无 keyword |
 | 方向详情 `DirectionDetail` | 应取 `opportunityId` 对应商机 | **`/ai/direction/list` 是另一套模型（T5），取不到** |
 | 机会详情 `OpportunityDetail` | `/ai/opportunity/detail` + `/ai/match/list` | 基本可用，缺浏览回写 |
-| 产业正在发生 `IndustryHappening` | `/ai/happening/list` | 搜索无 keyword |
+|  `IndustryHappening` | `/ai/happening/list` | 搜索无 keyword |
 | 我的信号 `MySignals` | `/signal/list` | tab 口径对不上；缺编辑/重提 |
 | 创建信号 `CreateCooperationSignal` | `/signal/create` | 编辑模式无接口 |
 | 信号进展 `SignalProgress` | `/signal/progress` | 缺剩余天数/暂停原因 |
@@ -104,7 +104,7 @@ data: {
   - `POST /ai/direction/confirm { directionId, action }`
 - 页面按钮需要根据 `confirmStatus`/`role` 显示不同文案（本人未确认→「明确该方向」；已确认→「撤回」；非本人→隐藏）。请返回一个 `canConfirm: boolean`。
 
-**前端影响**：按钮点击后的状态即时刷新，且非本人从「产业正在发生」进来时不显示确认按钮。
+**前端影响**：按钮点击后的状态即时刷新，且非本人从「」进来时不显示确认按钮。
 
 ---
 
@@ -308,7 +308,7 @@ POST /lead/claim
 | P2-12 | 时间格式 | 确认 `LocalDateTime` 序列化为 `yyyy-MM-dd HH:mm:ss`（或 ISO 带 T），**不要数组** |
 | P2-13 | `/intent/detail` 的 `cardSnapshot` | 给出字段名（`cardName/content/cardCover/tags/attachments`?），前端按字段渲染，否则只能整块兜底 |
 | P2-14 | 通知跳转 | 后端已有 `bizType/bizId`（`opportunity/intent/signal/signal_delivery/task/card_match/company`），前端按此跳转即可，**无需改动**，只需确认 `bizType` 稳定不随意改名 |
-| P2-15 | 权限边界 | 从「产业正在发生」进详情（非本人 + `visibility=0`）已放通；确认「申请平台协助」不要求认证企业 |
+| P2-15 | 权限边界 | 从「」进详情（非本人 + `visibility=0`）已放通；确认「申请平台协助」不要求认证企业 |
 
 ---
 

@@ -12,6 +12,7 @@ import type { LinkHomeSummary } from '@/api';
 import { SCREEN_WIDTH, scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
 import { useOpenOpportunityDetail } from './useOpportunityDetail';
+import { useCompanyGate } from './useCompanyGate';
 import {
   ArrowCtaIcon,
   BuildingIcon,
@@ -41,6 +42,7 @@ export default function LinkPage() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const openOpportunityDetail = useOpenOpportunityDetail();
+  const companyGate = useCompanyGate();
   const [summary, setSummary] = useState<LinkHomeSummary | null>(null);
 
   useFocusEffect(
@@ -101,7 +103,7 @@ export default function LinkPage() {
             <TouchableOpacity
               activeOpacity={0.85}
               style={styles.heroCta}
-              onPress={() => navigation.navigate('createCooperationSignal')}
+              onPress={() => companyGate(() => navigation.navigate('createCooperationSignal'))}
             >
               <Text style={styles.heroCtaText}>下达合作匹配指令</Text>
               <View style={styles.heroCtaArrow}>
@@ -121,7 +123,7 @@ export default function LinkPage() {
           <TouchableOpacity
             activeOpacity={0.85}
             style={styles.entryCard}
-            onPress={() => navigation.navigate('mySignals')}
+            onPress={() => companyGate(() => navigation.navigate('mySignals'))}
           >
             <View style={styles.entryTitleRow}>
               <SignalIcon />
@@ -138,7 +140,7 @@ export default function LinkPage() {
           <TouchableOpacity
             activeOpacity={0.85}
             style={styles.entryCard}
-            onPress={() => navigation.navigate('myOpportunities', { tab: 'mine' })}
+            onPress={() => companyGate(() => navigation.navigate('myOpportunities', { tab: 'mine' }))}
           >
             <View style={styles.entryTitleRow}>
               <OppIcon />
@@ -207,7 +209,7 @@ export default function LinkPage() {
             <TouchableOpacity
               activeOpacity={0.85}
               style={styles.discoverItem}
-              onPress={() => navigation.navigate('aiDiscoveries')}
+              onPress={() => companyGate(() => navigation.navigate('aiDiscoveries'))}
             >
               <View style={styles.entryTitleRow}>
                 <CompassIcon />
