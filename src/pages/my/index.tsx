@@ -27,6 +27,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SafeView from '@/components/SafeView';
 import { API } from '@/api';
 import { useUserStore } from '@/store/user';
+import { useCompanyStore } from '@/store/company';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { listDrafts } from '@/utils/draftStore';
 import { syncIpCity } from '@/utils/ipCity';
@@ -116,6 +117,8 @@ export default function My() {
   const swiperRef = useRef<any>(null);
   /** 业务员工作台待触达数（/sales/task/count 的 pending，入口角标） */
   const [workbenchTodo, setWorkbenchTodo] = useState(0);
+  /** 动态审核待审数（企业管理入口角标，与企业管理页同源 useCompanyStore） */
+  const bbsAuditCount = useCompanyStore(s => s.bbsAuditCount);
   const barDarkRef = useRef(false);
   const pageIndexRef = useRef(pageIndex);
   pageIndexRef.current = pageIndex;
@@ -165,6 +168,21 @@ export default function My() {
                 .catch(() => { });
             } else {
               setWorkbenchTodo(0);
+            }
+            // 企业管理入口角标：有企业才拉审核数（对齐企业管理页 managerTips），无企业清零
+            if (res.data.cpId) {
+              API.company
+                .managerTips()
+                .then(r => {
+                  if (r.code === '200' && r.data) {
+                    useCompanyStore.getState().setMemberAuditCount(r.data.companyUserAuthCount ?? 0);
+                    useCompanyStore.getState().setBbsAuditCount(r.data.bbsCount ?? 0);
+                    useCompanyStore.getState().setPoolCount(r.data.companyWorkCount ?? 0);
+                  }
+                })
+                .catch(() => { });
+            } else {
+              useCompanyStore.getState().setBbsAuditCount(0);
             }
           })
           .catch(() => { });
@@ -242,7 +260,7 @@ export default function My() {
 
   // 业务员工作台仅万企业务员可见（isYwy 1/2，对齐小程序 moreSets 展客管理 v-if="userInfo.isYwy"）
   const entries: { label: string; icon: React.ReactNode; badge?: number; onPress: () => void }[] = [
-    { label: '企业管理', icon: <EntryCompanyIcon />, onPress: () => navigation.navigate('companyManage') },
+    { label: '企业管理', icon: <EntryCompanyIcon />, badge: bbsAuditCount, onPress: () => navigation.navigate('companyManage') },
     ...(userInfo?.isYwy 
       ? [{ label: '业务员工作台', icon: <EntryWorkbenchIcon />, badge: workbenchTodo, onPress: () => navigation.navigate('workbench') }]
       : []),
