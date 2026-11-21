@@ -38,6 +38,8 @@ interface DiscoveryItem {
   tone: Tone;
   /** 弱化展示（灰色标题/图标） */
   dim?: boolean;
+  /** 是否已查看：控制星星高亮（已查看蓝色，未查看置灰） */
+  viewed?: boolean;
   desc: string;
   evidence: string;
   found: number;
@@ -66,6 +68,7 @@ function toDiscoveryItem(item: LinkOpportunityItem): DiscoveryItem {
     title: opp.title || '未命名商机',
     tone: confirmed ? 'express' : 'ai',
     dim: !confirmed,
+    viewed: item.isViewed === true,
     desc: opp.aiAnalysis || fallbackDesc || 'AI 正在解读该商机',
     evidence,
     found: item.matchCount ?? 0,
@@ -301,7 +304,7 @@ export default function AiDiscoveries() {
             onPress={() => navigation.navigate('directionDetail', { opportunityId: item.opportunityId })}
           >
             <View style={styles.cardTitleRow}>
-              <DiamondIcon size={11.5} color={item.dim ? '#B9BDCF' : PRIMARY} />
+              <DiamondIcon color={item.viewed ? PRIMARY : '#B9BDCF'} />
               <Text style={[styles.cardTitle, item.dim && styles.cardTitleDim]} numberOfLines={1}>
                 {item.title}
               </Text>
