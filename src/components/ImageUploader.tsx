@@ -148,9 +148,11 @@ function HorizontalList({
 
   return (
     <DropProvider ref={dropProviderRef}>
+      {/* Android：内层横滑开嵌套滚动，外层纵向 ScrollView 才会在 ACTION_DOWN 时让出手势 */}
       <AnimatedGestureScrollView
         ref={scrollViewRef}
         horizontal
+        nestedScrollEnabled
         showsHorizontalScrollIndicator={false}
         onScroll={handleScroll}
         scrollEventThrottle={16}
