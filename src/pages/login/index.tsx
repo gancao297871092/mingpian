@@ -46,9 +46,14 @@ export default function LoginHome({ navigation }: Props) {
     setAgreeVisible(true);
   };
 
-  const onAgreeContinue = () => {
+  // 点「同意并继续」：只勾选协议并关闭弹窗，真正的登录动作等 Modal dismiss 完再执行
+  const onAgree = () => {
     setAgreed(true);
     setAgreeVisible(false);
+  };
+
+  // Modal 完全消失后接着本次登录，避免 iOS 上协议弹窗 VC 未 dismiss 完就 present 一键登录授权页
+  const onAgreeDismissed = () => {
     const action = agreeContinue.current;
     agreeContinue.current = null;
     action?.();
@@ -234,7 +239,8 @@ export default function LoginHome({ navigation }: Props) {
       <AgreementSheet
         visible={agreeVisible}
         onClose={() => setAgreeVisible(false)}
-        onAgree={onAgreeContinue}
+        onAgree={onAgree}
+        onAgreeDismissed={onAgreeDismissed}
         onOpenAgreement={type => {
           setAgreeVisible(false);
           navigation.navigate('agreement', { type });
