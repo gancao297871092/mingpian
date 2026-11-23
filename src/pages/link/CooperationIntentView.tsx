@@ -70,6 +70,27 @@ async function resolveAbilities(
   }
 }
 
+/** 企业地区：城市优先；直辖市（city 与省同名/市辖区）回退省名。原型显示「鄂尔多斯」「重庆」级别 */
+function companyRegion(company?: any): string {
+  if (!company) return '';
+  const province = company.province || '';
+  const city = company.city || '';
+  if (city && city !== province && city !== '市辖区') return city;
+  return province || city;
+}
+
+/** 企业行副标题：类型 · 地区（原型 data-enterprise-meta，如「煤矿装备制造 · 鄂尔多斯」；无类型/地区时兜底认证文案） */
+function companySubText(company?: any): string {
+  return [company?.types, companyRegion(company)].filter(Boolean).join(' · ') || '企业认证 · 信息已核验';
+}
+
+/** 对接人职位：positionList 项结构为 {id, name, isCheck}（不是 .position）；已勾选优先，其次第一条 */
+function firstPositionTitle(positionList?: any[]): string {
+  if (!positionList?.length) return '';
+  const checked = positionList.find((o: any) => o.isCheck);
+  return (checked ?? positionList[0])?.name || '';
+}
+
 /** 37.合作意向书（figma 222:1542）：浅蓝底玻璃头 + 意向书正文 + 底部操作条 */
 export default function CooperationIntentView() {
   const insets = useSafeAreaInsets();
@@ -102,17 +123,17 @@ export default function CooperationIntentView() {
             const cardRes = await API.card.detail({ cardId: intent.contactCardId });
             contact = {
               name: cardRes.data.nameZh || cardRes.data.alias || '',
-              title: cardRes.data.positionList?.[0]?.position || '',
+              title: firstPositionTitle(cardRes.data.positionList),
             };
           } catch {
             // 名片信息失败不影响正文
           }
         }
-        // 关联动态由后端 relBbsList 下发（含标题/封面），不再逐条调 /my/bbs/detail
+        // 关联动态由后端 relBbsList 下发（含标题/封面/摘要 sub——待后端补充，见后端对齐文档）
         const feeds: IntentFeedItem[] = (detail.relBbsList ?? []).map(item => ({
           id: String(item.id),
           title: item.title || '关联动态',
-          sub: '',
+          sub: item.sub || '',
           cover: item.cover || undefined,
         }));
         const snapshotAbilities = buildAbilities(card);
@@ -124,7 +145,7 @@ export default function CooperationIntentView() {
         setData({
           quote: intent.note || '',
           companyName: detail.senderCompany?.name || '',
-          companySub: detail.senderCompany?.types || '企业认证 · 信息已核验',
+          companySub: companySubText(detail.senderCompany),
           companyId: detail.senderCompany?.id,
           companyLogo: detail.senderCompany?.avatar || undefined,
           abilities,
@@ -152,14 +173,14 @@ export default function CooperationIntentView() {
         setData({
           quote: draft.note,
           companyName: res.data.company?.name || myCompanyName,
-          companySub: res.data.company?.types || '企业认证 · 信息已核验',
+          companySub: companySubText(res.data.company),
           companyId: res.data.company?.id,
           companyLogo: res.data.company?.avatar || undefined,
           abilities: await resolveAbilities(draft.cardId, draft.abilities ?? []),
           feeds: (draft.feedTitles ?? []).map((title, i) => ({
             id: String(draft.relBbs?.[i] ?? i),
             title,
-            sub: '',
+            sub: draft.feedSubs?.[i] || '',
             cover: draft.feedImages?.[i] || undefined,
           })),
           contact: { name: draft.contactName || '', title: draft.contactTitle || '' },

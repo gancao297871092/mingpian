@@ -12,6 +12,8 @@ import { ChevronRightIcon, VerifiedBadgeIcon } from './icons';
 
 const PRIMARY = '#2962D4';
 const TEXT_SUB = '#6C6C6C';
+/** 企业能力折叠行数（原型 lc-capability-richtext：默认展示约 5 行，14px/24px 行高） */
+const ABILITY_MAX_LINES = 5;
 
 /** 收起/展开箭头 */
 function ChevronVerticalIcon({ up }: { up?: boolean }) {
@@ -67,7 +69,10 @@ export default function IntentContentView({
 }: IntentContentViewProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [expanded, setExpanded] = useState(false);
-  const visibleSections = expanded ? abilities : abilities.slice(0, 2);
+  /** 未折叠时的总行数（onTextLayout 首次测量得到；折叠态被 numberOfLines 截断的行数不会覆盖它） */
+  const [lineCount, setLineCount] = useState(0);
+  const needsToggle = lineCount > ABILITY_MAX_LINES;
+  const collapsed = needsToggle && !expanded;
 
   return (
     <>
@@ -117,8 +122,15 @@ export default function IntentContentView({
       {abilities.length > 0 && (
         <View style={styles.letterCard}>
           <Text style={styles.sectionCardTitle}>企业能力</Text>
-          <Text style={styles.letterText}>
-            {visibleSections.map((sec, i) => (
+          <Text
+            style={styles.letterText}
+            numberOfLines={collapsed ? ABILITY_MAX_LINES : undefined}
+            onTextLayout={e => {
+              // 仅采纳未限行的完整测量结果（限行后回调的行数是截断值）
+              if (lineCount === 0) setLineCount(e.nativeEvent.lines.length);
+            }}
+          >
+            {abilities.map((sec, i) => (
               <Text key={sec.title}>
                 {i > 0 && '\n\n'}
                 {sec.title}
@@ -127,7 +139,7 @@ export default function IntentContentView({
               </Text>
             ))}
           </Text>
-          {abilities.length > 2 && (
+          {needsToggle && (
             <TouchableOpacity
               activeOpacity={0.85}
               style={styles.collapseBtn}
@@ -159,7 +171,7 @@ export default function IntentContentView({
                 />
                 <View style={styles.feedInfo}>
                   <Text style={styles.feedTitle} numberOfLines={1}>{item.title}</Text>
-                  <Text style={styles.feedSub} numberOfLines={1}>{item.sub}</Text>
+                  {!!item.sub && <Text style={styles.feedSub} numberOfLines={1}>{item.sub}</Text>}
                 </View>
                 <ChevronRightIcon size={12} />
               </TouchableOpacity>

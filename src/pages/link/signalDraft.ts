@@ -30,6 +30,8 @@ export interface SignalIntentDraft {
   feedTitles?: string[];
   /** 关联动态封面图（与 feedTitles 对齐，展示冗余） */
   feedImages?: string[];
+  /** 关联动态正文摘要（与 feedTitles 对齐，展示冗余；创建时从列表 content 提取） */
+  feedSubs?: string[];
   /** 能力卡正文快照 */
   abilities?: SignalIntentAbility[];
 }
@@ -54,6 +56,7 @@ export function parseAbilityContent(raw?: string): SignalIntentDraft | null {
       contactTitle: typeof data.contactTitle === 'string' ? data.contactTitle : undefined,
       feedTitles: Array.isArray(data.feedTitles) ? data.feedTitles.filter((s: unknown) => typeof s === 'string') : undefined,
       feedImages: Array.isArray(data.feedImages) ? data.feedImages.filter((s: unknown) => typeof s === 'string') : undefined,
+      feedSubs: Array.isArray(data.feedSubs) ? data.feedSubs.filter((s: unknown) => typeof s === 'string') : undefined,
       abilities: Array.isArray(data.abilities)
         ? data.abilities
             .filter((a: any) => a && typeof a.title === 'string' && typeof a.body === 'string')
@@ -71,7 +74,7 @@ export function stringifyAbilityContent(draft?: SignalIntentDraft | null): strin
   return JSON.stringify(draft);
 }
 
-function stripHtml(html: string): string {
+export function stripHtml(html: string): string {
   return html
     .replace(/<[^>]*>/g, '')
     .replace(/&nbsp;/g, ' ')

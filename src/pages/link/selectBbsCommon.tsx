@@ -8,8 +8,14 @@ import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { MAX_SELECT_BBS, useSelectBbsStore } from '@/store/selectBbs';
 import type { SelectedBbs } from '@/utils/selectBbsBridge';
 import { PostCard, type PostCardData } from '@/pages/my/tabs/common';
+import { stripHtml } from './signalDraft';
 
 const PRIMARY = '#2962D4';
+/** 关联动态正文摘要（存草稿用，与意向书卡片摘要同口径：纯文本截 30 字） */
+export function extractBbsSub(content?: string): string {
+  const text = stripHtml(content || '');
+  return [...text].length > 30 ? `${[...text].slice(0, 30).join('')}…` : text;
+}
 
 /** 缩略图右上角移除角标 */
 function RemoveBadge({ onPress }: { onPress: () => void }) {
@@ -29,7 +35,12 @@ export function SelectablePostCard({ item }: { item: PostCardData }) {
   const order = selected.findIndex(i => i.id === item.id);
 
   const onPress = () => {
-    const result = toggle({ id: item.id, title: item.title, imageUrl: item.imageUrl });
+    const result = toggle({
+      id: item.id,
+      title: item.title,
+      imageUrl: item.imageUrl,
+      sub: extractBbsSub(item.raw?.content),
+    });
     if (result === 'full') {
       Toast.show({ type: 'info', text1: `最多选择 ${MAX_SELECT_BBS} 条动态` });
     }

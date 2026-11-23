@@ -162,6 +162,7 @@ export default function CreateCooperationIntent() {
       id: String(id),
       title: existingIntent?.feedTitles?.[i] ?? '关联动态',
       imageUrl: existingIntent?.feedImages?.[i] ?? '',
+      sub: existingIntent?.feedSubs?.[i] ?? '',
     })),
   );
   const [submitting, setSubmitting] = useState(false);
@@ -240,6 +241,7 @@ export default function CreateCooperationIntent() {
           contactTitle: selectedCard?.title,
           feedTitles: feeds.map(f => f.title),
           feedImages: feeds.map(f => f.imageUrl || ''),
+          feedSubs: feeds.map(f => f.sub || ''),
           abilities,
         });
         navigation.goBack();

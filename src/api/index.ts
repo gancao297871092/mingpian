@@ -1618,8 +1618,8 @@ export interface LinkIntentDetail {
   role: 'sender' | 'receiver';
   canResponse: boolean;
   lead?: LinkLead | null;
-  /** 关联动态摘要（cover=视频封面→首张图片→海报；不必再逐条调 /my/bbs/detail） */
-  relBbsList?: Array<{ id: number; title?: string; cover?: string }>;
+  /** 关联动态摘要（cover=视频封面→首张图片→海报；sub=正文摘要，待后端补充） */
+  relBbsList?: Array<{ id: number; title?: string; cover?: string; sub?: string }>;
 }
 
 export interface LinkLead {
