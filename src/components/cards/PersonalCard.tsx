@@ -38,7 +38,7 @@ function BusinessCard({ data, placeholder, squareBottom }: PersonalCardProps) {
         <View style={[styles.decoBar, styles.decoBarGreen]} />
       </View>
       {/* 名片无企业（无 cpName/cpId）时不显示 LOGO，分享海报同规则（同一渲染链路） */}
-      {!!(data.cpLogo && (data.cpName || data.cpId)) && (
+      {data.cpLogo && (
         <View style={styles.cpLogo}>
           {/* 磨砂玻璃底（figma 我的名片 image 17：backdrop blur 5px + 白色0.8）；安卓走纯色降级 */}
           <AppBlurView
@@ -52,11 +52,15 @@ function BusinessCard({ data, placeholder, squareBottom }: PersonalCardProps) {
         </View>
       )}
       <View style={styles.businessContent}>
-        <View>
+        <View style={data.cpLogo ? styles.businessTopWithLogo : undefined}>
           <View style={styles.nameRow}>
-            <Text style={styles.businessName}>{data.nameZh || (placeholder ? '姓名' : '')}</Text>
+            <Text style={styles.businessName} numberOfLines={2}>
+              {data.nameZh || (placeholder ? '姓名' : '')}
+            </Text>
             {!!(data.nameEn || placeholder) && (
-              <Text style={styles.businessNameEn}>{data.nameEn || '英文名'}</Text>
+              <Text style={styles.businessNameEn} numberOfLines={1}>
+                {data.nameEn || '英文名'}
+              </Text>
             )}
           </View>
           {!!(data.position || placeholder) && (
@@ -262,17 +266,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: scaleSizeW(14),
     justifyContent: 'space-between',
   },
+  /** 右上角企业 logo 占位（logo 宽 114 + 与文字间距 8） */
+  businessTopWithLogo: {
+    marginRight: scaleSizeW(122),
+  },
   businessName: {
     fontSize: setSpText(30),
     fontWeight: '600',
     color: '#000000',
     letterSpacing: -0.4,
+    flexShrink: 1,
   },
   businessNameEn: {
     fontSize: setSpText(12),
     fontWeight: '300',
     color: '#000000',
     letterSpacing: -0.4,
+    flexShrink: 1,
   },
   positionText: {
     fontSize: setSpText(12),

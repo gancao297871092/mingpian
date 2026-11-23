@@ -51,6 +51,8 @@ const toastConfig: ToastConfig = {
 
 function Root() {
   const [showLaunch, setShowLaunch] = useState(Platform.OS === 'android');
+  /** 启动屏（Android overlay / iOS 原生 BootSplash）是否已完全消失；隐私弹窗必须等它消失后再弹，否则被遮挡点不到 */
+  const [splashHidden, setSplashHidden] = useState(false);
   const launchOpacity = useRef(new Animated.Value(1)).current;
   const launchStarted = useRef(false);
   const theme = useTheme();
@@ -91,15 +93,16 @@ function Root() {
         // ignore
       });
     }
-    // iOS：启动图至少展示 LAUNCH_MIN_MS 再淡出（Android 走下方 overlay 分支）
-    let hideTimer: ReturnType<typeof setTimeout> | undefined;
-    if (Platform.OS !== 'android') {
-      hideTimer = setTimeout(() => BootSplash.hide({ fade: true }), launchRemaining());
-    }
-    return () => {
-      if (hideTimer) clearTimeout(hideTimer);
-    };
   }, [consented, setToken, setUserInfo]);
+
+  // iOS：原生启动屏独立隐藏，不能依赖 consented——首次启动未同意时若启动屏不消失，会一直盖住隐私弹窗导致协议点不到
+  useEffect(() => {
+    if (Platform.OS === 'android') return;
+    const timer = setTimeout(() => {
+      BootSplash.hide({ fade: true }).finally(() => setSplashHidden(true));
+    }, launchRemaining());
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -108,7 +111,7 @@ function Root() {
       <AppAlertHost />
       <Toast config={toastConfig} topOffset={80} />
       <PushBannerHost />
-      {!consented && (
+      {!consented && splashHidden && (
         <PrivacyConsentGate
           onAgree={() => {
             setPrivacyConsent();
@@ -130,7 +133,10 @@ function Root() {
                   toValue: 0,
                   duration: 300,
                   useNativeDriver: true,
-                }).start(() => setShowLaunch(false));
+                }).start(() => {
+                  setShowLaunch(false);
+                  setSplashHidden(true);
+                });
               });
             }, launchRemaining());
           }}

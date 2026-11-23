@@ -8,12 +8,14 @@ const BLUE = '#2962D4';
 
 export interface CommentInputSheetProps {
   placeholder?: string;
+  /** 输入字数上限（不传不限制） */
+  maxLength?: number;
   onSend?: (text: string) => void;
   onClose?: () => void;
 }
 
 const CommentInputSheet = forwardRef<BottomSheetModal, CommentInputSheetProps>(function Sheet(
-  { placeholder = '留下你的看法', onSend, onClose },
+  { placeholder = '留下你的看法', maxLength, onSend, onClose },
   ref,
 ) {
   const [text, setText] = useState('');
@@ -46,6 +48,7 @@ const CommentInputSheet = forwardRef<BottomSheetModal, CommentInputSheetProps>(f
           selectionColor={BLUE}
           value={text}
           onChangeText={setText}
+          maxLength={maxLength}
         />
       </View>
       <TouchableOpacity

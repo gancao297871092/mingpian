@@ -65,6 +65,30 @@ target 'RnBaseTemplate' do
       end
     end
 
+    # WechatOpenSDK-XCFramework 的旧 podspec 带有 EXCLUDED_ARCHS[sdk=iphonesimulator*]=arm64
+    # （当年 SDK 无 arm64 模拟器 slice 的规避，现已包含 ios-arm64_x86_64-simulator）。
+    # 该设置会传播到聚合 xcconfig，导致整包只编 x86_64、无法装入 Apple Silicon 模拟器。
+    # 分三层清除：pod 目标 → 聚合 xcconfig 文件 → App 主目标（目标级覆盖 xcconfig）。
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = ''
+      end
+    end
+    Dir.glob(File.join(installer.sandbox.root, 'Target Support Files/Pods-*/Pods-*.xcconfig')).each do |xcconfig|
+      content = File.read(xcconfig)
+      next unless content.include?('EXCLUDED_ARCHS[sdk=iphonesimulator*] = arm64')
+      File.chmod(0o644, xcconfig)
+      File.write(xcconfig, content.gsub(%r{^EXCLUDED_ARCHS\[sdk=iphonesimulator\*\] = arm64\n}, ''))
+      Pod::UI.puts "Cleared simulator arm64 EXCLUDED_ARCHS in #{File.basename(xcconfig)}".green
+    end
+    installer.aggregate_targets.each do |aggregate_target|
+      aggregate_target.user_project.native_targets.each do |target|
+        target.build_configurations.each do |config|
+          config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = ''
+        end
+      end
+    end
+
     # SVGAPlayer 2.5.7 的 protobuf 生成代码使用了已被新 SDK 移除的
     # OSAtomicCompareAndSwapPtrBarrier，替换为等价的编译器内置函数。
     svga_file = File.join(

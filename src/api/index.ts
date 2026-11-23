@@ -1066,7 +1066,7 @@ export namespace API {
     export function detail(params: { opportunityId: number | string }) {
       return request.get<LinkOpportunityDetail>('/ai/opportunity/detail', { params });
     }
-    /** 设置可见性（0公开即进入「产业正在发生」 / 1隐藏） */
+    /** 设置可见性（0公开即进入「」 / 1隐藏） */
     export function setVisible(data: { opportunityId: number | string; visibility: 0 | 1 }) {
       return request.post<any>('/ai/opportunity/visible', data);
     }
@@ -1074,7 +1074,7 @@ export namespace API {
     export function confirm(data: { opportunityId: number | string; action: 'confirm' | 'withdraw' | 'reject' }) {
       return request.post<any>('/ai/opportunity/confirm', data);
     }
-    /** 产业正在发生（公开商机流；oppType: purchase/supply/cooperation/talent/other；keyword 最多30字） */
+    /** （公开商机流；oppType: purchase/supply/cooperation/talent/other；keyword 最多30字） */
     export function happening(data: { oppType?: string; keyword?: string; pageNum?: number; pageSize?: number }) {
       return request.post<LinkPageResult<LinkOpportunityItem>>('/ai/happening/list', data);
     }

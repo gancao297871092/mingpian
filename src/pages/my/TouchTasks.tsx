@@ -285,11 +285,12 @@ const styles = StyleSheet.create({
   tagBox: {
     backgroundColor: '#F2F6FF',
     borderRadius: scaleSizeW(5),
-    height: scaleSizeH(35),
+    minHeight: scaleSizeH(35),
     justifyContent: 'center',
     paddingHorizontal: scaleSizeW(15),
     marginTop: scaleSizeH(12),
     alignSelf: 'stretch',
+    paddingVertical: scaleSizeH(6)
   },
   tagText: {
     fontSize: setSpText(14),

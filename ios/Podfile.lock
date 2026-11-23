@@ -2831,17 +2831,17 @@ DEPENDENCIES:
   - ExpoModulesWorklets (from `../node_modules/expo-modules-core`)
   - ExpoModulesWorkletsAdapter (from `../node_modules/expo-modules-core`)
   - "ExpoSvgaPlayer (from `../node_modules/@jayming/expo-svga-player/ios`)"
-  - FaceVerify (from `/Users/admin/Desktop/mai/mingpian-app/ios/FaceVerify`)
+  - FaceVerify (from `/Users/mac/Desktop/wanqi/mingpian-apps/ios/FaceVerify`)
   - FBLazyVector (from `../node_modules/react-native/Libraries/FBLazyVector`)
   - hermes-engine (from `../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)
   - JCoreRN (from `../node_modules/jcore-react-native`)
   - JPushRN (from `../node_modules/jpush-react-native`)
-  - LiquidGlassView (from `/Users/admin/Desktop/mai/mingpian-app/ios/LiquidGlassView`)
+  - LiquidGlassView (from `/Users/mac/Desktop/wanqi/mingpian-apps/ios/LiquidGlassView`)
   - lottie-react-native (from `../node_modules/lottie-react-native`)
   - NitroBackgroundTimer (from `../node_modules/react-native-nitro-bg-timer`)
   - NitroMmkv (from `../node_modules/react-native-mmkv`)
   - NitroModules (from `../node_modules/react-native-nitro-modules`)
-  - PhoneLogin (from `/Users/admin/Desktop/mai/mingpian-app/ios/PhoneLogin`)
+  - PhoneLogin (from `/Users/mac/Desktop/wanqi/mingpian-apps/ios/PhoneLogin`)
   - RCTDeprecation (from `../node_modules/react-native/ReactApple/Libraries/RCTFoundation/RCTDeprecation`)
   - RCTRequired (from `../node_modules/react-native/Libraries/Required`)
   - RCTSwiftUI (from `../node_modules/react-native/ReactApple/RCTSwiftUI`)
@@ -2942,7 +2942,7 @@ DEPENDENCIES:
   - RNVectorIcons (from `../node_modules/react-native-vector-icons`)
   - RNWorklets (from `../node_modules/react-native-worklets`)
   - RTNWechat (from `../node_modules/native-wechat`)
-  - TencentCloudHuiyanSDKFace_framework (from `/Users/admin/Desktop/mai/mingpian-app/ios/TencentCloudHuiyanSDKFace_framework`)
+  - TencentCloudHuiyanSDKFace_framework (from `/Users/mac/Desktop/wanqi/mingpian-apps/ios/TencentCloudHuiyanSDKFace_framework`)
   - VisionCamera (from `../node_modules/react-native-vision-camera`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
@@ -3000,7 +3000,7 @@ EXTERNAL SOURCES:
   ExpoSvgaPlayer:
     :path: "../node_modules/@jayming/expo-svga-player/ios"
   FaceVerify:
-    :path: "/Users/admin/Desktop/mai/mingpian-app/ios/FaceVerify"
+    :path: "/Users/mac/Desktop/wanqi/mingpian-apps/ios/FaceVerify"
   FBLazyVector:
     :path: "../node_modules/react-native/Libraries/FBLazyVector"
   hermes-engine:
@@ -3011,7 +3011,7 @@ EXTERNAL SOURCES:
   JPushRN:
     :path: "../node_modules/jpush-react-native"
   LiquidGlassView:
-    :path: "/Users/admin/Desktop/mai/mingpian-app/ios/LiquidGlassView"
+    :path: "/Users/mac/Desktop/wanqi/mingpian-apps/ios/LiquidGlassView"
   lottie-react-native:
     :path: "../node_modules/lottie-react-native"
   NitroBackgroundTimer:
@@ -3021,7 +3021,7 @@ EXTERNAL SOURCES:
   NitroModules:
     :path: "../node_modules/react-native-nitro-modules"
   PhoneLogin:
-    :path: "/Users/admin/Desktop/mai/mingpian-app/ios/PhoneLogin"
+    :path: "/Users/mac/Desktop/wanqi/mingpian-apps/ios/PhoneLogin"
   RCTDeprecation:
     :path: "../node_modules/react-native/ReactApple/Libraries/RCTFoundation/RCTDeprecation"
   RCTRequired:
@@ -3221,7 +3221,7 @@ EXTERNAL SOURCES:
   RTNWechat:
     :path: "../node_modules/native-wechat"
   TencentCloudHuiyanSDKFace_framework:
-    :path: "/Users/admin/Desktop/mai/mingpian-app/ios/TencentCloudHuiyanSDKFace_framework"
+    :path: "/Users/mac/Desktop/wanqi/mingpian-apps/ios/TencentCloudHuiyanSDKFace_framework"
   VisionCamera:
     :path: "../node_modules/react-native-vision-camera"
   Yoga:
@@ -3246,7 +3246,7 @@ SPEC CHECKSUMS:
   ExpoSvgaPlayer: 9802fe8c5668e09416b21d28280dc82b05662661
   FaceVerify: 9cade274b0b5484a273e416dadf3e67100d1d236
   FBLazyVector: 688bade2cc6ee3de2ba9a411c85c21fd908af3bc
-  hermes-engine: 8ed13a3224cc48c6bc1a2ff503e3379cd627104c
+  hermes-engine: 07aeee570b09ea11c6f8768fbb8cf9b08ffbcfa7
   JCore: 8917bec456f222197e2c9e7b38c5c9315cd03718
   JCoreRN: 8c13fb256a5b5f64b67be60bf9f0eb25b8849a38
   JPush: 51edf7cd44403b62aec64bc117d5fcc71e008ebb
@@ -3375,6 +3375,6 @@ SPEC CHECKSUMS:
   WechatOpenSDK-XCFramework: 5df9b250e9839dcc306ad8b00f46822eead1ed47
   Yoga: 18b7c3b4ad4df70f7c1f90871213fd001e6c3528
 
-PODFILE CHECKSUM: d61923c018feebc3ecba33209c69f6a012f24728
+PODFILE CHECKSUM: a18cbd318143eed11f779a9a55d31e884da1cb16
 
-COCOAPODS: 1.16.2
+COCOAPODS: 1.17.0

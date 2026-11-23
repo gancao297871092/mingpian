@@ -18,8 +18,11 @@ export type AgreementType = 'userSure' | 'privates';
 interface AgreementSheetProps {
   visible: boolean;
   onClose: () => void;
-  /** 点击「同意并继续」：勾选协议并继续被拦截的登录动作 */
+  /** 点击「同意并继续」：勾选协议并关闭弹窗 */
   onAgree: () => void;
+  /** 弹窗 dismiss 动画结束后触发：接着执行被拦截的登录动作。
+   *  iOS 上 RN Modal 是一个 presented VC，未 dismiss 完就 present 一键登录授权页会报「vc已有present界面」。 */
+  onAgreeDismissed: () => void;
   /** 点击《用户协议》/《隐私政策》：打开 App 内协议页 */
   onOpenAgreement: (type: AgreementType) => void;
 }
@@ -34,11 +37,26 @@ export default function AgreementSheet({
   visible,
   onClose,
   onAgree,
+  onAgreeDismissed,
   onOpenAgreement,
 }: AgreementSheetProps) {
   const insets = useSafeAreaInsets();
   const [sheetHeight, setSheetHeight] = useState(0);
   const progress = useRef(new Animated.Value(0)).current;
+  /** 是否因点「同意并继续」而关闭（区别于点遮罩/协议链接关闭） */
+  const agreedDismissRef = useRef(false);
+
+  const handleAgreePress = () => {
+    agreedDismissRef.current = true;
+    onAgree();
+  };
+
+  // Modal 完全消失（dismiss 动画结束）后再继续登录，避免 VC 仍 presented 导致授权页弹不起来
+  const handleDismiss = () => {
+    if (!agreedDismissRef.current) return;
+    agreedDismissRef.current = false;
+    onAgreeDismissed();
+  };
 
   useEffect(() => {
     if (!visible) return;
@@ -62,7 +80,13 @@ export default function AgreementSheet({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+      onDismiss={handleDismiss}
+    >
       <View style={styles.overlay}>
         <TouchableOpacity
           style={StyleSheet.absoluteFill}
@@ -83,7 +107,7 @@ export default function AgreementSheet({
                 《隐私政策》
               </Text>
             </Text>
-            <TouchableOpacity style={styles.button} activeOpacity={0.85} onPress={onAgree}>
+            <TouchableOpacity style={styles.button} activeOpacity={0.85} onPress={handleAgreePress}>
               <Text style={styles.buttonText}>同意并继续</Text>
             </TouchableOpacity>
           </View>

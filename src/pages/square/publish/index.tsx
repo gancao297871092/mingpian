@@ -26,7 +26,7 @@ import Svg, { Path } from 'react-native-svg';
 import LongHtmlView from '@/components/LongHtmlView';
 import ImagePicker from 'react-native-image-crop-picker';
 import { API } from '@/api';
-import { isLongFormBbs } from '@/utils/bbsContent';
+import { extractMediaSrcs, isLongFormBbs } from '@/utils/bbsContent';
 import SafeView from '@/components/SafeView';
 import { KAV_BEHAVIOR } from '@/utils/keyboard';
 import AppBottomSheet from '@/components/AppBottomSheet';
@@ -82,23 +82,6 @@ function htmlHasContent(html: string): boolean {
   return !!htmlToPlain(html);
 }
 
-
-/** 从 HTML 提取指定标签的 src（仅 http(s) 资源） */
-function extractMediaSrcs(html: string, tag: 'img' | 'video'): string[] {
-  const regex = new RegExp(`<${tag}[^>]+src=["']([^"']+)["']`, 'gi');
-  const out: string[] = [];
-  let m: RegExpExecArray | null;
-  while ((m = regex.exec(html)) !== null) {
-    const src = m[1];
-    // 兜底：img 里混入视频资源时按视频归类
-    const isVideoSrc = /\.(mp4|mov|webm|m3u8)(\?|$)/i.test(src);
-    if (!/^https?:\/\//.test(src)) continue;
-    if (tag === 'img' && isVideoSrc) continue;
-    if (tag === 'video' && !isVideoSrc) continue;
-    out.push(src);
-  }
-  return out;
-}
 
 type PublishTab = 'short' | 'video' | 'long';
 type VisibilityKey = 'public' | 'mutual' | 'private';
@@ -270,6 +253,9 @@ export default function Publish() {
         setImages(imageList);
         if (draftType === 1 || (draftType == null && videoList.length > 0)) {
           setActiveTab('video');
+          // 视频动态读到的是 videoTitle/videoBody，需单独回显（顶部 setTitle/setBody 只作用于短图文 tab）
+          setVideoTitle(bbs.title || '');
+          setVideoBody(bbs.content || '');
           setVideoUrl(videoList[0] || null);
           setVideoCover(coverUrl);
         }

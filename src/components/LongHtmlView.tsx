@@ -60,11 +60,34 @@ interface LongHtmlViewProps {
   html: string;
   contentWidth: number;
   baseStyle?: MixedStyleDeclaration;
+  /** 标签样式（会合并到内置默认值之上，可覆盖） */
+  tagsStyles?: Record<string, MixedStyleDeclaration>;
   /** 点击富文本图片（查看大图） */
   onImagePress?: (urls: string[], index: number) => void;
 }
 
-function LongHtmlView({ html, contentWidth, baseStyle, onImagePress }: LongHtmlViewProps) {
+/**
+ * 与 Quill 编辑器（LongTextEdit）对齐：块级元素不带上下外边距。
+ * render-html 默认按浏览器 UA 样式给 p 等加 1em 上下 margin，而 Quill 每行一个 <p>，
+ * 会导致预览间距远大于编辑器内所见；统一归零后间距完全由 baseStyle 的 lineHeight 决定。
+ */
+const DEFAULT_TAGS_STYLES: Record<string, MixedStyleDeclaration> = {
+  p: { marginTop: 0, marginBottom: 0 },
+  div: { marginTop: 0, marginBottom: 0 },
+  blockquote: { marginTop: 0, marginBottom: 0 },
+  h1: { marginTop: 0, marginBottom: 0 },
+  h2: { marginTop: 0, marginBottom: 0 },
+  h3: { marginTop: 0, marginBottom: 0 },
+  h4: { marginTop: 0, marginBottom: 0 },
+  h5: { marginTop: 0, marginBottom: 0 },
+  h6: { marginTop: 0, marginBottom: 0 },
+  ul: { marginTop: 0, marginBottom: 0 },
+  ol: { marginTop: 0, marginBottom: 0 },
+  li: { marginTop: 0, marginBottom: 0 },
+  pre: { marginTop: 0, marginBottom: 0 },
+};
+
+function LongHtmlView({ html, contentWidth, baseStyle, tagsStyles, onImagePress }: LongHtmlViewProps) {
   // 富文本构建整棵文档树会阻塞 JS 线程：先出纯文本轮廓，转场结束后再挂载完整渲染
   const [ready, setReady] = useState(false);
   const normalized = useMemo(() => normalizeLongHtmlForPreview(html), [html]);
@@ -81,6 +104,10 @@ function LongHtmlView({ html, contentWidth, baseStyle, onImagePress }: LongHtmlV
     }
     return urls;
   }, [normalized]);
+  const mergedTagsStyles = useMemo(
+    () => (tagsStyles ? { ...DEFAULT_TAGS_STYLES, ...tagsStyles } : DEFAULT_TAGS_STYLES),
+    [tagsStyles],
+  );
 
   const renderers = useMemo(
     () => ({
@@ -127,6 +154,7 @@ function LongHtmlView({ html, contentWidth, baseStyle, onImagePress }: LongHtmlV
       contentWidth={contentWidth}
       source={{ html: normalized }}
       baseStyle={baseStyle}
+      tagsStyles={mergedTagsStyles}
       renderers={renderers as any}
       renderersProps={{
         img: {

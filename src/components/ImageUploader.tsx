@@ -148,16 +148,20 @@ function HorizontalList({
 
   return (
     <DropProvider ref={dropProviderRef}>
+      {/* Android：内层横滑开嵌套滚动，外层纵向 ScrollView 才会在 ACTION_DOWN 时让出手势 */}
       <AnimatedGestureScrollView
         ref={scrollViewRef}
         horizontal
+        nestedScrollEnabled
         showsHorizontalScrollIndicator={false}
         onScroll={handleScroll}
         scrollEventThrottle={16}
         onScrollEndDrag={handleScrollEnd}
         onMomentumScrollEnd={handleScrollEnd}
         contentContainerStyle={{
-          width: contentWidth + (showAdd ? itemSize : 0),
+          // contentWidth 末尾少算一个 gap；添加按钮绝对定位在 n*(itemSize+gap)，
+          // 宽度需补 itemSize + gap 才能完整露出右侧的「+」
+          width: contentWidth + (showAdd ? itemSize + gap : 0),
           height: itemSize,
         }}
       >

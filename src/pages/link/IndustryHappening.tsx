@@ -139,7 +139,7 @@ export default function IndustryHappening() {
             onPress={() => openOpportunityDetail(item.opportunityId)}
           >
             <View style={styles.cardTitleRow}>
-              <DiamondIcon size={11.5} />
+              <DiamondIcon />
               <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
             </View>
             <Text style={styles.cardDesc}>{item.desc}</Text>

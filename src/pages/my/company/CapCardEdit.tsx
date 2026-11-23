@@ -236,6 +236,9 @@ const styles = StyleSheet.create({
   },
   contentRich: {
     flex: 1,
+    height: scaleSizeH(270),
+    overflow: 'hidden',
+    paddingBottom: scaleSizeH(24),
   },
   expandBtn: {
     position: 'absolute',

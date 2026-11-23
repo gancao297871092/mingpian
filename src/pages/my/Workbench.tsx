@@ -48,7 +48,6 @@ export default function Workbench() {
           <View style={styles.cardHead}>
             <SignalTaskIcon />
             <Text style={styles.cardTitle}>信号触达任务</Text>
-            <BlueBadgeIcon />
           </View>
           <View style={styles.divider} />
           <Text style={styles.desc}>合作信号匹配到线下客户时，系统会分配给你负责触达</Text>

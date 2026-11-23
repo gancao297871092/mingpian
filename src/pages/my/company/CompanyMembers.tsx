@@ -296,8 +296,9 @@ export default function CompanyMembers() {
             )}
           </View>
           <View style={styles.rowText}>
-            <Text style={styles.rowName}>{item.realName || ''}</Text>
-            <Text style={styles.rowPosition}>
+            <Text style={styles.rowName} numberOfLines={1}>{item.realName || ''}</Text>
+            {/* 职位过长时单行省略，避免撑开多行挤压列表 */}
+            <Text style={styles.rowPosition} numberOfLines={1}>
               {positions.map((p, i) => (
                 <Text key={p}>{i > 0 || item.isKf === 1 ? `·${p}` : p}</Text>
               ))}
@@ -440,6 +441,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   rowText: {
+    flex: 1,
     marginLeft: scaleSizeW(12),
     gap: scaleSizeH(5),
   },

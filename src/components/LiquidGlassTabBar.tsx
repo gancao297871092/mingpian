@@ -12,6 +12,7 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { LiquidGlass } from '@/components/capabilities';
 import { useUserStore } from '@/store/user';
 import { useMessageUnreadStore } from '@/store/message';
+import { useCompanyStore } from '@/store/company';
 import { navigationRef } from '@/route/navigationRef';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 
@@ -64,7 +65,7 @@ function TabItem({
   descriptors: BottomTabBarProps['descriptors'];
   state: BottomTabBarProps['state'];
   navigation: BottomTabBarProps['navigation'];
-  /** 未读红点（消息 tab） */
+  /** 未读红点（消息 tab / 我的 tab） */
   showBadge?: boolean;
 }) {
   const { options } = descriptors[route.key];
@@ -116,6 +117,9 @@ function TabItem({
 export default function LiquidGlassTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const token = useUserStore(s => s.token);
   const unreadCount = useMessageUnreadStore(s => s.unreadCount);
+  /** 我的 tab 红点：企业管理审核数 + 业务员工作台待触达，任一 >0 显示 */
+  const bbsAuditCount = useCompanyStore(s => s.bbsAuditCount);
+  const workbenchTodo = useCompanyStore(s => s.workbenchTodo);
 
   /** 未读红点：挂载/登录态变化时拉取，30s 轮询 + 回前台刷新 */
   useEffect(() => {
@@ -124,6 +128,20 @@ export default function LiquidGlassTabBar({ state, descriptors, navigation }: Bo
     const timer = setInterval(fetchUnread, 30 * 1000);
     const sub = AppState.addEventListener('change', s => {
       if (s === 'active') fetchUnread();
+    });
+    return () => {
+      clearInterval(timer);
+      sub.remove();
+    };
+  }, [token]);
+
+  /** 我的 tab 红点角标：与消息同款 30s 轮询 + 回前台刷新（不依赖是否进过我的页） */
+  useEffect(() => {
+    const fetchMineBadges = useCompanyStore.getState().fetchMineBadges;
+    fetchMineBadges();
+    const timer = setInterval(fetchMineBadges, 30 * 1000);
+    const sub = AppState.addEventListener('change', s => {
+      if (s === 'active') fetchMineBadges();
     });
     return () => {
       clearInterval(timer);
@@ -177,7 +195,10 @@ export default function LiquidGlassTabBar({ state, descriptors, navigation }: Bo
               descriptors={descriptors}
               state={state}
               navigation={navigation}
-              showBadge={route.name === 'message' && unreadCount > 0}
+              showBadge={
+                (route.name === 'message' && unreadCount > 0) ||
+                (route.name === 'my' && (bbsAuditCount > 0 || workbenchTodo > 0))
+              }
             />
           ))}
         </View>

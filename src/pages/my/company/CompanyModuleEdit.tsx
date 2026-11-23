@@ -14,7 +14,8 @@ import { EditPenIcon } from '../myIcons';
 
 const PRIMARY = '#2962D4';
 const GRAY = '#6C6C6C';
-const NAME_MAX = 24;
+// 与后端限制一致：模块名称不能超过 10 个字
+const NAME_MAX = 10;
 
 function stripHtml(html: string): string {
   return (html || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
@@ -72,6 +73,11 @@ export default function CompanyModuleEdit() {
     if (saving) return;
     if (!name.trim()) {
       Toast.show({ type: 'error', text1: '请输入模块名称' });
+      return;
+    }
+    // 提前校验，避免保存后被后端拒（后端限制 10 字）
+    if (name.trim().length > NAME_MAX) {
+      Toast.show({ type: 'error', text1: `模块名称不能超过${NAME_MAX}个字` });
       return;
     }
     if (!stripHtml(content)) {

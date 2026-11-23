@@ -158,8 +158,9 @@ export default function MessageChat() {
     cpName: string;
     cpId?: number;
     userType?: number;
-    /** 企业认证状态（1已认证，头部公司名后展示认证标识） */
+    /** 企业认证状态（1/true 已认证，头部公司名后展示认证标识；接口字段 wqUser.authCompany，兼容旧 cpCheckStatus） */
     cpCheckStatus?: number;
+    authCompany?: number | boolean;
   }>({
     name: route.params?.name || '',
     avatar: route.params?.avatar || '',
@@ -300,6 +301,7 @@ export default function MessageChat() {
           cpId: d.cpId,
           userType: d.wqUser?.userType,
           cpCheckStatus: d.cpCheckStatus,
+          authCompany: d.wqUser?.authCompany,
         });
         setFollow(peerUserId, !!(d.isFollowed ?? d.wqUser?.currentUserIsFollow));
       } catch {
@@ -646,7 +648,9 @@ export default function MessageChat() {
               {!!peer.cpName && (
                 <View style={styles.headerCpRow}>
                   <Text style={styles.headerCp} numberOfLines={1}>{peer.cpName}</Text>
-                  {peer.cpCheckStatus === 1 && <CardVerifiedIcon size={10} />}
+                  {(peer.cpCheckStatus === 1 || peer.authCompany === 1 || peer.authCompany === true) && (
+                    <CardVerifiedIcon size={10} />
+                  )}
                 </View>
               )}
             </View>
@@ -864,6 +868,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     lineHeight: setSpText(12),
     color: '#333333',
+    minHeight:setSpText(12),
   },
   headerCpRow: {
     flexDirection: 'row',
