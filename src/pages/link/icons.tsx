@@ -285,7 +285,7 @@ export function GuideSparkleIcon({ size = 18 }: IconProps) {
   );
 }
 
-/** 填写说明-问题1：企业（figma 329:2546） */
+/** 填写说明图标：企业（figma 329:2546；问题卡2「什么企业」/公式第2步，白色 glyph 压彩色圆） */
 export function GuideQ1Icon({ size = 15, color = '#2962D4' }: IconProps) {
   const s = scaleSizeW(size);
   return (
@@ -298,7 +298,7 @@ export function GuideQ1Icon({ size = 15, color = '#2962D4' }: IconProps) {
   );
 }
 
-/** 填写说明-问题2：定位（figma 329:2549） */
+/** 填写说明图标：定位（figma 329:2549；问题卡3「什么地区」/公式第3步） */
 export function GuideQ2Icon({ size = 15, color = '#2962D4' }: IconProps) {
   const s = scaleSizeW(size);
   return (
@@ -311,7 +311,7 @@ export function GuideQ2Icon({ size = 15, color = '#2962D4' }: IconProps) {
   );
 }
 
-/** 填写说明-问题3：人群（figma 329:2552） */
+/** 填写说明图标：合作网络（figma 329:2552；问题卡4「合作什么」/公式第4步） */
 export function GuideQ3Icon({ size = 15, color = '#2962D4' }: IconProps) {
   const s = scaleSizeW(size);
   return (
@@ -324,7 +324,7 @@ export function GuideQ3Icon({ size = 15, color = '#2962D4' }: IconProps) {
   );
 }
 
-/** 填写说明-问题4：合作（figma 329:2522） */
+/** 填写说明图标：人群（figma 329:2522；问题卡1「你想找谁」/公式第1步） */
 export function GuideQ4Icon({ size = 15, color = '#2962D4' }: IconProps) {
   const s = scaleSizeW(size);
   return (

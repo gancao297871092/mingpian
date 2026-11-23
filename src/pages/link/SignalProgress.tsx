@@ -58,7 +58,7 @@ export default function SignalProgress() {
           {
             label: '能力内容',
             value: intent
-              ? `${intent.feedTitles?.length ?? 0} 篇真实动态 + 能力阐述`
+              ? `${intent.feedTitles?.length ?? 0} 篇真实动态 + 能力卡`
               : '未创建合作意向书',
           },
           {

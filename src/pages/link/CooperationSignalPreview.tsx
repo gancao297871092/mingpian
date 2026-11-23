@@ -66,7 +66,7 @@ function ReachContent({
         </TouchableOpacity>
       </View>
 
-      <View style={styles.card}>
+      {/* <View style={styles.card}>
         <View style={styles.cardTitleRow}>
           <SectionDot color={GREEN} />
           <Text style={styles.cardTitle}>平台如何触达</Text>
@@ -95,7 +95,7 @@ function ReachContent({
           <Text style={styles.reachItemTitle}>预付金额</Text>
           <Text style={styles.reachItemDesc}>有效触达后，按触达企业数量扣费</Text>
         </View>
-      </View>
+      </View> */}
     </>
   );
 }
@@ -177,7 +177,7 @@ export default function CooperationSignalPreview() {
     { label: '合作目的', value: intent?.note || '拓展合作机会' },
     {
       label: '能力内容',
-      value: intent ? `${intent.feedTitles?.length ?? 0} 篇真实动态 + 能力阐述` : '未创建合作意向书',
+      value: intent ? `${intent.feedTitles?.length ?? 0} 篇真实动态 + 能力卡` : '未创建合作意向书',
     },
     {
       label: '触达身份',
