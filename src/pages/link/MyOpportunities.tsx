@@ -11,7 +11,7 @@ import type { LinkLead, LinkLeadItem, LinkLeadPoolItem } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
 import { formatRelativeTime } from './linkFormat';
-import { InfoIcon, VerifiedBadgeIcon } from './icons';
+import { InfoIcon, LinkChainIcon, VerifiedBadgeIcon } from './icons';
 
 const PRIMARY = '#2962D4';
 const ORANGE = '#F2722C';
@@ -32,6 +32,8 @@ interface OpportunityItem {
   sourceTag: string;
   timeTag: string;
   desc?: string;
+  /** 来源信号标题（lead.source=2 信号来源时后端下发；我方卡片显示「来源信号：xxx」，对方卡片显示「对方正在寻找【xxx】…」） */
+  sourceSignalTitle?: string;
   actionText?: string;
   actionTone?: 'light' | 'solid';
   /** 来源单据：意向书 ID（source=1） */
@@ -65,9 +67,11 @@ function toPoolItem(item: LinkLeadPoolItem, sub: PoolSub): OpportunityItem {
     statusTag: sub === 'docked' ? (item.ownerUserName ? `${item.ownerUserName}负责` : '已对接') : '待接手',
     statusTone: 'blue',
     sourceTag: sourceLabel(lead.source, 'pool'),
+    sourceSignalTitle: lead.sourceSignalTitle || undefined,
     timeTag: formatRelativeTime(lead.updateTime || lead.createTime),
-    desc:
-      sub === 'pending'
+    desc: lead.sourceSignalTitle
+      ? `对方正在寻找【${lead.sourceSignalTitle}】开展合作，您可能符合其合作方向。`
+      : sub === 'pending'
         ? `对方希望就「${lead.title || '合作方向'}」开展合作，您可能符合其合作方向。`
         : `来源：${sourceLabel(lead.source, 'pool')} · ${lead.title || '合作机会'}`,
     actionText: sub === 'pending' ? '查看详情' : undefined, // 已对接暂不调详情（产品口径 2026-10-30）
@@ -90,6 +94,7 @@ function toMineItem(item: LinkLeadItem, sub: MineSub): OpportunityItem {
     statusTag: sub === 'waiting' ? '等待对方' : '沟通中',
     statusTone: 'blue',
     sourceTag: sourceLabel(lead.source, 'mine'),
+    sourceSignalTitle: lead.sourceSignalTitle || undefined,
     timeTag: formatRelativeTime(lead.updateTime || lead.createTime),
     desc: sub === 'waiting' ? '你已向对方发送合作申请，等待对方查看并回应。' : undefined,
     actionText: sub === 'waiting' ? '查看申请' : '继续沟通',
@@ -138,6 +143,12 @@ function OpportunityCard({ item }: { item: OpportunityItem }) {
           <Text style={styles.companySub}>{item.sub}</Text>
         </View>
       </View>
+      {!!item.sourceSignalTitle && (
+        <View style={styles.signalRow}>
+          <LinkChainIcon size={14} color={PRIMARY} />
+          <Text style={styles.signalRowText} numberOfLines={1}>来源信号：{item.sourceSignalTitle}</Text>
+        </View>
+      )}
       <View style={styles.divider} />
       <View style={styles.tagsRow}>
         <View style={[styles.tag, item.statusTone === 'orange' ? styles.tagOrange : styles.tagBlue]}>
@@ -424,6 +435,19 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#F6F7FB',
     marginTop: scaleSizeH(11),
+  },
+  /** 「来源信号：xxx」行（我方发出的卡片，蓝色链条图标 + 蓝字） */
+  signalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSizeW(4),
+    marginTop: scaleSizeH(10),
+  },
+  signalRowText: {
+    flex: 1,
+    fontSize: setSpText(13),
+    lineHeight: setSpText(18),
+    color: PRIMARY,
   },
   tagsRow: {
     flexDirection: 'row',
