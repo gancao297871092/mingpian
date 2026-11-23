@@ -1,6 +1,5 @@
 import React, { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import AppImage from '@/components/AppImage';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,7 +13,8 @@ import {
   takePendingTouchSummary,
   type SignalIntentDraft,
 } from './signalDraft';
-import { ChevronRightIcon, NoteDotIcon } from './icons';
+import { NoteDotIcon } from './icons';
+import IntentContentView from './IntentContentView';
 
 const PRIMARY = '#2962D4';
 const GREEN = '#36BE69';
@@ -100,105 +100,42 @@ function ReachContent({
   );
 }
 
-/** 客户看到的 tab：用信号里保存的意向书草稿渲染（未创建意向书时仅展示发送企业） */
+/**
+ * 客户看到的 tab：与合作意向书(详情)的客户视角完全一致（共用 IntentContentView），
+ * 数据来自意向书草稿（编辑信号时由信号详情回显）。
+ */
 function CustomerContent({
   note,
   companyName,
   companyLogo,
+  companyId,
+  companyCity,
   intent,
 }: {
   note: string;
   companyName: string;
   companyLogo?: string;
+  companyId?: number;
+  companyCity: string;
   intent?: SignalIntentDraft;
 }) {
-  const abilities = intent?.abilities ?? [];
-  const feeds = (intent?.feedTitles ?? []).map((title, i) => ({
-    id: String(intent?.relBbs?.[i] ?? i),
-    title,
-    image: intent?.feedImages?.[i] || '',
-  }));
-  const contactName = intent?.contactName || '';
-  const contactTitle = intent?.contactTitle || '';
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-
   return (
-    <>
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>本次合作说明</Text>
-        <Text style={styles.customerDesc}>{note || '暂无合作说明'}</Text>
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>发送企业</Text>
-        <TouchableOpacity activeOpacity={0.85} style={styles.customerRow}>
-          {companyLogo ? (
-            <AppImage source={{ uri: companyLogo }} style={styles.companyLogo} contentFit="cover" />
-          ) : (
-            <View style={styles.companyLogo}>
-              <Text style={styles.companyLogoText}>{(companyName || '企').slice(0, 1)}</Text>
-            </View>
-          )}
-          <View style={styles.customerRowInfo}>
-            <Text style={styles.customerRowTitle} numberOfLines={1}>{companyName || '本企业'}</Text>
-            <Text style={styles.customerRowSub} numberOfLines={1}>企业认证 · 信息已核验</Text>
-          </View>
-          <ChevronRightIcon size={14} />
-        </TouchableOpacity>
-      </View>
-
-      {abilities.length > 0 && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>企业能力</Text>
-          <View style={styles.abilityList}>
-            {abilities.map(item => (
-              <View key={item.title} style={styles.abilityItem}>
-                <Text style={styles.abilityTitle}>{item.title}</Text>
-                <Text style={styles.abilityContent}>{item.body}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      )}
-
-      {feeds.length > 0 && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>关联动态</Text>
-          {feeds.map((item, index) => (
-            <TouchableOpacity
-              key={item.id}
-              activeOpacity={0.85}
-              style={[styles.feedRow, index > 0 && styles.feedRowGap]}
-              onPress={() => navigation.navigate('bbsDetail', { id: item.id })}
-            >
-              {item.image ? (
-                <AppImage source={{ uri: item.image }} style={styles.feedCover} contentFit="cover" />
-              ) : (
-                <View style={styles.feedCover} />
-              )}
-              <View style={styles.customerRowInfo}>
-                <Text style={styles.customerRowTitle} numberOfLines={1}>{item.title}</Text>
-              </View>
-              <ChevronRightIcon size={14} />
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-
-      {!!contactName && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>本次对接人</Text>
-          <TouchableOpacity activeOpacity={0.85} style={styles.customerRow}>
-            <AppImage source={require('@/assets/link/mock-avatar.png')} style={styles.contactAvatar} contentFit="cover" />
-            <View style={styles.customerRowInfo}>
-              <Text style={styles.customerRowTitle}>{contactName}</Text>
-              <Text style={styles.customerRowSub}>{contactTitle}</Text>
-            </View>
-            <ChevronRightIcon size={14} />
-          </TouchableOpacity>
-        </View>
-      )}
-    </>
+    <IntentContentView
+      quote={note || '暂无合作说明'}
+      companyName={companyName || '本企业'}
+      companySub={companyCity || '企业认证 · 信息已核验'}
+      companyId={companyId}
+      companyLogo={companyLogo}
+      abilities={intent?.abilities ?? []}
+      feeds={(intent?.feedTitles ?? []).map((title, i) => ({
+        id: String(intent?.relBbs?.[i] ?? i),
+        title,
+        sub: '',
+        cover: intent?.feedImages?.[i] || undefined,
+      }))}
+      contact={{ name: intent?.contactName || '', title: intent?.contactTitle || '' }}
+      contactCardId={intent?.contactCardId}
+    />
   );
 }
 
@@ -213,6 +150,9 @@ export default function CooperationSignalPreview() {
   const companyName = useUserStore(s => s.userInfo?.cpName ?? s.userInfo?.wqUser?.cpName ?? '');
   /** 本企业 Logo（/my/info 返回 cpAvatar，后端未加字段前回退首字占位；不为单字段多调接口） */
   const companyLogo = useUserStore(s => s.userInfo?.cpAvatar ?? s.userInfo?.wqUser?.cpAvatar ?? '');
+  /** 发送企业卡：企业主页跳转 id / 城市副标题（与详情页 companySub 位置一致；行业暂无数据字段，先展示城市） */
+  const companyId = useUserStore(s => s.userInfo?.cpId ?? s.userInfo?.wqUser?.cpId);
+  const companyCity = useUserStore(s => s.userInfo?.wqUser?.city ?? '');
   const [tab, setTab] = useState<PreviewTab>('customer');
   const [summaryOverride, setSummaryOverride] = useState<SummaryRow[] | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -281,10 +221,10 @@ export default function CooperationSignalPreview() {
     <SafeView backgroundColor="#F6F7FB">
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={tab === 'customer' ? styles.contentCustomer : styles.content}
       >
         {/* 分段切换：客户看到的 / 触达设置 */}
-        <View style={styles.segment}>
+        <View style={[styles.segment, tab === 'customer' && styles.segmentCustomer]}>
           <TouchableOpacity
             activeOpacity={0.85}
             style={[styles.segmentBtn, tab === 'customer' && styles.segmentBtnActive]}
@@ -320,6 +260,8 @@ export default function CooperationSignalPreview() {
             note={intent?.note || targetDesc}
             companyName={companyName}
             companyLogo={companyLogo || undefined}
+            companyId={companyId}
+            companyCity={companyCity}
             intent={intent}
           />
         )}
@@ -466,90 +408,13 @@ const styles = StyleSheet.create({
     lineHeight: setSpText(18),
     color: ORANGE,
   },
-  customerDesc: {
-    marginTop: scaleSizeH(10),
-    fontSize: setSpText(14),
-    lineHeight: setSpText(22),
-    color: '#000000',
+  // ===== 客户看到的（背景与触达设置一致 #F6F7FB；内容通栏由 IntentContentView 自控边距） =====
+  contentCustomer: {
+    paddingTop: scaleSizeH(20),
+    paddingBottom: scaleSizeH(20),
   },
-  customerRow: {
-    marginTop: scaleSizeH(12),
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scaleSizeW(10),
-  },
-  companyLogo: {
-    width: scaleSizeW(40),
-    height: scaleSizeW(40),
-    borderRadius: scaleSizeW(8),
-    backgroundColor: '#F6F7FB',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  companyLogoText: {
-    fontSize: setSpText(13),
-    fontWeight: '600',
-    color: PRIMARY,
-  },
-  customerRowInfo: {
-    flex: 1,
-    gap: scaleSizeH(3),
-  },
-  customerRowTitle: {
-    fontSize: setSpText(14),
-    fontWeight: '500',
-    color: '#000000',
-  },
-  customerRowSub: {
-    fontSize: setSpText(12),
-    color: TEXT_SUB,
-  },
-  abilityList: {
-    marginTop: scaleSizeH(10),
-    gap: scaleSizeH(12),
-  },
-  abilityItem: {
-    gap: scaleSizeH(4),
-  },
-  abilityTitle: {
-    fontSize: setSpText(14),
-    fontWeight: '500',
-    color: '#000000',
-  },
-  abilityContent: {
-    fontSize: setSpText(12),
-    lineHeight: setSpText(18),
-    color: TEXT_SUB,
-  },
-  expandRow: {
-    marginTop: scaleSizeH(12),
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scaleSizeW(2),
-  },
-  expandText: {
-    fontSize: setSpText(13),
-    color: PRIMARY,
-  },
-  feedRow: {
-    marginTop: scaleSizeH(12),
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scaleSizeW(10),
-  },
-  feedRowGap: {
-    marginTop: scaleSizeH(10),
-  },
-  feedCover: {
-    width: scaleSizeW(56),
-    height: scaleSizeW(56),
-    borderRadius: scaleSizeW(8),
-    backgroundColor: '#F6F7FB',
-  },
-  contactAvatar: {
-    width: scaleSizeW(40),
-    height: scaleSizeW(40),
-    borderRadius: scaleSizeW(20),
+  segmentCustomer: {
+    marginHorizontal: scaleSizeW(16),
   },
   footer: {
     flexDirection: 'row',

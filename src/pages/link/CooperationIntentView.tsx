@@ -1,11 +1,9 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AppImage from '@/components/AppImage';
-import LinearGradient from 'react-native-linear-gradient';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Path } from 'react-native-svg';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import SafeView from '@/components/SafeView';
 import AppBottomSheet from '@/components/AppBottomSheet';
@@ -14,38 +12,13 @@ import { useUserStore } from '@/store/user';
 import { SCREEN_WIDTH, scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
 import { buildAbilities, parseAbilityContent, type SignalIntentAbility } from './signalDraft';
-import { ChevronLeftIcon, ChevronRightIcon, ShareIntentIcon, VerifiedBadgeIcon } from './icons';
+import { ChevronLeftIcon, ShareIntentIcon } from './icons';
+import IntentContentView, { type IntentFeedItem } from './IntentContentView';
 
 const PRIMARY = '#2962D4';
-const TEXT_SUB = '#6C6C6C';
-const GREEN = '#36BE69';
 
 /** 「暂不考虑的原因」选项（对齐原型：单选 + 其他补充说明） */
 const DECLINE_REASONS = ['暂时没有合作需求', '已有稳定合作方', '与当前业务不匹配', '其他'];
-
-/** 收起/展开箭头 */
-function ChevronVerticalIcon({ up }: { up?: boolean }) {
-  const s = scaleSizeW(10);
-  return (
-    <Svg width={s} height={s} viewBox="0 0 10 10" fill="none">
-      <Path
-        d={up ? 'M1.5 6.5L5 3L8.5 6.5' : 'M1.5 3.5L5 7L8.5 3.5'}
-        stroke="#999999"
-        strokeWidth={1.2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
-}
-
-interface IntentFeed {
-  id: string;
-  title: string;
-  sub: string;
-  /** 封面图（无图回退占位） */
-  cover?: string;
-}
 
 interface IntentViewData {
   quote: string;
@@ -54,7 +27,7 @@ interface IntentViewData {
   companyId?: number;
   companyLogo?: string;
   abilities: SignalIntentAbility[];
-  feeds: IntentFeed[];
+  feeds: IntentFeedItem[];
   contact: { name: string; title: string };
   contactCardId?: number;
   canResponse: boolean;
@@ -106,7 +79,6 @@ export default function CooperationIntentView() {
   const signalId = route.params?.signalId;
   const myCompanyName = useUserStore(s => s.userInfo?.cpName ?? s.userInfo?.wqUser?.cpName ?? '');
   const [data, setData] = useState<IntentViewData>(EMPTY);
-  const [expanded, setExpanded] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   /** 首次加载中：避免空壳（空白说明卡/企业卡）闪烁 */
   const [initialLoading, setInitialLoading] = useState(true);
@@ -137,7 +109,7 @@ export default function CooperationIntentView() {
           }
         }
         // 关联动态由后端 relBbsList 下发（含标题/封面），不再逐条调 /my/bbs/detail
-        const feeds: IntentFeed[] = (detail.relBbsList ?? []).map(item => ({
+        const feeds: IntentFeedItem[] = (detail.relBbsList ?? []).map(item => ({
           id: String(item.id),
           title: item.title || '关联动态',
           sub: '',
@@ -246,7 +218,6 @@ export default function CooperationIntentView() {
     }
   }, [data.companyName, data.quote]);
 
-  const visibleSections = expanded ? data.abilities : data.abilities.slice(0, 2);
   /** 头部底色：滚动 0~60px 内渐变为纯白 */
   const navbarBgOpacity = scrollY.interpolate({
     inputRange: [0, 60],
@@ -321,130 +292,18 @@ export default function CooperationIntentView() {
           </View>
           <AppImage source={require('@/assets/link/hero-mascot.png')} style={styles.heroMascot} contentFit="cover" />
         </View> */}
-        {/* 吉祥物 + 气泡 */}
-        <View style={styles.mascotRow}>
-          <AppImage
-            source={require('@/assets/link/intent-mascot.png')}
-            style={[styles.mascot, styles.mascotLayer]}
-            contentFit="cover"
-          />
-          <View style={styles.bubble}>
-            <Text style={styles.bubbleText}>本次合作说明</Text>
-          </View>
-        </View>
-
-        {/* 合作说明（蓝渐变卡，顶部被吉祥物区压住） */}
-        <LinearGradient colors={['#2962D4', '#5D8CE9']} style={styles.quoteCard}>
-          <View style={{
-            paddingHorizontal: scaleSizeW(14),
-            paddingVertical: scaleSizeH(16),
-          }}>
-            <Text style={styles.quoteText}>{data.quote}</Text>
-          </View>
-        </LinearGradient>
-
-        {/* 发布企业 */}
-        <TouchableOpacity
-          activeOpacity={0.85}
-          style={styles.companyCard}
-          onPress={() => {
-            if (data.companyId) navigation.navigate('companyPage', { id: data.companyId });
-          }}
-        >
-          <AppImage
-            source={data.companyLogo ? { uri: data.companyLogo } : require('@/assets/link/mock-avatar.png')}
-            style={styles.companyAvatar}
-            contentFit="cover"
-          />
-          <View style={styles.companyInfo}>
-            <View style={styles.companyNameRow}>
-              <Text style={styles.companyName} numberOfLines={1}>{data.companyName}</Text>
-              <VerifiedBadgeIcon size={14} />
-            </View>
-            <Text style={styles.companySub}>{data.companySub}</Text>
-          </View>
-          <ChevronRightIcon size={12} />
-        </TouchableOpacity>
-
-        {/* 企业能力正文（有内容才展示；超过 2 节才显示展开/收起） */}
-        {data.abilities.length > 0 && (
-          <View style={styles.letterCard}>
-            <Text style={styles.sectionCardTitle}>企业能力</Text>
-            <Text style={styles.letterText}>
-              {visibleSections.map((sec, i) => (
-                <Text key={sec.title}>
-                  {i > 0 && '\n\n'}
-                  {sec.title}
-                  {'\n'}
-                  <Text style={styles.letterTextBody}>{sec.body}</Text>
-                </Text>
-              ))}
-            </Text>
-            {data.abilities.length > 2 && (
-              <TouchableOpacity
-                activeOpacity={0.85}
-                style={styles.collapseBtn}
-                onPress={() => setExpanded(e => !e)}
-              >
-                <Text style={styles.collapseText}>{expanded ? '收起' : '展开'}</Text>
-                <ChevronVerticalIcon up={expanded} />
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-
-        {/* 关联动态（有才展示） */}
-        {data.feeds.length > 0 && (
-          <View style={styles.plainCard}>
-            <Text style={styles.sectionCardTitle}>关联动态</Text>
-            <View style={styles.feedList}>
-              {data.feeds.map(item => (
-                <TouchableOpacity
-                  key={item.id}
-                  activeOpacity={0.85}
-                  style={styles.feedRow}
-                  onPress={() => navigation.navigate('bbsDetail', { id: item.id })}
-                >
-                  <AppImage
-                    source={item.cover ? { uri: item.cover } : require('@/assets/link/mock-avatar.png')}
-                    style={styles.feedAvatar}
-                    contentFit="cover"
-                  />
-                  <View style={styles.feedInfo}>
-                    <Text style={styles.feedTitle} numberOfLines={1}>{item.title}</Text>
-                    <Text style={styles.feedSub} numberOfLines={1}>{item.sub}</Text>
-                  </View>
-                  <ChevronRightIcon size={12} />
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* 本次对接人（有才展示） */}
-        {!!data.contact.name && (
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={styles.plainCard}
-            onPress={() => {
-              if (data.contactCardId) navigation.navigate('cardDetail', { id: data.contactCardId });
-            }}
-          >
-            <Text style={styles.sectionCardTitle}>本次对接人</Text>
-            <View style={styles.contactRow}>
-              <AppImage
-                source={require('@/assets/link/mock-avatar.png')}
-                style={styles.contactAvatar}
-                contentFit="cover"
-              />
-              <View style={styles.contactInfo}>
-                <Text style={styles.contactName}>{data.contact.name}</Text>
-                <Text style={styles.contactRole}>{data.contact.title}</Text>
-              </View>
-              <ChevronRightIcon size={12} />
-            </View>
-          </TouchableOpacity>
-        )}
+        {/* 意向书正文（与「客户看到的」预览共用的 IntentContentView） */}
+        <IntentContentView
+          quote={data.quote}
+          companyName={data.companyName}
+          companySub={data.companySub}
+          companyId={data.companyId}
+          companyLogo={data.companyLogo}
+          abilities={data.abilities}
+          feeds={data.feeds}
+          contact={data.contact}
+          contactCardId={data.contactCardId}
+        />
           </>
         )}
       </Animated.ScrollView>
@@ -589,266 +448,6 @@ const styles = StyleSheet.create({
   content: {},
   loadingPad: {
     paddingVertical: scaleSizeH(120),
-  },
-  mascotRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    height: scaleSizeW(46),
-    marginLeft: scaleSizeW(12),
-    zIndex: -1,
-    transform: [{ translateY: scaleSizeH(17) }],
-  },
-  mascot: {
-    width: scaleSizeW(63),
-    height: scaleSizeW(63),
-    marginTop: scaleSizeH(-17),
-    transform: [{ scaleX: -1 }],
-  },
-  mascotLayer: {
-    position: 'relative',
-    zIndex: 1,
-  },
-  bubble: {
-    marginLeft: scaleSizeW(-15),
-    marginTop: scaleSizeH(9),
-    backgroundColor: '#36BE69',
-    borderTopLeftRadius: scaleSizeW(10),
-    borderTopRightRadius: 90,
-    borderBottomRightRadius: 90,
-    paddingHorizontal: scaleSizeW(18),
-    paddingVertical: scaleSizeH(3),
-    transform: [{ translateY: scaleSizeH(-16) }],
-  },
-  bubbleText: {
-    fontSize: setSpText(12),
-    fontWeight: '600',
-    lineHeight: setSpText(20),
-    color: '#FFFFFF',
-  },
-  quoteCard: {
-    // marginHorizontal: scaleSizeW(16),
-    borderRadius: scaleSizeW(10),
-    paddingHorizontal: scaleSizeW(14),
-    // paddingVertical: scaleSizeH(14),
-  },
-  quoteText: {
-    fontSize: setSpText(15),
-    fontWeight: '500',
-    lineHeight: setSpText(24),
-    color: '#FFFFFF',
-  },
-  companyCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scaleSizeW(5),
-    marginHorizontal: scaleSizeW(16),
-    marginTop: scaleSizeH(10),
-    backgroundColor: 'rgba(255,255,255,0.7)',
-    borderWidth: 1,
-    borderColor: '#FFFFFF',
-    borderRadius: scaleSizeW(10),
-    paddingHorizontal: scaleSizeW(14),
-    paddingVertical: scaleSizeH(18),
-  },
-  companyAvatar: {
-    width: scaleSizeW(36),
-    height: scaleSizeW(36),
-    borderRadius: scaleSizeW(18),
-    borderWidth: 1,
-    borderColor: '#EAEAEA',
-  },
-  companyInfo: {
-    flex: 1,
-    gap: scaleSizeH(5),
-  },
-  companyNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scaleSizeW(2),
-  },
-  companyName: {
-    fontSize: setSpText(14),
-    fontWeight: '500',
-    color: '#000000',
-  },
-  companySub: {
-    fontSize: setSpText(12),
-    lineHeight: setSpText(12),
-    color: TEXT_SUB,
-  },
-  heroWrap: {
-    marginHorizontal: scaleSizeW(16),
-    position: 'relative',
-  },
-  heroCard: {
-    borderRadius: scaleSizeW(20),
-    alignItems: 'center',
-  },
-  heroBadge: {
-    position: 'absolute',
-    left: scaleSizeW(37),
-    top: scaleSizeH(15),
-    width: scaleSizeW(98),
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    backgroundColor: GREEN,
-    borderRadius: 90,
-    paddingHorizontal: scaleSizeW(8),
-  },
-  heroCta: {
-    marginTop: scaleSizeH(20),
-    marginBottom: scaleSizeH(27),
-    width: scaleSizeW(262),
-    height: scaleSizeH(40),
-    borderRadius: 90,
-    backgroundColor: PRIMARY,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#CADBFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  heroCtaArrow: {
-    position: 'absolute',
-    right: scaleSizeW(10),
-  },
-  heroMascot: {
-    position: 'absolute',
-    left: -scaleSizeW(16),
-    top: -scaleSizeH(26),
-    width: scaleSizeW(101),
-    height: scaleSizeW(101),
-    transform: [{ scaleX: -1 }],
-  },
-  heroBadgeText: {
-    fontSize: setSpText(12),
-    lineHeight: setSpText(20),
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  heroTitle: {
-    fontSize: setSpText(22),
-    lineHeight: setSpText(26),
-    fontWeight: '700',
-    color: '#000000',
-  },
-  heroCtaText: {
-    fontSize: setSpText(14),
-    lineHeight: setSpText(20),
-    fontWeight: '500',
-    color: '#FFFFFF',
-  },
-  heroSub: {
-    marginTop: scaleSizeH(4),
-    fontSize: setSpText(12),
-    lineHeight: setSpText(20),
-    color: TEXT_SUB,
-  },
-  letterCard: {
-    marginHorizontal: scaleSizeW(16),
-    marginTop: scaleSizeH(10),
-    backgroundColor: 'rgba(255,255,255,0.8)',
-    borderWidth: 1,
-    borderColor: '#FFFFFF',
-    borderRadius: scaleSizeW(10),
-    paddingHorizontal: scaleSizeW(14),
-    paddingTop: scaleSizeH(14),
-    paddingBottom: scaleSizeH(20),
-  },
-  sectionCardTitle: {
-    fontSize: setSpText(14),
-    fontWeight: '500',
-    lineHeight: setSpText(24),
-    color: '#000000',
-  },
-  letterText: {
-    marginTop: scaleSizeH(13),
-    fontSize: setSpText(14),
-    fontWeight: '500',
-    lineHeight: setSpText(24),
-    color: '#000000',
-  },
-  letterTextBody: {
-    fontWeight: '400',
-    color: TEXT_SUB,
-  },
-  collapseBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: scaleSizeW(5),
-    marginTop: scaleSizeH(14),
-  },
-  collapseText: {
-    fontSize: setSpText(14),
-    fontWeight: '500',
-    color: PRIMARY,
-  },
-  plainCard: {
-    marginHorizontal: scaleSizeW(16),
-    marginTop: scaleSizeH(10),
-    backgroundColor: 'rgba(255,255,255,0.8)',
-    borderWidth: 1,
-    borderColor: '#FFFFFF',
-    borderRadius: scaleSizeW(10),
-    paddingHorizontal: scaleSizeW(14),
-    paddingTop: scaleSizeH(14),
-    paddingBottom: scaleSizeH(18),
-  },
-  feedList: {
-    marginTop: scaleSizeH(14),
-    gap: scaleSizeH(26),
-  },
-  feedRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scaleSizeW(10),
-  },
-  feedAvatar: {
-    width: scaleSizeW(34),
-    height: scaleSizeW(34),
-    borderRadius: scaleSizeW(17),
-    borderWidth: 1,
-    borderColor: '#EEEEEE',
-  },
-  feedInfo: {
-    flex: 1,
-    gap: scaleSizeH(5),
-  },
-  feedTitle: {
-    fontSize: setSpText(14),
-    fontWeight: '500',
-    color: '#000000',
-  },
-  feedSub: {
-    fontSize: setSpText(12),
-    color: TEXT_SUB,
-  },
-  contactRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scaleSizeW(10),
-    marginTop: scaleSizeH(10),
-  },
-  contactAvatar: {
-    width: scaleSizeW(40),
-    height: scaleSizeW(40),
-    borderRadius: scaleSizeW(20),
-  },
-  contactInfo: {
-    flex: 1,
-    gap: scaleSizeH(5),
-  },
-  contactName: {
-    fontSize: setSpText(14),
-    fontWeight: '500',
-    color: '#000000',
-  },
-  contactRole: {
-    fontSize: setSpText(12),
-    color: 'rgba(108,108,108,0.8)',
   },
   bottomBar: {
     position: 'absolute',

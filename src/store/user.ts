@@ -85,6 +85,8 @@ export interface UserInfo {
   cpName?: string;
   /** 所属企业 Logo（待后端在用户聚合信息中补充） */
   cpAvatar?: string;
+  /** 企业认证状态（1已认证；后端 UserInfoVo 已补，Redis 缓存最长 12h 生效） */
+  cpCheckStatus?: number;
   /** 是否企业管理员（1是 0否） */
   isManager?: number;
   /** 是否企业超级管理员（1是 0否） */
