@@ -351,6 +351,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: scaleSizeW(5),
+    marginHorizontal: scaleSizeW(4),
   },
   entryTitle: {
     fontSize: setSpText(14),
@@ -507,20 +508,21 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F6F7FB',
     borderRadius: scaleSizeW(10),
-    paddingLeft: scaleSizeW(11),
-    paddingRight: scaleSizeW(10),
+    paddingHorizontal: scaleSizeW(6),
     paddingTop: scaleSizeH(14),
     paddingBottom: scaleSizeH(12),
   },
   discoverDesc: {
     marginTop: scaleSizeH(8),
     fontSize: setSpText(12),
+    lineHeight: setSpText(17),
     color: 'rgba(108, 108, 108, 0.8)',
+     marginHorizontal: scaleSizeW(4),
   },
   discoverPills: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: scaleSizeH(12),
+    marginTop: scaleSizeH(14),
     alignSelf: 'flex-start',
   },
   discoverPill: {
