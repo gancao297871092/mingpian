@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 8 },
-    elevation: 3,
+    // 不给 elevation：Android 上半透明背景 + elevation 会被阴影渗色成脏灰块；iOS 阴影走 shadow* 不受影响
   },
   navTitle: {
     fontSize: setSpText(17),
