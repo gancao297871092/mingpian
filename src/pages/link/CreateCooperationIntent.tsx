@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -166,57 +166,51 @@ export default function CreateCooperationIntent() {
   );
   const [submitting, setSubmitting] = useState(false);
 
-  // 从选择动态页返回后接收选中动态
+  // 从选择动态页返回后接收选中动态；每次重获焦点刷新名片/能力卡列表
+  // （从「+新增名片」跳转创建返回时，把新增的名片刷出来）
   useFocusEffect(
     useCallback(() => {
       const result = getSelectBbsResult();
       if (result !== null) {
         setFeeds(result);
       }
-    }, []),
-  );
 
-  /** 名片 / 企业能力卡列表（能力卡与「企业管理-能力卡」同一数据源：ownerType=1 + cpId） */
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const [cardRes, capRes] = await Promise.allSettled([
-          API.card.list(),
-          myCpId
-            ? API.capability.cardList({ ownerType: 1, cpId: myCpId })
-            : Promise.resolve({ data: { list: [] } }),
-        ]);
-        if (!alive) return;
-        if (cardRes.status === 'fulfilled') {
-          // /card/list 读缓存表：id=缓存行雪花ID，cardId 才是真实名片ID（wq_user_cards.id），
-          // 跳名片详情/存 contactCardId 必须用 cardId；isCp=1 企业名片行为虚拟ID，不出现在个人名片选择里
-          const list: CardItem[] = (cardRes.value.data.cardsList ?? [])
-            .filter((c: any) => !c.isCp)
-            .map((c: any, i: number) => ({
-              id: Number(c.cardId ?? c.id),
-              prefix: `名片${i + 1} · `,
-              person: c.nameZh || c.alias || '未命名',
-              title: c.position || c.alias || '',
-            }));
-          setCards(list);
-          if (list.length) setCardId(prev => prev ?? list[0].id);
+      /** 名片 / 企业能力卡列表（能力卡与「企业管理-能力卡」同一数据源：ownerType=1 + cpId） */
+      (async () => {
+        try {
+          const [cardRes, capRes] = await Promise.allSettled([
+            API.card.list(),
+            myCpId
+              ? API.capability.cardList({ ownerType: 1, cpId: myCpId })
+              : Promise.resolve({ data: { list: [] } }),
+          ]);
+          if (cardRes.status === 'fulfilled') {
+            // /card/list 读缓存表：id=缓存行雪花ID，cardId 才是真实名片ID（wq_user_cards.id），
+            // 跳名片详情/存 contactCardId 必须用 cardId；isCp=1 企业名片行为虚拟ID，不出现在个人名片选择里
+            const list: CardItem[] = (cardRes.value.data.cardsList ?? [])
+              .filter((c: any) => !c.isCp)
+              .map((c: any, i: number) => ({
+                id: Number(c.cardId ?? c.id),
+                prefix: `名片${i + 1} · `,
+                person: c.nameZh || c.alias || '未命名',
+                title: c.position || c.alias || '',
+              }));
+            setCards(list);
+            if (list.length) setCardId(prev => prev ?? list[0].id);
+          }
+          if (capRes.status === 'fulfilled') {
+            const list: CapItem[] = (capRes.value.data.list ?? [])
+              .map((c: any) => ({ id: Number(c.id), name: c.cardName || '未命名能力卡' }))
+              .filter((c: CapItem) => !Number.isNaN(c.id));
+            setCaps(list);
+            if (list.length) setCapId(prev => prev ?? list[0].id);
+          }
+        } catch {
+          // 拦截器已提示错误
         }
-        if (capRes.status === 'fulfilled') {
-          const list: CapItem[] = (capRes.value.data.list ?? [])
-            .map((c: any) => ({ id: Number(c.id), name: c.cardName || '未命名能力卡' }))
-            .filter((c: CapItem) => !Number.isNaN(c.id));
-          setCaps(list);
-          if (list.length) setCapId(prev => prev ?? list[0].id);
-        }
-      } catch {
-        // 拦截器已提示错误
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [myCpId]);
+      })();
+    }, [myCpId]),
+  );
 
   const selectedCard = useMemo(() => cards.find(c => c.id === cardId), [cards, cardId]);
   const selectedCap = useMemo(() => caps.find(c => c.id === capId), [caps, capId]);

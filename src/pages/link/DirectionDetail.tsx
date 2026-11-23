@@ -151,7 +151,11 @@ export default function DirectionDetail() {
                 paddingTop: scaleSizeH(16),
                 paddingBottom: scaleSizeH(14),
               }}>
-                <Text style={styles.confirmTip}>明确后，该方向将作为明确合作方向展示，并用于匹配相关企业</Text>
+                <Text style={styles.confirmTip}>
+                  {data.stage === '明确表达'
+                    ? '该方向已作为明确合作方向展示，并用于匹配相关企业'
+                    : '明确后，该方向将作为明确合作方向展示，并用于匹配相关企业'}
+                </Text>
                 <TouchableOpacity
                   activeOpacity={0.85}
                   style={styles.confirmBtn}

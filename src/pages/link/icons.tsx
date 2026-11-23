@@ -145,6 +145,29 @@ export function NoteDotIcon({ size = 10, color = '#FFFFFF' }: IconProps) {
 }
 
 /** 我的信号头部：加号（figma 50.我的信号，2805:8306） */
+/** 合作中心卡片「来源信号」：链条链接图标（描边，随 color） */
+export function LinkChainIcon({ size = 14, color = '#2962D4' }: IconProps) {
+  const s = scaleSizeW(size);
+  return (
+    <Svg width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 export function PlusSignalIcon({ size = 20, color = '#000000' }: IconProps) {
   const s = scaleSizeW(size);
   return (

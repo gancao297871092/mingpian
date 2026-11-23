@@ -1631,6 +1631,8 @@ export interface LinkLead {
   /** 1意向书 / 2信号 / 3广场 / 4官网 / 5匹配 */
   source?: number;
   sourceId?: number;
+  /** source=2(信号) 时=来源信号标题（我方信号/对方信号，合作中心卡片展示用；后端待补充下发） */
+  sourceSignalTitle?: string;
   targetCpId?: number;
   targetUserId?: number;
   title?: string;
