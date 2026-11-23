@@ -87,3 +87,9 @@ ios/build/
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+
+# 腾讯云人脸核身 SDK（iOS 124M / Android 4M，体积大暂不入库，本机构建直接用本地文件；
+# 版本：iOS SDK 8.15.2 / Android face-v6.7.4+noBugly-v5.1.17；后续待选定 LFS 或共享方案）
+ios/TencentCloudHuiyanSDKFace_framework/
+android/app/libs/WbCloudFaceLiveSdk-*.aar
+android/app/libs/WbCloudNormal-*.aar
