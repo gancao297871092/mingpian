@@ -131,7 +131,7 @@ export default function LinkPage() {
             </View>
             <Text style={styles.entryDesc}>查看匹配、触达与反馈</Text>
             <View style={[styles.entryPill, styles.pillSignal]}>
-              <Text style={[styles.entryPillText, styles.pillSignalText]}>{summary?.signalDeliveringCount ?? 0}条触达中</Text>
+              <Text numberOfLines={1} style={[styles.entryPillText, styles.pillSignalText]}>{summary?.signalDeliveringCount ?? 0}条触达中</Text>
             </View>
             <View style={styles.entryChevron}>
               <ChevronRightIcon size={14} />
@@ -148,7 +148,7 @@ export default function LinkPage() {
             </View>
             <Text style={styles.entryDesc}>管理已形成的合作跟进</Text>
             <View style={[styles.entryPill, styles.pillOpp]}>
-              <Text style={[styles.entryPillText, styles.pillOppText]}>{summary?.pendingResponseCount ?? 0}条待我回应</Text>
+              <Text numberOfLines={1} style={[styles.entryPillText, styles.pillOppText]}>{summary?.pendingResponseCount ?? 0}条待我回应</Text>
             </View>
             <View style={styles.entryChevron}>
               <ChevronRightIcon size={14} />
@@ -365,7 +365,8 @@ const styles = StyleSheet.create({
   entryPill: {
     alignSelf: 'flex-start',
     marginTop: scaleSizeH(16),
-    width: scaleSizeW(90),
+    // 不定宽：数字变多位/大字体机型下 90 宽会挤压文案换行（Mi10 实测「应」字掉行），最小宽保持设计观感
+    minWidth: scaleSizeW(90),
     alignItems: 'center',
     borderRadius: 90,
     paddingHorizontal: scaleSizeW(10),
