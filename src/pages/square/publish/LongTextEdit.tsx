@@ -21,6 +21,7 @@ import ImagePicker from 'react-native-image-crop-picker';
 import SafeView from '@/components/SafeView';
 import { NEED_MANUAL_KEYBOARD } from '@/utils/keyboard';
 import { setEditorResult } from '@/utils/editorBridge';
+import { TOPIC_LIMIT, hasOverlongTopic, tipTopicOverLimit } from './topicLimit';
 import { uploadToOss } from '@/utils/ossUpload';
 import { scaleSizeH, scaleSizeW } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
@@ -62,6 +63,30 @@ class Mp4VideoBlot extends BlockEmbed {
 Mp4VideoBlot.blotName = 'mp4video';
 Mp4VideoBlot.tagName = 'video';
 Quill.register(Mp4VideoBlot, true);
+
+/* 话题输入拦截：customJS 先于 quill 实例化执行，延迟挂载 text-change；
+   话题 = # 起至空白符（与 App RichText 的 /#(\\S+)/g 一致），超过 ${TOPIC_LIMIT} 字即从后往前删多余字符 */
+setTimeout(function() {
+  if (typeof quill === 'undefined' || !quill.on) return;
+  var clamping = false;
+  quill.on('text-change', function(delta, oldDelta, source) {
+    if (source !== 'user' || clamping) return;
+    var text = quill.getText();
+    var re = /#(\\S+)/g, m, dels = [];
+    while ((m = re.exec(text)) !== null) {
+      var head = Array.from(m[1]).slice(0, ${TOPIC_LIMIT}).join('');
+      if (head.length < m[1].length) {
+        dels.push({ index: m.index + 1 + head.length, length: m[1].length - head.length });
+      }
+    }
+    if (!dels.length) return;
+    clamping = true;
+    for (var i = dels.length - 1; i >= 0; i--) {
+      quill.deleteText(dels[i].index, dels[i].length, 'api');
+    }
+    clamping = false;
+  });
+}, 0);
 `;
 
 const CUSTOM_STYLES = ['.ql-editor img { max-width: 100%; } .ql-editor video { max-width: 100%; }'];
@@ -80,6 +105,14 @@ const TEXT_COLORS = ['#000000', '#6B7280', '#EF4444', '#F2722C', '#2962D4', '#36
 
 function htmlToPlainLength(html: string): number {
   return [...html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim()].length;
+}
+
+/** 富文本 → 纯文本（段落/换行转为 \n，话题在边界处断开，与 Quill getText 口径一致） */
+function htmlToPlainText(html: string): string {
+  return html
+    .replace(/<\/p>|<br[^>]*>/g, '\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ');
 }
 
 function ImageIcon({ color = TEXT_MAIN }: { color?: string }) {
@@ -637,7 +670,10 @@ export default function LongTextEdit({ route, navigation }: Props) {
             ref={quillRef}
             initialHtml={initialHtml || '<p><br></p>'}
             onHtmlChange={(data) => {
-              setPlainLen(htmlToPlainLength(data.html || ''));
+              const html = data.html || '';
+              setPlainLen(htmlToPlainLength(html));
+              // 话题超长提示：WebView 侧已实时截断，这里捕获截断前瞬时带上的超长话题
+              if (hasOverlongTopic(htmlToPlainText(html))) tipTopicOverLimit();
               refreshHistory();
             }}
             quill={{

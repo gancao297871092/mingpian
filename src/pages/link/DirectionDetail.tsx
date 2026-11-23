@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import AppImage from '@/components/AppImage';
 import LinearGradient from 'react-native-linear-gradient';
+import Toast from 'react-native-toast-message';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -93,6 +94,7 @@ export default function DirectionDetail() {
     setSubmitting(true);
     try {
       await API.aiDiscovery.confirm({ opportunityId, action });
+      Toast.show({ type: 'success', text1: action === 'confirm' ? '已明确该方向' : '已撤回' });
       await load();
     } catch {
       // 拦截器已提示错误
@@ -425,7 +427,7 @@ const styles = StyleSheet.create({
   companyRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scaleSizeW(5),
+    gap: scaleSizeW(10),
     marginTop: scaleSizeH(15),
   },
   companyAvatar: {
@@ -437,7 +439,7 @@ const styles = StyleSheet.create({
   },
   companyInfo: {
     flex: 1,
-    gap: scaleSizeH(5),
+    gap: scaleSizeH(4),
   },
   companyNameRow: {
     flexDirection: 'row',
@@ -446,11 +448,13 @@ const styles = StyleSheet.create({
   },
   companyName: {
     fontSize: setSpText(14),
+    lineHeight: setSpText(19),
+    fontWeight: '500',
     color: '#000000',
   },
   companySub: {
     fontSize: setSpText(12),
-    lineHeight: setSpText(12),
+    lineHeight: setSpText(16),
     color: TEXT_SUB,
   },
 });

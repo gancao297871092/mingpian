@@ -39,6 +39,7 @@ import { getFeedCoverHeight } from '@/utils/feedLayout';
 import { uploadToOss } from '@/utils/ossUpload';
 import { deleteDraft, saveDraft } from '@/utils/draftStore';
 import { COVER_RATIO_KEY, COVER_TRANSFORM_KEY, COVER_URI_KEY } from './CoverSelect';
+import { clampTopics, tipTopicOverLimit } from './topicLimit';
 import type { RootStackParamList } from '@/route/map';
 
 const PRIMARY = '#2962D4';
@@ -869,7 +870,12 @@ export default function Publish() {
           scrollEnabled
           maxLength={BODY_LIMIT}
           value={bodyValue}
-          onChangeText={onBodyChange}
+          onChangeText={v => {
+            // 话题输入拦截：超长截断 + 提示（2 秒节流）
+            const r = clampTopics(v);
+            if (r.clamped) tipTopicOverLimit();
+            onBodyChange(r.text);
+          }}
         />
         {bodyEditing ? (
           // 实测底部占位（字数行+工具栏），用于精准计算输入区高度
