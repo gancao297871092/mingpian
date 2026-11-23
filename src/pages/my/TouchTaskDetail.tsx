@@ -4,13 +4,15 @@ import LinearGradient from 'react-native-linear-gradient';
 import Clipboard from '@react-native-clipboard/clipboard';
 import Toast from 'react-native-toast-message';
 import AppImage from '@/components/AppImage';
-import { useRoute, type RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import SafeView from '@/components/SafeView';
 import LongHtmlView from '@/components/LongHtmlView';
 import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText, SCREEN_WIDTH } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
 import { BlueBadgeIcon, CapPuzzleIcon } from './myIcons';
+import { parseAbilityContent } from '../link/signalDraft';
 
 const PRIMARY = '#2962D4';
 const GREEN = '#0CC160';
@@ -23,9 +25,13 @@ interface TaskDetail {
   verified: boolean;
   companyTags: string;
   analysis: string;
+  /** 推荐内容形态：意向书（signal.abilityContent 到位）/ 能力卡（历史任务回退） */
+  capType: 'intent' | 'card';
   capCompany: string;
   capBbsCount: number;
   capContent: string;
+  /** 意向书模式：来源信号 id，「意向书详情」跳 cooperationIntentView(signalId) */
+  signalId?: number;
   script: string;
 }
 
@@ -35,6 +41,7 @@ const EMPTY_DETAIL: TaskDetail = {
   verified: true,
   companyTags: '',
   analysis: '',
+  capType: 'card',
   capCompany: '',
   capBbsCount: 0,
   capContent: '',
@@ -43,6 +50,7 @@ const EMPTY_DETAIL: TaskDetail = {
 
 /** 96.任务详情（数据来源 /sales/task/detail；接口未下发企业 Logo/行业标签，待后端补） */
 export default function TouchTaskDetail() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'touchTaskDetail'>>();
   const taskId = route.params?.id;
   const [detail, setDetail] = useState<TaskDetail>(EMPTY_DETAIL);
@@ -55,17 +63,21 @@ export default function TouchTaskDetail() {
         const res = await API.salesTask.detail({ taskId });
         const t = res.data.task ?? {};
         const card = res.data.card;
-        setCardId(card?.id);
+        // 来源信号：abilityContent 是意向书草稿 JSON（同 signalDraft），解析成功按意向书展示
+        const signal = res.data.signal;
+        const intentDraft = signal?.abilityContent ? parseAbilityContent(signal.abilityContent) : null;
+        setCardId(intentDraft ? undefined : card?.id);
         const next: TaskDetail = {
           avatar: '',
           company: t.targetName || '目标客户',
           verified: true,
           companyTags: res.data.opportunity?.region || '',
           analysis: t.matchAnalysis || t.aiJudgement || '',
-          capCompany: card?.cardName || '',
-          // 接口未下发关联动态数，0 时隐藏该行（防御）
-          capBbsCount: card?.bbsCount ?? 0,
-          capContent: card?.content || card?.summary || '',
+          capType: intentDraft ? 'intent' : 'card',
+          capCompany: intentDraft ? signal.senderCompanyName || '' : card?.cardName || '',
+          capBbsCount: intentDraft ? (intentDraft.relBbs?.length ?? 0) : (card?.bbsCount ?? 0),
+          capContent: intentDraft?.note || card?.content || card?.summary || '',
+          signalId: intentDraft ? signal.id : undefined,
           script: t.pitchScript || '',
         };
         setDetail(next);
@@ -160,7 +172,7 @@ export default function TouchTaskDetail() {
               }}>
                 <View style={styles.capHeadRow}>
                   <CapPuzzleIcon />
-                  <Text style={styles.capLabel}>能力卡</Text>
+                  <Text style={styles.capLabel}>{detail.capType === 'intent' ? '意向书' : '能力卡'}</Text>
                 </View>
                 <Text style={styles.capCompany} numberOfLines={1}>{detail?.capCompany || ''}</Text>
               </View>
@@ -171,22 +183,41 @@ export default function TouchTaskDetail() {
                 <Text style={styles.capBbsCount}>关联动态 {detail.capBbsCount} 条</Text>
               )}
               {!!detail?.capContent && (
-                <View style={styles.capContentBox}>
-                  <LongHtmlView
-                    html={detail.capContent}
-                    contentWidth={SCREEN_WIDTH - scaleSizeW(92)}
-                    baseStyle={styles.capContent}
-                  />
-                </View>
+                detail.capType === 'intent' ? (
+                  // 意向书 note 为纯文本，直接渲染
+                  <Text style={styles.capContent}>{detail.capContent}</Text>
+                ) : (
+                  <View style={styles.capContentBox}>
+                    <LongHtmlView
+                      html={detail.capContent}
+                      contentWidth={SCREEN_WIDTH - scaleSizeW(92)}
+                      baseStyle={styles.capContent}
+                    />
+                  </View>
+                )
               )}
               <View style={styles.capBtns}>
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  style={styles.capBtn}
-                  onPress={() => Toast.show({ type: 'info', text1: '能力卡详情页建设中' })}
-                >
-                  <Text style={styles.capBtnText}>能力卡详情</Text>
-                </TouchableOpacity>
+                {detail.capType === 'intent' ? (
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={styles.capBtn}
+                    onPress={() => {
+                      if (detail.signalId != null) {
+                        navigation.navigate('cooperationIntentView', { signalId: String(detail.signalId) });
+                      }
+                    }}
+                  >
+                    <Text style={styles.capBtnText}>意向书详情</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={styles.capBtn}
+                    onPress={() => Toast.show({ type: 'info', text1: '能力卡详情页建设中' })}
+                  >
+                    <Text style={styles.capBtnText}>能力卡详情</Text>
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity activeOpacity={0.8} style={styles.capBtn} onPress={onShare}>
                   <Text style={[styles.capBtnText, { color: PRIMARY }]}>微信转发</Text>
                 </TouchableOpacity>
@@ -383,19 +414,22 @@ const styles = StyleSheet.create({
   },
   capBbsCount: {
     fontSize: setSpText(10),
+    lineHeight: setSpText(13),
     color: TEXT_SUB,
+    marginBottom: scaleSizeH(8),
   },
   capContentBox: {
     marginTop: scaleSizeH(7),
   },
   capContent: {
     fontSize: setSpText(15),
+    lineHeight: setSpText(21),
     color: '#000000',
+    marginBottom: scaleSizeH(16),
   },
   capBtns: {
     flexDirection: 'row',
     gap: scaleSizeW(10),
-    marginTop: scaleSizeH(10),
   },
   capBtn: {
     flex: 1,

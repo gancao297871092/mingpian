@@ -103,6 +103,9 @@ class Request {
     this.instance.interceptors.response.use(
       response => {
         const data = response.data as ResponseResult<any>;
+        // 全量响应日志：前缀为完整接口地址，便于抓包对照
+        const url = `${response.config.baseURL ?? ''}${response.config.url ?? ''}`;
+        console.log(`[响应] ${url}`, data);
         if (data.code !== '200') {
           if (AUTH_ERROR_CODES.includes(String(data?.code))) {
             handleAuthError();
@@ -116,6 +119,8 @@ class Request {
         return data as any;
       },
       error => {
+        const url = `${error.config?.baseURL ?? ''}${error.config?.url ?? ''}`;
+        console.log(`[响应-错误] ${url}`, error.response?.status, JSON.stringify(error.response?.data ?? error.message));
         const code = String(error.response?.data?.code ?? error.code ?? error.response?.status ?? '');
         if (error.response?.status === 401 || AUTH_ERROR_CODES.includes(code)) {
           handleAuthError();

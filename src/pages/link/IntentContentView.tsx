@@ -245,8 +245,8 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   quoteCard: {
+    marginHorizontal: scaleSizeW(16),
     borderRadius: scaleSizeW(10),
-    paddingHorizontal: scaleSizeW(14),
   },
   quoteInner: {
     paddingHorizontal: scaleSizeW(14),
