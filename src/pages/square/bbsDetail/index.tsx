@@ -74,6 +74,29 @@ const LIKE_RED = '#FE2B55';
 /** 未登录 / 无头像时的默认占位头像 */
 const DEFAULT_AVATAR = require('@/assets/ming/default-avatar.png');
 
+/** 详情接口 data.aiInsight：AI 识别出的商机（驳回的不返回，见后端 AppSquareController） */
+interface AiInsightItem {
+  opportunityId: number;
+  title: string;
+  oppType?: string;
+  confirmStatus?: number;
+  stage?: string;
+  strength?: number;
+}
+
+/** AI 洞察横幅图标：蓝色四角星（figma 146:1214，单蓝色 #2962D4；路径复用 GuideSparkleIcon 蓝星） */
+function AiSparkleIcon() {
+  const w = scaleSizeW(20);
+  return (
+    <Svg width={w} height={scaleSizeW(19)} viewBox="0 2.3 14.3 13.75" fill="none">
+      <Path
+        d="M4.64558 5.53253C5.63191 3.51926 6.1226 2.51145 6.89085 2.38606C7.05652 2.35905 7.22578 2.35905 7.39145 2.38606C8.1597 2.51145 8.65039 3.51926 9.63672 5.53253C9.82754 5.92525 9.92419 6.12397 10.0729 6.28011C10.1073 6.31659 10.1437 6.35133 10.1819 6.3842C10.348 6.52615 10.5537 6.61841 10.965 6.80058C13.074 7.74215 14.1297 8.21057 14.2611 8.94396C14.2894 9.10211 14.2894 9.2637 14.2611 9.42185C14.1297 10.1552 13.074 10.6237 10.965 11.5652C10.5537 11.7474 10.3455 11.8397 10.1819 11.9816C10.1437 12.0145 10.1073 12.0492 10.0729 12.0857C9.92419 12.2442 9.82754 12.4406 9.63672 12.8333C8.65039 14.8465 8.1597 15.8544 7.39145 15.9797C7.22578 16.0068 7.05652 16.0068 6.89085 15.9797C6.1226 15.8544 5.63191 14.8465 4.64558 12.8333C4.45476 12.4406 4.35811 12.2418 4.20941 12.0857C4.17498 12.0492 4.13858 12.0145 4.10037 11.9816C3.93433 11.8397 3.72864 11.7474 3.31725 11.5652C1.20829 10.6237 0.152564 10.1552 0.0212183 9.42185C-0.00707278 9.2637 -0.00707278 9.10211 0.0212183 8.94396C0.152564 8.21057 1.20829 7.74215 3.31725 6.80058C3.72864 6.61841 3.93681 6.52615 4.10037 6.3842C4.13858 6.35133 4.17498 6.31659 4.20941 6.28011C4.35811 6.1216 4.45476 5.92525 4.64558 5.53253Z"
+        fill="#2962D4"
+      />
+    </Svg>
+  );
+}
+
 let unavailableTickTimer: ReturnType<typeof setInterval> | null = null;
 
 const THUMB_PATH =
@@ -578,6 +601,8 @@ export default function BbsDetail() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(true);
   const [detail, setDetail] = useState<DetailData | null>(null);
+  /** AI 从动态识别出的合作商机（/square/bbs/detail data.aiInsight；审核模式无此数据） */
+  const [aiInsight, setAiInsight] = useState<AiInsightItem[]>([]);
   const [unavailable, setUnavailable] = useState(false);
   const [commentCount, setCommentCount] = useState(0);
   const [comments, setComments] = useState<CommentData[]>([]);
@@ -1126,6 +1151,7 @@ export default function BbsDetail() {
         }
 
         setDetail(d);
+        setAiInsight(isAudit ? [] : (res.data?.aiInsight ?? []));
         setLiked(d.isLiked);
         setFaved(d.isFaved);
         setFollow(d.authorId, (fromMy ? d.isFollowed : res.data.isFollowed === 1) || route.params.isFollowed === true);
@@ -1360,6 +1386,24 @@ export default function BbsDetail() {
               onImagePress={onRichImagePress}
               highlightTopics
             />
+          )}
+          {/* AI 洞察横幅（figma 27.动态详情 146:1219）：识别到 N 个合作商机，「查看」跳方向详情 */}
+          {!isAudit && aiInsight.length > 0 && (
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={styles.insightBanner}
+              onPress={() => navigation.navigate('directionDetail', { opportunityId: aiInsight[0].opportunityId })}
+            >
+              <View style={styles.insightIconWrap}>
+                <AiSparkleIcon />
+              </View>
+              <Text style={styles.insightText} numberOfLines={1}>
+                AI从动态中识别到 <Text style={styles.insightNum}>{aiInsight.length}</Text> 个合作商机
+              </Text>
+              <View style={styles.insightBtn}>
+                <Text style={styles.insightBtnText}>查看</Text>
+              </View>
+            </TouchableOpacity>
           )}
           {!isAudit && !commentRestricted && (
             <>
@@ -1944,6 +1988,47 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     backgroundColor: '#ECEBEB',
     marginTop: scaleSizeH(20),
+  },
+  insightBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: scaleSizeH(16),
+    paddingHorizontal: scaleSizeW(7),
+    height: scaleSizeH(50),
+    borderRadius: scaleSizeW(10),
+    backgroundColor: '#F2F6FF',
+  },
+  insightIconWrap: {
+    width: scaleSizeW(36),
+    height: scaleSizeW(36),
+    borderRadius: scaleSizeW(18),
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: scaleSizeW(10),
+  },
+  insightText: {
+    flex: 1,
+    fontSize: setSpText(14),
+    fontWeight: '400',
+    color: '#000000',
+  },
+  insightNum: {
+    color: '#2962D4',
+  },
+  insightBtn: {
+    backgroundColor: BLUE,
+    borderRadius: scaleSizeW(90),
+    paddingHorizontal: scaleSizeW(10),
+    paddingVertical: scaleSizeH(5),
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: scaleSizeW(8),
+  },
+  insightBtnText: {
+    fontSize: setSpText(12),
+    fontWeight: '400',
+    color: '#FFFFFF',
   },
   commentCount: {
     fontSize: setSpText(12),
