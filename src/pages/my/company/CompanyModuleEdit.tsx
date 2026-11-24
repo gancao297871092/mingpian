@@ -82,7 +82,8 @@ export default function CompanyModuleEdit() {
       Toast.show({ type: 'error', text1: `模块名称不能超过${NAME_MAX}个字` });
       return;
     }
-    if (!stripHtml(content)) {
+    // 纯图片/视频内容也允许保存（与下方 hasContent 展示口径一致：无文字但含媒体即视为有内容）
+    if (!stripHtml(content) && !/<(img|video)\b/i.test(content)) {
       Toast.show({ type: 'error', text1: '请输入模块内容' });
       return;
     }
