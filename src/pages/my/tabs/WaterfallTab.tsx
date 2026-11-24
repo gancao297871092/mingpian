@@ -10,6 +10,7 @@ import { API } from '@/api';
 import { useUserStore } from '@/store/user';
 import { useBbsInteractionStore } from '@/store/bbsInteraction';
 import { setDetailCache } from '@/utils/detailCache';
+import { storageUtils } from '@/utils/storage';
 import type { RootStackParamList } from '@/route/map';
 import { DraftIcon } from '../myIcons';
 import {
@@ -51,13 +52,17 @@ export default forwardRef<TabHandle, Props>(function WaterfallTab({ tab, myId, t
   const stateRef = useRef(state);
   stateRef.current = state;
   const listUserId = targetUserId ?? myId;
-  /** 「我的发布」依赖登录态（/my/bbs/list 未登录不调用），记录是否因未登录跳过 */
+  /** 未登录跳过拉取的标记（我的发布 / 收藏 / 点赞依赖登录态），登录后补拉 */
   const skippedByGuestRef = useRef(false);
 
   const fetchPage = useCallback(
     async (pageNum: number) => {
       if (stateRef.current.loading) return;
-      if (tab === 'post' && !targetUserId && !token) {
+      // 未登录（含 401 后 storage 已清而 store 未同步）不发请求，直接空态：
+      // - 我的发布（post 且无 targetUserId）：/my/bbs/list 需登录
+      // - 收藏/点赞（fav/like）：外层点击 tab 已拦截去登录；滑动过来的按产品口径显示空数据，登录后补拉
+      const isGuest = !token || !storageUtils.getString('token');
+      if (isGuest && ((tab === 'post' && !targetUserId) || tab === 'fav' || tab === 'like')) {
         skippedByGuestRef.current = true;
         setState(prev => ({ ...prev, loading: false, loaded: true }));
         return;

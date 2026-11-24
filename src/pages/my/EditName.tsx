@@ -11,15 +11,16 @@ import type { RootStackParamList } from '@/route/map';
 
 const BLUE = '#2962D4';
 const MAX_LEN = 20;
-/** 昵称输入过滤：允许中英文等各国字母、数字、空格与少量安全标点（·•—-_）；表情及其余符号（@<>/#+$- 等）直接丢弃 */
-const NICKNAME_CHAR = /[\p{L}\p{N}\s·•—\-_]/u;
+/** 昵称输入过滤：仅允许中文等各国字母与数字；空格、符号（_-·• 等）、表情一律丢弃，避免纯符号昵称 */
+const NICKNAME_CHAR = /[\p{L}\p{N}]/u;
 const sanitizeNickname = (text: string) => Array.from(text).filter(ch => NICKNAME_CHAR.test(ch)).join('');
 
 export default function EditName() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { userInfo, setUserInfo } = useUserStore();
   const origin = userInfo?.wqUser?.username || userInfo?.wqUser?.nickname || '';
-  const [value, setValue] = useState(origin);
+  // 存量昵称若含符号（历史数据如 "____-_____"），进入时即被清洗为合法字符，可直接保存清洗结果
+  const [value, setValue] = useState(() => sanitizeNickname(origin));
   const [saving, setSaving] = useState(false);
 
   const trimmed = value.trim();
@@ -68,7 +69,7 @@ export default function EditName() {
           {value.length}/{MAX_LEN}
         </Text>
       </View>
-      <Text style={styles.hint}>请设置2-20个字符，不包括@&lt;&gt;/等无效字符。</Text>
+      <Text style={styles.hint}>请设置2-20个字符，仅支持汉字、字母和数字。</Text>
     </SafeView>
   );
 }

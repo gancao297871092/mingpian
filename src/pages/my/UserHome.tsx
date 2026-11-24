@@ -249,12 +249,16 @@ export default function UserHome() {
     headerHSV.value = headerH;
   }, [headerH, headerHSV]);
 
+  /** 未登录拦截：token 以 storage 实时值为准（401 后拦截器只清 storage 不清 zustand，store 旧值不算已登录）。
+   *  返回 true 表示已拦截并跳转登录页 */
+  const guardLogin = useCallback(() => {
+    if (token && storageUtils.getString('token')) return false;
+    navigation.navigate('login');
+    return true;
+  }, [token, navigation]);
+
   const onToggleFollow = useCallback(() => {
-    // token 以 storage 实时值为准：401 后拦截器只清 storage 不清 zustand，store 里的旧 token 不能作为已登录依据
-    if (!token || !storageUtils.getString('token')) {
-      navigation.navigate('login');
-      return;
-    }
+    if (guardLogin()) return;
     if (!targetUserId || followBusy) return;
     setFollowBusy(true);
     toggleFollow(targetUserId, followed).finally(() => {
@@ -265,14 +269,10 @@ export default function UserHome() {
         setUserHomeCache(targetUserId, { profile: otherInfoRef.current, isFollowed: settled });
       }
     });
-  }, [token, navigation, targetUserId, followed, followBusy]);
+  }, [guardLogin, targetUserId, followed, followBusy]);
 
   const onSendMessage = () => {
-    // 同上：storage 无 token 即视为未登录，直接跳登录页（避免带着失效 token 请求触发「登录已过期」弹窗）
-    if (!token || !storageUtils.getString('token')) {
-      navigation.navigate('login');
-      return;
-    }
+    if (guardLogin()) return;
     if (!targetUserId || isSelf) return;
     navigation.navigate('messageDetail', { userId: targetUserId });
   };
@@ -308,7 +308,10 @@ export default function UserHome() {
   const position = Animated.divide(scrollX, windowWidth);
   const onTabPress = (i: number) => {
     const key = tabKeys[i];
-    if (key) tabRefs[key]?.ensureLoaded?.();
+    if (!key) return;
+    // 收藏/点赞 tab 需登录（点击入口）
+    if ((key === 'fav' || key === 'like') && guardLogin()) return;
+    tabRefs[key]?.ensureLoaded?.();
     swiperRef.current?.scrollToOffset({ offset: i * windowWidth, animated: true });
   };
   const indicatorTranslate =
