@@ -18,7 +18,7 @@ export type RootStackParamList = {
   richTextEdit: { initialHtml?: string; placeholder?: string; title?: string };
   /** 创建/编辑能力卡（figma 42.创建能力卡；传 id 为编辑） */
   capCardEdit: { id?: number } | undefined;
-  publishLongText: { initialHtml?: string; insertOnMount?: string; simple?: boolean; title?: string } | undefined;
+  publishLongText: { initialHtml?: string; insertOnMount?: string; simple?: boolean; hideTopic?: boolean; title?: string } | undefined;
   publish: { draft?: LocalDraft; editBbsId?: number } | undefined;
   publishCover: { videoUri: string; ratio?: '3:4' | '16:9'; title?: string };
   draftBox: undefined;

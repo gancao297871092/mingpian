@@ -66,6 +66,8 @@ export default function CompanyModuleEdit() {
     navigation.navigate('publishLongText', {
       title: '模块内容',
       initialHtml: content || undefined,
+      // 企业模块内容无话题语义，隐藏话题按钮（图片保留）
+      hideTopic: true,
     });
   }, [navigation, content]);
 

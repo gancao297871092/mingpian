@@ -139,8 +139,8 @@ export default function DirectionDetail() {
               <Text style={styles.aiPillText}>{data.stage}</Text>
             </View>
           </View>
-          {/* 明确方向卡（非本人 / 不可流转时隐藏，避免无效操作） */}
-          {(!loaded || data.canConfirm) && (
+          {/* 明确方向卡：接口返回且可流转才渲染，避免普通员工看到「从有到无」闪烁 */}
+          {loaded && data.canConfirm && (
             <LinearGradient
               colors={['#FEF4E9', '#FFE4C1']}
               start={{ x: 0, y: 0 }}

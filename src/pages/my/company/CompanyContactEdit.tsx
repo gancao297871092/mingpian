@@ -11,6 +11,10 @@ import type { RootStackParamList } from '@/route/map';
 
 const PRIMARY = '#2962D4';
 const PHONE_REG = /^[\d+\-\s]{5,20}$/;
+/** 联系人/职位输入上限（后端按 100 字符兜底；产品口径 20 字足够覆盖中英文姓名与职位名） */
+const NAME_MAX = 20;
+const POSITION_MAX = 20;
+const PHONE_MAX = 20;
 
 /** 编辑模块：编辑联系方式（联系人/职位/联系电话；传 id 为编辑，不传为新增，对齐小程序 editContact.vue） */
 export default function CompanyContactEdit() {
@@ -63,10 +67,10 @@ export default function CompanyContactEdit() {
     });
   }, [navigation, onSave]);
 
-  const rows: { label: string; value: string; onChange: (t: string) => void; keyboardType?: 'phone-pad' }[] = [
-    { label: '联系人', value: name, onChange: setName },
-    { label: '职位', value: position, onChange: setPosition },
-    { label: '联系电话', value: phone, onChange: setPhone, keyboardType: 'phone-pad' },
+  const rows: { label: string; value: string; onChange: (t: string) => void; keyboardType?: 'phone-pad'; maxLength: number }[] = [
+    { label: '联系人', value: name, onChange: setName, maxLength: NAME_MAX },
+    { label: '职位', value: position, onChange: setPosition, maxLength: POSITION_MAX },
+    { label: '联系电话', value: phone, onChange: setPhone, keyboardType: 'phone-pad', maxLength: PHONE_MAX },
   ];
 
   return (
@@ -82,6 +86,7 @@ export default function CompanyContactEdit() {
                   style={styles.rowInput}
                   value={row.value}
                   onChangeText={row.onChange}
+                  maxLength={row.maxLength}
                   placeholder="请输入"
                   placeholderTextColor="#999999"
                   keyboardType={row.keyboardType}

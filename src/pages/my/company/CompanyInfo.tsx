@@ -52,6 +52,9 @@ function stripHtml(html: string): string {
   return (html || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
 }
 
+/** 企业简介纯文本上限（与富文本编辑器 LONG_BODY_LIMIT 同口径：去标签后按码点计数） */
+const INTRO_TEXT_LIMIT = 10000;
+
 function TipBanner({ text, style }: { text: string; style?: object }) {
   return (
     <View style={[styles.tip, style]}>
@@ -359,7 +362,12 @@ function MenusTab({ navigation }: { navigation: NativeStackNavigationProp<RootSt
       {menus.map((m) => (
         <View key={m.id} style={styles.menuRow}>
           <CompanyInfoIcon size={20} />
-          <Text style={styles.menuName} numberOfLines={1}>{m.mdName || ''}</Text>
+          {m.mdName ? (
+            <Text style={styles.menuName} numberOfLines={1}>{m.mdName}</Text>
+          ) : (
+            // 新增即退出的空白模块（后端先落库）：灰字引导用户去完善
+            <Text style={[styles.menuName, styles.menuNameEmpty]} numberOfLines={1}>未命名模块，点击编辑完善</Text>
+          )}
           <View style={styles.rowActions}>
             <TouchableOpacity
               activeOpacity={0.7}
@@ -511,6 +519,8 @@ export default function CompanyInfo() {
     navigation.navigate('publishLongText', {
       title: '企业简介',
       initialHtml: form.des || undefined,
+      // 企业简介无话题语义，隐藏话题按钮（图片保留）
+      hideTopic: true,
     });
   }, [navigation, form.des]);
 
@@ -522,6 +532,10 @@ export default function CompanyInfo() {
     }
     if (!stripHtml(form.des)) {
       Toast.show({ type: 'error', text1: '请输入企业简介' });
+      return;
+    }
+    if ([...stripHtml(form.des)].length > INTRO_TEXT_LIMIT) {
+      Toast.show({ type: 'error', text1: `企业简介最多${INTRO_TEXT_LIMIT}字` });
       return;
     }
     if (!pre?.cpId) return;
@@ -861,6 +875,10 @@ const styles = StyleSheet.create({
     fontSize: setSpText(15),
     lineHeight: setSpText(18),
     color: '#000000',
+  },
+  menuNameEmpty: {
+    fontSize: setSpText(13),
+    color: '#999999',
   },
   rowActions: {
     flexDirection: 'row',
