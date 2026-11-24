@@ -168,7 +168,8 @@ function OpportunityCard({ item }: { item: OpportunityItem }) {
           onPress={() => {
             if (item.actionText === '查看详情' || item.actionText === '查看申请') {
               if (item.intentId) {
-                navigation.navigate('cooperationIntentView', { intentId: item.intentId });
+                // 原型批注：仅「等待对方」（查看申请）来源显示意向书分享按钮
+                navigation.navigate('cooperationIntentView', { intentId: item.intentId, showShare: item.actionText === '查看申请' });
               } else {
                 console.log('go: 线索详情', item.leadId);
               }

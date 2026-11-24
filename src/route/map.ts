@@ -124,7 +124,7 @@ export type RootStackParamList = {
   /** 潜在合作方向-方向详情（figma 49.潜在合作方向 295:2760） */
   directionDetail: { opportunityId?: number | string } | undefined;
   /** 合作意向书-查看（figma 37.合作意向书 222:1542）：intentId 走详情接口，signalId 为信号预览态 */
-  cooperationIntentView: { intentId?: number | string; signalId?: string } | undefined;
+  cooperationIntentView: { intentId?: number | string; signalId?: string; showShare?: boolean } | undefined;
   /** 修改触达摘要（figma 54.修改触达摘要 327:2236） */
   editTouchSummary: { summary?: TouchSummary } | undefined;
   /** 填写说明（figma 55.填写说明 329:2395） */

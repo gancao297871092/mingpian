@@ -121,7 +121,7 @@ export default function SignalProgress() {
           <TouchableOpacity
             activeOpacity={0.85}
             style={styles.intentBtn}
-            onPress={() => navigation.navigate('cooperationIntentView', { signalId })}
+            onPress={() => navigation.navigate('cooperationIntentView', { signalId, showShare: true })}
           >
             <Text style={styles.intentBtnText}>查看合作意向书</Text>
           </TouchableOpacity>

@@ -98,6 +98,8 @@ export default function CooperationIntentView() {
   const route = useRoute<RouteProp<RootStackParamList, 'cooperationIntentView'>>();
   const intentId = route.params?.intentId;
   const signalId = route.params?.signalId;
+  /** 分享按钮仅对两个来源开放（原型批注）：链接-合作中心-等待对方「查看申请」、链接-我的信号-查看进展 */
+  const showShare = route.params?.showShare === true;
   const myCompanyName = useUserStore(s => s.userInfo?.cpName ?? s.userInfo?.wqUser?.cpName ?? '');
   const [data, setData] = useState<IntentViewData>(EMPTY);
   const [submitting, setSubmitting] = useState(false);
@@ -260,13 +262,18 @@ export default function CooperationIntentView() {
           <ChevronLeftIcon size={18} />
         </TouchableOpacity>
         <Text style={styles.navTitle}>合作意向书</Text>
-        <TouchableOpacity
-          activeOpacity={0.85}
-          style={styles.glassBtn}
-          onPress={onShare}
-        >
-          <ShareIntentIcon />
-        </TouchableOpacity>
+        {showShare ? (
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={styles.glassBtn}
+            onPress={onShare}
+          >
+            <ShareIntentIcon />
+          </TouchableOpacity>
+        ) : (
+          // 无分享时占位，保持标题居中
+          <View style={styles.navPlaceholder} />
+        )}
       </View>
 
       <Animated.ScrollView
@@ -460,6 +467,10 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 8 },
     // 不给 elevation：Android 上半透明背景 + elevation 会被阴影渗色成脏灰块；iOS 阴影走 shadow* 不受影响
+  },
+  navPlaceholder: {
+    width: scaleSizeW(44),
+    height: scaleSizeW(44),
   },
   navTitle: {
     fontSize: setSpText(17),
