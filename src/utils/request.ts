@@ -33,8 +33,12 @@ const AUTH_ERROR_CODES = ['401', '10001', '10002', '10003'];
 let authAlertShowing = false;
 
 function handleAuthError() {
+  // 只有「带着 token 却被拒」才是真·登录过期；游客态（无 token）调需登录接口属正常拒绝，
+  // 静默 reject 由页面自身 catch 兜底——否则注销/未登录时每个聚焦页都会弹一次「登录已过期」
+  const hadToken = !!storageUtils.getString('token');
   storageUtils.remove('token');
   storageUtils.remove('userInfo');
+  if (!hadToken) return;
   if (authAlertShowing) return;
   authAlertShowing = true;
   AppAlert.alert('提示', '登录已过期，请重新登录', [
