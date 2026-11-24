@@ -24,6 +24,41 @@ export function normalizeLongHtmlForPreview(html: string): string {
     });
 }
 
+/** 话题主题色（与全局主色一致） */
+const TOPIC_COLOR = '#2962D4';
+/** 话题口径与 topicLimit.ts 一致：# 起、到空白符或下一个 #（允许未闭合尾话题） */
+const TOPIC_TEXT_RE = /#([^\s#<>]+)#?/g;
+
+/**
+ * 文本节点内的 #话题# 染主题蓝（编辑器插入话题只是裸 # 字符，HTML 里没有话题标记，
+ * 由显示端按约定补 span）。只处理文本节点（[^<]+ 段），标签/属性（如 style 的 # 色值）不触碰。
+ */
+export function highlightTopicHtml(html: string): string {
+  return html.replace(/<[^>]+>|[^<]+/g, seg => {
+    if (seg.startsWith('<')) return seg;
+    return seg.replace(TOPIC_TEXT_RE, `<span style="color:${TOPIC_COLOR}">$&</span>`);
+  });
+}
+
+/** 纯文本预览分支的话题染色（与 highlightTopicHtml 同口径，避免转场后颜色闪烁） */
+function renderTopicPlainText(text: string): React.ReactNode[] {
+  const out: React.ReactNode[] = [];
+  let last = 0;
+  text.replace(/#([^\s#]+)#?/g, (m, _t: string, offset: number) => {
+    if (offset > last) out.push(text.slice(last, offset));
+    out.push(
+      <Text key={`topic-${offset}`} style={{ color: TOPIC_COLOR }}>
+        {m}
+      </Text>,
+    );
+    last = offset + m.length;
+    return m;
+  });
+  if (out.length === 0) return [text];
+  if (last < text.length) out.push(text.slice(last));
+  return out;
+}
+
 /** 视频截帧图 → 点击内联播放 */
 function RichVideoBox({ poster }: { poster: string }) {
   const [playing, setPlaying] = useState(false);
@@ -64,6 +99,8 @@ interface LongHtmlViewProps {
   tagsStyles?: Record<string, MixedStyleDeclaration>;
   /** 点击富文本图片（查看大图） */
   onImagePress?: (urls: string[], index: number) => void;
+  /** 按 #话题# 口径（topicLimit.ts）把文本节点内话题染主题蓝（动态详情等场景） */
+  highlightTopics?: boolean;
 }
 
 /**
@@ -87,10 +124,13 @@ const DEFAULT_TAGS_STYLES: Record<string, MixedStyleDeclaration> = {
   pre: { marginTop: 0, marginBottom: 0 },
 };
 
-function LongHtmlView({ html, contentWidth, baseStyle, tagsStyles, onImagePress }: LongHtmlViewProps) {
+function LongHtmlView({ html, contentWidth, baseStyle, tagsStyles, onImagePress, highlightTopics }: LongHtmlViewProps) {
   // 富文本构建整棵文档树会阻塞 JS 线程：先出纯文本轮廓，转场结束后再挂载完整渲染
   const [ready, setReady] = useState(false);
-  const normalized = useMemo(() => normalizeLongHtmlForPreview(html), [html]);
+  const normalized = useMemo(() => {
+    const n = normalizeLongHtmlForPreview(html);
+    return highlightTopics ? highlightTopicHtml(n) : n;
+  }, [html, highlightTopics]);
   const plainPreview = useMemo(
     () => html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim(),
     [html],
@@ -144,7 +184,7 @@ function LongHtmlView({ html, contentWidth, baseStyle, tagsStyles, onImagePress 
   if (!ready) {
     return (
       <Text style={[baseStyle as any, styles.previewText]} numberOfLines={8}>
-        {plainPreview}
+        {highlightTopics ? renderTopicPlainText(plainPreview) : plainPreview}
       </Text>
     );
   }

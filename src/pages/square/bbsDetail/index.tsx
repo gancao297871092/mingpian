@@ -1355,6 +1355,7 @@ export default function BbsDetail() {
               html={detail.content}
               baseStyle={styles.body}
               onImagePress={onRichImagePress}
+              highlightTopics
             />
           )}
           {!isAudit && !commentRestricted && (
