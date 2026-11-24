@@ -37,7 +37,7 @@ export default function BaseInfo({ userCard, userInfo }: BaseInfoProps) {
           <TouchableOpacity
             style={styles.companyRow}
             activeOpacity={0.8}
-            onPress={() => navigation.navigate('companyPage', { id: userInfo.cpId, userId: wqUser?.id })}
+            onPress={() => navigation.navigate('companyWebsite', { id: userInfo.cpId, userId: wqUser?.id })}
           >
             {wqUser?.avatar ? (
               <AppImage source={{ uri: wqUser.avatar }} style={styles.companyLogo} contentFit="cover" transition={150} />
@@ -54,7 +54,7 @@ export default function BaseInfo({ userCard, userInfo }: BaseInfoProps) {
                 </Text>
               )}
             </View>
-            <Text style={styles.companyLink}>查看企业主页</Text>
+            <Text style={styles.companyLink}>查看企业官网</Text>
             <ChevronRightIcon />
           </TouchableOpacity>
         </>
