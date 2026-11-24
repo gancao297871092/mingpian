@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SafeView from '@/components/SafeView';
 import { API } from '@/api';
 import type { LinkHomeSummary } from '@/api';
+import { useUserStore } from '@/store/user';
 import { SCREEN_WIDTH, scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
 import { useOpenOpportunityDetail } from './useOpportunityDetail';
@@ -47,6 +48,8 @@ export default function LinkPage() {
 
   useFocusEffect(
     useCallback(() => {
+      // homeSummary 需登录（后端 mustGetLoginUserId）；游客态不调，避免无效请求
+      if (!useUserStore.getState().token) return;
       let alive = true;
       (async () => {
         try {
