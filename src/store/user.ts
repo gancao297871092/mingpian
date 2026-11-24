@@ -15,7 +15,8 @@ export interface WqUser {
   avatar?: string;
   des?: string;
   authRealCard?: boolean;
-  authCompany?: boolean;
+  /** 后端实为 Integer（0/1），历史类型写成 boolean；判定请用真值（!!x），不要用 === true */
+  authCompany?: number | boolean;
   authPosition?: boolean;
   userType?: number;
   province?: string;

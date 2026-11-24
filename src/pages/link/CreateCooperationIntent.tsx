@@ -148,7 +148,8 @@ export default function CreateCooperationIntent() {
   const myCpId = useUserStore(s => s.userInfo?.cpId ?? s.userInfo?.wqUser?.cpId);
   const myCompanyName = useUserStore(s => s.userInfo?.cpName ?? s.userInfo?.wqUser?.cpName ?? '');
   const myAvatar = useUserStore(s => s.userInfo?.wqUser?.avatar ?? '');
-  const authed = useUserStore(s => s.userInfo?.wqUser?.authCompany === true);
+  // authCompany 后端返回 0/1（Integer），用真值判断（=== true 在拿到 1 时不成立，认证标识会丢）
+  const authed = useUserStore(s => !!s.userInfo?.wqUser?.authCompany);
   const [desc, setDesc] = useState(existingIntent?.note ?? '');
   const [picker, setPicker] = useState<PickerKind | null>(null);
   const [cards, setCards] = useState<CardItem[]>([]);

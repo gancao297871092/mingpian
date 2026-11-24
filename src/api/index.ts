@@ -612,8 +612,8 @@ export namespace API {
       authReal?: boolean;
       /** 职业认证状态 */
       authPosition?: boolean;
-      /** 企业认证状态 */
-      authCompany?: boolean;
+      /** 企业认证状态（后端 wqUser.authCompany 实为 Integer 0/1，判定时用真值） */
+      authCompany?: number | boolean;
     }
 
     /** 发送短信验证码（scene 仅作记录，后端统一走 /auth/sms/send 无 scene 白名单） */
