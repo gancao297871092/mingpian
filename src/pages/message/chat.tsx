@@ -588,7 +588,8 @@ export default function MessageChat() {
             {card ? (
               <TouchableOpacity
                 activeOpacity={0.85}
-                onPress={() => navigation.navigate('cardDetail', { id: card.cardId })}
+                // 带 userId：名片已删除时详情页倒计时跳「Ta 的主页」（对方名片→对方，自己名片→自己）
+                onPress={() => navigation.navigate('cardDetail', { id: card.cardId, userId: isSelf ? myId : peerUserId })}
               >
                 <AppImage
                   source={{ uri: card.url }}

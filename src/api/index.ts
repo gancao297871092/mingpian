@@ -365,7 +365,7 @@ export namespace API {
     }
     /** 动态聚合详情（作者/媒体/点赞收藏状态/评论数） */
     export function bbsDetail(params: { bbsId: string | number }) {
-      return request.get<{ bbs: any; commentCount: number; isFollowed: 0 | 1 }>('/square/bbs/detail', { params, handleBbsUnavailable: true });
+      return request.get<{ bbs: any; commentCount: number; isFollowed: 0 | 1 }>('/square/bbs/detail', { params, handleContentUnavailable: true });
     }
   }
 
@@ -406,9 +406,9 @@ export namespace API {
       mediaLinkList?: any[];
       userId?: number;
     }
-    /** 名片聚合详情（/bbs/cardDetail，免登录；返回 userCard/projectList/userInfo） */
-    export function aggregate(params: { cardId: string | number }) {
-      return request.get<any>('/bbs/cardDetail', { params });
+    /** 名片聚合详情（/bbs/cardDetail，免登录；返回 userCard/projectList/userInfo）；config 供名片详情传 handleContentUnavailable（已删除时页面接管交互） */
+    export function aggregate(params: { cardId: string | number }, config?: { handleContentUnavailable?: boolean }) {
+      return request.get<any>('/bbs/cardDetail', { params, ...config });
     }
     /** 收藏/取消名片（type: 1收藏 0取消） */
     export function favoriteDo(data: { cardId: string | number; type: number }) {
@@ -482,7 +482,7 @@ export namespace API {
       return request.get<any>('/bbs/like', { params });
     }
     export function bbsDetail(params: { bbsId: number }) {
-      return request.get<any>('/my/bbs/detail', { params, handleBbsUnavailable: true });
+      return request.get<any>('/my/bbs/detail', { params, handleContentUnavailable: true });
     }
     /** 发布动态（/publish/submit；draftType 必填，视频动态传 videoUrl） */
     export function push(data: {

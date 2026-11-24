@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
+  Image,
   Platform,
   ScrollView,
   StyleSheet,
@@ -12,11 +13,13 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppImage from '@/components/AppImage';
+import SafeView from '@/components/SafeView';
 import * as Contacts from 'expo-contacts/legacy';
 import Toast from 'react-native-toast-message';
 import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { formatFullAddress } from '@/utils/region';
+import { isCardUnavailable } from '@/utils/request';
 import { CardVerifiedIcon } from '@/components/cards/cardIcons';
 import CardShareSheet from '@/components/cards/CardShareSheet';
 import { ChevronRightIcon } from '@/pages/square/bbsDetail/sheetIcons';
@@ -52,9 +55,13 @@ export default function CardDetail({ navigation, route }: Props) {
   const [favored, setFavored] = useState(false);
   const [shareVisible, setShareVisible] = useState(false);
   const [savingContact, setSavingContact] = useState(false);
+  /** 名片不存在/已删除：接管为「不可用」整页态（对齐动态详情），倒计时后跳 Ta 的主页或返回 */
+  const [unavailable, setUnavailable] = useState(false);
+  const [countdown, setCountdown] = useState(3);
   const plazaRef = useRef<PlazaListHandle>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
   const myId = useUserStore((s) => s.userInfo?.wqUser?.id);
+  const targetUserId = Number(route.params.userId ?? 0);
 
   // iOS 下拉回弹时头部图片拉伸（原生驱动 transform，避免 JS 重渲染抖动）
   const headerScale = scrollY.interpolate({
@@ -71,20 +78,41 @@ export default function CardDetail({ navigation, route }: Props) {
   useEffect(() => {
     (async () => {
       try {
-        const res = await API.card.aggregate({ cardId: id });
+        // handleContentUnavailable：拦截器对「名片不存在/已删除」不弹全局错误框，交由本页接管
+        const res = await API.card.aggregate({ cardId: id }, { handleContentUnavailable: true });
         if (res.code === '200' && res.data?.userCard) {
           setData(res.data);
           setFavored(Number(res.data.userCard?.userIsFavorite) === 1);
         } else if (res.code === '200') {
-          // 名片不存在（如历史脏数据传了缓存表行ID）：提示并返回，避免停留空壳页
-          Toast.show({ type: 'info', text1: '名片不存在或已删除' });
-          navigation.goBack();
+          // 名片不存在（如历史脏数据传了缓存表行ID）：避免停留空壳页
+          setUnavailable(true);
         }
-      } catch {
-        // 拦截器已提示错误
+      } catch (e: any) {
+        // 名片不存在/已删除（如聊天里点进对方已删除的名片）：接管为不可用态交互（对齐动态详情）
+        if (isCardUnavailable(e?.msg)) {
+          setUnavailable(true);
+        }
+        // 其余错误拦截器已提示
       }
     })();
   }, [id, navigation]);
+
+  // 不可用态：每秒倒计时，归零后跳 Ta 的主页（有 userId 时，如聊天带过来的对方）或返回
+  useEffect(() => {
+    if (!unavailable) return;
+    const timer = setInterval(() => setCountdown((c) => c - 1), 1000);
+    return () => clearInterval(timer);
+  }, [unavailable]);
+
+  useEffect(() => {
+    if (!unavailable || countdown > 0) return;
+    // replace 而非 push：死页不留栈，否则从主页返回又会回到本页
+    if (targetUserId) {
+      navigation.replace('userHome', { userId: targetUserId });
+    } else {
+      navigation.goBack();
+    }
+  }, [unavailable, countdown, navigation, targetUserId]);
 
   const userCard = data?.userCard;
   const userInfo = data?.userInfo;
@@ -156,6 +184,43 @@ export default function CardDetail({ navigation, route }: Props) {
   }
   if (wqUser?.authPosition) {
     badges.push({ key: 'position', icon: <AuthPositionIcon />, text: `已认证：${userInfo?.position || '无职位'}` });
+  }
+
+  if (unavailable) {
+    return (
+      <SafeView backgroundColor="#F6F7FB">
+        <View style={styles.unavailableWrap}>
+          <Image source={require('@/assets/empty-state/empty-unavailable.png')} style={styles.unavailableImage} resizeMode="contain" />
+          <Text style={styles.unavailableText}>名片不存在或已删除</Text>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={styles.unavailableBtn}
+            onPress={() => {
+              // replace 而非 push：死页不留栈，否则从主页返回又会回到本页
+              if (targetUserId) {
+                navigation.replace('userHome', { userId: targetUserId });
+              } else {
+                navigation.goBack();
+              }
+            }}
+          >
+            <Text style={styles.unavailableBtnText}>
+              {targetUserId ? `跳转 Ta 的主页 ${countdown} 秒` : `返回 ${countdown} 秒`}
+            </Text>
+          </TouchableOpacity>
+        </View>
+        {/* 悬浮返回按钮（与正常态同款） */}
+        <TouchableOpacity
+          style={[styles.backBtn, { top: insets.top + scaleSizeW(10) }]}
+          activeOpacity={0.8}
+          onPress={() => navigation.goBack()}
+        >
+          <View style={styles.backFlip}>
+            <ChevronRightIcon />
+          </View>
+        </TouchableOpacity>
+      </SafeView>
+    );
   }
 
   return (
@@ -311,6 +376,35 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+  },
+  unavailableWrap: {
+    flex: 1,
+    alignItems: 'center',
+    paddingTop: scaleSizeH(137),
+  },
+  unavailableImage: {
+    width: scaleSizeW(120),
+    height: scaleSizeH(127),
+    marginBottom: scaleSizeH(6),
+  },
+  unavailableText: {
+    fontSize: setSpText(14),
+    fontWeight: '400',
+    color: '#C1C1C1',
+    marginBottom: scaleSizeH(20),
+  },
+  unavailableBtn: {
+    paddingHorizontal: scaleSizeW(10),
+    paddingVertical: scaleSizeH(10),
+    borderRadius: scaleSizeW(90),
+    borderWidth: 1,
+    borderColor: '#D9D9D9',
+  },
+  unavailableBtnText: {
+    fontSize: setSpText(14),
+    fontWeight: '400',
+    color: '#6C6C6C',
+    lineHeight: scaleSizeH(16),
   },
   flex: {
     flex: 1,

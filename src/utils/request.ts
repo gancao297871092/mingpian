@@ -10,9 +10,15 @@ export function isBbsUnavailable(message?: string) {
   return /动态不存在|动态已删除|动态已下架|帖子不存在|帖子已删除|帖子已下架/.test(message ?? '');
 }
 
+/** 名片被删除/不存在（详情页接管为「不可用」交互时，拦截器不再全局弹窗） */
+export function isCardUnavailable(message?: string) {
+  return /名片不存在|名片已删除/.test(message ?? '');
+}
+
 declare module 'axios' {
   interface AxiosRequestConfig {
-    handleBbsUnavailable?: boolean;
+    /** 业务码非 200 且命中「内容不可用」文案时，拦截器不弹全局错误框，交由页面自行处理 */
+    handleContentUnavailable?: boolean;
   }
 }
 
@@ -111,7 +117,13 @@ class Request {
             handleAuthError();
             return Promise.reject(data);
           }
-          if (data?.msg && !(response.config.handleBbsUnavailable && isBbsUnavailable(data.msg))) {
+          if (
+            data?.msg &&
+            !(
+              response.config.handleContentUnavailable &&
+              (isBbsUnavailable(data.msg) || isCardUnavailable(data.msg))
+            )
+          ) {
             AppAlert.alert('提示', data.msg);
           }
           return Promise.reject(data);
