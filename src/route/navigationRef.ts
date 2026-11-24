@@ -15,6 +15,17 @@ export function resetToLogin() {
   );
 }
 
+/** 重置到首页（广场 tab）：注销账号成功等「清空栈回首页」场景 */
+export function resetToHome() {
+  if (!navigationRef.isReady()) return;
+  navigationRef.dispatch(
+    CommonActions.reset({
+      index: 0,
+      routes: [{ name: 'MainTabs', params: { screen: 'home' } }],
+    }),
+  );
+}
+
 /** 跳转用户主页：是自己则重置到「我的」tab（对齐小程序 main.js goUserPath），否则进他人主页 */
 export function goUserHome(userId?: string | number) {
   if (!navigationRef.isReady()) return;

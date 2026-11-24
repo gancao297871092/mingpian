@@ -8,7 +8,7 @@ import SafeView from '@/components/SafeView';
 import AppBottomSheet from '@/components/AppBottomSheet';
 import { API } from '@/api';
 import { useUserStore } from '@/store/user';
-import { resetToLogin } from '@/route/navigationRef';
+import { resetToHome } from '@/route/navigationRef';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { BLUE, WhitePageTitle } from './components';
 import { PhoneCodeForm } from './ChangePhoneVerify';
@@ -33,6 +33,7 @@ export default function AccountCancelVerify() {
 
   const onSubmit = () => {
     if (!canSubmit) return;
+    Keyboard.dismiss(); // 先收键盘，再弹「重要说明」弹层，避免键盘压在弹层上
     sheetRef.current?.present();
   };
 
@@ -46,7 +47,8 @@ export default function AccountCancelVerify() {
       if (res.code !== '200') return;
       Toast.show({ type: 'success', text1: '注销申请已提交，账号将在 5 秒后自动注销' });
       useUserStore.getState().logout();
-      resetToLogin();
+      // 注销成功回首页（游客态可浏览广场），不回登录页
+      resetToHome();
     } catch {
       // 非 200（验证码错误/条件未通过等）由 request 拦截器统一弹错
     } finally {
