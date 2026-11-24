@@ -38,6 +38,7 @@ import { scaleSizeH, scaleSizeW } from '@/utils/screenUtils';
 import { getFeedCoverHeight } from '@/utils/feedLayout';
 import { uploadToOss } from '@/utils/ossUpload';
 import { deleteDraft, saveDraft } from '@/utils/draftStore';
+import Toast from 'react-native-toast-message';
 import { COVER_RATIO_KEY, COVER_TRANSFORM_KEY, COVER_URI_KEY } from './CoverSelect';
 import { clampTopics, tipTopicOverLimit } from './topicLimit';
 import type { RootStackParamList } from '@/route/map';
@@ -634,6 +635,11 @@ export default function Publish() {
   };
 
   const confirmReprint = () => {
+    // 批注 #10：选了转载必填转载来源
+    if (!reprintDraft.trim()) {
+      Toast.show({ type: 'info', text1: '请输入转载来源' });
+      return;
+    }
     setReprintSource(reprintDraft.trim());
     setDeclareOption('reprint');
     reprintRef.current?.dismiss();

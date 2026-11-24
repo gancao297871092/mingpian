@@ -10,7 +10,10 @@ export interface DetailData {
   tags: string[];
   timeText: string;
   location: string;
-  declaration: boolean;
+  /** 内容声明：0无需 1原创 2转载 3含AI（原型批注：详情页 IP 位置后显示对应文案） */
+  declaration: number;
+  /** 转载来源（declaration=2 时发布页必填） */
+  source: string;
   visibility: number;
   isLifeTop: boolean;
   /** 评论权限：0所有人 1粉丝 2互关 3仅自己 */
@@ -59,6 +62,14 @@ export function joinRegion(province?: string, city?: string): string {
   return province + city;
 }
 
+/** 内容声明文案（原型批注：详情页 IP 位置后显示 已声明原创/内容转载于XXX/含AI生成内容；0=无需声明显示空） */
+export function declarationLabel(declaration: number, source: string): string {
+  if (declaration === 1) return '已声明原创';
+  if (declaration === 2) return source ? `内容转载于${source}` : '内容转载';
+  if (declaration === 3) return '含AI生成内容';
+  return '';
+}
+
 export function transformDetail(bbs: any): DetailData {
   const mediaList: any[] = bbs.mediaLinkList ?? [];
   const firstMedia = mediaList[0]?.media;
@@ -80,7 +91,8 @@ export function transformDetail(bbs: any): DetailData {
     tags: parseTags(bbs.tags),
     timeText: formatPushTime(bbs.pushTime),
     location: joinRegion(bbs.province, bbs.city) || bbs.ipLocation || '',
-    declaration: Number(bbs.declaration) === 1,
+    declaration: Number(bbs.declaration) || 0,
+    source: bbs.source || '',
     visibility: bbs.visibility ?? 0,
     isLifeTop: Number(bbs.isLifeTop) === 1,
     commentScope: bbs.commentScope ?? 0,

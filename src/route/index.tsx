@@ -299,6 +299,8 @@ export default function RootNavigator() {
             headerTitleStyle: { color: '#000000' },
             headerShadowVisible: false,
             headerBackButtonMenuEnabled: false,
+            // 禁止 iOS 侧滑返回：离开只允许走返回键 → usePreventRemove 的存草稿拦截
+            gestureEnabled: false,
           }}
         />
         <Stack.Screen

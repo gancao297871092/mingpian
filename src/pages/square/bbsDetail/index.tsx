@@ -57,6 +57,7 @@ import PermissionSheet, {
 } from './PermissionSheet';
 import {
   VERIFIED_PATH,
+  declarationLabel,
   formatPushTime,
   joinRegion,
   transformDetail,
@@ -1347,7 +1348,9 @@ export default function BbsDetail() {
             <Text style={styles.metaText}>
               {detail.timeText}{detail.location ? ` · ${detail.location}` : ''}
             </Text>
-            {detail.declaration && <Text style={styles.declarationText}>已声明原创</Text>}
+            {declarationLabel(detail.declaration, detail.source) ? (
+              <Text style={styles.declarationText}>{declarationLabel(detail.declaration, detail.source)}</Text>
+            ) : null}
           </View>
           {isLongForm && !!detail.content && (
             <LongHtmlView
