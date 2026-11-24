@@ -1,7 +1,12 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, type TextStyle } from 'react-native';
 
-const TAG_RE = /#(\S+)/g;
+/**
+ * 话题解析口径：# 起、到空白符或下一个 # 止（允许 #话题# 闭合写法）。
+ * 连续多个 #（如 ####…#名字）只有最后一个 # 与名字构成话题，
+ * 避免把整串 # 当成一个超长话题全部高亮。
+ */
+const TAG_RE = /#([^\s#]+)#?/g;
 
 interface TextPart {
   type: 'text' | 'tag';

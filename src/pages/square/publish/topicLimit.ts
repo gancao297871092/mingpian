@@ -1,6 +1,6 @@
 import Toast from 'react-native-toast-message';
 
-/** 话题最大长度（话题 = # 起至空白符，与 RichText 的 /#(\S+)/g 解析口径一致） */
+/** 话题最大长度（话题 = # 起、到空白符或下一个 # 止，与 RichText / LongHtmlView 的解析口径一致） */
 export const TOPIC_LIMIT = 20;
 
 let topicTipLastAt = 0;
@@ -19,18 +19,20 @@ export function tipTopicOverLimit() {
  */
 export function clampTopics(input: string): { text: string; clamped: boolean } {
   let clamped = false;
-  const text = input.replace(/#(\S+)/g, (raw, topic: string) => {
+  const text = input.replace(/#([^\s#]+)#?/g, (raw, topic: string) => {
     const chars = [...topic];
     if (chars.length <= TOPIC_LIMIT) return raw;
     clamped = true;
-    return `#${chars.slice(0, TOPIC_LIMIT).join('')}`;
+    // 保留闭合 #（若有）
+    const closed = raw.endsWith('#') ? '#' : '';
+    return `#${chars.slice(0, TOPIC_LIMIT).join('')}${closed}`;
   });
   return { text, clamped };
 }
 
 /** 是否含超长话题（富文本 onHtmlChange 侧检测用：WebView 截断前的瞬时内容会带上来） */
 export function hasOverlongTopic(text: string): boolean {
-  const re = /#(\S+)/g;
+  const re = /#([^\s#]+)#?/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(text)) !== null) {
     if ([...m[1]].length > TOPIC_LIMIT) return true;
