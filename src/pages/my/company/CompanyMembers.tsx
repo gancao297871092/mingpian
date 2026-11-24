@@ -4,8 +4,8 @@ import { AppAlert } from '@/components/AppAlert';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { FlashList } from '@shopify/flash-list';
-import { SwipeRow } from 'react-native-swipe-list-view';
 import AppImage from '@/components/AppImage';
+import SwipeableRow, { type SwipeableRowHandle } from '@/components/SwipeableRow';
 import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
 import { NavBackButton } from '@/components/NavHeader';
@@ -40,19 +40,6 @@ interface Member {
   isKf?: number;
   defaultCardId?: number;
 }
-
-interface SwipeRowHandle {
-  closeRow: () => void;
-}
-
-const SwipeableRow = SwipeRow as unknown as React.ForwardRefExoticComponent<
-  React.PropsWithChildren<{
-    rightOpenValue?: number;
-    disableRightSwipe?: boolean;
-    friction?: number;
-  }> &
-    React.RefAttributes<SwipeRowHandle>
->;
 
 interface Action {
   label: string;
@@ -249,8 +236,8 @@ export default function CompanyMembers() {
   };
 
   const renderItem = ({ item }: { item: Member }) => {
-    let rowRef: SwipeRowHandle | null = null;
-    const closeRow = () => rowRef?.closeRow();
+    let rowRef: SwipeableRowHandle | null = null;
+    const closeRow = () => rowRef?.close();
     const actions = buildActions(item, closeRow);
     const badge = roleBadge(item);
     const positions = (item.position || '').split(/[,，]/).filter(Boolean);
@@ -259,9 +246,6 @@ export default function CompanyMembers() {
         ref={(ref) => {
           rowRef = ref;
         }}
-        rightOpenValue={-ACTION_W * actions.length}
-        disableRightSwipe
-        friction={8}
       >
         <View style={styles.hiddenRow}>
           {actions.map((a) => (
@@ -464,7 +448,6 @@ const styles = StyleSheet.create({
     marginLeft: scaleSizeW(77),
   },
   hiddenRow: {
-    flex: 1,
     flexDirection: 'row',
     justifyContent: 'flex-end',
   },

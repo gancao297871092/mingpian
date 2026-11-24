@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
-import { SwipeRow } from 'react-native-swipe-list-view';
 import AppImage from '@/components/AppImage';
+import SwipeableRow, { type SwipeableRowHandle } from '@/components/SwipeableRow';
 import Toast from 'react-native-toast-message';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import SafeView from '@/components/SafeView';
@@ -34,21 +34,6 @@ interface CardFavItem {
   /** 0=对方已删除 */
   status?: number;
 }
-
-interface SwipeRowHandle {
-  closeRow: () => void;
-}
-
-const SwipeableRow = SwipeRow as unknown as React.ForwardRefExoticComponent<
-  React.PropsWithChildren<{
-    rightOpenValue?: number;
-    disableRightSwipe?: boolean;
-    friction?: number;
-    onRowOpen?: () => void;
-    onRowClose?: () => void;
-  }> &
-    React.RefAttributes<SwipeRowHandle>
->;
 
 /** 名片夹（figma 名片夹 1146:4826，对齐小程序 card/card/cardList）：搜索 + 收藏名片列表，左滑分享/删除 */
 export default function CardList({ navigation }: Props) {
@@ -128,17 +113,14 @@ export default function CardList({ navigation }: Props) {
   };
 
   const renderItem = ({ item }: { item: CardFavItem }) => {
-    let rowRef: SwipeRowHandle | null = null;
-    const closeRow = () => rowRef?.closeRow();
+    let rowRef: SwipeableRowHandle | null = null;
+    const closeRow = () => rowRef?.close();
     const deleted = !item.status;
     return (
       <SwipeableRow
         ref={(ref) => {
           rowRef = ref;
         }}
-        rightOpenValue={-ACTION_W * (deleted ? 1 : 2)}
-        disableRightSwipe
-        friction={8}
         onRowOpen={() => setRowGestures(1)}
         onRowClose={() => setRowGestures(-1)}
       >
@@ -357,7 +339,6 @@ const styles = StyleSheet.create({
     marginLeft: scaleSizeW(77),
   },
   hiddenRow: {
-    flex: 1,
     flexDirection: 'row',
     justifyContent: 'flex-end',
   },
