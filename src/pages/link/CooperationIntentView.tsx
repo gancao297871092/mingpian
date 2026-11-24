@@ -172,6 +172,21 @@ export default function CooperationIntentView() {
         const res = await API.signal.detail({ signalId });
         const draft = parseAbilityContent(res.data.signal?.abilityContent);
         if (!draft) return;
+        // 关联动态优先用后端 feedList（实时组装，含 desc 正文摘要）；老数据无 feedList 时回退 abilityContent 快照
+        const feedList = res.data.feedList;
+        const feeds: IntentFeedItem[] = Array.isArray(feedList)
+          ? feedList.map(f => ({
+              id: String(f.bbsId ?? ''),
+              title: f.title || '关联动态',
+              sub: f.desc || '',
+              cover: f.cover || undefined,
+            }))
+          : (draft.feedTitles ?? []).map((title, i) => ({
+              id: String(draft.relBbs?.[i] ?? i),
+              title,
+              sub: draft.feedSubs?.[i] || '',
+              cover: draft.feedImages?.[i] || undefined,
+            }));
         setData({
           quote: draft.note,
           companyName: res.data.company?.name || myCompanyName,
@@ -179,12 +194,7 @@ export default function CooperationIntentView() {
           companyId: res.data.company?.id,
           companyLogo: res.data.company?.avatar || undefined,
           abilities: await resolveAbilities(draft.cardId, draft.abilities ?? []),
-          feeds: (draft.feedTitles ?? []).map((title, i) => ({
-            id: String(draft.relBbs?.[i] ?? i),
-            title,
-            sub: draft.feedSubs?.[i] || '',
-            cover: draft.feedImages?.[i] || undefined,
-          })),
+          feeds,
           contact: { name: draft.contactName || '', title: draft.contactTitle || '' },
           contactCardId: draft.contactCardId,
           canResponse: false,

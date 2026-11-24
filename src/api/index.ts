@@ -1146,9 +1146,13 @@ export namespace API {
     }) {
       return request.post<LinkPageResult<LinkSignalItem>>('/signal/list', data);
     }
-    /** 信号详情（编辑回显） */
+    /** 信号详情（编辑回显；feedList 为关联动态实时组装 [{bbsId,title,cover,desc 正文摘要}]，比 abilityContent 快照准） */
     export function detail(params: { signalId: number | string }) {
-      return request.get<{ signal: LinkSignal; company?: any }>('/signal/detail', { params });
+      return request.get<{
+        signal: LinkSignal;
+        company?: any;
+        feedList?: { bbsId?: number | string; title?: string; cover?: string; desc?: string }[];
+      }>('/signal/detail', { params });
     }
     /** 修改并重新提交（可编辑：status=1 审核中/驳回 或 status=3 已暂停；保存后重置待审核并重跑 T6） */
     export function update(data: {
