@@ -30,6 +30,7 @@ import { API } from '@/api';
 import { useUserStore, type UserInfo, type WqUser } from '@/store/user';
 import { toggleFollow, useFollowStore, setFollow } from '@/store/follow';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
+import { storageUtils } from '@/utils/storage';
 import { getUserHomeCache, setUserHomeCache } from '@/utils/userHomeCache';
 import { BackArrowIcon, ChatBubbleIcon, CompanyIcon, PlusIcon } from './myIcons';
 import WaterfallTab from './tabs/WaterfallTab';
@@ -249,7 +250,8 @@ export default function UserHome() {
   }, [headerH, headerHSV]);
 
   const onToggleFollow = useCallback(() => {
-    if (!token) {
+    // token 以 storage 实时值为准：401 后拦截器只清 storage 不清 zustand，store 里的旧 token 不能作为已登录依据
+    if (!token || !storageUtils.getString('token')) {
       navigation.navigate('login');
       return;
     }
@@ -266,7 +268,8 @@ export default function UserHome() {
   }, [token, navigation, targetUserId, followed, followBusy]);
 
   const onSendMessage = () => {
-    if (!token) {
+    // 同上：storage 无 token 即视为未登录，直接跳登录页（避免带着失效 token 请求触发「登录已过期」弹窗）
+    if (!token || !storageUtils.getString('token')) {
       navigation.navigate('login');
       return;
     }
