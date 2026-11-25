@@ -21,6 +21,7 @@ interface StepOneProps {
   cardId: number | null;
   data: Record<string, any>;
   onNext: (step: number, data?: any) => void;
+  onInputFocus: () => void;
 }
 
 const validatePhone = (phone: string) => {
@@ -48,7 +49,7 @@ const validateTelNumber = (tel: string) => {
 /** 输入时即去空格的字段（页面说明：名片别名/姓名 maxlength=10，输入时去空格） */
 const NO_SPACE_KEYS = new Set(['alias', 'nameZh']);
 
-const StepOne = forwardRef<StepHandle, StepOneProps>(function StepOneForm({ cardId, data, onNext }, ref) {
+const StepOne = forwardRef<StepHandle, StepOneProps>(function StepOneForm({ cardId, data, onNext, onInputFocus }, ref) {
   const [form, setForm] = useState<Record<string, any>>({
     alias: '',
     nameZh: '',
@@ -218,6 +219,7 @@ const StepOne = forwardRef<StepHandle, StepOneProps>(function StepOneForm({ card
           <TextInput
             style={styles.formInput}
             placeholder="请输入"
+            onFocus={onInputFocus}
             placeholderTextColor="#999999"
             value={form[key] || ''}
             onChangeText={(text) => updateField(key, text)}
@@ -294,6 +296,7 @@ const StepOne = forwardRef<StepHandle, StepOneProps>(function StepOneForm({ card
           <TextInput
             style={[styles.formInput, styles.signInput]}
             placeholder="请输入"
+            onFocus={onInputFocus}
             placeholderTextColor="#999999"
             value={form.profile || ''}
             onChangeText={(text) => updateField('profile', text)}

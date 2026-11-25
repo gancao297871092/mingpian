@@ -1,12 +1,15 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
+  Keyboard,
   KeyboardAvoidingView,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useHeaderHeight } from '@react-navigation/elements';
 import SafeView from '@/components/SafeView';
 import { KAV_BEHAVIOR } from '@/utils/keyboard';
 import { API } from '@/api';
@@ -35,6 +38,22 @@ export default function EditCard({ navigation, route }: Props) {
   const [cardId, setCardId] = useState<number | null>(isEdit ? Number(id) : null);
   const [stepData, setStepData] = useState<Record<string, any>>({});
   const stepRef = useRef<StepHandle>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const headerHeight = useHeaderHeight();
+
+  // 键盘避让只缩小可视区，还需将当前输入框滚到键盘上方。
+  const revealFocusedInput = useCallback(() => {
+    if (!Keyboard.isVisible()) return;
+    const input = TextInput.State.currentlyFocusedInput();
+    if (input) {
+      scrollRef.current?.scrollResponderScrollNativeHandleToKeyboard(input, scaleSizeW(16), true);
+    }
+  }, []);
+
+  useEffect(() => {
+    const subscription = Keyboard.addListener('keyboardDidShow', revealFocusedInput);
+    return () => subscription.remove();
+  }, [revealFocusedInput]);
 
   // 初始化加载（AppCardController：创建走 /card/prepare 取/建草稿，编辑走 /card/detail）
   useEffect(() => {
@@ -124,7 +143,7 @@ export default function EditCard({ navigation, route }: Props) {
   const renderStep = () => {
     switch (step) {
       case 1:
-        return <StepOne ref={stepRef} cardId={cardId} data={stepData} onNext={onStepChange} />;
+        return <StepOne ref={stepRef} cardId={cardId} data={stepData} onNext={onStepChange} onInputFocus={revealFocusedInput} />;
       case 2:
         return <StepTwo ref={stepRef} cardId={cardId} data={stepData} onNext={onStepChange} />;
       case 3:
@@ -141,9 +160,16 @@ export default function EditCard({ navigation, route }: Props) {
       <KeyboardAvoidingView
         style={styles.container}
         behavior={KAV_BEHAVIOR}
-        keyboardVerticalOffset={0}
+        keyboardVerticalOffset={headerHeight}
       >
-        <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          ref={scrollRef}
+          style={styles.scroll}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          onLayout={revealFocusedInput}
+          onContentSizeChange={revealFocusedInput}
+        >
           {renderHeader()}
           {renderStep()}
         </ScrollView>
