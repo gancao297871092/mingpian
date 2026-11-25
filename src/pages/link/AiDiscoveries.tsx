@@ -301,7 +301,11 @@ export default function AiDiscoveries() {
           <TouchableOpacity
             activeOpacity={0.85}
             style={styles.card}
-            onPress={() => navigation.navigate('directionDetail', { opportunityId: item.opportunityId })}
+            onPress={() => {
+              // 乐观标记已读（星星立即变蓝）；后端 directionByOpportunity 会异步回写浏览历史，下次拉列表以 isViewed 为准
+              setList(prev => prev.map(x => (x.id === item.id ? { ...x, viewed: true } : x)));
+              navigation.navigate('directionDetail', { opportunityId: item.opportunityId });
+            }}
           >
             <View style={styles.cardTitleRow}>
               <DiamondIcon color={item.viewed ? PRIMARY : '#B9BDCF'} />

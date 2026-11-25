@@ -2,9 +2,9 @@ import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AppImage from '@/components/AppImage';
 import LinearGradient from 'react-native-linear-gradient';
-import Toast from 'react-native-toast-message';
 import Svg, { Path } from 'react-native-svg';
 import EmptyState from '@/components/EmptyState';
+import { openNavigation } from '@/pages/company/website/common';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 
 const PRIMARY = '#2962D4';
@@ -108,7 +108,7 @@ export default function CompanyGallery({ main, groups, groupsLoaded, onHeight }:
             <TouchableOpacity
               activeOpacity={0.7}
               style={styles.mapLink}
-              onPress={() => Toast.show({ type: 'info', text1: '功能开发中' })}
+              onPress={() => openNavigation(main)}
             >
               <MapPinIcon />
               <Text style={styles.mapLinkText}>查看地图</Text>
