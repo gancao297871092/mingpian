@@ -22,6 +22,8 @@ export type RootStackParamList = {
   publish: { draft?: LocalDraft; editBbsId?: number } | undefined;
   publishCover: { videoUri: string; ratio?: '3:4' | '16:9'; title?: string };
   draftBox: undefined;
+  /** 私密动态（我的-发布 tab 顶部入口；/my/bbs/list visibility=2） */
+  privateBbs: undefined;
   bbsDetail: { id: string; isFollowed?: boolean; fromMy?: boolean; audit?: boolean };
   bbsShareImage: { id: string };
   search: undefined;
@@ -133,8 +135,10 @@ export type RootStackParamList = {
   messageDetail: { userId: number; msgNumber?: number; name?: string; avatar?: string } | undefined;
   /** 38.评论与回复（互动消息详情，figma 234:1448） */
   interactionComment: undefined;
-  /** 39.点赞与关注（互动消息详情，figma 251:1790） */
+  /** 39.点赞与收藏（互动消息详情，figma 251:1790） */
   interactionLike: undefined;
+  /** 新增关注（互动消息详情，由点赞与关注拆出；/interaction/follow/list） */
+  interactionFollow: undefined;
   /** 系统消息详情（figma 31 卡片「查看详情」；item 为列表项直传用于首屏渲染） */
   sysMessageDetail: { id: number | string; item?: any };
 };

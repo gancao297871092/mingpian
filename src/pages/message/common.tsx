@@ -7,6 +7,8 @@ import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 export const PRIMARY = '#2962D4';
 export const RED = '#EF4444';
 export const LIKE_RED = '#FE2955';
+/** 关注入口图标底色（互动 tab 第三个入口，绿色圆底+白色加人图标） */
+export const FOLLOW_GREEN = '#34C759';
 export const TEXT_MAIN = '#000000';
 export const TEXT_SUB = '#9A9A9A';
 export const TEXT_DESC = '#6C6C6C';

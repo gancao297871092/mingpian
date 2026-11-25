@@ -34,6 +34,7 @@ import MessagePage from '@/pages/message';
 import MessageChat from '@/pages/message/chat';
 import CommentReplyList from '@/pages/message/CommentReplyList';
 import LikeFollowList from '@/pages/message/LikeFollowList';
+import FollowList from '@/pages/message/FollowList';
 import SysMessageDetail from '@/pages/message/SysMessageDetail';
 import My from '@/pages/my';
 import EditProfile from '@/pages/my/EditProfile';
@@ -100,6 +101,7 @@ import Publish from '@/pages/square/publish';
 import PublishCover from '@/pages/square/publish/CoverSelect';
 import LongTextEdit from '@/pages/square/publish/LongTextEdit';
 import DraftBox from '@/pages/square/publish/DraftBox';
+import PrivateBbsList from '@/pages/my/PrivateBbsList';
 import BbsDetail from '@/pages/square/bbsDetail';
 import BbsShareImage from '@/pages/square/bbsShareImage';
 import SearchPage from '@/pages/square/search';
@@ -319,6 +321,16 @@ export default function RootNavigator() {
           options={{
             title: '草稿箱',
             headerStyle: { backgroundColor: '#F6F7FB' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="privateBbs"
+          component={PrivateBbsList}
+          options={{
+            title: '私密动态',
+            headerStyle: { backgroundColor: '#FFFFFF' },
             headerTitleStyle: { color: '#000000' },
             headerShadowVisible: false,
           }}
@@ -960,7 +972,17 @@ export default function RootNavigator() {
           name="interactionLike"
           component={LikeFollowList}
           options={{
-            title: '点赞与关注',
+            title: '点赞与收藏',
+            headerStyle: { backgroundColor: '#FFFFFF' },
+            headerTitleStyle: { color: '#000000' },
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="interactionFollow"
+          component={FollowList}
+          options={{
+            title: '关注',
             headerStyle: { backgroundColor: '#FFFFFF' },
             headerTitleStyle: { color: '#000000' },
             headerShadowVisible: false,

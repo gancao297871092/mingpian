@@ -1,6 +1,7 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
+import Svg, { Path } from 'react-native-svg';
 import AppImage from '@/components/AppImage';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -11,8 +12,9 @@ import { useUserStore } from '@/store/user';
 import { useBbsInteractionStore } from '@/store/bbsInteraction';
 import { setDetailCache } from '@/utils/detailCache';
 import { storageUtils } from '@/utils/storage';
+import { scaleSizeH, scaleSizeW } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
-import { DraftIcon } from '../myIcons';
+import { DraftIcon, PrivateLockIcon } from '../myIcons';
 import {
   DRAFT_ITEM_ID,
   initialTabState,
@@ -26,6 +28,15 @@ import {
 } from './common';
 
 const PAGE_SIZE = 10;
+
+/** 私密动态入口行右侧箭头（灰色小 chevron） */
+function EntryChevron() {
+  return (
+    <Svg width={scaleSizeW(6)} height={scaleSizeH(10)} viewBox="0 0 6 10" fill="none">
+      <Path d="M1 1l4 4-4 4" stroke="#C4C9D4" strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
 
 interface Props {
   /** post=发布 fav=收藏 like=点赞 */
@@ -49,6 +60,10 @@ export default forwardRef<TabHandle, Props>(function WaterfallTab({ tab, myId, t
   const token = useUserStore(s => s.token);
   const likeMap = useBbsInteractionStore(s => s.likeMap);
   const [state, setState] = useState<TabState<PostCardData>>(initialTabState);
+  /** 私密动态数（my/bbs/list 未筛选 visibility 时响应附带；发布 tab 入口行右侧数量） */
+  const [privateCount, setPrivateCount] = useState<number | null>(null);
+  /** privateCount 降级拉取标记：响应未附带该字段时（后端补丁未上线）仅兜底拉一次 */
+  const privateFallbackRef = useRef(false);
   const stateRef = useRef(state);
   stateRef.current = state;
   const listUserId = targetUserId ?? myId;
@@ -78,6 +93,20 @@ export default forwardRef<TabHandle, Props>(function WaterfallTab({ tab, myId, t
         const list = (res.data?.list ?? []).map(mapPost);
         const pages = res.data?.pages ?? 1;
         onTotal?.(res.data?.total ?? 0);
+        // 私密动态入口数量：仅「我的-发布」未筛选可见性的响应附带（res 为多接口联合类型，单独收窄）
+        const privateCnt = (res.data as { privateCount?: number } | undefined)?.privateCount;
+        if (tab === 'post' && !targetUserId && privateCnt != null) {
+          setPrivateCount(privateCnt);
+          privateFallbackRef.current = true;
+        } else if (tab === 'post' && !targetUserId && !privateFallbackRef.current) {
+          // 响应未附带 privateCount（后端补丁未上线）：降级轻量拉一次 visibility=2 取 total，
+          // 补丁上线后响应自带字段，此兜底自动不再触发
+          privateFallbackRef.current = true;
+          API.my
+            .bbsList({ visibility: 2, pageNum: 1, pageSize: 1 })
+            .then(r => setPrivateCount(r.data?.total ?? 0))
+            .catch(() => {});
+        }
         setState(prev => ({
           list: pageNum === 1 ? list : [...prev.list, ...list],
           page: pageNum,
@@ -202,6 +231,21 @@ export default forwardRef<TabHandle, Props>(function WaterfallTab({ tab, myId, t
       keyExtractor={(item: PostCardData) => item.id}
       masonry
       numColumns={2}
+      ListHeaderComponent={
+        // 「我的-发布」顶部私密动态入口（figma 64：锁图标 + 数量 + 箭头，点击进私密动态页）
+        tab === 'post' && !targetUserId && privateCount != null ? (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={tabStyles.privateEntry}
+            onPress={() => navigation.navigate('privateBbs')}
+          >
+            <PrivateLockIcon />
+            <Text style={tabStyles.privateEntryText}>私密动态</Text>
+            <Text style={tabStyles.privateEntryCount}>{privateCount}</Text>
+            <EntryChevron />
+          </TouchableOpacity>
+        ) : null
+      }
       renderItem={({ item }: { item: PostCardData }) =>
         item.id === DRAFT_ITEM_ID ? (
           <TouchableOpacity activeOpacity={0.9} style={tabStyles.draftCard} onPress={() => navigation.navigate('draftBox')}>

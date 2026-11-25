@@ -277,6 +277,24 @@ export const tabStyles = StyleSheet.create({
     paddingHorizontal: scaleSizeW(5),
     paddingTop: scaleSizeH(5),
   },
+  /** 「我的-发布」私密动态入口行（ListHeaderComponent，随列表滚动） */
+  privateEntry: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSizeW(6),
+    paddingHorizontal: scaleSizeW(6),
+    paddingTop: scaleSizeH(6),
+    paddingBottom: scaleSizeH(12),
+  },
+  privateEntryText: {
+    flex: 1,
+    fontSize: setSpText(14),
+    color: '#000000',
+  },
+  privateEntryCount: {
+    fontSize: setSpText(12),
+    color: '#9A9A9A',
+  },
   postCard: {
     width: CARD_W,
     borderRadius: scaleSizeW(4),

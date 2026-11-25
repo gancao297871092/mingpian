@@ -53,19 +53,24 @@ export namespace API {
     export function del(params: { msgNumber: number }) {
       return request.get<any>('/message/del', { params });
     }
-    /** 互动 tab 聚合（评论与回复/点赞与关注 未读数+最新摘要；后端改造项 3.2） */
+    /** 互动 tab 聚合（评论与回复/点赞与收藏/关注 三组未读数+最新摘要） */
     export function interactionSummary() {
       return request.get<{
         commentUnread?: number;
         commentLastContent?: string | null;
         commentLastTime?: string | null;
+        /** 点赞组未读（后端已收窄为只看点赞 type 3，不含关注） */
         likeUnread?: number;
         likeLastContent?: string | null;
         likeLastTime?: string | null;
+        /** 关注组（新增）：未读数 + 最新摘要 + 时间 */
+        followUnread?: number;
+        followLastContent?: string | null;
+        followLastTime?: string | null;
       }>('/message/interaction/summary');
     }
-    /** 互动按组已读（group: comment 评论与回复 / like 点赞与关注；后端改造项 3.3） */
-    export function interactionRead(data: { group: 'comment' | 'like' }) {
+    /** 互动按组已读（group: comment 评论与回复 / like 点赞与收藏 / follow 关注） */
+    export function interactionRead(data: { group: 'comment' | 'like' | 'follow' }) {
       return request.post<any>('/message/interaction/read', data);
     }
     /** 未读消息总数（底部 tab 红点；后端改造项 3.7 后含互动未读） */
@@ -298,9 +303,11 @@ export namespace API {
   }
 
   export namespace my {
-    /** 我的动态列表（发布 tab；statusTab: all/publishing/published/rejected） */
-    export function bbsList(data: { statusTab?: string; boardType?: number; pageNum?: number; pageSize?: number }) {
-      return request.post<{ list: any[]; total: number; pageNum: number; pages: number }>('/my/bbs/list', data);
+    /** 我的动态列表（发布 tab；statusTab: all/publishing/published/rejected；boardType 板块筛选；
+     *  visibility 可选：0公开/1仅关注可见/2仅自己可见（私密动态页传2），不传查全部；
+     *  visibility 不传时响应附带 privateCount（私密动态数，「我的」页私密动态入口数量）） */
+    export function bbsList(data: { statusTab?: string; boardType?: number; visibility?: number; pageNum?: number; pageSize?: number }) {
+      return request.post<{ list: any[]; total: number; pageNum: number; pages: number; privateCount?: number }>('/my/bbs/list', data);
     }
     /** 点赞/收藏的动态列表（type: 1点赞 2收藏） */
     export function likeFavoritesList(data: { targetUserId: number; type: 1 | 2; pageNum?: number; pageSize?: number }) {
@@ -327,12 +334,22 @@ export namespace API {
       );
     }
     /**
-     * 点赞与关注合并列表（figma 39；kind: 1赞了动态 2赞了评论 3关注了你；
-     * 后端改造项 3.6：合并 wq_user_bbs_like_relation / wq_bbs_comment_like_relation / wq_user_follow）
+     * 点赞与收藏列表（39：kind=1 赞动态 / kind=2 赞评论（带 commentId+commentContent+bbsId），时间倒序分页；
+     * 右侧缩略图用 bbsCover（封面：视频封面→首张图片→海报）。kind=3 关注项已拆出到 /interaction/follow/list）
      */
     export function likeList(params: { pageNum?: number; pageSize?: number }) {
       return request.get<{ list: any[]; total: number; pageNum: number; pages: number }>(
         '/interaction/like/list',
+        { params },
+      );
+    }
+    /**
+     * 关注列表（新增关注页；每项 {id, kind:3, userId, userInfoVo(头像/名称/企业), followedBack, isRead, createTime}，
+     * 按关注时间倒序分页；followedBack=0/1 控制「回关/已关注」按钮态）
+     */
+    export function followList(params: { pageNum?: number; pageSize?: number }) {
+      return request.get<{ list: any[]; total: number; pageNum: number; pages: number }>(
+        '/interaction/follow/list',
         { params },
       );
     }

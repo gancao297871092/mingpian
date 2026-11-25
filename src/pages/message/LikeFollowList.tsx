@@ -2,8 +2,10 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import Svg, { Path, Rect } from 'react-native-svg';
 import SafeView from '@/components/SafeView';
 import EmptyState from '@/components/EmptyState';
+import AppImage from '@/components/AppImage';
 import { useMessageUnreadStore } from '@/store/message';
 import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
@@ -19,15 +21,25 @@ import {
   formatListTime,
 } from './common';
 
-/** 互动类型：1 赞了动态 / 2 赞了评论 / 3 关注了你（后端改造项 3.6） */
+/** 右侧缩略图占位图标（动态无封面时的灰色占位，对齐设计稿） */
+function ThumbPlaceholderIcon() {
+  return (
+    <Svg width={scaleSizeW(22)} height={scaleSizeW(22)} viewBox="0 0 24 24" fill="none">
+      <Rect x={2.5} y={4} width={19} height={16} rx={2} stroke="#C0C4CC" strokeWidth={1.4} />
+      <Path d="M2.5 16.5 8 11.5l4 4 3.5-3.5 6 5.5" stroke="#C0C4CC" strokeWidth={1.4} strokeLinejoin="round" />
+      <Path d="M15.5 9.2a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2Z" fill="#C0C4CC" />
+    </Svg>
+  );
+}
+
+/** 互动类型：1 赞了动态 / 2 赞了评论（kind=3 关注了你 已拆出到「新增关注」页 /interaction/follow/list） */
 const KIND_BBS_LIKE = 1;
 const KIND_COMMENT_LIKE = 2;
-const KIND_FOLLOW = 3;
 
 /**
- * 39.点赞与关注（互动消息详情）
- * 数据：GET /v1/interaction/like/list（动态赞+评论赞+关注合并分页，后端改造项 3.6）。
- * 后端未合并前仅返回动态被赞（无 kind 字段），前端按缺省 kind=1 兼容渲染。
+ * 39.点赞与收藏（互动消息详情）
+ * 数据：GET /v1/interaction/like/list（kind=1 赞动态 / kind=2 赞评论，时间倒序分页）。
+ * 关注项已拆出到 FollowList（/interaction/follow/list），本页不再接收 kind=3。
  */
 export default function LikeFollowList() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -36,8 +48,6 @@ export default function LikeFollowList() {
   const [loaded, setLoaded] = useState(false);
   const [pageNum, setPageNum] = useState(1);
   const [pages, setPages] = useState(1);
-  /** 本地回关状态覆盖（记录 id → followedBack） */
-  const [followOverride, setFollowOverride] = useState<Record<string, number>>({});
 
   const fetchList = useCallback(async (pn: number, append: boolean) => {
     try {
@@ -55,36 +65,19 @@ export default function LikeFollowList() {
 
   useEffect(() => {
     fetchList(1, false);
-    // 进入页面即把「点赞与关注」组通知置已读（后端改造项 3.3，未上线静默）
+    // 进入页面即把「点赞与收藏」组通知置已读（清红点）
     API.message
       .interactionRead({ group: 'like' })
       .then(() => useMessageUnreadStore.getState().fetchUnread())
       .catch(() => {});
   }, [fetchList]);
 
-  /** 回关（figma 39 关注项右侧「回关」按钮） */
-  const onFollowBack = useCallback(async (item: any) => {
-    const key = String(item.id);
-    const targetUserId = item.userInfoVo?.userId ?? item.userId;
-    if (!targetUserId) return;
-    setFollowOverride(prev => ({ ...prev, [key]: 1 }));
-    try {
-      await API.user.followOperate({ targetUserId, isFollow: 1 });
-    } catch {
-      setFollowOverride(prev => ({ ...prev, [key]: 0 }));
-    }
-  }, []);
-
   const renderItem = useCallback(
     ({ item, index }: { item: any; index: number }) => {
       const kind = item.kind ?? KIND_BBS_LIKE;
       const name = item.userInfoVo?.nickname || item.userInfoVo?.username || '访客';
-      const targetUserId = item.userInfoVo?.userId ?? item.userId;
-      const followedBack = followOverride[String(item.id)] ?? item.followedBack ?? 0;
       const onPress = () => {
-        if (kind === KIND_FOLLOW) {
-          if (targetUserId) navigation.navigate('userHome', { userId: targetUserId });
-        } else if (item.bbsId != null) {
+        if (item.bbsId != null) {
           navigation.navigate('bbsDetail', { id: String(item.bbsId) });
         }
       };
@@ -97,9 +90,7 @@ export default function LikeFollowList() {
                 {name}
               </Text>
               <Text style={styles.content} numberOfLines={2}>
-                {kind === KIND_FOLLOW ? (
-                  '关注了你'
-                ) : kind === KIND_COMMENT_LIKE ? (
+                {kind === KIND_COMMENT_LIKE ? (
                   '赞了你的评论'
                 ) : (
                   <>
@@ -111,25 +102,21 @@ export default function LikeFollowList() {
               </Text>
               <Text style={styles.time}>{formatListTime(item.createTime)}</Text>
             </View>
-            {kind === KIND_FOLLOW ? (
-              <TouchableOpacity
-                activeOpacity={0.8}
-                style={[styles.followBtn, followedBack === 1 && styles.followBtnDone]}
-                onPress={() => onFollowBack(item)}
-                disabled={followedBack === 1}
-              >
-                <Text style={[styles.followBtnText, followedBack === 1 && styles.followBtnTextDone]}>
-                  {followedBack === 1 ? '已关注' : '回关'}
-                </Text>
-              </TouchableOpacity>
-            ) : null}
+            {/* 右侧动态封面缩略图（bbsCover：视频封面→首张图片→海报；无封面时灰色占位） */}
+            {item.bbsCover ? (
+              <AppImage source={{ uri: item.bbsCover }} style={styles.thumb} contentFit="cover" transition={100} />
+            ) : (
+              <View style={[styles.thumb, styles.thumbPlaceholder]}>
+                <ThumbPlaceholderIcon />
+              </View>
+            )}
             <ChevronRight />
           </TouchableOpacity>
           {index < list.length - 1 ? <View style={styles.divider} /> : null}
         </View>
       );
     },
-    [navigation, followOverride, list.length, onFollowBack],
+    [navigation, list.length],
   );
 
   return (
@@ -146,7 +133,7 @@ export default function LikeFollowList() {
         }}
         ListEmptyComponent={
           loaded ? (
-            <EmptyState variant="content" title="暂无点赞与关注" style={styles.emptyBox} />
+            <EmptyState variant="content" title="暂无点赞" style={styles.emptyBox} />
           ) : (
             <ActivityIndicator style={styles.loading} color={PRIMARY} />
           )
@@ -196,25 +183,16 @@ const styles = StyleSheet.create({
     fontSize: setSpText(12),
     color: TEXT_SUB,
   },
-  followBtn: {
-    width: scaleSizeW(64),
-    height: scaleSizeH(28),
-    borderRadius: scaleSizeW(14),
-    borderWidth: 1,
-    borderColor: PRIMARY,
+  /** 右侧动态封面缩略图：3:4 竖版圆角（对齐设计稿红框列） */
+  thumb: {
+    width: scaleSizeW(48),
+    height: scaleSizeW(64),
+    borderRadius: scaleSizeW(6),
+    backgroundColor: '#F4F5F7',
+  },
+  thumbPlaceholder: {
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  followBtnDone: {
-    borderColor: DIVIDER,
-  },
-  followBtnText: {
-    fontSize: setSpText(12),
-    lineHeight: setSpText(12),
-    color: PRIMARY,
-  },
-  followBtnTextDone: {
-    color: TEXT_SUB,
   },
   divider: {
     height: 1,

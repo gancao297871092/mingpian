@@ -12,6 +12,7 @@ import {
   type NativeSyntheticEvent,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
+import Svg, { Path } from 'react-native-svg';
 import { useIsFocused, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -25,6 +26,7 @@ import type { MainTabParamList, RootStackParamList } from '@/route/map';
 import {
   ChevronRight,
   DIVIDER,
+  FOLLOW_GREEN,
   LIKE_RED,
   MsgAvatar,
   PRIMARY,
@@ -37,6 +39,22 @@ import {
 } from './common';
 
 type TabKey = 'private' | 'interaction' | 'system';
+
+/** 互动 tab 关注入口图标（白色「人+」，绿色圆底；资产库无对应 PNG，用 SVG 实现） */
+function FollowEntryIcon() {
+  const s = scaleSizeW(23);
+  return (
+    <Svg width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM3.6 20.2c.9-3.9 4.2-6.2 8.4-6.2 1.6 0 3.1.4 4.4 1.1"
+        stroke="#FFFFFF"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+      />
+      <Path d="M18.2 14.5v6M15.2 17.5h6" stroke="#FFFFFF" strokeWidth={1.8} strokeLinecap="round" />
+    </Svg>
+  );
+}
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'private', label: '私信' },
@@ -152,7 +170,7 @@ export default function MessagePage() {
     () => privateList.reduce((sum, it) => sum + (Number(it.noReadCount) || 0), 0),
     [privateList],
   );
-  const interactionUnread = (summary?.commentUnread ?? 0) + (summary?.likeUnread ?? 0);
+  const interactionUnread = (summary?.commentUnread ?? 0) + (summary?.likeUnread ?? 0) + (summary?.followUnread ?? 0);
 
   // ===== 全部已读（按当前 tab 走对应接口） =====
   const onReadAll = useCallback(async () => {
@@ -164,8 +182,9 @@ export default function MessagePage() {
         await Promise.allSettled([
           API.message.interactionRead({ group: 'comment' }),
           API.message.interactionRead({ group: 'like' }),
+          API.message.interactionRead({ group: 'follow' }),
         ]);
-        setSummary(prev => (prev ? { ...prev, commentUnread: 0, likeUnread: 0 } : prev));
+        setSummary(prev => (prev ? { ...prev, commentUnread: 0, likeUnread: 0, followUnread: 0 } : prev));
       } else {
         await API.message.sysReadAll();
         setSysCount(0);
@@ -233,13 +252,23 @@ export default function MessagePage() {
       },
       {
         key: 'like',
-        title: '点赞与关注',
-        desc: summary?.likeLastContent || '查看收到的赞和新粉丝',
+        title: '点赞与收藏',
+        desc: summary?.likeLastContent || '查看收到的赞与收藏',
         time: summary?.likeLastTime,
         unread: summary?.likeUnread ?? 0,
         bg: LIKE_RED,
         icon: require('@/assets/message/icon_like_white.png'),
         onPress: () => navigation.navigate('interactionLike'),
+      },
+      {
+        key: 'follow',
+        title: '关注',
+        desc: summary?.followLastContent || '查看新增关注',
+        time: summary?.followLastTime,
+        unread: summary?.followUnread ?? 0,
+        bg: FOLLOW_GREEN,
+        iconNode: <FollowEntryIcon />,
+        onPress: () => navigation.navigate('interactionFollow'),
       },
     ],
     [summary, navigation],
@@ -368,7 +397,7 @@ export default function MessagePage() {
             renderItem={({ item }) => (
               <TouchableOpacity activeOpacity={0.7} style={styles.row} onPress={item.onPress}>
                 <View style={[styles.entryIcon, { backgroundColor: item.bg }]}>
-                  <AppImage source={item.icon} style={styles.entryIconImg} contentFit="contain" />
+                  {item.iconNode ?? <AppImage source={item.icon} style={styles.entryIconImg} contentFit="contain" />}
                 </View>
                 <View style={styles.rowBody}>
                   <Text style={styles.rowTitle} numberOfLines={1}>
