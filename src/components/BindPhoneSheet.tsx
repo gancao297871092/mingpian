@@ -6,6 +6,7 @@ import {
   Keyboard,
   type LayoutChangeEvent,
   Modal,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -19,7 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { API } from '@/api';
 import AgreementSheet, { type AgreementType } from '@/components/AgreementSheet';
 import { CheckIcon } from '@/assets/login/icons';
-import { checkPhoneLoginSupport, closePhoneLogin, getMaskPhone, openPhoneLogin } from '@/native/PhoneLogin';
+import { closePhoneLogin, getMaskPhone, openPhoneLogin } from '@/native/PhoneLogin';
 import { navigationRef } from '@/route/navigationRef';
 import { useUserStore } from '@/store/user';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
@@ -158,19 +159,19 @@ export function BindPhoneSheetHost() {
     finishBindPhone(true);
   }, []);
 
-  /** 一键绑定：运营商授权页取 token → /auth/mobile/bind {token}（不做协议检查，供「同意并继续」继续调用） */
+  /** 一键绑定：直接拉起运营商授权页取 token → /auth/mobile/bind {token}（不做协议检查，供「同意并继续」继续调用）。
+   *  不做环境预检（与登录页一致）：授权页能否弹起由 SDK 自己判定，失败按错误码降级短信绑定 */
   const startOneClickBind = useCallback(async () => {
     if (binding) return;
     setBinding(true);
     try {
-      if (!(await checkPhoneLoginSupport())) {
-        Toast.show({ type: 'info', text1: '当前环境不支持一键绑定，请绑定其他手机' });
-        setStep('other');
-        return;
-      }
       let auth;
       try {
-        auth = await openPhoneLogin({ presentation: 'fullscreen' });
+        // iOS 半屏弹窗形式展示授权页（原生 bottomSheetMode 已适配布局）；
+        // Android 的弹窗模式需给 LoginAuthActivity 加 dialog 主题，会影响登录页全屏授权页，暂保持全屏
+        auth = await openPhoneLogin({
+          presentation: Platform.OS === 'ios' ? 'bottomSheet' : 'fullscreen',
+        });
       } catch (e: any) {
         const errCode = e?.code;
         if (errCode === 'CANCELLED' || errCode === 'SWITCH_BACK') return;
@@ -182,7 +183,9 @@ export function BindPhoneSheetHost() {
           openAgreement(e?.message === 'privates' ? 'privates' : 'userSure');
           return;
         }
-        Toast.show({ type: 'error', text1: e?.msg ?? e?.message ?? '一键绑定失败，请重试' });
+        // 预取号失败/无 SIM 等：提示并降级短信绑定
+        Toast.show({ type: 'info', text1: '当前环境不支持一键绑定，请绑定其他手机' });
+        setStep('other');
         return;
       }
       if (!auth?.token) {
