@@ -19,6 +19,10 @@ interface CompanyState {
   fetchMineBadges: () => Promise<void>;
 }
 
+/** 企业管理入口与底部「我的」红点共用内部待处理数量。 */
+export const selectCompanyPendingCount = (state: CompanyState) =>
+  state.memberAuditCount + state.bbsAuditCount + state.poolCount;
+
 export const useCompanyStore = create<CompanyState>(set => ({
   memberAuditCount: 0,
   bbsAuditCount: 0,

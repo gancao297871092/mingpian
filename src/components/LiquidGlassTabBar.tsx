@@ -12,7 +12,7 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { LiquidGlass } from '@/components/capabilities';
 import { useUserStore } from '@/store/user';
 import { useMessageUnreadStore } from '@/store/message';
-import { useCompanyStore } from '@/store/company';
+import { selectCompanyPendingCount, useCompanyStore } from '@/store/company';
 import { navigationRef } from '@/route/navigationRef';
 import { ensureInteractVerified } from '@/utils/interactGuard';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
@@ -118,8 +118,8 @@ function TabItem({
 export default function LiquidGlassTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const token = useUserStore(s => s.token);
   const unreadCount = useMessageUnreadStore(s => s.unreadCount);
-  /** 我的 tab 红点：企业管理审核数 + 业务员工作台待触达，任一 >0 显示 */
-  const bbsAuditCount = useCompanyStore(s => s.bbsAuditCount);
+  /** 我的 tab 红点：企业管理待处理数 + 业务员工作台待触达，任一 >0 显示 */
+  const companyPendingCount = useCompanyStore(selectCompanyPendingCount);
   const workbenchTodo = useCompanyStore(s => s.workbenchTodo);
 
   /** 未读红点：挂载/登录态变化时拉取，30s 轮询 + 回前台刷新 */
@@ -200,7 +200,7 @@ export default function LiquidGlassTabBar({ state, descriptors, navigation }: Bo
               navigation={navigation}
               showBadge={
                 (route.name === 'message' && unreadCount > 0) ||
-                (route.name === 'my' && (bbsAuditCount > 0 || workbenchTodo > 0))
+                (route.name === 'my' && (companyPendingCount > 0 || workbenchTodo > 0))
               }
             />
           ))}

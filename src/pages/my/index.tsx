@@ -27,7 +27,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SafeView from '@/components/SafeView';
 import { API } from '@/api';
 import { useUserStore } from '@/store/user';
-import { useCompanyStore } from '@/store/company';
+import { selectCompanyPendingCount, useCompanyStore } from '@/store/company';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { listDrafts } from '@/utils/draftStore';
 import { syncIpCity } from '@/utils/ipCity';
@@ -115,9 +115,9 @@ export default function My() {
   /** JS 侧副本，驱动标签颜色/图标跟手渐变（原生驱动只用于下指示器位移） */
   const scrollXJS = useRef(new Animated.Value(0)).current;
   const swiperRef = useRef<any>(null);
-  /** 入口角标：业务员工作台待触达 + 动态审核待审数（底部「我的」tab 红点同源 useCompanyStore） */
+  /** 入口角标与企业管理内部、底部「我的」红点共用 store。 */
   const workbenchTodo = useCompanyStore(s => s.workbenchTodo);
-  const bbsAuditCount = useCompanyStore(s => s.bbsAuditCount);
+  const companyPendingCount = useCompanyStore(selectCompanyPendingCount);
   const barDarkRef = useRef(false);
   const pageIndexRef = useRef(pageIndex);
   pageIndexRef.current = pageIndex;
@@ -238,7 +238,7 @@ export default function My() {
 
   // 业务员工作台仅万企业务员可见（isYwy 1/2，对齐小程序 moreSets 展客管理 v-if="userInfo.isYwy"）
   const entries: { label: string; icon: React.ReactNode; badge?: number; onPress: () => void }[] = [
-    { label: '企业管理', icon: <EntryCompanyIcon />, badge: bbsAuditCount, onPress: () => navigation.navigate('companyManage') },
+    { label: '企业管理', icon: <EntryCompanyIcon />, badge: companyPendingCount, onPress: () => navigation.navigate('companyManage') },
     ...(userInfo?.isYwy 
       ? [{ label: '业务员工作台', icon: <EntryWorkbenchIcon />, badge: workbenchTodo, onPress: () => navigation.navigate('workbench') }]
       : []),
