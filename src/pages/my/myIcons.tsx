@@ -273,8 +273,8 @@ function TabLockIcon({ size, color }: Required<IconProps>) {
   );
 }
 
-/** 「我的-发布」私密动态入口锁图标（与 tab 锁同形） */
-export function PrivateLockIcon({ size = 15, color = '#666666' }: IconProps) {
+/** 「我的-发布」私密动态入口锁图标（与 tab 锁同形同色，figma 17px #6C6C6C） */
+export function PrivateLockIcon({ size = 17, color = '#6C6C6C' }: IconProps) {
   return <TabLockIcon size={size} color={color} />;
 }
 

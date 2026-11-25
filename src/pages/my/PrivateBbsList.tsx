@@ -134,7 +134,7 @@ export default function PrivateBbsList() {
   );
 
   return (
-    <SafeView backgroundColor="#FFFFFF">
+    <SafeView backgroundColor="#F6F7FB">
       <FlashList
         data={state.list}
         keyExtractor={(item: PostCardData) => item.id}
@@ -175,14 +175,14 @@ const styles = StyleSheet.create({
   tipBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scaleSizeW(6),
-    backgroundColor: '#EFF4FF',
-    borderRadius: scaleSizeW(6),
-    marginHorizontal: scaleSizeW(11),
-    marginTop: scaleSizeH(8),
-    marginBottom: scaleSizeH(8),
-    paddingHorizontal: scaleSizeW(10),
-    paddingVertical: scaleSizeH(9),
+    gap: scaleSizeW(4),
+    backgroundColor: '#E3EDFF',
+    // 通栏样式：负 margin 抵消 masonryContent 的水平 padding
+    marginHorizontal: -scaleSizeW(5),
+    marginTop: -scaleSizeH(5),
+    marginBottom: scaleSizeH(5),
+    paddingHorizontal: scaleSizeW(16),
+    paddingVertical: scaleSizeH(10),
   },
   tipText: {
     fontSize: setSpText(12),

@@ -277,23 +277,32 @@ export const tabStyles = StyleSheet.create({
     paddingHorizontal: scaleSizeW(5),
     paddingTop: scaleSizeH(5),
   },
-  /** 「我的-发布」私密动态入口行（ListHeaderComponent，随列表滚动） */
+  /** 「我的-发布」私密动态入口行（ListHeaderComponent，随列表滚动；figma 3531:6874：白卡 392×50 圆角10） */
   privateEntry: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scaleSizeW(6),
-    paddingHorizontal: scaleSizeW(6),
-    paddingTop: scaleSizeH(6),
-    paddingBottom: scaleSizeH(12),
+    gap: scaleSizeW(5),
+    backgroundColor: '#FFFFFF',
+    borderRadius: scaleSizeW(10),
+    height: scaleSizeH(50),
+    paddingHorizontal: scaleSizeW(11),
+    marginTop: scaleSizeH(11),
+    marginBottom: scaleSizeH(10),
   },
   privateEntryText: {
     flex: 1,
     fontSize: setSpText(14),
-    color: '#000000',
+    color: '#6C6C6C',
   },
+  /** 数量胶囊：灰底 #F6F7FB 圆角 90（figma 3531:7090） */
   privateEntryCount: {
-    fontSize: setSpText(12),
-    color: '#9A9A9A',
+    fontSize: setSpText(14),
+    color: '#6C6C6C',
+    backgroundColor: '#F6F7FB',
+    borderRadius: 90,
+    paddingHorizontal: scaleSizeW(10),
+    paddingVertical: scaleSizeH(2),
+    overflow: 'hidden',
   },
   postCard: {
     width: CARD_W,
