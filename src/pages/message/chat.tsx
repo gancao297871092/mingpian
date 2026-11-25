@@ -35,6 +35,7 @@ import { API } from '@/api';
 import { useUserStore } from '@/store/user';
 import { setFollow, toggleFollow, useFollowStore } from '@/store/follow';
 import { scaleSizeH, scaleSizeW, setSpText, SCREEN_WIDTH } from '@/utils/screenUtils';
+import { ensureInteractVerified } from '@/utils/interactGuard';
 import { storageUtils } from '@/utils/storage';
 import type { RootStackParamList } from '@/route/map';
 
@@ -500,10 +501,14 @@ export default function MessageChat() {
       Toast.show({ type: 'info', text1: '不能发送空白消息' });
       return;
     }
-    updateInput('');
-    doSend(text).then(ok => {
-      // 发送失败恢复草稿，避免已输入内容丢失
-      if (!ok) updateInput(text);
+    // 合规守卫：未实名且未绑手机先走绑定流程，绑定成功后自动继续发送
+    ensureInteractVerified().then(ok => {
+      if (!ok) return;
+      updateInput('');
+      doSend(text).then(sent => {
+        // 发送失败恢复草稿，避免已输入内容丢失
+        if (!sent) updateInput(text);
+      });
     });
   }, [input, doSend, updateInput]);
 
@@ -537,6 +542,8 @@ export default function MessageChat() {
   const sendCard = useCallback(
     async (card: any) => {
       cardSheetRef.current?.dismiss();
+      // 合规守卫：未实名且未绑手机先走绑定流程，绑定成功后自动继续发送
+      if (!(await ensureInteractVerified())) return;
       Toast.show({ type: 'info', text1: '名片生成中…' });
       try {
         // 1. 取完整名片数据（海报需要 cpLogo/mediaLinkList/cardPoster 等，对齐名片夹分享）

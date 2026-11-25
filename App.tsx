@@ -10,6 +10,7 @@ import { Text, View } from 'react-native';
 import { ThemeProvider, useTheme } from '@/theme';
 import RootNavigator from '@/route';
 import { AppAlertHost } from '@/components/AppAlert';
+import { BindPhoneSheetHost } from '@/components/BindPhoneSheet';
 import { PushBannerHost } from '@/components/PushBanner';
 import { initWechat } from '@/utils/wechat';
 import { initPhoneLogin } from '@/native/PhoneLogin';
@@ -109,6 +110,7 @@ function Root() {
       <StatusBar barStyle={theme.dark ? 'light-content' : 'dark-content'} />
       <RootNavigator />
       <AppAlertHost />
+      <BindPhoneSheetHost />
       <Toast config={toastConfig} topOffset={80} />
       <PushBannerHost />
       {!consented && splashHidden && (

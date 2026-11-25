@@ -34,6 +34,7 @@ import LongHtmlView from '@/components/LongHtmlView';
 import { API } from '@/api';
 import { extractMediaSrcs, isLongFormBbs } from '@/utils/bbsContent';
 import { scaleSizeH, scaleSizeW, setSpText, SCREEN_WIDTH } from '@/utils/screenUtils';
+import { ensureInteractVerified } from '@/utils/interactGuard';
 import { formatLikeCount } from '@/utils/format';
 import { useUserStore } from '@/store/user';
 import { useSettingStore } from '@/store/setting';
@@ -769,8 +770,9 @@ export default function BbsDetail() {
         data.parentId = Number(replyTarget.commentId);
         data.replyToUserId = replyTarget.replyToUserId;
       }
-      API.bbsComment
-        .add(data)
+      // 合规守卫：未实名且未绑手机先走绑定流程，绑定成功后自动继续发送
+      ensureInteractVerified()
+        .then(ok => (ok ? API.bbsComment.add(data) : Promise.reject(new Error('bind cancelled'))))
         .then(res => {
           const mine = transformReply(res.data ?? {});
           // 接口可能不回传完整数据，本地回填，保证立即展示

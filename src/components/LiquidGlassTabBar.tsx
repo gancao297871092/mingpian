@@ -14,6 +14,7 @@ import { useUserStore } from '@/store/user';
 import { useMessageUnreadStore } from '@/store/message';
 import { useCompanyStore } from '@/store/company';
 import { navigationRef } from '@/route/navigationRef';
+import { ensureInteractVerified } from '@/utils/interactGuard';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 
 const TAB_ICONS: Record<string, { active: number; inactive: number }> = {
@@ -149,13 +150,15 @@ export default function LiquidGlassTabBar({ state, descriptors, navigation }: Bo
     };
   }, [token]);
 
-  /** 未登录点击发布：与消息/我的一致，直接进入登录页 */
+  /** 未登录点击发布：与消息/我的一致，直接进入登录页；已登录但未实名未绑手机：弹绑定手机流程 */
   const onPressPublish = () => {
     if (!token) {
       navigationRef.navigate('login');
       return;
     }
-    navigation.navigate('publish' as never);
+    ensureInteractVerified().then(ok => {
+      if (ok) navigation.navigate('publish' as never);
+    });
   };
 
   return (

@@ -24,6 +24,16 @@ export namespace API {
     export function oneclick(data: { token: string; userAuthorization?: string }) {
       return request.post<LoginResult>('/auth/oneclick', data);
     }
+
+    /**
+     * 首次绑定手机号（合规要求：未实名且未绑手机时，私信/评论/发布前引导绑定）
+     * - 一键绑定：传 { token }（一键登录运营商 token，后端 GetMobile 换号，免短信）
+     * - 短信绑定：传 { phone, authCode, code }（authCode 来自 /auth/sms/send）
+     * 仅当前账号未绑定手机号时可用；已绑定/手机号被占用由后端 msg 提示
+     */
+    export function mobileBind(data: { token?: string; phone?: string; authCode?: string; code?: string }) {
+      return request.post<any>('/auth/mobile/bind', data);
+    }
   }
 
   export namespace message {

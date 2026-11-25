@@ -200,6 +200,27 @@ RCT_EXPORT_METHOD(preLogin) {
   }];
 }
 
+/**
+ * 预取号并回传运营商掩码号码（如 130****1234），供「绑定手机号」弹层展示本机号码。
+ * 成功且 SDK 返回 securityPhone 时 resolve 掩码字符串，其余情况 resolve nil（前端隐藏号码行）。
+ */
+RCT_EXPORT_METHOD(getMaskPhone:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+  [self ensureSDKReady];
+  LCPLog(@"getMaskPhone: accelerateLoginPage start");
+  [[TXCommonHandler sharedInstance] accelerateLoginPageWithTimeout:5.0
+                                                          complete:^(NSDictionary *_Nonnull resultDic) {
+    NSString *code = [NSString stringWithFormat:@"%@", resultDic[@"resultCode"] ?: @""];
+    id mask = resultDic[@"securityPhone"];
+    LCPLog(@"getMaskPhone: result dic=%@", resultDic);
+    if ([code isEqualToString:@"600000"] && [mask isKindOfClass:[NSString class]] && [mask length] > 0) {
+      resolve(mask);
+    } else {
+      resolve((id)kCFNull);
+    }
+  }];
+}
+
 RCT_EXPORT_METHOD(open:(NSDictionary *)options
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {

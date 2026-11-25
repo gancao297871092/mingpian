@@ -25,6 +25,8 @@ interface PhoneLoginNativeModule {
   initSDK(): void;
   checkSupport(): Promise<boolean>;
   preLogin(): void;
+  /** 预取号并回传运营商掩码号码（如 130****1234）；无掩码能力/失败时 resolve null */
+  getMaskPhone(): Promise<string | null>;
   open(options: { presentation: PhoneLoginPresentation }): Promise<PhoneLoginToken>;
   close(): void;
 }
@@ -48,6 +50,20 @@ export function preLoginPhone(): void {
     native?.preLogin();
   } catch {
     // ignore
+  }
+}
+
+/**
+ * 预取号并回传本机掩码号码（如 130****1234）。
+ * iOS 新版 SDK 预取号成功返回 securityPhone；Android 当前 SDK 版本无掩码能力返回 null。
+ * 任何失败/不支持均返回 null，调用方隐藏号码展示行即可。
+ */
+export async function getMaskPhone(): Promise<string | null> {
+  if (!native?.getMaskPhone) return null;
+  try {
+    return await native.getMaskPhone();
+  } catch {
+    return null;
   }
 }
 

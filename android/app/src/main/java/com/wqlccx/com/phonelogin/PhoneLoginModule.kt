@@ -24,6 +24,7 @@ import org.json.JSONObject
  * - init()                 App 启动时调用一次（设置方案密钥）
  * - checkSupport()         检查当前环境是否支持一键登录（SIM 卡、网络等）
  * - preLogin()             预取号，加速授权页弹起
+ * - getMaskPhone()         预取号并回传运营商掩码号码（无掩码能力时 resolve null）
  * - open(options)          打开授权页，成功 resolve {token, userAuthorization?}，
  *                          取消 reject(code=CANCELLED)，
  *                          自定义入口 reject(code=SWITCH_OTHER / SWITCH_BACK)
@@ -144,6 +145,37 @@ class PhoneLoginModule(private val reactContext: ReactApplicationContext) :
         )
       } catch (e: Exception) {
         // ignore
+      }
+    }
+  }
+
+  /**
+   * 预取号并尝试回传运营商掩码号码（如 130****1234），供「绑定手机号」弹层展示本机号码。
+   * 当前 SDK 版本回调不含掩码字段（iOS 返回 securityPhone）时 resolve null，前端隐藏号码行。
+   */
+  @ReactMethod
+  fun getMaskPhone(promise: Promise) {
+    runOnUi {
+      try {
+        getHelper().accelerateLoginPage(
+          5000,
+          object : PreLoginResultListener {
+            override fun onTokenSuccess(result: String?) {
+              val json = try {
+                JSONObject(result ?: "")
+              } catch (e: Exception) {
+                null
+              }
+              promise.resolve(json?.optString("securityPhone")?.takeIf { it.isNotEmpty() })
+            }
+
+            override fun onTokenFailed(errorCode: String?, msg: String?) {
+              promise.resolve(null)
+            }
+          },
+        )
+      } catch (e: Exception) {
+        promise.resolve(null)
       }
     }
   }
