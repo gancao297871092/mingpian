@@ -1,24 +1,19 @@
 import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
-  Animated,
-  Dimensions,
-  Easing,
   Keyboard,
-  type LayoutChangeEvent,
-  Modal,
   Platform,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
+import { BottomSheetTextInput, type BottomSheetModal } from '@gorhom/bottom-sheet';
 import Toast from 'react-native-toast-message';
 import Svg, { Path } from 'react-native-svg';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { API } from '@/api';
 import AgreementSheet, { type AgreementType } from '@/components/AgreementSheet';
+import AppBottomSheet from '@/components/AppBottomSheet';
 import { CheckIcon } from '@/assets/login/icons';
 import { closePhoneLogin, getMaskPhone, openPhoneLogin } from '@/native/PhoneLogin';
 import { navigationRef } from '@/route/navigationRef';
@@ -28,12 +23,12 @@ import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 /**
  * 绑定手机号弹层（合规要求：未实名且未绑定手机时，发私信/评论/动态前引导绑定）。
  * Figma：绑定手机-其他场景 #2805:7941（一键绑定）/ 绑定手机2-其他场景 #2805:7959（绑定其他手机）。
+ * 容器复用 AppBottomSheet（@gorhom/bottom-sheet）：自带拖拽条、下拉关闭、遮罩点击关闭。
  *
  * requireBindPhone() 返回 Promise<boolean>：true=绑定成功可继续原操作；false=用户取消。
  * 全局仅需在 App 根节点挂一个 <BindPhoneSheetHost />。
  */
 
-const WINDOW_HEIGHT = Dimensions.get('window').height;
 const COUNTDOWN_SECONDS = 60;
 
 type Step = 'main' | 'other';
@@ -99,10 +94,7 @@ async function refreshUserInfo() {
 
 export function BindPhoneSheetHost() {
   const snap = useSyncExternalStore(subscribe, getSnapshot);
-  const insets = useSafeAreaInsets();
-
-  const [sheetHeight, setSheetHeight] = useState(0);
-  const progress = useRef(new Animated.Value(0)).current;
+  const sheetRef = useRef<BottomSheetModal>(null);
 
   const [maskPhone, setMaskPhone] = useState<string | null>(null);
   const [agreed, setAgreed] = useState(true);
@@ -121,18 +113,16 @@ export function BindPhoneSheetHost() {
 
   const { visible, step } = snap;
 
+  // 模块状态驱动 bottom-sheet 弹层（present/dismiss）
   useEffect(() => {
-    if (!visible) return;
-    progress.setValue(0);
-    Animated.timing(progress, {
-      toValue: 1,
-      duration: 280,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-    // 预取号掩码（iOS 有值；Android 当前 SDK 无掩码能力返回 null，隐藏号码行）
-    getMaskPhone().then(setMaskPhone);
-  }, [visible, progress]);
+    if (visible) {
+      sheetRef.current?.present();
+      // 预取号掩码（iOS 有值；Android 当前 SDK 无掩码能力返回 null，隐藏号码行）
+      getMaskPhone().then(setMaskPhone);
+    } else {
+      sheetRef.current?.dismiss();
+    }
+  }, [visible]);
 
   useEffect(() => {
     return () => {
@@ -141,12 +131,6 @@ export function BindPhoneSheetHost() {
   }, []);
 
   const setStep = (s: Step) => setSnapshot({ visible: true, step: s });
-
-  const translateY = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [sheetHeight || WINDOW_HEIGHT, 0],
-  });
-  const onSheetLayout = (e: LayoutChangeEvent) => setSheetHeight(e.nativeEvent.layout.height);
 
   const openAgreement = (type: AgreementType) => {
     navigationRef.navigate('agreement', { type });
@@ -159,7 +143,7 @@ export function BindPhoneSheetHost() {
     finishBindPhone(true);
   }, []);
 
-  /** 一键绑定：直接拉起运营商授权页取 token → /auth/mobile/bind {token}（不做协议检查，供「同意并继续」继续调用）。
+  /** 一键绑定：拉起运营商授权页取 token → /auth/mobile/bind {token}（不做协议检查，供「同意并继续」继续调用）。
    *  不做环境预检（与登录页一致）：授权页能否弹起由 SDK 自己判定，失败按错误码降级短信绑定 */
   const startOneClickBind = useCallback(async () => {
     if (binding) return;
@@ -306,121 +290,114 @@ export function BindPhoneSheetHost() {
   );
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={() => finishBindPhone(false)}>
-      <View style={styles.overlay}>
-        <TouchableOpacity
-          style={StyleSheet.absoluteFill}
-          activeOpacity={1}
-          onPress={() => finishBindPhone(false)}
-          accessible={false}
-        />
-        <Animated.View style={{ transform: [{ translateY }] }} onLayout={onSheetLayout}>
-          <View style={[styles.sheet, { paddingBottom: insets.bottom + scaleSizeH(24) }]}>
-            <View style={styles.handle} />
-            {step === 'main' ? (
-              <>
-                <Text style={styles.desc}>根据相关法律规定，绑定手机号后可继续使用相关功能</Text>
-                {maskPhone ? <Text style={styles.maskPhone}>+86 {maskPhone}</Text> : null}
-                <View style={styles.buttonGroup}>
-                  <TouchableOpacity
-                    style={styles.primaryButton}
-                    activeOpacity={0.85}
-                    disabled={binding}
-                    onPress={() => onPressBind(startOneClickBind)}
-                  >
-                    <Text style={styles.primaryButtonText}>
-                      {binding ? '绑定中…' : '本机号码一键绑定'}
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.secondaryButton}
-                    activeOpacity={0.85}
-                    onPress={() => setStep('other')}
-                  >
-                    <Text style={styles.secondaryButtonText}>绑定其他手机</Text>
-                  </TouchableOpacity>
-                  {agreementRow}
-                </View>
-              </>
-            ) : (
-              <>
-                <View style={styles.otherHeader}>
-                  <TouchableOpacity
-                    style={styles.closeButton}
-                    activeOpacity={0.7}
-                    onPress={() => setStep('main')}
-                    accessibilityLabel="返回"
-                  >
-                    <Svg width={scaleSizeW(14)} height={scaleSizeW(14)} viewBox="0 0 14 14" fill="none">
-                      <Path
-                        d="M2 2l10 10M12 2L2 12"
-                        stroke="#333333"
-                        strokeWidth={1.5}
-                        strokeLinecap="round"
-                      />
-                    </Svg>
-                  </TouchableOpacity>
-                  <Text style={styles.otherTitle}>绑定其他手机</Text>
-                </View>
-                <Text style={styles.otherDesc}>根据相关法律规定，绑定手机号后可继续使用相关功能</Text>
-                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                  <View>
-                    <View style={styles.inputRow}>
-                      <Text style={styles.inputLabel}>+86</Text>
-                      <TextInput
-                        style={styles.input}
-                        placeholder="请输入手机号"
-                        placeholderTextColor="#999999"
-                        keyboardType="number-pad"
-                        maxLength={11}
-                        value={phone}
-                        onChangeText={setPhone}
-                      />
-                    </View>
-                    <View style={styles.divider} />
-                    <View style={styles.inputRow}>
-                      <Text style={styles.inputLabel}>验证码</Text>
-                      <TextInput
-                        style={styles.input}
-                        placeholder="请输入验证码"
-                        placeholderTextColor="#999999"
-                        keyboardType="number-pad"
-                        maxLength={6}
-                        value={code}
-                        onChangeText={setCode}
-                      />
-                      <TouchableOpacity
-                        activeOpacity={0.7}
-                        disabled={countdown > 0}
-                        onPress={onSendSmsCode}
-                      >
-                        <Text style={countdown > 0 ? styles.smsDisabled : styles.smsActive}>
-                          {countdown > 0 ? `${countdown}S 重新发送` : '获取验证码'}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                    <View style={styles.divider} />
-                    {countdown > 0 ? (
-                      <Text style={styles.smsTip}>验证码 5 分钟内有效，60 秒后可重新发送</Text>
-                    ) : null}
-                  </View>
-                </TouchableWithoutFeedback>
-                <View style={styles.buttonGroup}>
-                  <TouchableOpacity
-                    style={[styles.primaryButton, !canSubmitSms && styles.primaryButtonDisabled]}
-                    activeOpacity={0.85}
-                    disabled={!canSubmitSms}
-                    onPress={() => onPressBind(startSmsBind)}
-                  >
-                    <Text style={styles.primaryButtonText}>{binding ? '绑定中…' : '确定'}</Text>
-                  </TouchableOpacity>
-                  {agreementRow}
-                </View>
-              </>
-            )}
+    <AppBottomSheet
+      ref={sheetRef}
+      onClose={() => finishBindPhone(false)}
+      backgroundColor="#F6F7FB"
+      keyboardBehavior="interactive"
+      keyboardBlurBehavior="restore"
+    >
+      {step === 'main' ? (
+        <View>
+          <Text style={styles.desc}>根据相关法律规定，绑定手机号后可继续使用相关功能</Text>
+          {maskPhone ? <Text style={styles.maskPhone}>+86 {maskPhone}</Text> : null}
+          <View style={styles.buttonGroup}>
+            <TouchableOpacity
+              style={styles.primaryButton}
+              activeOpacity={0.85}
+              disabled={binding}
+              onPress={() => onPressBind(startOneClickBind)}
+            >
+              <Text style={styles.primaryButtonText}>
+                {binding ? '绑定中…' : '本机号码一键绑定'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              activeOpacity={0.85}
+              onPress={() => setStep('other')}
+            >
+              <Text style={styles.secondaryButtonText}>绑定其他手机</Text>
+            </TouchableOpacity>
+            {agreementRow}
           </View>
-        </Animated.View>
-      </View>
+        </View>
+      ) : (
+        <View>
+          <View style={styles.otherHeader}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              activeOpacity={0.7}
+              onPress={() => setStep('main')}
+              accessibilityLabel="返回"
+            >
+              <Svg width={scaleSizeW(14)} height={scaleSizeW(14)} viewBox="0 0 14 14" fill="none">
+                <Path
+                  d="M2 2l10 10M12 2L2 12"
+                  stroke="#333333"
+                  strokeWidth={1.5}
+                  strokeLinecap="round"
+                />
+              </Svg>
+            </TouchableOpacity>
+            <Text style={styles.otherTitle}>绑定其他手机</Text>
+          </View>
+          <Text style={styles.otherDesc}>根据相关法律规定，绑定手机号后可继续使用相关功能</Text>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View>
+              <View style={styles.inputRow}>
+                <Text style={styles.inputLabel}>+86</Text>
+                <BottomSheetTextInput
+                  style={styles.input}
+                  placeholder="请输入手机号"
+                  placeholderTextColor="#999999"
+                  keyboardType="number-pad"
+                  maxLength={11}
+                  value={phone}
+                  onChangeText={setPhone}
+                />
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.inputRow}>
+                <Text style={styles.inputLabel}>验证码</Text>
+                <BottomSheetTextInput
+                  style={styles.input}
+                  placeholder="请输入验证码"
+                  placeholderTextColor="#999999"
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  value={code}
+                  onChangeText={setCode}
+                />
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  disabled={countdown > 0}
+                  onPress={onSendSmsCode}
+                >
+                  <Text style={countdown > 0 ? styles.smsDisabled : styles.smsActive}>
+                    {countdown > 0 ? `${countdown}S 重新发送` : '获取验证码'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.divider} />
+              {countdown > 0 ? (
+                <Text style={styles.smsTip}>验证码 5 分钟内有效，60 秒后可重新发送</Text>
+              ) : null}
+            </View>
+          </TouchableWithoutFeedback>
+          <View style={styles.buttonGroup}>
+            <TouchableOpacity
+              style={[styles.primaryButton, !canSubmitSms && styles.primaryButtonDisabled]}
+              activeOpacity={0.85}
+              disabled={!canSubmitSms}
+              onPress={() => onPressBind(startSmsBind)}
+            >
+              <Text style={styles.primaryButtonText}>{binding ? '绑定中…' : '确定'}</Text>
+            </TouchableOpacity>
+            {agreementRow}
+          </View>
+        </View>
+      )}
       <AgreementSheet
         visible={agreeVisible}
         onClose={() => setAgreeVisible(false)}
@@ -431,33 +408,14 @@ export function BindPhoneSheetHost() {
           openAgreement(type);
         }}
       />
-    </Modal>
+    </AppBottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: '#F6F7FB',
-    borderTopLeftRadius: scaleSizeW(20),
-    borderTopRightRadius: scaleSizeW(20),
-    paddingHorizontal: scaleSizeW(16),
-  },
-  handle: {
-    alignSelf: 'center',
-    width: scaleSizeW(34),
-    height: scaleSizeH(6),
-    borderRadius: scaleSizeH(3),
-    backgroundColor: '#A3A3A3',
-    marginTop: scaleSizeH(10),
-  },
   // ===== 一键绑定 =====
   desc: {
-    marginTop: scaleSizeH(22),
+    marginTop: scaleSizeH(16),
     fontSize: setSpText(14),
     lineHeight: setSpText(22),
     color: '#6C6C6C',
@@ -471,7 +429,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   buttonGroup: {
-    marginTop: scaleSizeH(36),
+    marginTop: scaleSizeH(30),
     gap: scaleSizeH(10),
   },
   primaryButton: {
@@ -531,7 +489,7 @@ const styles = StyleSheet.create({
   },
   // ===== 绑定其他手机 =====
   otherHeader: {
-    marginTop: scaleSizeH(24),
+    marginTop: scaleSizeH(10),
     height: scaleSizeH(25),
     justifyContent: 'center',
     alignItems: 'center',
@@ -550,7 +508,7 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
   otherDesc: {
-    marginTop: scaleSizeH(20),
+    marginTop: scaleSizeH(14),
     fontSize: setSpText(14),
     lineHeight: setSpText(22),
     color: '#6C6C6C',

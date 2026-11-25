@@ -22,6 +22,9 @@ export interface AppBottomSheetProps {
   scrollable?: boolean;
   /** scrollable 模式下的弹层高度占比（0~1），默认 0.85 */
   heightRatio?: number;
+  /** 键盘行为（含输入框的弹层传 'interactive'，配合 BottomSheetTextInput） */
+  keyboardBehavior?: 'interactive' | 'extend' | 'fillParent';
+  keyboardBlurBehavior?: 'none' | 'restore';
 }
 
 const AppBottomSheet = forwardRef<BottomSheetModal, AppBottomSheetProps>(function Sheet(
@@ -35,6 +38,8 @@ const AppBottomSheet = forwardRef<BottomSheetModal, AppBottomSheetProps>(functio
     bottomGap = true,
     scrollable = false,
     heightRatio = 0.85,
+    keyboardBehavior,
+    keyboardBlurBehavior,
   },
   ref,
 ) {
@@ -70,6 +75,8 @@ const AppBottomSheet = forwardRef<BottomSheetModal, AppBottomSheetProps>(functio
       handleComponent={showHandle ? undefined : null}
       handleIndicatorStyle={styles.handle}
       backgroundStyle={[styles.background, { backgroundColor }]}
+      keyboardBehavior={keyboardBehavior}
+      keyboardBlurBehavior={keyboardBlurBehavior}
     >
       {scrollable ? (
         <BottomSheetScrollView
