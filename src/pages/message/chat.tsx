@@ -19,6 +19,7 @@ import {
 import { Image as ExpoImage } from 'expo-image';
 import AppImage from '@/components/AppImage';
 import ViewShot from 'react-native-view-shot';
+import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import Toast from 'react-native-toast-message';
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useIsFocused, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
@@ -51,6 +52,8 @@ interface ChatMessage {
   beUserId: number;
   content: string;
   msgTime: string;
+  /** 消息类型：1 文字（默认/缺省）/ 2 名片（content=名片ID，渲染名片卡片，点击跳名片详情） */
+  msgType?: number;
   /** 接收方已读标记：我方消息 beMsgStatus=1 显示「已读」 */
   beMsgStatus?: number;
 }
@@ -84,6 +87,25 @@ function parseCardMessage(content: string): { cardId: string; url: string } | nu
   return { cardId, url };
 }
 
+/** 名片消息卡片图标（msgType=2 气泡头部） */
+function CardMsgIcon() {
+  return (
+    <Svg width={scaleSizeW(20)} height={scaleSizeH(16)} viewBox="0 0 20 16" fill="none">
+      <Rect x={0.5} y={0.5} width={19} height={15} rx={2.5} stroke={BLUE} strokeWidth={1} />
+      <Circle cx={6} cy={6} r={2} fill={BLUE} />
+      <Path d="M2.8 12.2c.5-1.8 1.7-2.7 3.2-2.7s2.7.9 3.2 2.7" stroke={BLUE} strokeWidth={1} strokeLinecap="round" />
+      <Path d="M11.5 5.5h5M11.5 8.5h5M11.5 11.5h3.4" stroke={BLUE} strokeWidth={1} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+/** 解析 msgType=2 名片消息 content（`cardId` 或 `cardId&海报url`；无 url 时渲染通用名片卡片兜底） */
+function parseNewCardMessage(content: string): { cardId: string; url?: string } | null {
+  const [cardId, url] = (content || '').split('&');
+  if (!cardId?.trim()) return null;
+  return { cardId: cardId.trim(), url: url?.trim() || undefined };
+}
+
 /** 拉取图片真实宽高比：名片图在渲染前解析高度，避免 onLoad 后二次撑高列表、滚动落点被顶偏 */
 function getImageAspect(url: string): Promise<number | null> {
   return new Promise(resolve => {
@@ -95,9 +117,11 @@ function getImageAspect(url: string): Promise<number | null> {
   });
 }
 
-/** 批量解析一页留言中名片图片的宽高比（url → w/h） */
+/** 批量解析一页留言中名片图片的宽高比（url → w/h；覆盖 msgType=2 新格式与 <custom-card> 历史格式） */
 async function resolveCardAspects(list: ChatMessage[]): Promise<Record<string, number>> {
-  const urls = list.map(m => parseCardMessage(m.content || '')?.url).filter((u): u is string => !!u);
+  const urls = list
+    .map(m => (m.msgType === 2 ? parseNewCardMessage(m.content || '')?.url : parseCardMessage(m.content || '')?.url))
+    .filter((u): u is string => !!u);
   if (urls.length === 0) return {};
   const ratios = await Promise.all(urls.map(getImageAspect));
   const aspects: Record<string, number> = {};
@@ -187,6 +211,9 @@ export default function MessageChat() {
     [draftKey],
   );
   const [sending, setSending] = useState(false);
+
+  /** 发送预检（/message/check：canSend=0 输入区禁用 + limitTip 灰色提示条；isBlocked=1 被拉黑） */
+  const [sendGate, setSendGate] = useState<{ canSend?: number; isBlocked?: number; limitTip?: string } | null>(null);
 
   /** 发送名片 */
   const [myCards, setMyCards] = useState<any[]>([]);
@@ -310,14 +337,34 @@ export default function MessageChat() {
     })();
   }, [peerUserId, route.params?.name, route.params?.avatar]);
 
+  // ===== 发送预检（/message/check）：进会话查一次；关注切换/发送尝试后重查 =====
+  const loadSendGate = useCallback(async () => {
+    if (!peerUserId) return;
+    try {
+      const res = await API.message.check({ beUserId: peerUserId });
+      setSendGate(res.data ?? null);
+    } catch {
+      // 预检失败不阻断输入（后端限制仍以 send 接口返回为准）
+    }
+  }, [peerUserId]);
+  useEffect(() => {
+    loadSendGate();
+  }, [loadSendGate]);
+  /** 不可发送（超条数/被拉黑）：输入区整体禁用 + 灰色提示条 */
+  const sendBlocked = !!sendGate && sendGate.canSend !== 1;
+
   // ===== 头部关注按钮：状态走全局 follow store（与他人主页/关注列表同步）=====
   const followed = useFollowStore(s => (peerUserId != null ? s.map[String(peerUserId)] : undefined)) ?? false;
   const [followBusy, setFollowBusy] = useState(false);
   const onToggleFollow = useCallback(() => {
     if (!peerUserId || followBusy) return;
     setFollowBusy(true);
-    toggleFollow(peerUserId, followed).finally(() => setFollowBusy(false));
-  }, [peerUserId, followed, followBusy]);
+    toggleFollow(peerUserId, followed).finally(() => {
+      setFollowBusy(false);
+      // 关注对方即解锁陌生人发送限制，重新预检
+      loadSendGate();
+    });
+  }, [peerUserId, followed, followBusy, loadSendGate]);
 
   // ===== 留言加载 =====
   const fetchMessages = useCallback(
@@ -422,11 +469,11 @@ export default function MessageChat() {
 
   // ===== 发送留言 =====
   const doSend = useCallback(
-    async (content: string): Promise<boolean> => {
+    async (content: string, msgType: 1 | 2 = 1): Promise<boolean> => {
       if (!peerUserId || sending || !content.trim()) return false;
       setSending(true);
       try {
-        const res = await API.message.send({ beUserId: peerUserId, content, msgNumber });
+        const res = await API.message.send({ beUserId: peerUserId, content, msgNumber, msgType });
         const saved: ChatMessage = res.data;
         if (saved?.msgNumber) setMsgNumber(saved.msgNumber);
         if (saved?.id) {
@@ -436,13 +483,15 @@ export default function MessageChat() {
         }
         return true;
       } catch {
-        // 拦截器已提示错误
+        // 拦截器已提示错误（超条数/被拉黑/名片不可用的 msg 直接弹出）
         return false;
       } finally {
         setSending(false);
+        // 发送尝试后重查预检：陌生人文字/名片各限 1 条，发完即锁输入区
+        loadSendGate();
       }
     },
-    [sending, peerUserId, msgNumber],
+    [sending, peerUserId, msgNumber, loadSendGate],
   );
 
   const onSendText = useCallback(() => {
@@ -458,7 +507,7 @@ export default function MessageChat() {
     });
   }, [input, doSend, updateInput]);
 
-  // ===== 发送名片（生成海报 → 上传 → 以 `<custom-card>cardId&url` 留言发送，对齐小程序）=====
+  // ===== 发送名片（生成海报 → 上传 → msgType=2 发送 `cardId&url`，对齐旧版海报交互；后端仅校验首段 cardId）=====
   /** 名片列表懒加载：点「发送名片」时才拉取，失败允许重试 */
   const cardsLoadedRef = useRef(false);
 
@@ -537,8 +586,8 @@ export default function MessageChat() {
           const ratio = pl.w / pl.h;
           setCardAspects(prev => ({ ...prev, [url]: ratio }));
         }
-        // 5. 发送名片留言（接收方点击跳转名片详情）
-        await doSend(`${CUSTOM_CARD_TAG}${fullCard.id}&${url}`);
+        // 5. 发送名片留言：msgType=2，content=cardId&海报url（后端仅校验首段 cardId；接收端按 url 渲染海报，点击跳名片详情）
+        await doSend(`${fullCard.id}&${url}`, 2);
       } catch {
         Toast.show({ type: 'error', text1: '名片发送失败，请重试' });
       } finally {
@@ -556,7 +605,12 @@ export default function MessageChat() {
       }
       const { msg } = item;
       const isSelf = Number(msg.userId) === Number(myId);
-      const card = parseCardMessage(msg.content || '');
+      const isCardMsg = msg.msgType === 2;
+      // 名片消息（msgType=2）content=cardId&海报url：有 url 按海报图渲染，纯 cardId（过渡期消息）走通用卡片兜底；
+      // 历史 `<custom-card>cardId&url` 格式继续按海报图渲染
+      const msgCard = isCardMsg ? parseNewCardMessage(msg.content || '') : null;
+      const card = isCardMsg ? null : parseCardMessage(msg.content || '');
+      const posterCardMsg = msgCard?.url ? msgCard : card;
       const avatarNode = isSelf ? (
         myAvatar ? (
           <AppImage source={{ uri: myAvatar }} style={styles.avatar} contentFit="cover" transition={150} />
@@ -585,23 +639,38 @@ export default function MessageChat() {
         <View style={[styles.msgRow, isSelf ? styles.msgRowMine : styles.msgRowPeer]}>
           {avatarNode}
           <View style={styles.msgCol}>
-            {card ? (
+            {isCardMsg && !msgCard?.url ? (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                // content 首段即名片ID；带 userId：名片已删除时详情页倒计时跳「Ta 的主页」
+                onPress={() => navigation.navigate('cardDetail', { id: msgCard?.cardId || msg.content, userId: isSelf ? myId : peerUserId })}
+              >
+                <View style={styles.cardBubble}>
+                  <View style={styles.cardBubbleHead}>
+                    <CardMsgIcon />
+                    <Text style={styles.cardBubbleTitle}>个人名片</Text>
+                  </View>
+                  <View style={styles.cardBubbleDivider} />
+                  <Text style={styles.cardBubbleHint}>点击查看名片详情</Text>
+                </View>
+              </TouchableOpacity>
+            ) : posterCardMsg ? (
               <TouchableOpacity
                 activeOpacity={0.85}
                 // 带 userId：名片已删除时详情页倒计时跳「Ta 的主页」（对方名片→对方，自己名片→自己）
-                onPress={() => navigation.navigate('cardDetail', { id: card.cardId, userId: isSelf ? myId : peerUserId })}
+                onPress={() => navigation.navigate('cardDetail', { id: posterCardMsg.cardId, userId: isSelf ? myId : peerUserId })}
               >
                 <AppImage
-                  source={{ uri: card.url }}
-                  style={[styles.cardImage, { aspectRatio: cardAspects[card.url] ?? DEFAULT_CARD_ASPECT }]}
+                  source={{ uri: posterCardMsg.url }}
+                  style={[styles.cardImage, { aspectRatio: cardAspects[posterCardMsg.url!] ?? DEFAULT_CARD_ASPECT }]}
                   contentFit="cover"
                   transition={200}
                   onLoad={e => {
                     const w = e.source?.width;
                     const h = e.source?.height;
-                    if (w && h && !cardAspects[card.url]) {
+                    if (w && h && posterCardMsg.url && !cardAspects[posterCardMsg.url]) {
                       // 高度变化后是否贴底由 onContentSizeChange 的吸附逻辑统一处理
-                      setCardAspects(prev => ({ ...prev, [card.url]: w / h }));
+                      setCardAspects(prev => ({ ...prev, [posterCardMsg.url!]: w / h }));
                     }
                   }}
                 />
@@ -735,15 +804,27 @@ export default function MessageChat() {
             />
           )}
         </Animated.View>
-        {/* 提示行：高度计入键盘上顶公式（用 padding 而非 margin 以便 onLayout 可测） */}
-        <Text
-          style={styles.quickHint}
-          onLayout={e => {
-            layoutHeight.current.hint = e.nativeEvent.layout.height;
-          }}
-        >
-          发送名片，让对方更快认识你
-        </Text>
+        {/* 提示行：高度计入键盘上顶公式（用 padding 而非 margin 以便 onLayout 可测）。
+            预检不可发送（超条数/被拉黑）时替换为灰色限制提示条 */}
+        {sendBlocked ? (
+          <View
+            style={styles.gateBar}
+            onLayout={e => {
+              layoutHeight.current.hint = e.nativeEvent.layout.height;
+            }}
+          >
+            <Text style={styles.gateBarText}>{sendGate?.limitTip || '当前无法发送消息'}</Text>
+          </View>
+        ) : (
+          <Text
+            style={styles.quickHint}
+            onLayout={e => {
+              layoutHeight.current.hint = e.nativeEvent.layout.height;
+            }}
+          >
+            发送名片，让对方更快认识你
+          </Text>
+        )}
         {/* 输入区：与键盘 1:1 上移；区内 touch 不触发收键盘 */}
         <Animated.View
           onTouchStart={onComposeTouchStart}
@@ -764,25 +845,31 @@ export default function MessageChat() {
           ]}
         >
           <View style={styles.composeTools}>
-            <TouchableOpacity activeOpacity={0.8} style={styles.chip} onPress={openCardSheet}>
-              <Text style={styles.chipText}>发送名片</Text>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={[styles.chip, sendBlocked && styles.chipDisabled]}
+              onPress={openCardSheet}
+              disabled={sendBlocked}
+            >
+              <Text style={[styles.chipText, sendBlocked && styles.chipTextDisabled]}>发送名片</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.composeRow}>
             <TextInput
-              style={styles.input}
+              style={[styles.input, sendBlocked && styles.inputDisabled]}
               value={input}
               onChangeText={updateInput}
-              placeholder="请输入留言..."
+              placeholder={sendBlocked ? '当前无法发送消息' : '请输入留言...'}
               placeholderTextColor="#9AA3B3"
               maxLength={500}
               multiline
+              editable={!sendBlocked}
             />
             <TouchableOpacity
               activeOpacity={0.85}
-              style={[styles.sendBtn, sending && styles.sendBtnDisabled]}
+              style={[styles.sendBtn, (sending || sendBlocked) && styles.sendBtnDisabled]}
               onPress={onSendText}
-              disabled={sending}
+              disabled={sending || sendBlocked}
             >
               <Text style={styles.sendBtnText}>{sending ? '发送中' : '发送'}</Text>
             </TouchableOpacity>
@@ -1010,6 +1097,47 @@ const styles = StyleSheet.create({
     borderRadius: scaleSizeW(8),
     backgroundColor: '#FFFFFF',
   },
+  // 名片消息卡片（msgType=2）：白底卡片 + 图标标题 + 点击提示，双方同色（对齐微信名片消息）
+  cardBubble: {
+    width: scaleSizeW(200),
+    backgroundColor: '#FFFFFF',
+    borderRadius: scaleSizeW(13),
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#EDEDF0',
+    paddingHorizontal: scaleSizeW(12),
+    paddingVertical: scaleSizeH(10),
+  },
+  cardBubbleHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSizeW(8),
+  },
+  cardBubbleTitle: {
+    fontSize: setSpText(14),
+    fontWeight: '600',
+    color: '#1D2E44',
+  },
+  cardBubbleDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#EDEDF0',
+    marginVertical: scaleSizeH(8),
+  },
+  cardBubbleHint: {
+    fontSize: setSpText(11),
+    color: '#A7AFBC',
+  },
+  // 发送限制提示条（预检 canSend=0 / 被拉黑时替换 quickHint）
+  gateBar: {
+    backgroundColor: '#F4F5F7',
+    paddingVertical: scaleSizeH(12),
+    paddingHorizontal: scaleSizeW(13),
+    alignItems: 'center',
+  },
+  gateBarText: {
+    fontSize: setSpText(11),
+    color: '#A2AAB7',
+    textAlign: 'center',
+  },
   quickHint: {
     textAlign: 'center',
     fontSize: setSpText(11),
@@ -1041,6 +1169,12 @@ const styles = StyleSheet.create({
     fontSize: setSpText(12),
     color: '#2962D4',
   },
+  chipDisabled: {
+    backgroundColor: '#F4F5F7',
+  },
+  chipTextDisabled: {
+    color: '#A7AFBC',
+  },
   composeRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1059,6 +1193,9 @@ const styles = StyleSheet.create({
     paddingBottom: scaleSizeH(10),
     fontSize: setSpText(13),
     color: '#2D3950',
+  },
+  inputDisabled: {
+    color: '#A7AFBC',
   },
   sendBtn: {
     width: scaleSizeW(58),

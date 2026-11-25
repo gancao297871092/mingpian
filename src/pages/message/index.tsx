@@ -183,7 +183,8 @@ export default function MessagePage() {
   const renderPrivateItem = useCallback(
     ({ item }: { item: any }) => {
       const name = item.cpName || item.sendUserNickname || item.sendUsername || '未知用户';
-      const lastContent = (item.content || '').includes('<custom-card>') ? '[名片]' : item.content || '';
+      // 名片消息预览：新口径 msgType=2（content=名片ID）+ 历史 <custom-card> 海报格式，都归一为 [名片]
+      const lastContent = item.msgType === 2 || (item.content || '').includes('<custom-card>') ? '[名片]' : item.content || '';
       return (
         <TouchableOpacity
           activeOpacity={0.7}

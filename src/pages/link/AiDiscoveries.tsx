@@ -309,7 +309,11 @@ export default function AiDiscoveries() {
           >
             <View style={styles.cardTitleRow}>
               <DiamondIcon color={item.viewed ? PRIMARY : '#B9BDCF'} />
-              <Text style={[styles.cardTitle, item.dim && styles.cardTitleDim]} numberOfLines={1}>
+              {/* 已读：星星与标题同高亮（主色蓝）；未读的 AI 研判保持弱化灰标题 */}
+              <Text
+                style={[styles.cardTitle, item.viewed ? styles.cardTitleViewed : item.dim && styles.cardTitleDim]}
+                numberOfLines={1}
+              >
                 {item.title}
               </Text>
             </View>
@@ -485,6 +489,10 @@ const styles = StyleSheet.create({
     fontSize: setSpText(15),
     fontWeight: '600',
     color: '#000000',
+  },
+  /** 已读标题高亮（与星星同主色） */
+  cardTitleViewed: {
+    color: PRIMARY,
   },
   cardTitleDim: {
     color: TEXT_SUB,

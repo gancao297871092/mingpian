@@ -31,9 +31,15 @@ export namespace API {
     export function open(data: { userId?: number; msgNumber?: number; lastId?: number }) {
       return request.post<any[]>('/message/open', data);
     }
-    /** 发送留言（beUserId=对方用户ID；msgNumber 为空时服务端按历史会话复用/新建；返回已入库的留言实体） */
-    export function send(data: { beUserId: number; content: string; msgNumber?: number }) {
+    /** 发送留言（beUserId=对方用户ID；msgNumber 为空时服务端按历史会话复用/新建；返回已入库的留言实体；
+     *  msgType：1 文字（默认）/ 2 名片（content 传名片ID字符串）。失败 msg 由拦截器直接弹提示：超条数/被拉黑/名片不可用） */
+    export function send(data: { beUserId: number; content: string; msgNumber?: number; msgType?: 1 | 2 }) {
       return request.post<any>('/message/send', data);
+    }
+    /** 进入会话预检（GET /message/check：canSend=0 输入区禁用+limitTip 提示条；isBlocked=1 被拉黑。
+     *  重调时机：进会话、自己关注状态变化、每次发送尝试后——陌生人文字/名片各限 1 条，发完即锁） */
+    export function check(params: { beUserId: number | string }) {
+      return request.get<{ canSend?: number; isBlocked?: number; limitTip?: string }>('/message/check', { params });
     }
     /** 私信会话列表（figma 29.消息-私信；list 项含 cpName/sendUserNickname/sendUserAvatar/noReadCount/msgTime/content） */
     export function list(data?: { pageNum?: number; pageSize?: number }) {
