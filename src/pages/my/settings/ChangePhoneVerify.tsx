@@ -19,14 +19,17 @@ export function PhoneCodeForm(props: {
   onCodeChange: (v: string) => void;
   countdown: number;
   onGetCode: () => void;
+  sending?: boolean;
+  disabled?: boolean;
 }) {
-  const { phone, onPhoneChange, code, onCodeChange, countdown, onGetCode } = props;
+  const { phone, onPhoneChange, code, onCodeChange, countdown, onGetCode, sending, disabled } = props;
   return (
     <View style={formStyles.wrap}>
       <View style={formStyles.fieldRow}>
         <Text style={formStyles.fieldLabel}>+86</Text>
         <TextInput
           style={formStyles.fieldInput}
+          editable={!disabled}
           value={phone}
           onChangeText={onPhoneChange}
           placeholder="请输入11位手机号码"
@@ -40,6 +43,7 @@ export function PhoneCodeForm(props: {
         <Text style={formStyles.fieldLabel}>验证码</Text>
         <TextInput
           style={formStyles.fieldInput}
+          editable={!disabled}
           value={code}
           onChangeText={onCodeChange}
           placeholder="请输入验证码"
@@ -47,9 +51,9 @@ export function PhoneCodeForm(props: {
           keyboardType="number-pad"
           maxLength={6}
         />
-        <TouchableOpacity activeOpacity={0.7} disabled={countdown > 0} onPress={onGetCode}>
+        <TouchableOpacity activeOpacity={0.7} disabled={countdown > 0 || sending || disabled} onPress={onGetCode}>
           <Text style={[formStyles.getCodeText, countdown > 0 && formStyles.getCodeTextDisabled]}>
-            {countdown > 0 ? `${countdown} S` : '获取验证码'}
+            {sending ? '发送中…' : countdown > 0 ? `${countdown} S` : '获取验证码'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -110,28 +114,41 @@ export default function ChangePhoneVerify() {
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
-  const { authCode, countdown, sendCode } = useSmsCode(scene === 'changePhone' ? 'changePhoneOld' : 'resetPassword');
+  const { authCode, sentPhone, sending, countdown, sendCode } = useSmsCode(scene === 'changePhone' ? 'changePhoneOld' : 'resetPassword');
 
   const isPhoneValid = /^1\d{10}$/.test(phone);
-  const canSubmit = isPhoneValid && code.length >= 4 && !loading;
+  const canSubmit = isPhoneValid && phone === sentPhone && !!authCode && code.length >= 4 && !loading && !sending;
+
+  const onGetCode = () => {
+    if (!originPhone || phone !== originPhone) {
+      Toast.show({ type: 'info', text1: '请输入当前账号绑定的原手机号' });
+      return;
+    }
+    sendCode(originPhone);
+  };
 
   const onSubmit = async () => {
     if (!canSubmit) return;
+    Keyboard.dismiss();
     setLoading(true);
-    let ticket = '';
     try {
-      const res = await API.setting.verifyOldPhone({ phone, authCode, code });
-      ticket = res.data?.ticket || '';
+      // 换绑第一步：验证码与当前账号绑定手机匹配后签发一次性换绑票据（10 分钟有效）
+      const res = await API.setting.verifyOldPhone({ authCode, code });
+      const ticket = res.data?.ticket || '';
+      if (res.code !== '200' || !ticket) {
+        Toast.show({ type: 'error', text1: '验证失败，请重试' });
+        return;
+      }
+      if (scene === 'changePhone') {
+        navigation.navigate('bindPhone', { ticket });
+      } else {
+        navigation.navigate('changePassword', { hasPassword: false });
+      }
     } catch (e: any) {
-      // TODO 联调后失败时不放行
-      Toast.show({ type: 'info', text1: e?.msg || '接口未联调，先进入下一步' });
+      // 业务错误由拦截器提示，验证失败留在当前页。
+      if (!e?.msg) Toast.show({ type: 'error', text1: '验证失败，请重试' });
     } finally {
       setLoading(false);
-    }
-    if (scene === 'changePhone') {
-      navigation.navigate('bindPhone', { ticket });
-    } else {
-      navigation.navigate('changePassword', { hasPassword: false });
     }
   };
 
@@ -145,7 +162,9 @@ export default function ChangePhoneVerify() {
           code={code}
           onCodeChange={setCode}
           countdown={countdown}
-          onGetCode={() => isPhoneValid && sendCode(phone)}
+          onGetCode={onGetCode}
+          sending={sending}
+          disabled={loading}
         />
         <TouchableOpacity
           style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}

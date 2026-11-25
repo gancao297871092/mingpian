@@ -654,14 +654,14 @@ export namespace API {
       return request.post<{ authCode: string }>('/auth/sms/send', data);
     }
 
-    /** 原手机号验证，成功后返回换绑票据 ticket */
-    export function verifyOldPhone(data: { phone: string; authCode: string; code: string }) {
-      return request.post<{ ticket: string }>('/setting/phone/verifyOld', data);
+    /** 换绑手机号-第一步：原手机号验证（验证码用 /auth/sms/send 发到原手机号；通过后签发一次性换绑票据，10 分钟有效） */
+    export function verifyOldPhone(data: { authCode: string; code: string }) {
+      return request.post<{ ticket: string }>('/auth/mobile/verifyOld', data);
     }
 
-    /** 绑定/更换为新手机号 */
-    export function changePhone(data: { ticket: string; phone: string; authCode: string; code: string }) {
-      return request.post<any>('/setting/phone/change', data);
+    /** 换绑手机号-第二步：绑定新手机号（ticket 为第一步返回的换绑票据；验证码发到新手机号） */
+    export function changePhone(data: { ticket: string; newPhone: string; authCode: string; code: string }) {
+      return request.post<any>('/auth/mobile/change', data);
     }
 
     /** 修改/设置登录密码（未设置时 oldPassword 可不传） */

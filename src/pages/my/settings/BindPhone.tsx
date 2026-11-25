@@ -5,6 +5,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Toast from 'react-native-toast-message';
 import SafeView from '@/components/SafeView';
 import { API } from '@/api';
+import { useUserStore } from '@/store/user';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { BLUE, WhitePageTitle } from './components';
 import { PhoneCodeForm } from './ChangePhoneVerify';
@@ -19,24 +20,35 @@ export default function BindPhone() {
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
-  const { authCode, countdown, sendCode } = useSmsCode('changePhoneNew');
+  const { authCode, sentPhone, sending, countdown, sendCode } = useSmsCode('changePhoneNew');
 
   const isPhoneValid = /^1\d{10}$/.test(phone);
-  const canSubmit = isPhoneValid && code.length >= 4 && !loading;
+  const canSubmit = !!ticket && isPhoneValid && phone === sentPhone && !!authCode && code.length >= 4 && !loading && !sending;
 
   const onSubmit = async () => {
     if (!canSubmit) return;
+    Keyboard.dismiss();
     setLoading(true);
     try {
-      await API.setting.changePhone({ ticket, phone, authCode, code });
+      const res = await API.setting.changePhone({ ticket, newPhone: phone, authCode, code });
+      if (res.code !== '200') return;
+      // 接口确认换绑成功后更新本地用户信息，账号与安全页返回时立即显示新号码。
+      const { userInfo, setUserInfo } = useUserStore.getState();
+      if (userInfo?.wqUser) {
+        setUserInfo({ ...userInfo, wqUser: { ...userInfo.wqUser, mobile: phone } });
+      }
       Toast.show({ type: 'success', text1: '手机号更换成功' });
+      navigation.popTo('accountSecurity');
     } catch (e: any) {
-      // TODO 联调后失败时不放行
-      Toast.show({ type: 'info', text1: e?.msg || '接口未联调，模拟更换成功' });
+      // 票据失效时退回第一步重新验证；其他业务错误由拦截器提示并留在本页。
+      if (e?.msg === '请先完成原手机号验证') {
+        navigation.popTo('changePhoneVerify', { scene: 'changePhone' });
+      } else if (!e?.msg) {
+        Toast.show({ type: 'error', text1: '换绑失败，请重试' });
+      }
     } finally {
       setLoading(false);
     }
-    navigation.popTo('accountSecurity');
   };
 
   return (
@@ -49,7 +61,15 @@ export default function BindPhone() {
           code={code}
           onCodeChange={setCode}
           countdown={countdown}
-          onGetCode={() => isPhoneValid && sendCode(phone)}
+          onGetCode={() => {
+            if (phone === useUserStore.getState().userInfo?.wqUser?.mobile) {
+              Toast.show({ type: 'info', text1: '新手机号不能与当前手机号相同' });
+              return;
+            }
+            sendCode(phone);
+          }}
+          sending={sending}
+          disabled={loading}
         />
         <TouchableOpacity
           style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
