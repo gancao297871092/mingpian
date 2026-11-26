@@ -77,6 +77,7 @@ const AppBottomSheet = forwardRef<BottomSheetModal, AppBottomSheetProps>(functio
       backgroundStyle={[styles.background, { backgroundColor }]}
       keyboardBehavior={keyboardBehavior}
       keyboardBlurBehavior={keyboardBlurBehavior}
+      android_keyboardInputMode="adjustResize"
     >
       {scrollable ? (
         <BottomSheetScrollView

@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
   Keyboard,
-  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -193,11 +192,8 @@ export function BindPhoneSheetHost() {
     try {
       let auth;
       try {
-        // iOS 半屏弹窗形式展示授权页（原生 bottomSheetMode 已适配布局）；
-        // Android 的弹窗模式需给 LoginAuthActivity 加 dialog 主题，会影响登录页全屏授权页，暂保持全屏
-        auth = await openPhoneLogin({
-          presentation: Platform.OS === 'ios' ? 'bottomSheet' : 'fullscreen',
-        });
+        // 两端均由运营商 SDK 以底部弹窗展示授权。
+        auth = await openPhoneLogin({ presentation: 'bottomSheet' });
       } catch (e: any) {
         const errCode = e?.code;
         if (errCode === 'CANCELLED' || errCode === 'SWITCH_BACK') {

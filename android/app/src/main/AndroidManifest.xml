@@ -79,10 +79,10 @@
       android:label="@string/app_name" />
 
     <!-- 阿里云号码认证一键登录 SDK -->
-    <!-- 注意：底部弹窗(bottomSheet)模式需给 LoginAuthActivity 增加 android:theme="@style/authsdk_activity_dialog"，
-         全屏模式不能加该主题（否则出现窗口动画异常）。 -->
+    <!-- 透明窗口支持 SDK 底部绑定弹窗；全屏登录仍由 AuthUIConfig 默认尺寸控制。 -->
     <activity
       android:name="com.mobile.auth.gatewayauth.LoginAuthActivity"
+      android:theme="@style/authsdk_activity_dialog"
       android:configChanges="orientation|keyboardHidden|screenSize"
       android:exported="false"
       android:launchMode="singleTop"

@@ -33,6 +33,8 @@ const CommentInputSheet = forwardRef<BottomSheetModal, CommentInputSheetProps>(f
       ref={ref}
       backgroundColor="#FFFFFF"
       bottomGap={false}
+      keyboardBehavior="interactive"
+      keyboardBlurBehavior="restore"
       onClose={() => {
         setText('');
         onClose?.();

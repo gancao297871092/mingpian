@@ -1,6 +1,11 @@
 package com.wqlccx.com.phonelogin
 
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
+import android.util.TypedValue
+import android.widget.RelativeLayout
+import android.widget.TextView
+import com.mobile.auth.gatewayauth.AuthRegisterViewConfig
 import android.os.Handler
 import android.util.Log
 import android.os.Looper
@@ -194,7 +199,10 @@ class PhoneLoginModule(private val reactContext: ReactApplicationContext) :
       try {
         val h = getHelper()
         h.removeAuthRegisterXmlConfig()
+        h.removeAuthRegisterViewConfig()
         h.setAuthUIConfig(buildUiConfig(presentation))
+        if (presentation == "bottomSheet") registerBindViews(h)
+        Log.i(TAG, "open: presentation=$presentation")
         h.getLoginToken(reactContext.currentActivity ?: reactContext.applicationContext, 5000)
       } catch (e: Exception) {
         settle { it.reject("FAILED", e.message ?: "一键登录初始化失败") }
@@ -310,10 +318,37 @@ class PhoneLoginModule(private val reactContext: ReactApplicationContext) :
     }
   }
 
-  /** 按设计稿定制授权页（全屏）；bottomSheet 为预留的底部弹窗模式。 */
+  /** SDK 注册的辅助控件；号码、授权按钮、勾选框及运营商协议仍使用 SDK 控件。 */
+  private fun registerBindViews(h: PhoneNumberAuthHelper) {
+    val context = reactContext.currentActivity ?: reactContext
+    val density = context.resources.displayMetrics.density
+    fun dp(value: Int) = (value * density + 0.5f).toInt()
+    fun register(key: String, view: TextView, onClick: (() -> Unit)? = null) {
+      val config = AuthRegisterViewConfig.Builder().setView(view)
+      if (onClick != null) config.setCustomInterface { onClick() }
+      h.addAuthRegistViewConfig(key, config.build())
+    }
+    register("bindOther", TextView(context).apply {
+      text = "绑定其他手机"
+      setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16f)
+      includeFontPadding = false
+      setTextColor(0xFF1A1A1A.toInt())
+      gravity = Gravity.CENTER
+      background = GradientDrawable().apply {
+        setColor(0xFFE5E6EA.toInt())
+        cornerRadius = dp(24).toFloat()
+      }
+      layoutParams = RelativeLayout.LayoutParams(-1, dp(48)).apply {
+        topMargin = dp(174)
+        leftMargin = dp(24)
+        rightMargin = dp(24)
+      }
+    }) { finishWithSwitch("SWITCH_OTHER", "绑定其他手机") }
+  }
+
+  /** 全屏登录与底部绑定分别配置；SDK 尺寸接口的单位为 dp。 */
   private fun buildUiConfig(presentation: String?): AuthUIConfig {
     val dm = reactContext.resources.displayMetrics
-    fun dp(v: Int) = (v * dm.density + 0.5f).toInt()
 
     // 布局使用 SDK 默认（避免触发 600005“页面非法修改”），只定制内容
     val builder = AuthUIConfig.Builder()
@@ -372,12 +407,38 @@ class PhoneLoginModule(private val reactContext: ReactApplicationContext) :
       .setAuthPageActOut("lccx_fade_in", "lccx_fade_out")
 
     if (presentation == "bottomSheet") {
-      // 注意：弹窗模式需先在 AndroidManifest 的 LoginAuthActivity 上配置
-      // android:theme="@style/authsdk_activity_dialog"，再开启以下配置。
+      val radius = 20 * dm.density
       builder
-        .setDialogWidth(dm.widthPixels)
-        .setDialogHeight(dp(360))
+        .setDialogWidth((dm.widthPixels / dm.density + 0.5f).toInt())
+        .setDialogHeight(minOf(360, (dm.heightPixels / dm.density).toInt()))
         .setDialogBottom(true)
+        .setDialogAlpha(0.5f)
+        .setTapAuthPageMaskClosePage(true)
+        .setPageBackgroundDrawable(GradientDrawable().apply {
+          setColor(0xFFF6F7FB.toInt())
+          cornerRadii = floatArrayOf(radius, radius, radius, radius, 0f, 0f, 0f, 0f)
+        })
+        // SDK 内容区从标题栏下方开始计数，避免隐藏标题后重复留出 50dp。
+        .setNavHidden(false)
+        .setNavColor(Color.TRANSPARENT)
+        .setNavText("绑定手机号")
+        .setNavReturnImgPath("lccx_auth_close")
+        .setNavReturnImgWidth(20)
+        .setNavReturnImgHeight(20)
+        .setNumberSizeDp(22)
+        .setNumFieldOffsetY(24)
+        .setSloganText("绑定手机号后可继续发布与互动")
+        .setSloganOffsetY(66)
+        .setLogBtnText("本机号码一键绑定")
+        .setLogBtnTextSizeDp(16)
+        .setLogBtnOffsetY(116)
+        .setLogBtnHeight(48)
+        .setLogBtnMarginLeftAndRight(24)
+        .setSwitchAccHidden(true)
+        .setPrivacyOffsetY(240)
+        .setPrivacyMargin(28)
+        .setProtocolGravity(Gravity.START)
+        .protocolLineSpaceDp(3)
     }
 
     return builder.create()
