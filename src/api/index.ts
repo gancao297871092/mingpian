@@ -396,9 +396,14 @@ export namespace API {
         followUnreadCount?: number;
       }>('/square/feed', data);
     }
-    /** 动态聚合详情（作者/媒体/点赞收藏状态/评论数） */
+    /** 动态聚合详情（作者/媒体/点赞收藏状态/评论数；aiInsight 为该动态识别出的合作商机，仅 AI 连接+同步开关开启时返回） */
     export function bbsDetail(params: { bbsId: string | number }) {
-      return request.get<{ bbs: any; commentCount: number; isFollowed: 0 | 1 }>('/square/bbs/detail', { params, handleContentUnavailable: true });
+      return request.get<{
+        bbs: any;
+        commentCount: number;
+        isFollowed: 0 | 1;
+        aiInsight?: { opportunityId: number; title: string; stage?: string; analysis?: string }[];
+      }>('/square/bbs/detail', { params, handleContentUnavailable: true });
     }
   }
 

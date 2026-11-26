@@ -23,6 +23,7 @@ import SignalResult from '@/pages/link/SignalResult';
 import MyOpportunities from '@/pages/link/MyOpportunities';
 import OpportunityDetail from '@/pages/link/OpportunityDetail';
 import AiDiscoveries from '@/pages/link/AiDiscoveries';
+import AiInsight from '@/pages/link/AiInsight';
 import IndustryHappening from '@/pages/link/IndustryHappening';
 import HappeningSearch from '@/pages/link/HappeningSearch';
 import PlatformAssist from '@/pages/link/PlatformAssist';
@@ -935,6 +936,11 @@ export default function RootNavigator() {
         <Stack.Screen
           name="aiDiscoveries"
           component={AiDiscoveries}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="aiInsight"
+          component={AiInsight}
           options={{ headerShown: false }}
         />
         <Stack.Screen

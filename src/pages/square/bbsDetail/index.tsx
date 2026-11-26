@@ -83,6 +83,8 @@ interface AiInsightItem {
   confirmStatus?: number;
   stage?: string;
   strength?: number;
+  /** AI 解读（AI洞察页商机卡片展示；后端 AppSquareController 补充，老版本无此字段） */
+  analysis?: string;
 }
 
 /** AI 洞察横幅图标：蓝色四角星（figma 146:1214，单蓝色 #2962D4；路径复用 GuideSparkleIcon 蓝星） */
@@ -1399,12 +1401,19 @@ export default function BbsDetail() {
               highlightTopics
             />
           )}
-          {/* AI 洞察横幅（figma 27.动态详情 146:1219）：识别到 N 个合作商机，「查看」跳方向详情 */}
+          {/* AI 洞察横幅（figma 27.动态详情 146:1219）：识别到 N 个合作商机，「查看」跳 AI洞察 */}
           {!isAudit && aiInsight.length > 0 && (
             <TouchableOpacity
               activeOpacity={0.85}
               style={styles.insightBanner}
-              onPress={() => navigation.navigate('directionDetail', { opportunityId: aiInsight[0].opportunityId })}
+              onPress={() => navigation.navigate('aiInsight', {
+                bbsId: route.params.id,
+                feedTitle: detail.title,
+                feedAuthor: detail.authorName,
+                feedCompany: detail.authorCompany,
+                feedCover: detail.images[0] ?? detail.posterUrl,
+                items: aiInsight,
+              })}
             >
               <View style={styles.insightIconWrap}>
                 <AiSparkleIcon />

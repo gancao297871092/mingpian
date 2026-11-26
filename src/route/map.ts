@@ -117,6 +117,15 @@ export type RootStackParamList = {
   opportunityDetail: { opportunityId?: number | string } | undefined;
   /** AI发现-方向推荐（figma 5.AI发现 53:911） */
   aiDiscoveries: undefined;
+  /** AI洞察（figma 516:3407）：动态详情「AI识别到N个合作商机」入口；feed* 为来源动态信息，items 为详情接口 aiInsight 直传 */
+  aiInsight: {
+    bbsId: string;
+    feedTitle?: string;
+    feedAuthor?: string;
+    feedCompany?: string;
+    feedCover?: string;
+    items?: { opportunityId: number; title: string; stage?: string; analysis?: string }[];
+  } | undefined;
   /** 产业正在发生（figma 61.产业正在发生 387:2375） */
   industryHappening: undefined;
   /** 产业正在发生-搜索合作机会（46.搜索-筛选/搜索结果，仅关键词查询；keyword 预填并直接搜索） */
