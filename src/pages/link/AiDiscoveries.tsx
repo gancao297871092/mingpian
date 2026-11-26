@@ -36,9 +36,7 @@ interface DiscoveryItem {
   opportunityId: number;
   title: string;
   tone: Tone;
-  /** 弱化展示（灰色标题/图标） */
-  dim?: boolean;
-  /** 是否已查看：控制星星高亮（已查看蓝色，未查看置灰） */
+  /** 是否已查看：未读显示卡片右上角红点。 */
   viewed?: boolean;
   desc: string;
   evidence: string;
@@ -67,7 +65,6 @@ function toDiscoveryItem(item: LinkOpportunityItem): DiscoveryItem {
     opportunityId: opp.id,
     title: opp.title || '未命名商机',
     tone: confirmed ? 'express' : 'ai',
-    dim: !confirmed,
     viewed: item.isViewed === true,
     desc: opp.aiAnalysis || fallbackDesc || 'AI 正在解读该商机',
     evidence,
@@ -302,16 +299,16 @@ export default function AiDiscoveries() {
             activeOpacity={0.85}
             style={styles.card}
             onPress={() => {
-              // 乐观标记已读（星星立即变蓝）；后端 directionByOpportunity 会异步回写浏览历史，下次拉列表以 isViewed 为准
+              // 点击后立即移除未读红点；后端详情接口回写浏览历史，下次拉列表以 isViewed 为准
               setList(prev => prev.map(x => (x.id === item.id ? { ...x, viewed: true } : x)));
               navigation.navigate('directionDetail', { opportunityId: item.opportunityId });
             }}
           >
+            {!item.viewed && <View style={styles.unreadDot} accessibilityLabel="未读" />}
             <View style={styles.cardTitleRow}>
-              <DiamondIcon color={item.viewed ? PRIMARY : '#B9BDCF'} />
-              {/* 已读：星星与标题同高亮（主色蓝）；未读的 AI 研判保持弱化灰标题 */}
+              <DiamondIcon color={PRIMARY} />
               <Text
-                style={[styles.cardTitle, item.viewed ? styles.cardTitleViewed : item.dim && styles.cardTitleDim]}
+                style={styles.cardTitle}
                 numberOfLines={1}
               >
                 {item.title}
@@ -490,12 +487,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#000000',
   },
-  /** 已读标题高亮（与星星同主色） */
-  cardTitleViewed: {
-    color: PRIMARY,
-  },
-  cardTitleDim: {
-    color: TEXT_SUB,
+  unreadDot: {
+    position: 'absolute',
+    top: scaleSizeW(6),
+    right: scaleSizeW(6),
+    width: scaleSizeW(8),
+    height: scaleSizeW(8),
+    borderRadius: scaleSizeW(4),
+    backgroundColor: '#FF4040',
   },
   divider: {
     height: 1,
