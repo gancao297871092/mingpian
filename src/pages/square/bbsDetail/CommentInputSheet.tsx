@@ -1,6 +1,7 @@
 import React, { forwardRef, useCallback, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { BottomSheetModal, BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import { BottomSheetModal } from '@gorhom/bottom-sheet';
+import { AppBottomSheetTextInput as BottomSheetTextInput } from '@/components/AppTextInput';
 import AppBottomSheet from '@/components/AppBottomSheet';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 

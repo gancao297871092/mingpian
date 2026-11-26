@@ -8,10 +8,10 @@ import {
   Platform,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { AppTextInput as TextInput } from '@/components/AppTextInput';
 import { AppAlert } from '@/components/AppAlert';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -306,6 +306,7 @@ export default function LongTextEdit({ route, navigation }: Props) {
   const quillRef = useRef<QuillEditor>(null!);
   const [plainLen, setPlainLen] = useState(() => htmlToPlainLength(initialHtml || ''));
   const [panelOpen, setPanelOpen] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [fmt, setFmt] = useState<FormatState>(DEFAULT_FORMAT);
   const [embedTarget, setEmbedTarget] = useState<{ index: number; kind: 'image' | 'video' } | null>(null);
   const [customWidth, setCustomWidth] = useState('');
@@ -331,6 +332,7 @@ export default function LongTextEdit({ route, navigation }: Props) {
     const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
     const onShow = (e: KeyboardEvent) => {
+      if (Platform.OS === 'ios') setKeyboardVisible(true);
       Animated.timing(kbAnim, {
         toValue: e.endCoordinates.height,
         duration: e.duration || 250,
@@ -339,6 +341,7 @@ export default function LongTextEdit({ route, navigation }: Props) {
       }).start();
     };
     const onHide = (e: KeyboardEvent) => {
+      if (Platform.OS === 'ios') setKeyboardVisible(false);
       Animated.timing(kbAnim, {
         toValue: Platform.OS === 'ios' ? insets.bottom : 0,
         duration: e.duration || 250,
@@ -733,9 +736,24 @@ export default function LongTextEdit({ route, navigation }: Props) {
               <RedoIcon color={canRedo ? TEXT_MAIN : '#999999'} />
             </TouchableOpacity>
             <View style={styles.flex1} />
-            <TouchableOpacity style={styles.toolBtn} activeOpacity={0.8} onPress={onCollapseKeyboard}>
-              <CollapseIcon />
-            </TouchableOpacity>
+            {Platform.OS === 'ios' ? (
+              keyboardVisible && embedTarget === null && (
+                <TouchableOpacity
+                  style={styles.toolBtn}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="完成"
+                  accessibilityHint="收起键盘，保留编辑内容"
+                  onPress={onCollapseKeyboard}
+                >
+                  <Text style={[styles.navBtn, styles.navDone]}>完成</Text>
+                </TouchableOpacity>
+              )
+            ) : (
+              <TouchableOpacity style={styles.toolBtn} activeOpacity={0.8} onPress={onCollapseKeyboard}>
+                <CollapseIcon />
+              </TouchableOpacity>
+            )}
           </View>
           {panelOpen && (
             <View style={styles.panel}>

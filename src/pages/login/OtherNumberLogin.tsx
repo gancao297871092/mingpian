@@ -3,11 +3,11 @@ import {
   Keyboard,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
+import { AppTextInput as TextInput } from '@/components/AppTextInput';
 import { AppAlert } from '@/components/AppAlert';
 import AgreementSheet from '@/components/AgreementSheet';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';

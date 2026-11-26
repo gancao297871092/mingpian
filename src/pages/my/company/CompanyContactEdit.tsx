@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { KeyboardAvoidingView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, StyleSheet, Text, View } from 'react-native';
+import { AppTextInput as TextInput } from '@/components/AppTextInput';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Toast from 'react-native-toast-message';

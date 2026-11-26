@@ -7,7 +7,8 @@ import {
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
-import { BottomSheetTextInput, type BottomSheetModal } from '@gorhom/bottom-sheet';
+import { type BottomSheetModal } from '@gorhom/bottom-sheet';
+import { AppBottomSheetTextInput as BottomSheetTextInput } from '@/components/AppTextInput';
 import Toast from 'react-native-toast-message';
 import Svg, { Path } from 'react-native-svg';
 import { API } from '@/api';

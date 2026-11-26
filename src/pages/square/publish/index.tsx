@@ -12,15 +12,15 @@ import {
   StyleSheet,
   Switch,
   Text,
-  TextInput,
   TouchableOpacity,
   UIManager,
   useWindowDimensions,
   View,
 } from 'react-native';
+import { AppTextInput as TextInput, AppBottomSheetTextInput as BottomSheetTextInput } from '@/components/AppTextInput';
 import { AppAlert } from '@/components/AppAlert';
 import { useNavigation, useFocusEffect, useRoute, usePreventRemove, type RouteProp } from '@react-navigation/native';
-import { BottomSheetTextInput, type BottomSheetModal } from '@gorhom/bottom-sheet';
+import { type BottomSheetModal } from '@gorhom/bottom-sheet';
 import Animated, { FadeInUp, FadeOut, FadeOutUp, Easing } from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
 import LongHtmlView from '@/components/LongHtmlView';

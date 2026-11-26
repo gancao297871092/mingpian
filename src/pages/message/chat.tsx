@@ -9,13 +9,13 @@ import {
   Platform,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
   type GestureResponderEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
+import { AppTextInput as TextInput } from '@/components/AppTextInput';
 import { Image as ExpoImage } from 'expo-image';
 import AppImage from '@/components/AppImage';
 import ViewShot from 'react-native-view-shot';

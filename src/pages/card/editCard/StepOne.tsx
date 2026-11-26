@@ -5,10 +5,10 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { AppTextInput as TextInput } from '@/components/AppTextInput';
 import Toast from 'react-native-toast-message';
 import { API } from '@/api';
 import { useUserStore } from '@/store/user';
