@@ -142,7 +142,7 @@ function SignalCard({ signal }: { signal: Signal }) {
               <Text style={styles.statsValue}>{signal.stats.viewed}</Text>
             </View>
             <View style={styles.statsItem}>
-              <Text style={styles.statsLabel}>有效回应</Text>
+              <Text style={styles.statsLabel}>已连接</Text>
               <Text style={styles.statsValue}>{signal.stats.replied}</Text>
             </View>
           </View>

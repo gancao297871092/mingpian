@@ -313,15 +313,15 @@ export default function AiDiscoveries() {
               >
                 {item.title}
               </Text>
+              <View style={[styles.tagPill, item.tone === 'ai' ? styles.tagPillAi : styles.tagPillExpress]}>
+                <Text style={item.tone === 'ai' ? styles.tagTextAi : styles.tagTextExpress} numberOfLines={1}>
+                  {item.tone === 'ai' ? 'AI研判' : '明确表达'}
+                </Text>
+              </View>
             </View>
             <View style={styles.divider} />
             <Text style={styles.cardDesc}>{item.desc}</Text>
             <View style={styles.tagRow}>
-              <View style={[styles.tagPill, item.tone === 'ai' ? styles.tagPillAi : styles.tagPillExpress]}>
-                <Text style={item.tone === 'ai' ? styles.tagTextAi : styles.tagTextExpress}>
-                  {item.tone === 'ai' ? 'AI研判' : '明确表达'}
-                </Text>
-              </View>
               <View style={styles.evidencePill}>
                 <Text style={styles.evidenceText} numberOfLines={1}>{item.evidence}</Text>
               </View>
@@ -516,6 +516,8 @@ const styles = StyleSheet.create({
     marginBottom: scaleSizeH(13),
   },
   tagPill: {
+    flexShrink: 0,
+    marginLeft: scaleSizeW(6),
     borderRadius: scaleSizeW(10),
     paddingHorizontal: scaleSizeW(10),
     paddingVertical: scaleSizeH(3),
