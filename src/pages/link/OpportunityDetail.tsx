@@ -20,7 +20,7 @@ import type { LinkBasisItem, LinkOpportunityDetail } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
 import { splitAnalysis } from './linkFormat';
-import { openBasis } from './linkNavigation';
+import { canOpenBasis, openBasis } from './linkNavigation';
 import { AnalysisIcon, ChevronLeftIcon, ChevronRightIcon, ShareNodesIcon, VerifiedBadgeIcon } from './icons';
 
 const TEXT_SUB = '#6C6C6C';
@@ -200,10 +200,11 @@ export default function OpportunityDetail() {
                 key={`${item.type}-${item.refId ?? i}`}
                 activeOpacity={0.7}
                 style={styles.evidencePill}
+                disabled={!canOpenBasis(item)}
                 onPress={() => openBasis(navigation, item)}
               >
                 <Text style={styles.evidenceText}>{item.label}</Text>
-                {i === data.evidences.length - 1 && <ChevronRightIcon size={10} />}
+                {canOpenBasis(item) && <ChevronRightIcon size={10} />}
               </TouchableOpacity>
             ))}
           </View>
