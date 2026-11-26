@@ -221,14 +221,19 @@ export default function CooperationIntentView() {
       setSubmitting(true);
       try {
         await API.intent.response({ intentId: data.intentId, responseType, responseMsg });
-        await load();
+        if (responseType === 1 && data.peerUserId) {
+          setData(current => ({ ...current, canResponse: false, response: 1 }));
+          navigation.navigate('messageDetail', { userId: data.peerUserId });
+        } else {
+          await load();
+        }
       } catch {
         // 拦截器已提示错误
       } finally {
         setSubmitting(false);
       }
     },
-    [data.intentId, load, submitting],
+    [data.intentId, data.peerUserId, load, navigation, submitting],
   );
 
   /** 确认拒绝：选中项直接传给 responseMsg；「其他」优先补充说明，未填则传「其他」本身 */
