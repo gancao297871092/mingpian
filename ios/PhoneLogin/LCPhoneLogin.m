@@ -447,7 +447,9 @@ RCT_EXPORT_METHOD(close) {
       return CGRectMake((superViewSize.width - numberW - prefixW) / 2.0 + prefixW, 32, numberW, 34);
     }
     CGFloat s = MIN(superViewSize.width / 402.0, superViewSize.height / 874.0);
-    return CGRectMake((superViewSize.width - numberW) / 2.0, 292.0 * s, numberW, 32.0 * s);
+    // 区号由自定义 UILabel 展示，需将两部分总宽度一起居中。
+    return CGRectMake((superViewSize.width - numberW - prefixW) / 2.0 + prefixW,
+                      292.0 * s, numberW, 32.0 * s);
   };
   model.loginBtnFrameBlock = ^CGRect(CGSize screenSize, CGSize superViewSize, CGRect frame) {
     if (weakSelf.bottomSheetMode) {
@@ -544,7 +546,7 @@ RCT_EXPORT_METHOD(close) {
       heroTitle.hidden = heroSub.hidden = YES;
       backBtn.hidden = YES;
       prefixLabel.frame =
-          CGRectMake(numberFrame.origin.x - prefixW, numberFrame.origin.y, prefixW, 32);
+          CGRectMake(numberFrame.origin.x - prefixW, numberFrame.origin.y, prefixW, numberFrame.size.height);
       CGFloat width = container.frame.size.width - 48;
       otherBtn.frame = CGRectMake(24, CGRectGetMaxY(loginFrame) + 12, width, 48);
       otherBtn.layer.cornerRadius = 24;
@@ -556,7 +558,7 @@ RCT_EXPORT_METHOD(close) {
     heroTitle.frame = CGRectMake(0, 115.0 * s, container.frame.size.width, 32.0 * s);
     heroSub.frame = CGRectMake(0, 152.0 * s, container.frame.size.width, 16.0 * s);
     prefixLabel.frame =
-        CGRectMake(numberFrame.origin.x - prefixW, numberFrame.origin.y, prefixW, 32.0 * s);
+        CGRectMake(numberFrame.origin.x - prefixW, numberFrame.origin.y, prefixW, numberFrame.size.height);
     otherBtn.frame = CGRectMake(40.0 * s, 599.0 * s, container.frame.size.width - 80.0 * s, 48.0 * s);
     otherBtn.layer.cornerRadius = 24.0 * s;
     backBtn.frame = CGRectMake(0, 667.0 * s, container.frame.size.width, 22.0 * s);
