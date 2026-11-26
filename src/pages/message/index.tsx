@@ -574,7 +574,8 @@ const styles = StyleSheet.create({
   },
   emptyBox: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: scaleSizeH(80),
   },
   // 会话/入口行（figma 29/30）
   row: {
