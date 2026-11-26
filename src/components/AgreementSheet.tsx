@@ -1,10 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
   Easing,
   type LayoutChangeEvent,
   Modal,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -23,6 +24,8 @@ interface AgreementSheetProps {
   /** 弹窗 dismiss 动画结束后触发：接着执行被拦截的登录动作。
    *  iOS 上 RN Modal 是一个 presented VC，未 dismiss 完就 present 一键登录授权页会报「vc已有present界面」。 */
   onAgreeDismissed: () => void;
+  /** 弹窗关闭后的导航等操作；不会表示用户已同意。 */
+  onDismiss?: () => void;
   /** 点击《用户协议》/《隐私政策》：打开 App 内协议页 */
   onOpenAgreement: (type: AgreementType) => void;
 }
@@ -38,6 +41,7 @@ export default function AgreementSheet({
   onClose,
   onAgree,
   onAgreeDismissed,
+  onDismiss,
   onOpenAgreement,
 }: AgreementSheetProps) {
   const insets = useSafeAreaInsets();
@@ -47,16 +51,24 @@ export default function AgreementSheet({
   const agreedDismissRef = useRef(false);
 
   const handleAgreePress = () => {
+    if (agreedDismissRef.current) return;
     agreedDismissRef.current = true;
     onAgree();
   };
 
-  // Modal 完全消失（dismiss 动画结束）后再继续登录，避免 VC 仍 presented 导致授权页弹不起来
-  const handleDismiss = () => {
-    if (!agreedDismissRef.current) return;
-    agreedDismissRef.current = false;
-    onAgreeDismissed();
-  };
+  // 消费一次待继续动作；iOS 必须等原生 VC 完全 dismiss 后才可打开授权页。
+  const handleDismiss = useCallback(() => {
+    if (agreedDismissRef.current) {
+      agreedDismissRef.current = false;
+      onAgreeDismissed();
+    }
+    onDismiss?.();
+  }, [onAgreeDismissed, onDismiss]);
+
+  useEffect(() => {
+    // Android 不提供 Modal.onDismiss；visible=false 提交后继续原操作。
+    if (Platform.OS === 'android' && !visible) handleDismiss();
+  }, [visible, handleDismiss]);
 
   useEffect(() => {
     if (!visible) return;

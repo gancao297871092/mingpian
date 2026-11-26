@@ -10,6 +10,7 @@ import {
 import { AppTextInput as TextInput } from '@/components/AppTextInput';
 import { AppAlert } from '@/components/AppAlert';
 import AgreementSheet from '@/components/AgreementSheet';
+import { useAgreementReturn } from './useAgreementReturn';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { API } from '@/api';
 import { CheckIcon } from '@/assets/login/icons';
@@ -41,6 +42,7 @@ export default function OtherNumberLogin({ navigation }: Props) {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // 协议同意弹窗：记录被拦截、待用户同意后继续的登录动作
   const [agreeVisible, setAgreeVisible] = useState(false);
+  const agreementReturn = useAgreementReturn(navigation, setAgreeVisible);
   const agreeContinue = useRef<(() => void) | null>(null);
 
   const showAgreementSheet = (continueAction: () => void) => {
@@ -249,10 +251,8 @@ export default function OtherNumberLogin({ navigation }: Props) {
         onClose={() => setAgreeVisible(false)}
         onAgree={onAgree}
         onAgreeDismissed={onAgreeDismissed}
-        onOpenAgreement={type => {
-          setAgreeVisible(false);
-          navigation.navigate('agreement', { type });
-        }}
+        onOpenAgreement={agreementReturn.openAgreement}
+        onDismiss={agreementReturn.onDismiss}
       />
     </>
   );

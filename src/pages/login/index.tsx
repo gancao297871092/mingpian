@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { AppAlert } from '@/components/AppAlert';
 import AgreementSheet from '@/components/AgreementSheet';
+import { useAgreementReturn } from './useAgreementReturn';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
@@ -39,6 +40,7 @@ export default function LoginHome({ navigation }: Props) {
   const { setToken, setUserInfo } = useUserStore();
   // 协议同意弹窗：记录被拦截、待用户同意后继续的登录动作
   const [agreeVisible, setAgreeVisible] = useState(false);
+  const agreementReturn = useAgreementReturn(navigation, setAgreeVisible);
   const agreeContinue = useRef<(() => void) | null>(null);
 
   const showAgreementSheet = (continueAction: () => void) => {
@@ -241,10 +243,8 @@ export default function LoginHome({ navigation }: Props) {
         onClose={() => setAgreeVisible(false)}
         onAgree={onAgree}
         onAgreeDismissed={onAgreeDismissed}
-        onOpenAgreement={type => {
-          setAgreeVisible(false);
-          navigation.navigate('agreement', { type });
-        }}
+        onOpenAgreement={agreementReturn.openAgreement}
+        onDismiss={agreementReturn.onDismiss}
       />
     </View>
   );

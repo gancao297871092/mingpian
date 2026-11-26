@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import dayjs from 'dayjs';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -6,7 +7,7 @@ import SafeView from '@/components/SafeView';
 import { API } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
-import { DIVIDER, PRIMARY, TEXT_DESC, TEXT_MAIN, TEXT_SUB } from './common';
+import { DIVIDER, PRIMARY, TEXT_DESC, TEXT_MAIN, TEXT_SUB, parseMsgTime } from './common';
 
 /**
  * 系统消息详情（figma 31 卡片「查看详情」；设计稿无此页，按纯文本详情实现）
@@ -49,6 +50,8 @@ export default function SysMessageDetail() {
   }, [msg, navigation]);
 
   const target = bizTarget();
+  const messageDate = parseMsgTime(msg?.createTime || msg?.sendTime);
+  const messageTime = messageDate ? dayjs(messageDate).format('YYYY/MM/DD HH:mm:ss') : '';
 
   return (
     <SafeView backgroundColor="#FFFFFF">
@@ -58,7 +61,7 @@ export default function SysMessageDetail() {
             <Text style={styles.title}>{msg.msgTitle || '系统消息'}</Text>
             <Text style={styles.meta}>
               {msg.senderName || '联诚助手'}
-              {msg.createTime || msg.sendTime ? ` · ${(msg.createTime || msg.sendTime || '').replace(/-/g, '/')}` : ''}
+              {messageTime ? ` · ${messageTime}` : ''}
             </Text>
             <View style={styles.divider} />
             <Text style={styles.body}>{msg.msgContent || ''}</Text>
