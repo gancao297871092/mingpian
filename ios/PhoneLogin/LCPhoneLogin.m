@@ -387,7 +387,8 @@ RCT_EXPORT_METHOD(close) {
   // 品牌区：隐藏 SDK Logo，slogan 在号码下方（设计稿：Frame 394）
   model.logoIsHidden = YES;
   NSAttributedString *sloganText =
-      LCAttributedString(@"使用本机号码完成快速登录", LCColor(0x6C, 0x6C, 0x6C), 14, UIFontWeightLight);
+      LCAttributedString(self.bottomSheetMode ? @"绑定手机号后可继续发布与互动" : @"使用本机号码完成快速登录",
+                         LCColor(0x6C, 0x6C, 0x6C), 14, UIFontWeightRegular);
   model.sloganText = sloganText;
 
   // 掩码手机号（设计稿 24/380 #000，左对齐，整体居中）
@@ -396,7 +397,8 @@ RCT_EXPORT_METHOD(close) {
 
   // 主按钮（设计稿：322x48 全圆角 #2962d4，文字 15/380 白）
   model.loginBtnText =
-      LCAttributedString(@"本机号码一键登录", [UIColor whiteColor], 15, UIFontWeightRegular);
+      LCAttributedString(self.bottomSheetMode ? @"本机号码一键绑定" : @"本机号码一键登录",
+                         [UIColor whiteColor], 15, UIFontWeightRegular);
   model.loginBtnBgImgs = @[
     LCButtonBgImage(LCColor(0x29, 0x62, 0xD4)), // 正常
     LCButtonBgImage(LCColor(0x9A, 0xB8, 0xEC)), // 失效（未勾选协议）
@@ -434,24 +436,22 @@ RCT_EXPORT_METHOD(close) {
 
   model.sloganFrameBlock = ^CGRect(CGSize screenSize, CGSize superViewSize, CGRect frame) {
     if (weakSelf.bottomSheetMode) {
-      CGFloat y = superViewSize.height * 0.10 + 32;
-      return CGRectMake((superViewSize.width - sloganW) / 2.0, y, sloganW, 20);
+      return CGRectMake((superViewSize.width - sloganW) / 2.0, 78, sloganW, 22);
     }
     CGFloat s = MIN(superViewSize.width / 402.0, superViewSize.height / 874.0);
     return CGRectMake((superViewSize.width - sloganW) / 2.0, 344.0 * s, sloganW, 19.0 * s);
   };
   model.numberFrameBlock = ^CGRect(CGSize screenSize, CGSize superViewSize, CGRect frame) {
     if (weakSelf.bottomSheetMode) {
-      CGFloat y = superViewSize.height * 0.10;
-      return CGRectMake((superViewSize.width - numberW) / 2.0, y, numberW, 34);
+      // 将区号与掩码号码作为整体居中。
+      return CGRectMake((superViewSize.width - numberW - prefixW) / 2.0 + prefixW, 32, numberW, 34);
     }
     CGFloat s = MIN(superViewSize.width / 402.0, superViewSize.height / 874.0);
     return CGRectMake((superViewSize.width - numberW) / 2.0, 292.0 * s, numberW, 32.0 * s);
   };
   model.loginBtnFrameBlock = ^CGRect(CGSize screenSize, CGSize superViewSize, CGRect frame) {
     if (weakSelf.bottomSheetMode) {
-      CGFloat y = superViewSize.height * 0.10 + 100;
-      return CGRectMake(24, y, superViewSize.width - 48, 48);
+      return CGRectMake(24, 124, superViewSize.width - 48, 48);
     }
     CGFloat s = MIN(superViewSize.width / 402.0, superViewSize.height / 874.0);
     return CGRectMake(40.0 * s, 535.0 * s, superViewSize.width - 80.0 * s, 48.0 * s);
@@ -462,7 +462,7 @@ RCT_EXPORT_METHOD(close) {
       CGFloat s = MIN(superViewSize.width / 402.0, superViewSize.height / 874.0);
       return CGRectMake(24.0 * s, 719.0 * s, superViewSize.width - 48.0 * s, 44);
     }
-    return CGRectMake(24, frame.origin.y, superViewSize.width - 48, frame.size.height);
+    return CGRectMake(24, 250, superViewSize.width - 48, 58);
   };
 
   // 自定义控件：大标题+副标题（Frame 395）、+86 前缀、其他号码登录、返回其他登录方式
@@ -491,7 +491,7 @@ RCT_EXPORT_METHOD(close) {
     otherBtn.layer.cornerRadius = 24;
     otherBtn.clipsToBounds = YES;
     [otherBtn setBackgroundImage:LCButtonBgImage(LCColor(0xF4, 0xF4, 0xF4)) forState:UIControlStateNormal];
-    [otherBtn setAttributedTitle:LCAttributedString(@"其他号码登录", LCColor(0x32, 0x32, 0x32), 15,
+    [otherBtn setAttributedTitle:LCAttributedString(weakSelf.bottomSheetMode ? @"绑定其他手机" : @"其他号码登录", LCColor(0x32, 0x32, 0x32), 15,
                                                     UIFontWeightRegular)
                         forState:UIControlStateNormal];
     [otherBtn addTarget:weakSelf
@@ -540,15 +540,13 @@ RCT_EXPORT_METHOD(close) {
     UIView *backBtn = [container viewWithTag:1003];
 
     if (weakSelf.bottomSheetMode) {
-      // 底部弹窗：跟随登录按钮向下排布（弹窗设计稿未定，先保证可用）
-      heroTitle.hidden = heroSub.hidden = NO;
-      CGFloat s = container.frame.size.width / 402.0;
-      heroTitle.frame = CGRectMake(0, 115.0 * s, container.frame.size.width, 32.0 * s);
-      heroSub.frame = CGRectMake(0, 152.0 * s, container.frame.size.width, 16.0 * s);
+      // 绑定弹窗仅保留号码、说明与两个操作，避免全屏登录内容重叠。
+      heroTitle.hidden = heroSub.hidden = YES;
+      backBtn.hidden = YES;
       prefixLabel.frame =
           CGRectMake(numberFrame.origin.x - prefixW, numberFrame.origin.y, prefixW, 32);
       CGFloat width = container.frame.size.width - 48;
-      otherBtn.frame = CGRectMake(24, CGRectGetMaxY(loginFrame) + 16, width, 48);
+      otherBtn.frame = CGRectMake(24, CGRectGetMaxY(loginFrame) + 12, width, 48);
       otherBtn.layer.cornerRadius = 24;
       backBtn.frame = CGRectMake(0, CGRectGetMaxY(otherBtn.frame) + 20, container.frame.size.width, 22);
       return;
@@ -581,15 +579,17 @@ RCT_EXPORT_METHOD(close) {
     // 底部弹窗模式（小红书式）：半屏弹层 + 顶部圆角 + 蒙层
     model.presentDirection = PNSPresentationDirectionBottom;
     model.contentViewFrameBlock = ^CGRect(CGSize screenSize, CGSize superViewSize, CGRect frame) {
-      return CGRectMake(0, screenSize.height * 0.5, screenSize.width, screenSize.height * 0.5);
+      // 固定内容高度，避免按屏幕一半计算导致不同机型间距漂移。
+      CGFloat height = MIN(420, screenSize.height);
+      return CGRectMake(0, screenSize.height - height, screenSize.width, height);
     };
-    model.alertCornerRadiusArray = @[ @(12.0), @(0.0), @(0.0), @(12.0) ];
+    model.alertCornerRadiusArray = @[ @(20.0), @(0.0), @(0.0), @(20.0) ];
     model.alertBlurViewColor = [UIColor blackColor];
     model.alertBlurViewAlpha = 0.5;
     model.alertBarIsHidden = NO;
     model.alertTitleBarColor = [UIColor whiteColor];
     model.alertTitle =
-        LCAttributedString(@"手机登录", LCColor(0x1A, 0x1A, 0x1A), 17, UIFontWeightMedium);
+        LCAttributedString(@"绑定手机号", LCColor(0x1A, 0x1A, 0x1A), 17, UIFontWeightMedium);
     model.alertCloseImage = LCCloseImage();
   }
 

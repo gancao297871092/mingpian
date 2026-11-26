@@ -15,15 +15,15 @@ import { API } from '@/api';
 import AgreementSheet, { type AgreementType } from '@/components/AgreementSheet';
 import AppBottomSheet from '@/components/AppBottomSheet';
 import { CheckIcon } from '@/assets/login/icons';
-import { closePhoneLogin, getMaskPhone, openPhoneLogin } from '@/native/PhoneLogin';
+import { closePhoneLogin, openPhoneLogin } from '@/native/PhoneLogin';
 import { navigationRef } from '@/route/navigationRef';
 import { useUserStore } from '@/store/user';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 
 /**
  * 绑定手机号弹层（合规要求：未实名且未绑定手机时，发私信/评论/动态前引导绑定）。
- * Figma：绑定手机-其他场景 #2805:7941（一键绑定）/ 绑定手机2-其他场景 #2805:7959（绑定其他手机）。
- * 容器复用 AppBottomSheet（@gorhom/bottom-sheet）：自带拖拽条、下拉关闭、遮罩点击关闭。
+ * 一键绑定使用运营商 SDK 授权页；仅短信绑定使用 AppBottomSheet。
+ * 短信表单对齐 Figma #2805:7959，支持下拉关闭和遮罩点击关闭。
  *
  * requireBindPhone() 返回 Promise<boolean>：true=绑定成功可继续原操作；false=用户取消。
  * 全局仅需在 App 根节点挂一个 <BindPhoneSheetHost />。
@@ -31,14 +31,14 @@ import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 
 const COUNTDOWN_SECONDS = 60;
 
-type Step = 'main' | 'other';
+type Step = 'sdk' | 'other';
 
 interface SheetSnapshot {
   visible: boolean;
   step: Step;
 }
 
-let snapshot: SheetSnapshot = { visible: false, step: 'main' };
+let snapshot: SheetSnapshot = { visible: false, step: 'sdk' };
 let pendingResolve: ((ok: boolean) => void) | null = null;
 const listeners = new Set<() => void>();
 
@@ -69,14 +69,14 @@ export function requireBindPhone(): Promise<boolean> {
   }
   return new Promise(resolve => {
     pendingResolve = resolve;
-    setSnapshot({ visible: true, step: 'main' });
+    setSnapshot({ visible: true, step: 'sdk' });
   });
 }
 
 function finishBindPhone(ok: boolean) {
   const resolve = pendingResolve;
   pendingResolve = null;
-  setSnapshot({ visible: false, step: 'main' });
+  setSnapshot({ visible: false, step: 'sdk' });
   resolve?.(ok);
 }
 
@@ -96,10 +96,10 @@ export function BindPhoneSheetHost() {
   const snap = useSyncExternalStore(subscribe, getSnapshot);
   const sheetRef = useRef<BottomSheetModal>(null);
 
-  const [maskPhone, setMaskPhone] = useState<string | null>(null);
   const [agreed, setAgreed] = useState(true);
   const [agreeVisible, setAgreeVisible] = useState(false);
   const [binding, setBinding] = useState(false);
+  const sdkPendingRef = useRef(false);
 
   // 其他手机（短信绑定）
   const [phone, setPhone] = useState('');
@@ -110,19 +110,23 @@ export function BindPhoneSheetHost() {
 
   // 协议「同意并继续」后待继续的绑定动作
   const pendingActionRef = useRef<(() => void) | null>(null);
+  // 阅读协议只是暂时收起表单，不结束绑定，也不清空输入和倒计时。
+  const agreementTripRef = useRef<{
+    type: AgreementType;
+    originKey: string;
+    opened: boolean;
+  } | null>(null);
 
   const { visible, step } = snap;
 
-  // 模块状态驱动 bottom-sheet 弹层（present/dismiss）
+  // 本机号码授权只由 SDK 展示；自定义弹层仅用于短信绑定。
   useEffect(() => {
-    if (visible) {
+    if (visible && step !== 'sdk') {
       sheetRef.current?.present();
-      // 预取号掩码（iOS 有值；Android 当前 SDK 无掩码能力返回 null，隐藏号码行）
-      getMaskPhone().then(setMaskPhone);
     } else {
       sheetRef.current?.dismiss();
     }
-  }, [visible]);
+  }, [visible, step]);
 
   useEffect(() => {
     return () => {
@@ -132,8 +136,45 @@ export function BindPhoneSheetHost() {
 
   const setStep = (s: Step) => setSnapshot({ visible: true, step: s });
 
+  useEffect(() => navigationRef.addListener('state', () => {
+    const trip = agreementTripRef.current;
+    if (!trip?.opened) return;
+    const route = navigationRef.getCurrentRoute();
+    if (route?.name === 'agreement') return;
+    agreementTripRef.current = null;
+    if (route?.key === trip.originKey && snapshot.visible && snapshot.step === 'other') {
+      sheetRef.current?.present();
+    } else {
+      // 退出登录或导航重置时不在其他页面恢复旧绑定流程。
+      finishBindPhone(false);
+    }
+  }), []);
+
   const openAgreement = (type: AgreementType) => {
+    if (snapshot.visible && snapshot.step === 'other') {
+      if (agreementTripRef.current) return;
+      const origin = navigationRef.getCurrentRoute();
+      if (!origin) return;
+      Keyboard.dismiss();
+      pendingActionRef.current = null;
+      setAgreeVisible(false);
+      agreementTripRef.current = { type, originKey: origin.key, opened: false };
+      sheetRef.current?.dismiss();
+      return;
+    }
     navigationRef.navigate('agreement', { type });
+  };
+
+  const onSheetDismiss = () => {
+    const trip = agreementTripRef.current;
+    if (trip) {
+      if (!trip.opened) {
+        trip.opened = true;
+        navigationRef.navigate('agreement', { type: trip.type });
+      }
+      return;
+    }
+    if (snapshot.visible && snapshot.step === 'other') finishBindPhone(false);
   };
 
   /** 绑定成功统一收尾：提示 → 刷新 userInfo → 关闭弹层并放行原操作 */
@@ -146,7 +187,8 @@ export function BindPhoneSheetHost() {
   /** 一键绑定：拉起运营商授权页取 token → /auth/mobile/bind {token}（不做协议检查，供「同意并继续」继续调用）。
    *  不做环境预检（与登录页一致）：授权页能否弹起由 SDK 自己判定，失败按错误码降级短信绑定 */
   const startOneClickBind = useCallback(async () => {
-    if (binding) return;
+    if (sdkPendingRef.current) return;
+    sdkPendingRef.current = true;
     setBinding(true);
     try {
       let auth;
@@ -158,12 +200,16 @@ export function BindPhoneSheetHost() {
         });
       } catch (e: any) {
         const errCode = e?.code;
-        if (errCode === 'CANCELLED' || errCode === 'SWITCH_BACK') return;
+        if (errCode === 'CANCELLED' || errCode === 'SWITCH_BACK') {
+          finishBindPhone(false);
+          return;
+        }
         if (errCode === 'SWITCH_OTHER' || errCode === 'UNSUPPORTED') {
           setStep('other');
           return;
         }
         if (errCode === 'OPEN_AGREEMENT') {
+          finishBindPhone(false);
           openAgreement(e?.message === 'privates' ? 'privates' : 'userSure');
           return;
         }
@@ -174,23 +220,33 @@ export function BindPhoneSheetHost() {
       }
       if (!auth?.token) {
         Toast.show({ type: 'error', text1: '未获取到认证凭证，请重试' });
+        finishBindPhone(false);
         return;
       }
       try {
         const res = await API.auth.mobileBind({ token: auth.token });
         if (res.code !== '200') {
-          // 业务失败（msg 已由拦截器提示时直接返回；未提示的补提示）
+          finishBindPhone(false);
           return;
         }
         await onBindSuccess();
       } catch {
-        // 拦截器已提示后端 msg（如「该手机号已绑定其他账号」）
+        // 业务失败仅保留拦截器的错误提示，结束本次操作，不弹第二层绑定面板。
+        finishBindPhone(false);
       }
     } finally {
       closePhoneLogin();
+      sdkPendingRef.current = false;
       setBinding(false);
     }
-  }, [binding, onBindSuccess]);
+  }, [onBindSuccess]);
+
+  useEffect(() => {
+    if (visible && step === 'sdk') {
+      Keyboard.dismiss();
+      startOneClickBind();
+    }
+  }, [visible, step, startOneClickBind]);
 
   /** 短信绑定提交（不做协议检查，供「同意并继续」继续调用） */
   const startSmsBind = useCallback(async () => {
@@ -292,44 +348,18 @@ export function BindPhoneSheetHost() {
   return (
     <AppBottomSheet
       ref={sheetRef}
-      onClose={() => finishBindPhone(false)}
+      onClose={onSheetDismiss}
       backgroundColor="#F6F7FB"
       keyboardBehavior="interactive"
       keyboardBlurBehavior="restore"
     >
-      {step === 'main' ? (
-        <View>
-          <Text style={styles.desc}>根据相关法律规定，绑定手机号后可继续使用相关功能</Text>
-          {maskPhone ? <Text style={styles.maskPhone}>+86 {maskPhone}</Text> : null}
-          <View style={styles.buttonGroup}>
-            <TouchableOpacity
-              style={styles.primaryButton}
-              activeOpacity={0.85}
-              disabled={binding}
-              onPress={() => onPressBind(startOneClickBind)}
-            >
-              <Text style={styles.primaryButtonText}>
-                {binding ? '绑定中…' : '本机号码一键绑定'}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              activeOpacity={0.85}
-              onPress={() => setStep('other')}
-            >
-              <Text style={styles.secondaryButtonText}>绑定其他手机</Text>
-            </TouchableOpacity>
-            {agreementRow}
-          </View>
-        </View>
-      ) : (
-        <View>
+      <View>
           <View style={styles.otherHeader}>
             <TouchableOpacity
               style={styles.closeButton}
               activeOpacity={0.7}
-              onPress={() => setStep('main')}
-              accessibilityLabel="返回"
+              onPress={() => sheetRef.current?.dismiss()}
+              accessibilityLabel="关闭"
             >
               <Svg width={scaleSizeW(14)} height={scaleSizeW(14)} viewBox="0 0 14 14" fill="none">
                 <Path
@@ -396,8 +426,7 @@ export function BindPhoneSheetHost() {
             </TouchableOpacity>
             {agreementRow}
           </View>
-        </View>
-      )}
+      </View>
       <AgreementSheet
         visible={agreeVisible}
         onClose={() => setAgreeVisible(false)}
@@ -413,21 +442,7 @@ export function BindPhoneSheetHost() {
 }
 
 const styles = StyleSheet.create({
-  // ===== 一键绑定 =====
-  desc: {
-    marginTop: scaleSizeH(16),
-    fontSize: setSpText(14),
-    lineHeight: setSpText(22),
-    color: '#6C6C6C',
-    textAlign: 'center',
-  },
-  maskPhone: {
-    marginTop: scaleSizeH(15),
-    fontSize: setSpText(22),
-    fontWeight: '600',
-    color: '#000000',
-    textAlign: 'center',
-  },
+  // ===== 短信绑定 =====
   buttonGroup: {
     marginTop: scaleSizeH(30),
     gap: scaleSizeH(10),
@@ -446,18 +461,6 @@ const styles = StyleSheet.create({
     fontSize: setSpText(16),
     fontWeight: '500',
     color: '#FFFFFF',
-  },
-  secondaryButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: scaleSizeH(48),
-    borderRadius: scaleSizeH(100),
-    backgroundColor: 'rgba(120, 120, 128, 0.16)',
-  },
-  secondaryButtonText: {
-    fontSize: setSpText(16),
-    fontWeight: '500',
-    color: '#000000',
   },
   agreementRow: {
     flexDirection: 'row',

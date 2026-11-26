@@ -26,6 +26,7 @@ import Svg, { Path } from 'react-native-svg';
 import LongHtmlView from '@/components/LongHtmlView';
 import ImagePicker from 'react-native-image-crop-picker';
 import { API } from '@/api';
+import { ensureInteractVerified } from '@/utils/interactGuard';
 import { extractMediaSrcs, isLongFormBbs } from '@/utils/bbsContent';
 import SafeView from '@/components/SafeView';
 import { KAV_BEHAVIOR } from '@/utils/keyboard';
@@ -719,6 +720,8 @@ export default function Publish() {
     setPublishing(true);
 
     try {
+      // 草稿、编辑等入口也必须校验；取消绑定时保留当前内容。
+      if (!(await ensureInteractVerified())) return;
       let videoCoverUrl: string | undefined;
       if (activeTab === 'video' && videoCover) {
         videoCoverUrl = videoCover.startsWith('http')

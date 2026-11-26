@@ -646,6 +646,7 @@ export default function BbsDetail() {
   const commentRestricted = commentLockText !== '';
 
   const inputSheetRef = useRef<BottomSheetModal>(null);
+  const openingCommentRef = useRef(false);
   const actionSheetRef = useRef<BottomSheetModal>(null);
   const reportSheetRef = useRef<BottomSheetModal>(null);
   const moreSheetRef = useRef<BottomSheetModal>(null);
@@ -737,14 +738,23 @@ export default function BbsDetail() {
     [fetchReplies],
   );
 
-  const openCommentInput = useCallback((target?: ReplyTarget) => {
+  const openCommentInput = useCallback(async (target?: ReplyTarget) => {
     if (commentRestricted) {
       Toast.show({ type: 'info', text1: commentLockText });
       return;
     }
-    setReplyTarget(target ?? null);
-    inputSheetRef.current?.present();
-  }, [commentRestricted, commentLockText]);
+    if (openingCommentRef.current) return;
+    openingCommentRef.current = true;
+    try {
+      // 评论入口和回复入口统一先绑定，再打开输入框；取消时不打开。
+      if (!(await ensureInteractVerified())) return;
+      if (!navigation.isFocused()) return;
+      setReplyTarget(target ?? null);
+      inputSheetRef.current?.present();
+    } finally {
+      openingCommentRef.current = false;
+    }
+  }, [commentRestricted, commentLockText, navigation]);
 
   const openCommentActions = useCallback((item: CommentData) => {
     setSelectedComment(item);
