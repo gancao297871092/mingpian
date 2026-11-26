@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -48,12 +48,15 @@ export default function LikeFollowList() {
   const [loaded, setLoaded] = useState(false);
   const [pageNum, setPageNum] = useState(1);
   const [pages, setPages] = useState(1);
+  /** 整组已读是否已完成：已完成后到的分页数据本地同步清红点 */
+  const readDoneRef = useRef(false);
 
   const fetchList = useCallback(async (pn: number, append: boolean) => {
     try {
       const res = await API.interaction.likeList({ pageNum: pn, pageSize: 20 });
       const records = res.data?.list ?? [];
-      setList(prev => (append ? [...prev, ...records] : records));
+      const normalized = readDoneRef.current ? records.map(it => ({ ...it, isRead: 1 })) : records;
+      setList(prev => (append ? [...prev, ...normalized] : normalized));
       setPageNum(res.data?.pageNum ?? pn);
       setPages(res.data?.pages ?? 1);
     } catch {
@@ -65,10 +68,14 @@ export default function LikeFollowList() {
 
   useEffect(() => {
     fetchList(1, false);
-    // 进入页面即把「点赞与收藏」组通知置已读（清红点）
+    // 进入页面即把「点赞与收藏」组通知置已读（清红点），并同步清掉列表项红点
     API.message
       .interactionRead({ group: 'like' })
-      .then(() => useMessageUnreadStore.getState().fetchUnread())
+      .then(() => {
+        readDoneRef.current = true;
+        useMessageUnreadStore.getState().fetchUnread();
+        setList(prev => prev.map(it => (it.isRead === 0 ? { ...it, isRead: 1 } : it)));
+      })
       .catch(() => {});
   }, [fetchList]);
 

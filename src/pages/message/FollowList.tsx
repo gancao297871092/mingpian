@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -32,12 +32,15 @@ export default function FollowList() {
   const [pages, setPages] = useState(1);
   /** 本地回关状态覆盖（记录 id → followedBack） */
   const [followOverride, setFollowOverride] = useState<Record<string, number>>({});
+  /** 整组已读是否已完成：已完成后到的分页数据本地同步清红点 */
+  const readDoneRef = useRef(false);
 
   const fetchList = useCallback(async (pn: number, append: boolean) => {
     try {
       const res = await API.interaction.followList({ pageNum: pn, pageSize: 20 });
       const records = res.data?.list ?? [];
-      setList(prev => (append ? [...prev, ...records] : records));
+      const normalized = readDoneRef.current ? records.map(it => ({ ...it, isRead: 1 })) : records;
+      setList(prev => (append ? [...prev, ...normalized] : normalized));
       setPageNum(res.data?.pageNum ?? pn);
       setPages(res.data?.pages ?? 1);
     } catch {
@@ -49,10 +52,14 @@ export default function FollowList() {
 
   useEffect(() => {
     fetchList(1, false);
-    // 进入页面即把「关注」组通知置已读（清红点）
+    // 进入页面即把「关注」组通知置已读（清红点），并同步清掉列表项红点
     API.message
       .interactionRead({ group: 'follow' })
-      .then(() => useMessageUnreadStore.getState().fetchUnread())
+      .then(() => {
+        readDoneRef.current = true;
+        useMessageUnreadStore.getState().fetchUnread();
+        setList(prev => prev.map(it => (it.isRead === 0 ? { ...it, isRead: 1 } : it)));
+      })
       .catch(() => {});
   }, [fetchList]);
 
