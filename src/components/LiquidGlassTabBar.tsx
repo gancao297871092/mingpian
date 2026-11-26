@@ -60,14 +60,17 @@ function TabItem({
   state,
   navigation,
   showBadge,
+  badgeCount = 0,
 }: {
   route: BottomTabBarProps['state']['routes'][number];
   index: number;
   descriptors: BottomTabBarProps['descriptors'];
   state: BottomTabBarProps['state'];
   navigation: BottomTabBarProps['navigation'];
-  /** 未读红点（消息 tab / 我的 tab） */
+  /** 消息 tab 未读红点。 */
   showBadge?: boolean;
+  /** 我的 tab 待处理总数；消息 tab 沿用红点。 */
+  badgeCount?: number;
 }) {
   const { options } = descriptors[route.key];
   const isFocused = state.index === index;
@@ -105,7 +108,11 @@ function TabItem({
       style={styles.tab}
     >
       <TabIcon routeName={route.name} focused={isFocused} />
-      {showBadge ? <View style={styles.badgeDot} /> : null}
+      {badgeCount > 0 ? (
+        <View style={styles.badgeNumber}>
+          <Text style={styles.badgeNumberText}>{badgeCount > 99 ? '99+' : badgeCount}</Text>
+        </View>
+      ) : showBadge ? <View style={styles.badgeDot} /> : null}
       {typeof label === 'string' ? (
         <Text style={[styles.tabLabel, { color: isFocused ? ACTIVE_COLOR : INACTIVE_COLOR }]}>
           {label}
@@ -198,10 +205,8 @@ export default function LiquidGlassTabBar({ state, descriptors, navigation }: Bo
               descriptors={descriptors}
               state={state}
               navigation={navigation}
-              showBadge={
-                (route.name === 'message' && unreadCount > 0) ||
-                (route.name === 'my' && (companyPendingCount > 0 || workbenchTodo > 0))
-              }
+              showBadge={route.name === 'message' && unreadCount > 0}
+              badgeCount={route.name === 'my' ? companyPendingCount + workbenchTodo : 0}
             />
           ))}
         </View>
@@ -252,6 +257,23 @@ const styles = StyleSheet.create({
   tabIcon: {
     width: scaleSizeW(24),
     height: scaleSizeH(24),
+  },
+  badgeNumber: {
+    position: 'absolute',
+    top: scaleSizeH(-5),
+    left: scaleSizeW(18),
+    minWidth: scaleSizeW(16),
+    height: scaleSizeW(16),
+    paddingHorizontal: scaleSizeW(4),
+    borderRadius: scaleSizeW(8),
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeNumberText: {
+    color: '#FFFFFF',
+    fontSize: setSpText(10),
+    fontWeight: '600',
   },
   badgeDot: {
     position: 'absolute',

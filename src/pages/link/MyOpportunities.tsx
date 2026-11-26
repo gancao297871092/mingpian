@@ -7,6 +7,7 @@ import SafeView from '@/components/SafeView';
 import EmptyState from '@/components/EmptyState';
 import ListFooter from '@/components/ListFooter';
 import { API } from '@/api';
+import { useCompanyStore } from '@/store/company';
 import type { LinkLead, LinkLeadItem, LinkLeadPoolItem } from '@/api';
 import { scaleSizeH, scaleSizeW, setSpText } from '@/utils/screenUtils';
 import type { RootStackParamList } from '@/route/map';
@@ -232,6 +233,7 @@ export default function MyOpportunities() {
           items = (res.data.list ?? []).map(item => toPoolItem(item, sub as PoolSub));
           totalPages = Math.max(res.data.pages || 1, 1);
           currentPage = res.data.pageNum || pageNum;
+          useCompanyStore.getState().setPoolCount(res.data.counts?.pending ?? 0);
           setCounts({
             pending: res.data.counts?.pending ?? 0,
             docked: res.data.counts?.docked ?? 0,
