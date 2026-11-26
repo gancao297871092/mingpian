@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { API } from '@/api';
+import { useUserStore } from '@/store/user';
 import { scaleSizeW, setSpText } from '@/utils/screenUtils';
 import { formatRegionText } from '@/utils/region';
 import AreaPicker from '@/components/AreaPicker';
@@ -69,6 +70,7 @@ const StepOne = forwardRef<StepHandle, StepOneProps>(function StepOneForm({ card
     positionList: [],
     ...data,
   });
+  const userCompanyId = useUserStore(s => s.userInfo?.cpId ?? s.userInfo?.wqUser?.cpId);
   const [positionModalVisible, setPositionModalVisible] = useState(false);
   const [areaPickerVisible, setAreaPickerVisible] = useState(false);
   const [positionOptions, setPositionOptions] = useState<any[]>(data.positionList || []);
@@ -84,13 +86,11 @@ const StepOne = forwardRef<StepHandle, StepOneProps>(function StepOneForm({ card
   }, [data]);
 
   useEffect(() => {
-    if (data.positionList?.length) {
-      setPositionOptions(data.positionList);
-      const checked = data.positionList
-        .filter((o: any) => o.isCheck)
-        .map((o: any) => o.id);
-      setSelectedPositions(checked);
-    }
+    if (!Array.isArray(data.positionList)) return;
+    setPositionOptions(data.positionList);
+    setSelectedPositions(data.positionList
+      .filter((o: any) => Number(o.isCheck) === 1)
+      .map((o: any) => o.id));
   }, [data.positionList]);
 
   const updateField = useCallback((key: string, value: any) => {
@@ -113,10 +113,15 @@ const StepOne = forwardRef<StepHandle, StepOneProps>(function StepOneForm({ card
     );
   };
 
-  /** 职位：加入企业后才能选择（未加入时职位列表为空，点击拦截提示）；管理员可选企业下所有职位（由后端返回列表保证） */
+  /** 可选职位与勾选状态由名片接口返回；列表为空不代表用户未加入企业。 */
   const onPressPosition = () => {
+    if (!Array.isArray(data.positionList)) {
+      Toast.show({ type: 'info', text1: '名片资料尚未加载，请稍后重试' });
+      return;
+    }
     if (positionOptions.length === 0) {
-      Toast.show({ type: 'error', text1: '加入企业后才能选择职位' });
+      const hasCompany = Number(data.cpId ?? userCompanyId) > 0;
+      Toast.show({ type: 'info', text1: hasCompany ? '暂无可选职位，请联系企业管理员' : '加入企业后才能选择职位' });
       return;
     }
     setPositionModalVisible(true);

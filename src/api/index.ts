@@ -414,6 +414,8 @@ export namespace API {
     /** 名片草稿字段（/card/prepare 与 /card/detail 均返回 WqUserCards） */
     export interface CardDraft {
       id?: number;
+      cpId?: number;
+      cpName?: string;
       alias?: string;
       nameZh?: string;
       nameEn?: string;

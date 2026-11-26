@@ -106,6 +106,8 @@ export default function EditCard({ navigation, route }: Props) {
           styleCode: data.styleCode || '',
           fontColor: data.fontColor || '',
           backColor: data.backColor || '',
+          cpId: data.cpId,
+          cpName: data.cpName,
           positionList: data.positionList || [],
           mediaList: (data.mediaList || data.mediaLinkList || []).filter((o: any) => !!o.media),
           userId: data.userId,
