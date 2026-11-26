@@ -37,7 +37,7 @@ export type RootStackParamList = {
   accountCancelVerify: undefined;
   verifyIdentity: { scene?: 'changePhone' | 'resetPassword' } | undefined;
   changePhoneVerify: { scene?: 'changePhone' | 'resetPassword' } | undefined;
-  bindPhone: { ticket?: string } | undefined;
+  bindPhone: { ticket?: string; mode?: 'bind' } | undefined;
   changePassword: { hasPassword?: boolean } | undefined;
   certificationCenter: undefined;
   generalSettings: undefined;

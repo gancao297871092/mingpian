@@ -5,7 +5,7 @@ import { API } from '@/api';
 const COUNTDOWN_SECONDS = 60;
 
 /** 短信发送成功后才开始倒计时；凭证与接收手机号一起保存。 */
-export function useSmsCode(scene: string) {
+export function useSmsCode(scene?: string) {
   const [authCode, setAuthCode] = useState('');
   const [sentPhone, setSentPhone] = useState('');
   const [sending, setSending] = useState(false);
@@ -27,7 +27,9 @@ export function useSmsCode(scene: string) {
     pendingRef.current = true;
     setSending(true);
     try {
-      const res = await API.setting.smsSend({ phone, scene });
+      const res = scene
+        ? await API.setting.smsSend({ phone, scene })
+        : await API.auth.smsSend({ phone });
       if (res.code !== '200' || !res.data?.authCode) {
         Toast.show({ type: 'error', text1: '未获取到验证码凭证，请重试' });
         return;

@@ -57,7 +57,14 @@ export default function AccountSecurity() {
     <SafeView backgroundColor="#F6F7FB">
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <SettingCard>
-          <SettingRow label="手机号" value={maskPhone(info.phone)} onPress={() => setPhoneTipVisible(true)} />
+          <SettingRow
+            label="手机号"
+            value={maskPhone(info.phone)}
+            onPress={() => {
+              if (userInfo?.wqUser?.mobile?.trim()) setPhoneTipVisible(true);
+              else navigation.navigate('bindPhone', { mode: 'bind' });
+            }}
+          />
           {/* 登录密码：功能后续实现，先隐藏
           <SettingDivider />
           <SettingRow
