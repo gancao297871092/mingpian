@@ -95,8 +95,10 @@ export default function CommentReplyList() {
   const renderItem = useCallback(
     ({ item, index }: { item: any; index: number }) => {
       const name = item.userInfoVo?.nickname || item.userInfoVo?.username || '访客';
-      // 楼中楼且回复对象是我 → 「回复:」，否则 → 「评论了你:」（figma 38，前缀灰、正文黑）
-      const isReply = !!item.parentId && Number(item.replyToUserId) === Number(myId);
+      // 楼中楼且被回复对象是我 →「回复:」（回复我的一级评论时 replyToUserId 归空，靠 parentUserId 识别）；否则 →「评论了你:」
+      const isReply = !!item.parentId &&
+        ((item.replyToUserId != null && Number(item.replyToUserId) === Number(myId)) ||
+          (item.parentUserId != null && Number(item.parentUserId) === Number(myId)));
       const likeState = likeOverride[String(item.id)] ?? { liked: false, count: item.likeCount ?? 0 };
       return (
         <View>
